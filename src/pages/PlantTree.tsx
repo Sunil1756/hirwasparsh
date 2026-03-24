@@ -11,6 +11,29 @@ import exifr from "exifr";
 const PlantTree = () => {
   const { toast } = useToast();
   const [submitted, setSubmitted] = useState(false);
+  const [location, setLocation] = useState("");
+  const [geoStatus, setGeoStatus] = useState<"idle" | "loading" | "success" | "manual">("idle");
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setGeoStatus("loading");
+    try {
+      const gps = await exifr.gps(file);
+      if (gps?.latitude && gps?.longitude) {
+        setLocation(`${gps.latitude.toFixed(6)}, ${gps.longitude.toFixed(6)}`);
+        setGeoStatus("success");
+        toast({ title: "📍 Location Detected!", description: "GPS coordinates extracted from your photo automatically." });
+      } else {
+        setGeoStatus("manual");
+        toast({ title: "No GPS data found", description: "Please enter the location manually or enable location on your camera.", variant: "destructive" });
+      }
+    } catch {
+      setGeoStatus("manual");
+      toast({ title: "Could not read photo data", description: "Please enter the location manually.", variant: "destructive" });
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
