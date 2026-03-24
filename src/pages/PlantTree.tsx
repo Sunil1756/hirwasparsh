@@ -1,15 +1,39 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { TreePine, Upload, MapPin, Calendar, Ruler, FileText } from "lucide-react";
+import { TreePine, Upload, MapPin, Calendar, Ruler, FileText, Loader2, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import exifr from "exifr";
 
 const PlantTree = () => {
   const { toast } = useToast();
   const [submitted, setSubmitted] = useState(false);
+  const [location, setLocation] = useState("");
+  const [geoStatus, setGeoStatus] = useState<"idle" | "loading" | "success" | "manual">("idle");
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setGeoStatus("loading");
+    try {
+      const gps = await exifr.gps(file);
+      if (gps?.latitude && gps?.longitude) {
+        setLocation(`${gps.latitude.toFixed(6)}, ${gps.longitude.toFixed(6)}`);
+        setGeoStatus("success");
+        toast({ title: "📍 Location Detected!", description: "GPS coordinates extracted from your photo automatically." });
+      } else {
+        setGeoStatus("manual");
+        toast({ title: "No GPS data found", description: "Please enter the location manually or enable location on your camera.", variant: "destructive" });
+      }
+    } catch {
+      setGeoStatus("manual");
+      toast({ title: "Could not read photo data", description: "Please enter the location manually.", variant: "destructive" });
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,12 +92,29 @@ const PlantTree = () => {
               </div>
             </div>
             <div>
-              <Label className="flex items-center gap-2 mb-2"><MapPin className="h-4 w-4" /> Location (GPS Coordinates)</Label>
-              <Input placeholder="e.g., 18.5204, 73.8567" required />
+              <Label className="flex items-center gap-2 mb-2"><MapPin className="h-4 w-4" /> Location (Auto-detected from photo)</Label>
+              <div className="relative">
+                <Input
+                  placeholder="Upload a photo with GPS data or enter manually"
+                  required
+                  value={location}
+                  onChange={e => { setLocation(e.target.value); setGeoStatus("manual"); }}
+                />
+                {geoStatus === "loading" && (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                )}
+                {geoStatus === "success" && (
+                  <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
+                )}
+              </div>
+              {geoStatus === "success" && (
+                <p className="text-xs text-primary mt-1">✓ Auto-detected from photo EXIF data</p>
+              )}
             </div>
             <div>
               <Label className="flex items-center gap-2 mb-2"><Upload className="h-4 w-4" /> Upload Photo</Label>
-              <Input type="file" accept="image/*" className="cursor-pointer" />
+              <Input type="file" accept="image/*" className="cursor-pointer" onChange={handlePhotoUpload} />
+              <p className="text-xs text-muted-foreground mt-1">Photos with GPS data will auto-fill the location</p>
             </div>
             <div>
               <Label className="flex items-center gap-2 mb-2"><FileText className="h-4 w-4" /> Description</Label>
