@@ -82,6 +82,12 @@ const PlantTree = () => {
     e.preventDefault();
     setIsSubmitting(true);
 
+    if (!user) {
+      toast({ title: "Please log in", description: "You need to be logged in to plant a tree.", variant: "destructive" });
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       // 1. Insert tree record
       const { data: tree, error: insertError } = await supabase
@@ -96,6 +102,7 @@ const PlantTree = () => {
           longitude,
           description: description || null,
           verification_status: "pending",
+          user_id: user.id,
         })
         .select()
         .single();
