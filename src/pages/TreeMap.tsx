@@ -1,27 +1,37 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { MapPin, TreePine, Filter, Search } from "lucide-react";
+import { MapPin, TreePine, Filter, Search, ShieldCheck, Clock, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
-const mockTrees = [
-  { id: 1, name: "Neem Tree", species: "Neem", city: "Pune", owner: "Rahul", date: "Mar 2026", lat: 18.52, lng: 73.85 },
-  { id: 2, name: "Banyan Tree", species: "Banyan", city: "Mumbai", owner: "Sneha", date: "Feb 2026", lat: 19.07, lng: 72.87 },
-  { id: 3, name: "Peepal Tree", species: "Peepal", city: "Delhi", owner: "Arjun", date: "Jan 2026", lat: 28.61, lng: 77.20 },
-  { id: 4, name: "Mango Tree", species: "Mango", city: "Bangalore", owner: "Priya", date: "Mar 2026", lat: 12.97, lng: 77.59 },
-  { id: 5, name: "Teak Tree", species: "Teak", city: "Nagpur", owner: "Vikram", date: "Feb 2026", lat: 21.14, lng: 79.08 },
-  { id: 6, name: "Ashoka Tree", species: "Ashoka", city: "Pune", owner: "Meera", date: "Mar 2026", lat: 18.55, lng: 73.90 },
-];
+const fetchTrees = async () => {
+  const { data, error } = await supabase
+    .from("trees")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data;
+};
 
 const TreeMap = () => {
   const [filter, setFilter] = useState("");
-  const [cityFilter, setCityFilter] = useState("all");
-  const filtered = mockTrees.filter(t =>
-    (cityFilter === "all" || t.city === cityFilter) &&
-    (filter === "" || t.name.toLowerCase().includes(filter.toLowerCase()) || t.species.toLowerCase().includes(filter.toLowerCase()))
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const { data: trees = [], isLoading } = useQuery({
+    queryKey: ["trees"],
+    queryFn: fetchTrees,
+  });
+
+  const filtered = trees.filter(t =>
+    (statusFilter === "all" || t.verification_status === statusFilter) &&
+    (filter === "" ||
+      t.tree_name.toLowerCase().includes(filter.toLowerCase()) ||
+      t.species.toLowerCase().includes(filter.toLowerCase()) ||
+      t.location.toLowerCase().includes(filter.toLowerCase()))
   );
-  const cities = [...new Set(mockTrees.map(t => t.city))];
 
   return (
     <div className="min-h-screen pt-24 pb-12">
@@ -29,22 +39,24 @@ const TreeMap = () => {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <div className="text-center mb-8">
             <h1 className="font-heading text-4xl font-bold mb-2">Tree Map</h1>
-            <p className="text-muted-foreground">Explore all planted trees across India</p>
+            <p className="text-muted-foreground">Explore all planted trees across the community</p>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search by tree name or species..." className="pl-10" value={filter} onChange={e => setFilter(e.target.value)} />
+              <Input placeholder="Search by name, species, or location..." className="pl-10" value={filter} onChange={e => setFilter(e.target.value)} />
             </div>
-            <Select value={cityFilter} onValueChange={setCityFilter}>
-              <SelectTrigger className="w-48">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-52">
                 <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Filter by city" />
+                <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Cities</SelectItem>
-                {cities.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                <SelectItem value="all">All Trees</SelectItem>
+                <SelectItem value="verified">✅ Verified</SelectItem>
+                <SelectItem value="pending">⏳ Pending</SelectItem>
+                <SelectItem value="rejected">❌ Rejected</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -56,40 +68,88 @@ const TreeMap = () => {
                 backgroundImage: "radial-gradient(circle, hsl(var(--primary)) 1px, transparent 1px)",
                 backgroundSize: "30px 30px"
               }} />
-              <div className="text-center z-10">
-                <MapPin className="h-12 w-12 text-primary mx-auto mb-3" />
-                <p className="font-heading font-semibold text-lg">Interactive Map</p>
-                <p className="text-muted-foreground text-sm">{filtered.length} trees displayed</p>
-              </div>
-              {filtered.map((t, i) => (
-                <div key={t.id} className="absolute animate-float" style={{
-                  left: `${15 + (i * 13) % 70}%`,
-                  top: `${20 + (i * 17) % 60}%`,
-                  animationDelay: `${i * 0.5}s`
-                }}>
-                  <div className="bg-primary text-primary-foreground rounded-full p-2 shadow-lg cursor-pointer hover:scale-110 transition-transform" title={t.name}>
-                    <TreePine className="h-4 w-4" />
-                  </div>
+              {isLoading ? (
+                <div className="text-center z-10">
+                  <Loader2 className="h-12 w-12 text-primary mx-auto mb-3 animate-spin" />
+                  <p className="text-muted-foreground text-sm">Loading trees...</p>
                 </div>
-              ))}
+              ) : (
+                <>
+                  <div className="text-center z-10">
+                    <MapPin className="h-12 w-12 text-primary mx-auto mb-3" />
+                    <p className="font-heading font-semibold text-lg">Interactive Map</p>
+                    <p className="text-muted-foreground text-sm">{filtered.length} trees displayed</p>
+                  </div>
+                  {filtered.map((t, i) => (
+                    <div key={t.id} className="absolute animate-float" style={{
+                      left: `${15 + (i * 13) % 70}%`,
+                      top: `${20 + (i * 17) % 60}%`,
+                      animationDelay: `${i * 0.5}s`
+                    }}>
+                      <div
+                        className={`rounded-full p-2 shadow-lg cursor-pointer hover:scale-110 transition-transform ${
+                          t.verification_status === "verified"
+                            ? "bg-primary text-primary-foreground"
+                            : t.verification_status === "rejected"
+                            ? "bg-destructive text-destructive-foreground"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                        title={`${t.tree_name} (${t.verification_status})`}
+                      >
+                        <TreePine className="h-4 w-4" />
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
           </div>
 
           {/* Tree list */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map(t => (
-              <div key={t.id} className="glass-card rounded-xl p-4 hover:nature-glow transition-shadow">
-                <div className="flex items-start gap-3">
-                  <div className="bg-primary/10 rounded-lg p-2"><TreePine className="h-5 w-5 text-primary" /></div>
-                  <div>
-                    <h3 className="font-heading font-semibold">{t.name}</h3>
-                    <p className="text-sm text-muted-foreground">{t.species} · {t.city}</p>
-                    <p className="text-xs text-muted-foreground mt-1">By {t.owner} · {t.date}</p>
+          {isLoading ? (
+            <div className="text-center py-12 text-muted-foreground">Loading trees...</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-12">
+              <TreePine className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+              <p className="text-muted-foreground">No trees found. Be the first to plant one!</p>
+            </div>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filtered.map(t => (
+                <div key={t.id} className="glass-card rounded-xl p-4 hover:nature-glow transition-shadow">
+                  <div className="flex items-start gap-3">
+                    <div className="bg-primary/10 rounded-lg p-2"><TreePine className="h-5 w-5 text-primary" /></div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-heading font-semibold truncate">{t.tree_name}</h3>
+                        {t.verification_status === "verified" ? (
+                          <Badge variant="default" className="shrink-0 text-xs gap-1">
+                            <ShieldCheck className="h-3 w-3" /> Verified
+                          </Badge>
+                        ) : t.verification_status === "rejected" ? (
+                          <Badge variant="destructive" className="shrink-0 text-xs">Rejected</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="shrink-0 text-xs gap-1">
+                            <Clock className="h-3 w-3" /> Pending
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">{t.species}</p>
+                      <p className="text-xs text-muted-foreground mt-1 truncate">
+                        📍 {t.location}
+                      </p>
+                      {t.ai_confidence && (
+                        <p className="text-xs text-primary mt-1">AI Confidence: {t.ai_confidence}%</p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(t.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </motion.div>
       </div>
     </div>
