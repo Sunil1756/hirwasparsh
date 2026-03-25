@@ -24,6 +24,7 @@ type VerificationResult = {
 
 const PlantTree = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [submitted, setSubmitted] = useState(false);
   const [location, setLocation] = useState("");
   const [latitude, setLatitude] = useState<number | null>(null);
