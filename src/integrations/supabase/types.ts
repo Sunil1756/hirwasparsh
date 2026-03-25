@@ -14,7 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      trees: {
+        Row: {
+          ai_analysis: string | null
+          ai_confidence: number | null
+          created_at: string
+          description: string | null
+          height_cm: number
+          id: string
+          latitude: number | null
+          location: string
+          longitude: number | null
+          photo_url: string | null
+          plantation_date: string
+          species: string
+          tree_name: string
+          updated_at: string
+          user_id: string | null
+          verification_status: string
+        }
+        Insert: {
+          ai_analysis?: string | null
+          ai_confidence?: number | null
+          created_at?: string
+          description?: string | null
+          height_cm: number
+          id?: string
+          latitude?: number | null
+          location: string
+          longitude?: number | null
+          photo_url?: string | null
+          plantation_date: string
+          species: string
+          tree_name: string
+          updated_at?: string
+          user_id?: string | null
+          verification_status?: string
+        }
+        Update: {
+          ai_analysis?: string | null
+          ai_confidence?: number | null
+          created_at?: string
+          description?: string | null
+          height_cm?: number
+          id?: string
+          latitude?: number | null
+          location?: string
+          longitude?: number | null
+          photo_url?: string | null
+          plantation_date?: string
+          species?: string
+          tree_name?: string
+          updated_at?: string
+          user_id?: string | null
+          verification_status?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
