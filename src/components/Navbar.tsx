@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { TreePine, Menu, X } from "lucide-react";
+import { TreePine, Menu, X, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navLinks = [
   { to: "/", label: "Home" },
@@ -18,6 +19,7 @@ const navLinks = [
 const Navbar = () => {
   const [open, setOpen] = useState(false);
   const location = useLocation();
+  const { user, signOut } = useAuth();
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border/20">
@@ -44,12 +46,25 @@ const Navbar = () => {
         </div>
 
         <div className="hidden lg:flex items-center gap-2">
-          <Link to="/login">
-            <Button variant="ghost" size="sm">Log In</Button>
-          </Link>
-          <Link to="/login">
-            <Button size="sm">Sign Up</Button>
-          </Link>
+          {user ? (
+            <>
+              <span className="text-sm text-muted-foreground truncate max-w-[150px]">
+                {user.user_metadata?.full_name || user.email}
+              </span>
+              <Button variant="ghost" size="sm" onClick={signOut}>
+                <LogOut className="h-4 w-4 mr-1" /> Log Out
+              </Button>
+            </>
+          ) : (
+            <>
+              <Link to="/login">
+                <Button variant="ghost" size="sm">Log In</Button>
+              </Link>
+              <Link to="/login">
+                <Button size="sm">Sign Up</Button>
+              </Link>
+            </>
+          )}
         </div>
 
         <button className="lg:hidden" onClick={() => setOpen(!open)}>
@@ -78,9 +93,15 @@ const Navbar = () => {
                   {link.label}
                 </Link>
               ))}
-              <Link to="/login" onClick={() => setOpen(false)}>
-                <Button className="w-full mt-2" size="sm">Sign Up / Log In</Button>
-              </Link>
+              {user ? (
+                <Button className="w-full mt-2" size="sm" variant="outline" onClick={() => { signOut(); setOpen(false); }}>
+                  <LogOut className="h-4 w-4 mr-1" /> Log Out
+                </Button>
+              ) : (
+                <Link to="/login" onClick={() => setOpen(false)}>
+                  <Button className="w-full mt-2" size="sm">Sign Up / Log In</Button>
+                </Link>
+              )}
             </div>
           </motion.div>
         )}

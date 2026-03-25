@@ -1,18 +1,67 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { TreePine, Mail, Lock, User } from "lucide-react";
+import { TreePine, Mail, Lock, User, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Login = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent, type: string) => {
+  // Login state
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+
+  // Signup state
+  const [signupName, setSignupName] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
+
+  useEffect(() => {
+    if (user) navigate("/dashboard");
+  }, [user, navigate]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({ title: type === "login" ? "Welcome back! 🌿" : "Account created! 🌱", description: "Redirecting to your dashboard..." });
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: loginEmail,
+      password: loginPassword,
+    });
+    setLoading(false);
+    if (error) {
+      toast({ title: "Login failed", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Welcome back! 🌿", description: "Redirecting to your dashboard..." });
+      navigate("/dashboard");
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const { error } = await supabase.auth.signUp({
+      email: signupEmail,
+      password: signupPassword,
+      options: {
+        data: { full_name: signupName },
+        emailRedirectTo: window.location.origin,
+      },
+    });
+    setLoading(false);
+    if (error) {
+      toast({ title: "Signup failed", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Account created! 🌱", description: "Please check your email to verify your account." });
+    }
   };
 
   return (
@@ -32,34 +81,40 @@ const Login = () => {
             </TabsList>
 
             <TabsContent value="login">
-              <form onSubmit={(e) => handleSubmit(e, "login")} className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-4">
                 <div>
                   <Label className="flex items-center gap-2 mb-2"><Mail className="h-4 w-4" /> Email</Label>
-                  <Input type="email" placeholder="you@example.com" required />
+                  <Input type="email" placeholder="you@example.com" required value={loginEmail} onChange={e => setLoginEmail(e.target.value)} />
                 </div>
                 <div>
                   <Label className="flex items-center gap-2 mb-2"><Lock className="h-4 w-4" /> Password</Label>
-                  <Input type="password" placeholder="••••••••" required />
+                  <Input type="password" placeholder="••••••••" required value={loginPassword} onChange={e => setLoginPassword(e.target.value)} />
                 </div>
-                <Button type="submit" className="w-full">Log In</Button>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Log In
+                </Button>
               </form>
             </TabsContent>
 
             <TabsContent value="signup">
-              <form onSubmit={(e) => handleSubmit(e, "signup")} className="space-y-4">
+              <form onSubmit={handleSignup} className="space-y-4">
                 <div>
                   <Label className="flex items-center gap-2 mb-2"><User className="h-4 w-4" /> Full Name</Label>
-                  <Input placeholder="Your full name" required />
+                  <Input placeholder="Your full name" required value={signupName} onChange={e => setSignupName(e.target.value)} />
                 </div>
                 <div>
                   <Label className="flex items-center gap-2 mb-2"><Mail className="h-4 w-4" /> Email</Label>
-                  <Input type="email" placeholder="you@example.com" required />
+                  <Input type="email" placeholder="you@example.com" required value={signupEmail} onChange={e => setSignupEmail(e.target.value)} />
                 </div>
                 <div>
                   <Label className="flex items-center gap-2 mb-2"><Lock className="h-4 w-4" /> Password</Label>
-                  <Input type="password" placeholder="••••••••" required />
+                  <Input type="password" placeholder="••••••••" required value={signupPassword} onChange={e => setSignupPassword(e.target.value)} />
                 </div>
-                <Button type="submit" className="w-full">Create Account</Button>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Create Account
+                </Button>
               </form>
             </TabsContent>
           </Tabs>
