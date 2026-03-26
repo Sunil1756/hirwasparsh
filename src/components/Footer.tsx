@@ -30,8 +30,9 @@ const Footer = () => (
       </div>
       <div>
         <h4 className="font-heading font-semibold mb-3">Connect</h4>
-        <p className="text-sm opacity-80">hello@hirwasparsh.com</p>
-        <p className="text-sm opacity-80 mt-1">www.hirwasparsh.com</p>
+        <p className="text-sm opacity-80">hirwasparsh@gmail.com</p>
+        <p className="text-sm opacity-80 mt-1">+91 87998 79203</p>
+        <p className="text-sm opacity-80 mt-1">Solapur, Maharashtra</p>
       </div>
     </div>
     <div className="container mx-auto px-4 mt-12 pt-8 border-t border-primary-foreground/20 text-center text-sm opacity-60">

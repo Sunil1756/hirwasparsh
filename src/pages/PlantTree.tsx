@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { TreePine, Upload, MapPin, Calendar, Ruler, FileText, Loader2, CheckCircle, ShieldCheck, ShieldX, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,7 @@ const PlantTree = () => {
   const [location, setLocation] = useState("");
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
-  const [geoStatus, setGeoStatus] = useState<"idle" | "loading" | "success" | "manual">("idle");
+  const [geoStatus, setGeoStatus] = useState<"idle" | "loading" | "success" | "browser" | "failed">("idle");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,6 +39,45 @@ const PlantTree = () => {
   const [plantationDate, setPlantationDate] = useState("");
   const [heightCm, setHeightCm] = useState("");
   const [description, setDescription] = useState("");
+
+  const reverseGeocode = useCallback(async (lat: number, lng: number) => {
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
+      const data = await res.json();
+      if (data?.display_name) {
+        setLocation(data.display_name);
+      } else {
+        setLocation(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+      }
+    } catch {
+      setLocation(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+    }
+  }, []);
+
+  const getBrowserLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      toast({ title: "Geolocation not supported", description: "Your browser doesn't support location access.", variant: "destructive" });
+      setGeoStatus("failed");
+      return;
+    }
+    setGeoStatus("browser");
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setLatitude(lat);
+        setLongitude(lng);
+        await reverseGeocode(lat, lng);
+        setGeoStatus("success");
+        toast({ title: "📍 Location Detected!", description: "GPS location obtained from your device." });
+      },
+      () => {
+        setGeoStatus("failed");
+        toast({ title: "Location access denied", description: "Please allow location access to auto-detect your position.", variant: "destructive" });
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }, [toast, reverseGeocode]);
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -53,16 +92,16 @@ const PlantTree = () => {
       if (gps?.latitude && gps?.longitude) {
         setLatitude(gps.latitude);
         setLongitude(gps.longitude);
-        setLocation(`${gps.latitude.toFixed(6)}, ${gps.longitude.toFixed(6)}`);
+        await reverseGeocode(gps.latitude, gps.longitude);
         setGeoStatus("success");
         toast({ title: "📍 Location Detected!", description: "GPS coordinates extracted from your photo automatically." });
       } else {
-        setGeoStatus("manual");
-        toast({ title: "No GPS data found", description: "Please enter the location manually.", variant: "destructive" });
+        // Fallback to browser geolocation
+        getBrowserLocation();
       }
     } catch {
-      setGeoStatus("manual");
-      toast({ title: "Could not read photo data", description: "Please enter the location manually.", variant: "destructive" });
+      // Fallback to browser geolocation
+      getBrowserLocation();
     }
   };
 
@@ -71,7 +110,7 @@ const PlantTree = () => {
       const reader = new FileReader();
       reader.onload = () => {
         const result = reader.result as string;
-        resolve(result.split(",")[1]); // Remove data:image/...;base64, prefix
+        resolve(result.split(",")[1]);
       };
       reader.onerror = reject;
       reader.readAsDataURL(file);
@@ -88,8 +127,13 @@ const PlantTree = () => {
       return;
     }
 
+    if (!latitude || !longitude) {
+      toast({ title: "Location required", description: "Please upload a photo with GPS data or allow location access.", variant: "destructive" });
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
-      // 1. Insert tree record
       const { data: tree, error: insertError } = await supabase
         .from("trees")
         .insert({
@@ -109,16 +153,12 @@ const PlantTree = () => {
 
       if (insertError) throw insertError;
 
-      // 2. If photo uploaded, trigger AI verification
       if (photoFile && tree) {
         toast({ title: "🤖 AI Verification Started", description: "Analyzing your tree photo..." });
-
         const imageBase64 = await fileToBase64(photoFile);
-
         const { data: verifyData, error: verifyError } = await supabase.functions.invoke("verify-tree", {
           body: { imageBase64, treeId: tree.id, species },
         });
-
         if (verifyError) {
           console.error("Verification error:", verifyError);
           toast({ title: "Verification pending", description: "Tree registered but AI verification will be retried later.", variant: "destructive" });
@@ -175,17 +215,9 @@ const PlantTree = () => {
           <Button className="mt-6 w-full" onClick={() => {
             setSubmitted(false);
             setVerificationResult(null);
-            setTreeName("");
-            setSpecies("");
-            setPlantationDate("");
-            setHeightCm("");
-            setLocation("");
-            setLatitude(null);
-            setLongitude(null);
-            setDescription("");
-            setPhotoFile(null);
-            setPhotoPreview(null);
-            setGeoStatus("idle");
+            setTreeName(""); setSpecies(""); setPlantationDate(""); setHeightCm("");
+            setLocation(""); setLatitude(null); setLongitude(null);
+            setDescription(""); setPhotoFile(null); setPhotoPreview(null); setGeoStatus("idle");
           }}>Register Another Tree</Button>
         </motion.div>
       </div>
@@ -201,7 +233,7 @@ const PlantTree = () => {
               <TreePine className="h-4 w-4" /> Register Your Plantation
             </div>
             <h1 className="font-heading text-4xl font-bold mb-2">Plant a Tree</h1>
-            <p className="text-muted-foreground">Register your tree plantation and watch it grow on the community map.</p>
+            <p className="text-muted-foreground">Upload a tree photo — location is auto-detected via GPS.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="glass-card rounded-2xl p-8 space-y-6">
@@ -226,40 +258,54 @@ const PlantTree = () => {
               </div>
             </div>
             <div>
-              <Label className="flex items-center gap-2 mb-2"><Upload className="h-4 w-4" /> Upload Photo</Label>
-              <Input type="file" accept="image/*" className="cursor-pointer" onChange={handlePhotoUpload} />
-              <p className="text-xs text-muted-foreground mt-1">📷 Photos with GPS data will auto-fill the location • AI will verify your tree</p>
+              <Label className="flex items-center gap-2 mb-2"><Upload className="h-4 w-4" /> Upload Tree Photo *</Label>
+              <Input type="file" accept="image/*" capture="environment" className="cursor-pointer" onChange={handlePhotoUpload} required />
+              <p className="text-xs text-muted-foreground mt-1">📷 Location is auto-detected from photo GPS or device location</p>
               {photoPreview && (
                 <div className="mt-3 rounded-lg overflow-hidden border border-border">
                   <img src={photoPreview} alt="Tree preview" className="w-full h-48 object-cover" />
                 </div>
               )}
             </div>
-            <div>
-              <Label className="flex items-center gap-2 mb-2"><MapPin className="h-4 w-4" /> Location (Auto-detected from photo)</Label>
-              <div className="relative">
-                <Input
-                  placeholder="Upload a photo with GPS data or enter manually"
-                  required
-                  value={location}
-                  onChange={e => { setLocation(e.target.value); setGeoStatus("manual"); }}
-                />
-                {geoStatus === "loading" && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-                )}
-                {geoStatus === "success" && (
-                  <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
-                )}
-              </div>
+
+            {/* Auto-detected location display */}
+            <div className="glass-card rounded-xl p-4">
+              <Label className="flex items-center gap-2 mb-2"><MapPin className="h-4 w-4" /> Auto-detected Location</Label>
+              {geoStatus === "idle" && (
+                <p className="text-sm text-muted-foreground">Upload a photo to auto-detect location</p>
+              )}
+              {(geoStatus === "loading" || geoStatus === "browser") && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {geoStatus === "browser" ? "Getting device location..." : "Reading photo GPS data..."}
+                </div>
+              )}
               {geoStatus === "success" && (
-                <p className="text-xs text-primary mt-1">✓ Auto-detected from photo EXIF data</p>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-sm text-primary">
+                    <CheckCircle className="h-4 w-4" /> Location detected
+                  </div>
+                  <p className="text-sm text-foreground">{location}</p>
+                  {latitude && longitude && (
+                    <p className="text-xs text-muted-foreground">GPS: {latitude.toFixed(6)}, {longitude.toFixed(6)}</p>
+                  )}
+                </div>
+              )}
+              {geoStatus === "failed" && (
+                <div className="space-y-2">
+                  <p className="text-sm text-destructive">Could not detect location automatically.</p>
+                  <Button type="button" variant="outline" size="sm" onClick={getBrowserLocation}>
+                    <MapPin className="h-4 w-4 mr-1" /> Try Again
+                  </Button>
+                </div>
               )}
             </div>
+
             <div>
               <Label className="flex items-center gap-2 mb-2"><FileText className="h-4 w-4" /> Description</Label>
               <Textarea placeholder="Tell us about your tree and why you planted it..." rows={3} value={description} onChange={e => setDescription(e.target.value)} />
             </div>
-            <Button type="submit" size="lg" className="w-full text-lg gap-2" disabled={isSubmitting}>
+            <Button type="submit" size="lg" className="w-full text-lg gap-2" disabled={isSubmitting || geoStatus === "loading" || geoStatus === "browser"}>
               {isSubmitting ? (
                 <><Loader2 className="h-5 w-5 animate-spin" /> Submitting & Verifying...</>
               ) : (
