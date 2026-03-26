@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          green_points: number
+          id: string
+          trees_planted: number
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          green_points?: number
+          id: string
+          trees_planted?: number
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          green_points?: number
+          id?: string
+          trees_planted?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       trees: {
         Row: {
           ai_analysis: string | null
