@@ -26,9 +26,9 @@ const Contact = () => {
           <div className="grid md:grid-cols-2 gap-8">
             <div className="space-y-6">
               {[
-                { icon: <Mail className="h-5 w-5" />, label: "Email", value: "hello@hirwasparsh.com" },
-                { icon: <Phone className="h-5 w-5" />, label: "Phone", value: "+91 98765 43210" },
-                { icon: <MapPin className="h-5 w-5" />, label: "Address", value: "Pune, Maharashtra, India" },
+                { icon: <Mail className="h-5 w-5" />, label: "Email", value: "hirwasparsh@gmail.com" },
+                { icon: <Phone className="h-5 w-5" />, label: "Phone", value: "+91 87998 79203" },
+                { icon: <MapPin className="h-5 w-5" />, label: "Address", value: "Solapur, Maharashtra, India" },
               ].map((c, i) => (
                 <div key={i} className="glass-card rounded-xl p-5 flex items-center gap-4">
                   <div className="bg-primary/10 rounded-lg p-3 text-primary">{c.icon}</div>

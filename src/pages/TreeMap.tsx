@@ -6,6 +6,37 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+// Fix default marker icons
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
+  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+});
+
+const verifiedIcon = new L.Icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
+});
+
+const pendingIcon = new L.Icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
+});
+
+const rejectedIcon = new L.Icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
+});
+
+const getIcon = (status: string) => status === "verified" ? verifiedIcon : status === "rejected" ? rejectedIcon : pendingIcon;
 
 const fetchTrees = async () => {
   const { data, error } = await supabase
@@ -33,13 +64,20 @@ const TreeMap = () => {
       t.location.toLowerCase().includes(filter.toLowerCase()))
   );
 
+  const treesWithCoords = filtered.filter(t => t.latitude && t.longitude);
+
+  // Calculate map center from data or default to India
+  const center: [number, number] = treesWithCoords.length > 0
+    ? [treesWithCoords[0].latitude!, treesWithCoords[0].longitude!]
+    : [20.5937, 78.9629];
+
   return (
     <div className="min-h-screen pt-24 pb-12">
       <div className="container mx-auto px-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <div className="text-center mb-8">
             <h1 className="font-heading text-4xl font-bold mb-2">Tree Map</h1>
-            <p className="text-muted-foreground">Explore all planted trees across the community</p>
+            <p className="text-muted-foreground">Explore all planted trees on a real interactive map</p>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -61,48 +99,36 @@ const TreeMap = () => {
             </Select>
           </div>
 
-          {/* Map placeholder with markers */}
+          {/* Interactive Leaflet Map */}
           <div className="glass-card rounded-2xl overflow-hidden mb-8">
-            <div className="bg-gradient-to-br from-nature-100 to-nature-200 h-[400px] relative flex items-center justify-center">
-              <div className="absolute inset-0 opacity-20" style={{
-                backgroundImage: "radial-gradient(circle, hsl(var(--primary)) 1px, transparent 1px)",
-                backgroundSize: "30px 30px"
-              }} />
-              {isLoading ? (
-                <div className="text-center z-10">
-                  <Loader2 className="h-12 w-12 text-primary mx-auto mb-3 animate-spin" />
-                  <p className="text-muted-foreground text-sm">Loading trees...</p>
+            {isLoading ? (
+              <div className="h-[450px] flex items-center justify-center bg-muted/30">
+                <div className="text-center">
+                  <Loader2 className="h-10 w-10 text-primary mx-auto mb-3 animate-spin" />
+                  <p className="text-muted-foreground text-sm">Loading map...</p>
                 </div>
-              ) : (
-                <>
-                  <div className="text-center z-10">
-                    <MapPin className="h-12 w-12 text-primary mx-auto mb-3" />
-                    <p className="font-heading font-semibold text-lg">Interactive Map</p>
-                    <p className="text-muted-foreground text-sm">{filtered.length} trees displayed</p>
-                  </div>
-                  {filtered.map((t, i) => (
-                    <div key={t.id} className="absolute animate-float" style={{
-                      left: `${15 + (i * 13) % 70}%`,
-                      top: `${20 + (i * 17) % 60}%`,
-                      animationDelay: `${i * 0.5}s`
-                    }}>
-                      <div
-                        className={`rounded-full p-2 shadow-lg cursor-pointer hover:scale-110 transition-transform ${
-                          t.verification_status === "verified"
-                            ? "bg-primary text-primary-foreground"
-                            : t.verification_status === "rejected"
-                            ? "bg-destructive text-destructive-foreground"
-                            : "bg-muted text-muted-foreground"
-                        }`}
-                        title={`${t.tree_name} (${t.verification_status})`}
-                      >
-                        <TreePine className="h-4 w-4" />
+              </div>
+            ) : (
+              <MapContainer center={center} zoom={treesWithCoords.length > 0 ? 10 : 5} scrollWheelZoom={true} style={{ height: "450px", width: "100%" }}>
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                {treesWithCoords.map((t) => (
+                  <Marker key={t.id} position={[t.latitude!, t.longitude!]} icon={getIcon(t.verification_status)}>
+                    <Popup>
+                      <div className="text-sm">
+                        <strong>{t.tree_name}</strong><br />
+                        <span className="text-muted-foreground">{t.species}</span><br />
+                        <span>📍 {t.location}</span><br />
+                        <span>Status: {t.verification_status}</span>
+                        {t.ai_confidence && <><br /><span>AI: {t.ai_confidence}%</span></>}
                       </div>
-                    </div>
-                  ))}
-                </>
-              )}
-            </div>
+                    </Popup>
+                  </Marker>
+                ))}
+              </MapContainer>
+            )}
           </div>
 
           {/* Tree list */}
@@ -135,9 +161,7 @@ const TreeMap = () => {
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground">{t.species}</p>
-                      <p className="text-xs text-muted-foreground mt-1 truncate">
-                        📍 {t.location}
-                      </p>
+                      <p className="text-xs text-muted-foreground mt-1 truncate">📍 {t.location}</p>
                       {t.ai_confidence && (
                         <p className="text-xs text-primary mt-1">AI Confidence: {t.ai_confidence}%</p>
                       )}
