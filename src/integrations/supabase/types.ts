@@ -14,6 +14,80 @@ export type Database = {
   }
   public: {
     Tables: {
+      drive_participants: {
+        Row: {
+          drive_id: string
+          id: string
+          joined_at: string
+          user_id: string
+        }
+        Insert: {
+          drive_id: string
+          id?: string
+          joined_at?: string
+          user_id: string
+        }
+        Update: {
+          drive_id?: string
+          id?: string
+          joined_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drive_participants_drive_id_fkey"
+            columns: ["drive_id"]
+            isOneToOne: false
+            referencedRelation: "plantation_drives"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plantation_drives: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          event_date: string
+          event_name: string
+          id: string
+          latitude: number | null
+          location: string
+          longitude: number | null
+          organizer_name: string
+          target_trees: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          event_date: string
+          event_name: string
+          id?: string
+          latitude?: number | null
+          location: string
+          longitude?: number | null
+          organizer_name: string
+          target_trees?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          event_date?: string
+          event_name?: string
+          id?: string
+          latitude?: number | null
+          location?: string
+          longitude?: number | null
+          organizer_name?: string
+          target_trees?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -44,12 +118,54 @@ export type Database = {
         }
         Relationships: []
       }
+      tree_health_updates: {
+        Row: {
+          created_at: string
+          health_status: string
+          id: string
+          notes: string | null
+          photo_url: string | null
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          health_status?: string
+          id?: string
+          notes?: string | null
+          photo_url?: string | null
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          health_status?: string
+          id?: string
+          notes?: string | null
+          photo_url?: string | null
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tree_health_updates_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trees: {
         Row: {
           ai_analysis: string | null
           ai_confidence: number | null
+          ai_detected_species: string | null
+          ai_scientific_name: string | null
+          ai_species_confidence: number | null
           created_at: string
           description: string | null
+          drive_id: string | null
           height_cm: number
           id: string
           latitude: number | null
@@ -66,8 +182,12 @@ export type Database = {
         Insert: {
           ai_analysis?: string | null
           ai_confidence?: number | null
+          ai_detected_species?: string | null
+          ai_scientific_name?: string | null
+          ai_species_confidence?: number | null
           created_at?: string
           description?: string | null
+          drive_id?: string | null
           height_cm: number
           id?: string
           latitude?: number | null
@@ -84,8 +204,12 @@ export type Database = {
         Update: {
           ai_analysis?: string | null
           ai_confidence?: number | null
+          ai_detected_species?: string | null
+          ai_scientific_name?: string | null
+          ai_species_confidence?: number | null
           created_at?: string
           description?: string | null
+          drive_id?: string | null
           height_cm?: number
           id?: string
           latitude?: number | null
@@ -99,7 +223,15 @@ export type Database = {
           user_id?: string | null
           verification_status?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "trees_drive_id_fkey"
+            columns: ["drive_id"]
+            isOneToOne: false
+            referencedRelation: "plantation_drives"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
