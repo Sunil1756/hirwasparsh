@@ -17,6 +17,9 @@ import AdminDashboard from "./pages/AdminDashboard";
 import Login from "./pages/Login";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
+import TreeProfile from "./pages/TreeProfile";
+import PlantationDrives from "./pages/PlantationDrives";
+import TreeHealth from "./pages/TreeHealth";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +42,9 @@ const App = () => (
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/login" element={<Login />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/tree/:id" element={<TreeProfile />} />
+          <Route path="/drives" element={<PlantationDrives />} />
+          <Route path="/tree-health" element={<TreeHealth />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <Footer />

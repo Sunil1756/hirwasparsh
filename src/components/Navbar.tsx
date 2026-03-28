@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { TreePine, Menu, X, LogOut } from "lucide-react";
+import { TreePine, Menu, X, LogOut, Heart, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,6 +11,8 @@ const navLinks = [
   { to: "/plant", label: "Plant a Tree" },
   { to: "/dashboard", label: "Dashboard" },
   { to: "/tree-map", label: "Tree Map" },
+  { to: "/drives", label: "Drives" },
+  { to: "/tree-health", label: "Health" },
   { to: "/analytics", label: "Analytics" },
   { to: "/leaderboard", label: "Leaderboard" },
   { to: "/contact", label: "Contact" },
