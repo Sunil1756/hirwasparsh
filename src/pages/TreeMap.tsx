@@ -143,9 +143,8 @@ const TreeMap = () => {
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filtered.map(t => (
-                <div key={t.id} className="glass-card rounded-xl p-4 hover:nature-glow transition-shadow">
-              <Link to={`/tree/${t.id}`} className="block">
-              <div className="flex items-start gap-3">
+                <Link key={t.id} to={`/tree/${t.id}`} className="block glass-card rounded-xl p-4 hover:nature-glow transition-shadow">
+                  <div className="flex items-start gap-3">
                     <div className="bg-primary/10 rounded-lg p-2"><TreePine className="h-5 w-5 text-primary" /></div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -172,7 +171,6 @@ const TreeMap = () => {
                       </p>
                     </div>
                   </div>
-                </div>
                 </Link>
               ))}
             </div>
