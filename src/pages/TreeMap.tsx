@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { MapPin, TreePine, Filter, Search, ShieldCheck, Clock, Loader2 } from "lucide-react";
+import { MapPin, TreePine, Filter, Search, ShieldCheck, Clock, Loader2, QrCode } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -143,7 +144,8 @@ const TreeMap = () => {
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filtered.map(t => (
                 <div key={t.id} className="glass-card rounded-xl p-4 hover:nature-glow transition-shadow">
-                  <div className="flex items-start gap-3">
+              <Link to={`/tree/${t.id}`} className="block">
+              <div className="flex items-start gap-3">
                     <div className="bg-primary/10 rounded-lg p-2"><TreePine className="h-5 w-5 text-primary" /></div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -171,6 +173,7 @@ const TreeMap = () => {
                     </div>
                   </div>
                 </div>
+                </Link>
               ))}
             </div>
           )}
