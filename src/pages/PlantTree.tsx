@@ -101,7 +101,7 @@ const PlantTree = () => {
   const validateExif = async (file: File) => {
     const warnings: string[] = [];
     try {
-      const exif = await exifr.parse(file, { gps: true, ifd0: true, exif: true });
+      const exif = await exifr.parse(file, true);
       if (!exif) {
         warnings.push("⚠️ No EXIF data found — photo may be from gallery or screenshot");
       } else {
