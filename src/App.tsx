@@ -14,6 +14,7 @@ import TreeMap from "./pages/TreeMap";
 import Analytics from "./pages/Analytics";
 import Leaderboard from "./pages/Leaderboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import GovernmentDashboard from "./pages/GovernmentDashboard";
 import Login from "./pages/Login";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
@@ -40,6 +41,7 @@ const App = () => (
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/government" element={<GovernmentDashboard />} />
           <Route path="/login" element={<Login />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/tree/:id" element={<TreeProfile />} />
