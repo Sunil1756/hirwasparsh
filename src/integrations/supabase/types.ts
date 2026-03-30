@@ -43,6 +43,50 @@ export type Database = {
           },
         ]
       }
+      growth_updates: {
+        Row: {
+          ai_health_status: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          photo_url: string | null
+          points_awarded: number | null
+          tree_id: string
+          update_day: number
+          user_id: string
+        }
+        Insert: {
+          ai_health_status?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          photo_url?: string | null
+          points_awarded?: number | null
+          tree_id: string
+          update_day: number
+          user_id: string
+        }
+        Update: {
+          ai_health_status?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          photo_url?: string | null
+          points_awarded?: number | null
+          tree_id?: string
+          update_day?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "growth_updates_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plantation_drives: {
         Row: {
           created_at: string
@@ -158,21 +202,28 @@ export type Database = {
       }
       trees: {
         Row: {
+          admin_status: string
           ai_analysis: string | null
           ai_confidence: number | null
           ai_detected_species: string | null
           ai_scientific_name: string | null
           ai_species_confidence: number | null
+          before_photo_url: string | null
           created_at: string
           description: string | null
+          device_fingerprint: string | null
           drive_id: string | null
+          exif_timestamp: string | null
           height_cm: number
           id: string
           latitude: number | null
           location: string
           longitude: number | null
+          photo_hash: string | null
           photo_url: string | null
           plantation_date: string
+          points_awarded: number
+          selfie_photo_url: string | null
           species: string
           tree_name: string
           updated_at: string
@@ -180,21 +231,28 @@ export type Database = {
           verification_status: string
         }
         Insert: {
+          admin_status?: string
           ai_analysis?: string | null
           ai_confidence?: number | null
           ai_detected_species?: string | null
           ai_scientific_name?: string | null
           ai_species_confidence?: number | null
+          before_photo_url?: string | null
           created_at?: string
           description?: string | null
+          device_fingerprint?: string | null
           drive_id?: string | null
+          exif_timestamp?: string | null
           height_cm: number
           id?: string
           latitude?: number | null
           location: string
           longitude?: number | null
+          photo_hash?: string | null
           photo_url?: string | null
           plantation_date: string
+          points_awarded?: number
+          selfie_photo_url?: string | null
           species: string
           tree_name: string
           updated_at?: string
@@ -202,21 +260,28 @@ export type Database = {
           verification_status?: string
         }
         Update: {
+          admin_status?: string
           ai_analysis?: string | null
           ai_confidence?: number | null
           ai_detected_species?: string | null
           ai_scientific_name?: string | null
           ai_species_confidence?: number | null
+          before_photo_url?: string | null
           created_at?: string
           description?: string | null
+          device_fingerprint?: string | null
           drive_id?: string | null
+          exif_timestamp?: string | null
           height_cm?: number
           id?: string
           latitude?: number | null
           location?: string
           longitude?: number | null
+          photo_hash?: string | null
           photo_url?: string | null
           plantation_date?: string
+          points_awarded?: number
+          selfie_photo_url?: string | null
           species?: string
           tree_name?: string
           updated_at?: string
@@ -233,15 +298,39 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user" | "government"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -368,6 +457,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user", "government"],
+    },
   },
 } as const
