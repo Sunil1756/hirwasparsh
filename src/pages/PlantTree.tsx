@@ -257,11 +257,22 @@ const PlantTree = () => {
 
       if (insertError) throw insertError;
 
-      // Trigger AI verification
+      // Trigger enhanced AI verification with all 3 photos
       if (tree) {
-        const imageBase64 = await fileToBase64(afterPhoto);
+        const [afterB64, selfieB64, beforeB64] = await Promise.all([
+          fileToBase64(afterPhoto),
+          fileToBase64(selfiePhoto),
+          fileToBase64(beforePhoto),
+        ]);
         supabase.functions.invoke("verify-tree", {
-          body: { imageBase64, treeId: tree.id, species },
+          body: {
+            imageBase64: afterB64,
+            selfieBase64: selfieB64,
+            beforeBase64: beforeB64,
+            treeId: tree.id,
+            species,
+            photoHash,
+          },
         }).catch(console.error);
       }
 
