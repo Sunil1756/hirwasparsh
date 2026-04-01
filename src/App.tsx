@@ -21,6 +21,7 @@ import NotFound from "./pages/NotFound";
 import TreeProfile from "./pages/TreeProfile";
 import PlantationDrives from "./pages/PlantationDrives";
 import TreeHealth from "./pages/TreeHealth";
+import GrowthUpdates from "./pages/GrowthUpdates";
 
 const queryClient = new QueryClient();
 
