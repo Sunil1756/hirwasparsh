@@ -21,6 +21,7 @@ import NotFound from "./pages/NotFound";
 import TreeProfile from "./pages/TreeProfile";
 import PlantationDrives from "./pages/PlantationDrives";
 import TreeHealth from "./pages/TreeHealth";
+import GrowthUpdates from "./pages/GrowthUpdates";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +48,7 @@ const App = () => (
           <Route path="/tree/:id" element={<TreeProfile />} />
           <Route path="/drives" element={<PlantationDrives />} />
           <Route path="/tree-health" element={<TreeHealth />} />
+          <Route path="/growth-updates" element={<GrowthUpdates />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <Footer />
