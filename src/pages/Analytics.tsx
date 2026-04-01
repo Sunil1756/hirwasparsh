@@ -97,8 +97,7 @@ const Analytics = () => {
                       <span className="text-primary">{s.icon}</span>
                     </div>
                     <div className="font-heading text-2xl font-bold">
-                      <AnimatedCounter end={s.value} duration={1500} />
-                      {s.suffix}
+                      {typeof s.value === "number" ? s.value.toLocaleString() : s.value}{s.suffix}
                     </div>
                   </motion.div>
                 ))}
