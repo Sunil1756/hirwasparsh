@@ -1,12 +1,12 @@
 import { motion } from "framer-motion";
-import { TreePine, Award, Leaf, TrendingUp, Star, Shield, Target, User, LogIn, Clock, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { TreePine, Award, Leaf, TrendingUp, Star, Shield, Target, User, LogIn, Clock, CheckCircle, XCircle, AlertTriangle, Car, Wind, Sprout } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 const badgeDefs = [
   { name: "Tree Guardian", icon: <Shield className="h-8 w-8" />, threshold: 5, desc: "Plant 5 trees" },
@@ -23,6 +23,8 @@ const statusIcon = (s: string) => {
     default: return <Clock className="h-4 w-4 text-muted-foreground" />;
   }
 };
+
+const updateDays = [7, 30, 90];
 
 const CommunityDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -51,6 +53,19 @@ const CommunityDashboard = () => {
     },
   });
 
+  const { data: growthUpdates = [] } = useQuery({
+    queryKey: ["user-growth-updates-dash", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("growth_updates")
+        .select("tree_id, update_day")
+        .eq("user_id", user!.id);
+      if (error) throw error;
+      return data;
+    },
+  });
+
   if (authLoading) {
     return (
       <div className="min-h-screen pt-24 pb-12 flex items-center justify-center">
@@ -72,11 +87,20 @@ const CommunityDashboard = () => {
     );
   }
 
-  // Only count approved trees for points display
   const approvedTrees = userTrees.filter(t => t.admin_status === "approved");
   const treesPlanted = profile?.trees_planted ?? approvedTrees.length;
   const greenPoints = profile?.green_points ?? 0;
-  const co2Offset = (treesPlanted * 21 / 1000).toFixed(2);
+  const co2Kg = treesPlanted * 21;
+  const o2Kg = treesPlanted * 100; // ~100kg O2 per tree per year
+  const carsRemoved = (co2Kg / 4600).toFixed(2); // avg car emits 4600 kg CO2/yr
+
+  // Growth updates map
+  const growthMap = new Map<string, number[]>();
+  growthUpdates.forEach(u => {
+    const existing = growthMap.get(u.tree_id) || [];
+    existing.push(u.update_day);
+    growthMap.set(u.tree_id, existing);
+  });
 
   const nextBadge = badgeDefs.find(b => treesPlanted < b.threshold) ?? badgeDefs[badgeDefs.length - 1];
   const progressPct = Math.min(100, Math.round((treesPlanted / nextBadge.threshold) * 100));
@@ -100,7 +124,7 @@ const CommunityDashboard = () => {
             {[
               { label: "Verified Trees", value: String(treesPlanted), icon: <TreePine className="h-6 w-6" /> },
               { label: "Green Points", value: String(greenPoints), icon: <Star className="h-6 w-6" /> },
-              { label: "CO₂ Offset (t/yr)", value: co2Offset, icon: <Leaf className="h-6 w-6" /> },
+              { label: "CO₂ Absorbed (kg/yr)", value: String(co2Kg), icon: <Leaf className="h-6 w-6" /> },
               { label: "Total Submissions", value: String(userTrees.length), icon: <TrendingUp className="h-6 w-6" /> },
             ].map((s, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} className="glass-card rounded-xl p-6">
@@ -113,10 +137,40 @@ const CommunityDashboard = () => {
             ))}
           </div>
 
+          {/* Carbon Impact Dashboard */}
+          <div className="glass-card rounded-2xl p-6 mb-8">
+            <h2 className="font-heading text-xl font-semibold mb-4">🌍 Your Carbon Impact</h2>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="text-center p-4 rounded-xl bg-primary/5">
+                <TreePine className="h-6 w-6 text-primary mx-auto mb-2" />
+                <div className="font-heading text-2xl font-bold text-primary">{treesPlanted}</div>
+                <div className="text-xs text-muted-foreground">Verified Trees</div>
+              </div>
+              <div className="text-center p-4 rounded-xl bg-primary/5">
+                <Leaf className="h-6 w-6 text-primary mx-auto mb-2" />
+                <div className="font-heading text-2xl font-bold text-primary">{co2Kg} kg</div>
+                <div className="text-xs text-muted-foreground">CO₂ Absorbed / year</div>
+              </div>
+              <div className="text-center p-4 rounded-xl bg-primary/5">
+                <Wind className="h-6 w-6 text-primary mx-auto mb-2" />
+                <div className="font-heading text-2xl font-bold text-primary">{o2Kg} kg</div>
+                <div className="text-xs text-muted-foreground">O₂ Generated / year</div>
+              </div>
+              <div className="text-center p-4 rounded-xl bg-primary/5">
+                <Car className="h-6 w-6 text-primary mx-auto mb-2" />
+                <div className="font-heading text-2xl font-bold text-primary">{carsRemoved}</div>
+                <div className="text-xs text-muted-foreground">Equiv. Cars Removed</div>
+              </div>
+            </div>
+          </div>
+
           <div className="grid lg:grid-cols-2 gap-8">
-            {/* Plantation Status Cards */}
+            {/* Plantation Status Cards with Growth Progress */}
             <div className="glass-card rounded-2xl p-6">
-              <h2 className="font-heading text-xl font-semibold mb-4">Your Plantations</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-heading text-xl font-semibold">Your Plantations</h2>
+                <Link to="/growth-updates"><Button variant="outline" size="sm" className="gap-1"><Sprout className="h-4 w-4" /> Growth Updates</Button></Link>
+              </div>
               {userTrees.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <TreePine className="h-12 w-12 mx-auto mb-3 opacity-40" />
@@ -124,34 +178,54 @@ const CommunityDashboard = () => {
                   <Link to="/plant"><Button variant="outline" className="mt-3">Plant Your First Tree</Button></Link>
                 </div>
               ) : (
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {userTrees.map(t => (
-                    <Link key={t.id} to={`/tree/${t.id}`} className="block">
-                      <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors">
-                        {t.photo_url ? (
-                          <img src={t.photo_url} className="w-12 h-12 rounded-lg object-cover" alt={t.tree_name} />
-                        ) : (
-                          <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center"><TreePine className="h-6 w-6 text-muted-foreground" /></div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm">{t.tree_name}</div>
-                          <div className="text-xs text-muted-foreground">{t.species} · {new Date(t.plantation_date).toLocaleDateString()}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="flex items-center gap-1 text-xs">
-                            {statusIcon(t.admin_status)}
-                            <Badge variant="outline" className="text-[10px]">{t.admin_status}</Badge>
+                <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                  {userTrees.map(t => {
+                    const doneDays = growthMap.get(t.id) || [];
+                    return (
+                      <Link key={t.id} to={`/tree/${t.id}`} className="block">
+                        <div className="p-3 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors">
+                          <div className="flex items-center gap-3">
+                            {t.photo_url ? (
+                              <img src={t.photo_url} className="w-12 h-12 rounded-lg object-cover" alt={t.tree_name} />
+                            ) : (
+                              <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center"><TreePine className="h-6 w-6 text-muted-foreground" /></div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-sm">{t.tree_name}</div>
+                              <div className="text-xs text-muted-foreground">{t.species} · {t.location?.split(",")[0]}</div>
+                              <div className="text-xs text-muted-foreground">{new Date(t.plantation_date).toLocaleDateString()}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="flex items-center gap-1 text-xs">
+                                {statusIcon(t.admin_status)}
+                                <Badge variant="outline" className="text-[10px]">{t.admin_status}</Badge>
+                              </div>
+                              {t.admin_status === "approved" && (
+                                <div className="text-xs text-primary font-medium mt-1">+{t.points_awarded} pts</div>
+                              )}
+                              {t.admin_status === "pending" && (
+                                <div className="text-[10px] text-muted-foreground mt-1">No points yet</div>
+                              )}
+                            </div>
                           </div>
+                          {/* Growth progress checklist */}
                           {t.admin_status === "approved" && (
-                            <div className="text-xs text-primary font-medium mt-1">+{t.points_awarded} pts</div>
-                          )}
-                          {t.admin_status === "pending" && (
-                            <div className="text-[10px] text-muted-foreground mt-1">No points yet</div>
+                            <div className="flex gap-2 mt-2 pt-2 border-t border-border/50">
+                              {updateDays.map(d => {
+                                const done = doneDays.includes(d);
+                                return (
+                                  <Badge key={d} variant={done ? "default" : "outline"} className={`text-[10px] gap-0.5 ${done ? "bg-primary/10 text-primary" : ""}`}>
+                                    {done ? <CheckCircle className="h-2.5 w-2.5" /> : <Clock className="h-2.5 w-2.5" />}
+                                    {d}d
+                                  </Badge>
+                                );
+                              })}
+                            </div>
                           )}
                         </div>
-                      </div>
-                    </Link>
-                  ))}
+                      </Link>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -171,7 +245,6 @@ const CommunityDashboard = () => {
                   );
                 })}
               </div>
-
               <h3 className="font-heading font-semibold mb-2">Next: {nextBadge.name} ({nextBadge.threshold} trees)</h3>
               <Progress value={progressPct} className="h-3" />
               <p className="text-sm text-muted-foreground mt-2">{treesPlanted} / {nextBadge.threshold} verified trees</p>
