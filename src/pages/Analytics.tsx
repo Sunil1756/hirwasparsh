@@ -3,7 +3,7 @@ import { BarChart3, TrendingUp, Leaf, TreePine, Loader2, Car, Wind, Users, MapPi
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import AnimatedCounter from "@/components/AnimatedCounter";
+
 
 const Analytics = () => {
   const { data: trees = [], isLoading } = useQuery({
