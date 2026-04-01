@@ -48,6 +48,7 @@ const App = () => (
           <Route path="/tree/:id" element={<TreeProfile />} />
           <Route path="/drives" element={<PlantationDrives />} />
           <Route path="/tree-health" element={<TreeHealth />} />
+          <Route path="/growth-updates" element={<GrowthUpdates />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <Footer />
