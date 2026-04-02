@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import AnimatedCounter from "@/components/AnimatedCounter";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import ViralImpactCounter from "@/components/ViralImpactCounter";
 import heroBg from "@/assets/hero-bg.jpg";
 
 const fadeUp = {
