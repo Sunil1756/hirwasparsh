@@ -127,7 +127,7 @@ const GreenImpact = () => {
                   <span className="text-primary">{s.icon}</span>
                 </div>
                 <div className="font-heading text-2xl font-bold">
-                  {typeof s.value === "number" ? <AnimatedCounter end={s.value} /> : s.value}
+                  {s.value}
                 </div>
               </motion.div>
             ))}
