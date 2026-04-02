@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
+const MH_CENTER: [number, number] = [19.7515, 75.7139];
+
 const GovernmentDashboard = () => {
   const { user, isGovernment, isAdmin } = useAuth();
   const hasAccess = isGovernment || isAdmin;
