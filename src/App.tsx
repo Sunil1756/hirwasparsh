@@ -58,7 +58,6 @@ const App = () => (
            <Route path="/satellite" element={<SatelliteMonitoring />} />
            <Route path="/green-impact" element={<GreenImpact />} />
            <Route path="*" element={<NotFound />} />
-          <Route path="*" element={<NotFound />} />
         </Routes>
         <Footer />
         </AuthProvider>
