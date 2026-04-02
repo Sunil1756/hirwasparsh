@@ -50,6 +50,8 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/tree/:id" element={<TreeProfile />} />
+          <Route path="/tree-story/:id" element={<TreeStory />} />
+          <Route path="/challenges" element={<Challenges />} />
           <Route path="/drives" element={<PlantationDrives />} />
            <Route path="/tree-health" element={<TreeHealth />} />
            <Route path="/growth-updates" element={<GrowthUpdates />} />
