@@ -14,6 +14,77 @@ export type Database = {
   }
   public: {
     Tables: {
+      challenge_participants: {
+        Row: {
+          challenge_id: string
+          id: string
+          joined_at: string
+          trees_planted: number
+          user_id: string
+        }
+        Insert: {
+          challenge_id: string
+          id?: string
+          joined_at?: string
+          trees_planted?: number
+          user_id: string
+        }
+        Update: {
+          challenge_id?: string
+          id?: string
+          joined_at?: string
+          trees_planted?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_participants_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      challenges: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          duration_days: number
+          ends_at: string
+          id: string
+          starts_at: string
+          target_trees: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          duration_days?: number
+          ends_at?: string
+          id?: string
+          starts_at?: string
+          target_trees?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          duration_days?: number
+          ends_at?: string
+          id?: string
+          starts_at?: string
+          target_trees?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       drive_participants: {
         Row: {
           drive_id: string
