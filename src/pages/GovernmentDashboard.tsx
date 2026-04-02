@@ -97,7 +97,7 @@ const GovernmentDashboard = () => {
                 <div className="h-80 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
               ) : (
                 <div className="h-80 rounded-lg overflow-hidden">
-                  <MapContainer center={[20.5937, 78.9629]} zoom={5} className="h-full w-full">
+                  <MapContainer center={MH_CENTER} zoom={7} className="h-full w-full">
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                     {trees.filter(t => t.latitude && t.longitude).map(t => (
                       <CircleMarker
