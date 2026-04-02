@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { Leaf, TreePine, Wind, Car, Users, ShieldCheck, TrendingUp, BarChart3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import AnimatedCounter from "@/components/AnimatedCounter";
+
 import { Progress } from "@/components/ui/progress";
 
 const MH_DISTRICTS = [
