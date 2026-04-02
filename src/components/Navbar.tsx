@@ -22,6 +22,7 @@ const Navbar = () => {
     { to: "/leaderboard", label: "Leaderboard" },
     { to: "/contact", label: "Contact" },
     { to: "/satellite", label: "Satellite" },
+    { to: "/challenges", label: "Challenges" },
     { to: "/green-impact", label: "Green Impact" },
   ];
 
