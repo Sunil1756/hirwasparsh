@@ -22,6 +22,8 @@ import TreeProfile from "./pages/TreeProfile";
 import PlantationDrives from "./pages/PlantationDrives";
 import TreeHealth from "./pages/TreeHealth";
 import GrowthUpdates from "./pages/GrowthUpdates";
+import SatelliteMonitoring from "./pages/SatelliteMonitoring";
+import GreenImpact from "./pages/GreenImpact";
 
 const queryClient = new QueryClient();
 
@@ -47,8 +49,11 @@ const App = () => (
           <Route path="/contact" element={<Contact />} />
           <Route path="/tree/:id" element={<TreeProfile />} />
           <Route path="/drives" element={<PlantationDrives />} />
-          <Route path="/tree-health" element={<TreeHealth />} />
-          <Route path="/growth-updates" element={<GrowthUpdates />} />
+           <Route path="/tree-health" element={<TreeHealth />} />
+           <Route path="/growth-updates" element={<GrowthUpdates />} />
+           <Route path="/satellite" element={<SatelliteMonitoring />} />
+           <Route path="/green-impact" element={<GreenImpact />} />
+           <Route path="*" element={<NotFound />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <Footer />

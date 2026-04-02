@@ -70,7 +70,7 @@ const TreeMap = () => {
   // Calculate map center from data or default to India
   const center: [number, number] = treesWithCoords.length > 0
     ? [treesWithCoords[0].latitude!, treesWithCoords[0].longitude!]
-    : [20.5937, 78.9629];
+    : [19.7515, 75.7139];
 
   return (
     <div className="min-h-screen pt-24 pb-12">
