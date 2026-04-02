@@ -118,6 +118,11 @@ const TreeProfile = () => {
                 <Button variant="outline" size="sm" className="mt-3 gap-2" onClick={downloadQR}>
                   <Download className="h-4 w-4" /> Download QR
                 </Button>
+                <Link to={`/tree-story/${id}`}>
+                  <Button size="sm" className="mt-2 w-full gap-2">
+                    <TreePine className="h-4 w-4" /> View Growth Story
+                  </Button>
+                </Link>
               </div>
             </div>
 
