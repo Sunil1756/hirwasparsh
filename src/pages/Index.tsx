@@ -149,6 +149,9 @@ const Index = () => {
         </div>
       </section>
 
+      {/* Viral Impact */}
+      <ViralImpactCounter />
+
       {/* CTA */}
       <section className="py-24 bg-primary">
         <div className="container mx-auto px-4 text-center">
