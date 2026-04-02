@@ -21,6 +21,8 @@ const Navbar = () => {
     { to: "/analytics", label: "Analytics" },
     { to: "/leaderboard", label: "Leaderboard" },
     { to: "/contact", label: "Contact" },
+    { to: "/satellite", label: "Satellite" },
+    { to: "/green-impact", label: "Green Impact" },
   ];
 
   return (
