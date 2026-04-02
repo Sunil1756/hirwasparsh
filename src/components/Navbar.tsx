@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { TreePine, Menu, X, LogOut, Shield, Building2 } from "lucide-react";
+import { TreePine, Menu, X, LogOut, Shield, Building2, Satellite, Leaf } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
