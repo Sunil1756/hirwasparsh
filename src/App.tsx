@@ -24,6 +24,8 @@ import TreeHealth from "./pages/TreeHealth";
 import GrowthUpdates from "./pages/GrowthUpdates";
 import SatelliteMonitoring from "./pages/SatelliteMonitoring";
 import GreenImpact from "./pages/GreenImpact";
+import TreeStory from "./pages/TreeStory";
+import Challenges from "./pages/Challenges";
 
 const queryClient = new QueryClient();
 
