@@ -169,8 +169,9 @@ const PlantTree = () => {
       setExifWarnings(prev => [...prev.filter(w => !w.includes(step)), ...warnings]);
     }
 
-    // On "after" photo: extract GPS + detect species
-    if (step === "after") {
+    // 🌍 AUTO GEO-TAG on EVERY photo capture (not just "after")
+    // Try EXIF GPS first → fall back to browser geolocation
+    if (!latitude || !longitude || step === "after") {
       setGeoStatus("loading");
       try {
         const gps = await exifr.gps(file);
@@ -179,12 +180,17 @@ const PlantTree = () => {
           setLongitude(gps.longitude);
           await reverseGeocode(gps.latitude, gps.longitude);
           setGeoStatus("success");
+          toast({ title: "📍 Location auto-tagged", description: "GPS extracted from photo metadata." });
         } else {
           getBrowserLocation();
         }
       } catch {
         getBrowserLocation();
       }
+    }
+
+    // Detect species from "after" photo
+    if (step === "after") {
       detectSpecies(file);
     }
 
