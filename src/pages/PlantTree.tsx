@@ -295,7 +295,12 @@ const PlantTree = () => {
       setSubmitted(true);
       toast({ title: "🌳 Plantation Submitted!", description: "Your submission is pending admin approval. Points will be credited after verification." });
     } catch (error: any) {
-      toast({ title: "Submission failed", description: error.message, variant: "destructive" });
+      console.error("[PlantTree] Submission error:", error);
+      const msg = error?.message || "Unknown error";
+      const hint = msg.includes("row-level security")
+        ? "This usually means your session expired. Please log out and log back in, then try again."
+        : msg;
+      toast({ title: "Submission failed", description: hint, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
