@@ -257,7 +257,7 @@ const PlantTree = () => {
           verification_status: "pending",
           admin_status: "pending",
           points_awarded: 0,
-          user_id: user.id,
+          user_id: authUserId,
           drive_id: driveId || null,
           photo_url: afterUrl,
           before_photo_url: beforeUrl,
