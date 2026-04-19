@@ -23,7 +23,7 @@ const GreenImpact = () => {
   const { data: trees = [] } = useQuery({
     queryKey: ["green-impact-trees"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("trees").select("*");
+      const { data, error } = await supabase.from("trees").select("admin_status, verification_status, location");
       if (error) throw error;
       return data;
     },

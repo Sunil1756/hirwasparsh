@@ -42,7 +42,7 @@ const getIcon = (status: string) => status === "verified" ? verifiedIcon : statu
 const fetchTrees = async () => {
   const { data, error } = await supabase
     .from("trees")
-    .select("*")
+    .select("id, tree_name, species, location, latitude, longitude, verification_status, admin_status, ai_confidence, created_at, photo_url")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data;
