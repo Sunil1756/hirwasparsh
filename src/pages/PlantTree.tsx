@@ -223,11 +223,21 @@ const PlantTree = () => {
 
     setIsSubmitting(true);
     try {
+      // Verify the auth session is still valid (prevents RLS failures from stale sessions)
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session?.user?.id) {
+        toast({ title: "Session expired", description: "Please log in again to submit your plantation.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+      }
+      const authUserId = sessionData.session.user.id;
+      console.log("[PlantTree] Submitting as user:", authUserId);
+
       const ts = Date.now();
       const [beforeUrl, afterUrl, selfieUrl] = await Promise.all([
-        uploadPhoto(beforePhoto, `${user.id}/${ts}_before.jpg`),
-        uploadPhoto(afterPhoto, `${user.id}/${ts}_after.jpg`),
-        uploadPhoto(selfiePhoto, `${user.id}/${ts}_selfie.jpg`),
+        uploadPhoto(beforePhoto, `${authUserId}/${ts}_before.jpg`),
+        uploadPhoto(afterPhoto, `${authUserId}/${ts}_after.jpg`),
+        uploadPhoto(selfiePhoto, `${authUserId}/${ts}_selfie.jpg`),
       ]);
 
       // Simple hash for duplicate detection
