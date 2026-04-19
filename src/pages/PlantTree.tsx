@@ -223,11 +223,21 @@ const PlantTree = () => {
 
     setIsSubmitting(true);
     try {
+      // Verify the auth session is still valid (prevents RLS failures from stale sessions)
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session?.user?.id) {
+        toast({ title: "Session expired", description: "Please log in again to submit your plantation.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+      }
+      const authUserId = sessionData.session.user.id;
+      console.log("[PlantTree] Submitting as user:", authUserId);
+
       const ts = Date.now();
       const [beforeUrl, afterUrl, selfieUrl] = await Promise.all([
-        uploadPhoto(beforePhoto, `${user.id}/${ts}_before.jpg`),
-        uploadPhoto(afterPhoto, `${user.id}/${ts}_after.jpg`),
-        uploadPhoto(selfiePhoto, `${user.id}/${ts}_selfie.jpg`),
+        uploadPhoto(beforePhoto, `${authUserId}/${ts}_before.jpg`),
+        uploadPhoto(afterPhoto, `${authUserId}/${ts}_after.jpg`),
+        uploadPhoto(selfiePhoto, `${authUserId}/${ts}_selfie.jpg`),
       ]);
 
       // Simple hash for duplicate detection
@@ -247,7 +257,7 @@ const PlantTree = () => {
           verification_status: "pending",
           admin_status: "pending",
           points_awarded: 0,
-          user_id: user.id,
+          user_id: authUserId,
           drive_id: driveId || null,
           photo_url: afterUrl,
           before_photo_url: beforeUrl,
@@ -285,7 +295,12 @@ const PlantTree = () => {
       setSubmitted(true);
       toast({ title: "🌳 Plantation Submitted!", description: "Your submission is pending admin approval. Points will be credited after verification." });
     } catch (error: any) {
-      toast({ title: "Submission failed", description: error.message, variant: "destructive" });
+      console.error("[PlantTree] Submission error:", error);
+      const msg = error?.message || "Unknown error";
+      const hint = msg.includes("row-level security")
+        ? "This usually means your session expired. Please log out and log back in, then try again."
+        : msg;
+      toast({ title: "Submission failed", description: hint, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
