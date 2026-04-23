@@ -1,19 +1,57 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Satellite, MapPin, TreePine, AlertTriangle, Loader2, Layers, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { MapContainer, TileLayer, CircleMarker, Popup, GeoJSON, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Popup, GeoJSON, useMap, Pane, ZoomControl, ScaleControl } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet.heat";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Slider } from "@/components/ui/slider";
 
-// Maharashtra center and bounds
+// Maharashtra center and tight bounds (state extent)
 const MH_CENTER: [number, number] = [19.7515, 75.7139];
-const MH_BOUNDS: L.LatLngBoundsExpression = [[15.6, 72.6], [22.1, 80.9]];
+const MH_BOUNDS: L.LatLngBoundsExpression = [[15.4, 72.4], [22.4, 81.0]];
+
+// India-states GeoJSON (community-maintained, contains Maharashtra polygon)
+const INDIA_STATES_URL =
+  "https://raw.githubusercontent.com/geohacker/india/master/state/india_state.geojson";
+// Maharashtra district boundaries
+const MH_DISTRICTS_URL =
+  "https://raw.githubusercontent.com/datameet/maps/master/maharashtra/maharashtra.geojson";
+
+// Build a world polygon with the Maharashtra ring as a hole → masks everything outside MH
+const buildMaharashtraMask = (mhFeature: any): GeoJSON.Feature => {
+  const world: number[][] = [
+    [-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85],
+  ];
+  const rings: number[][][] = [world];
+  const geom = mhFeature.geometry;
+  const pushRings = (coords: any) => {
+    // outer ring of each polygon becomes a hole
+    coords.forEach((poly: any) => rings.push(poly[0]));
+  };
+  if (geom.type === "Polygon") pushRings([geom.coordinates]);
+  else if (geom.type === "MultiPolygon") pushRings(geom.coordinates);
+  return {
+    type: "Feature",
+    properties: { mask: true },
+    geometry: { type: "Polygon", coordinates: rings as any },
+  };
+};
+
+// Auto-fit map to Maharashtra polygon once it loads
+const FitToFeature = ({ feature }: { feature: any }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (!feature) return;
+    const layer = L.geoJSON(feature);
+    map.fitBounds(layer.getBounds(), { padding: [10, 10] });
+    map.setMaxBounds(layer.getBounds().pad(0.05));
+  }, [map, feature]);
+  return null;
+};
 
 const MH_DISTRICTS = [
   "Pune", "Solapur", "Kolhapur", "Sangli", "Satara", "Nagpur", "Nashik",
