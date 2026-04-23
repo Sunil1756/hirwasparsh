@@ -43,100 +43,55 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const PLANTNET_API_KEY = Deno.env.get("PLANTNET_API_KEY");
+    if (!PLANTNET_API_KEY) {
+      throw new Error("PLANTNET_API_KEY is not configured");
     }
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: `You are an expert botanist. Analyze the provided plant/tree image and identify the species. You MUST respond using the detect_species tool.`,
-          },
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: "Identify the tree/plant species in this photo. Provide the common name, scientific name, and your confidence level.",
-              },
-              {
-                type: "image_url",
-                image_url: { url: `data:image/jpeg;base64,${imageBase64}` },
-              },
-            ],
-          },
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "detect_species",
-              description: "Return detected tree species information",
-              parameters: {
-                type: "object",
-                properties: {
-                  common_name: {
-                    type: "string",
-                    description: "Common name of the tree species (e.g. Neem, Banyan, Mango)",
-                  },
-                  scientific_name: {
-                    type: "string",
-                    description: "Scientific/botanical name (e.g. Azadirachta indica)",
-                  },
-                  confidence: {
-                    type: "number",
-                    description: "Confidence percentage from 0 to 100",
-                  },
-                  description: {
-                    type: "string",
-                    description: "Brief description of distinguishing features observed",
-                  },
-                },
-                required: ["common_name", "scientific_name", "confidence", "description"],
-                additionalProperties: false,
-              },
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "detect_species" } },
-      }),
+    // Convert base64 to blob
+    const imageData = Uint8Array.from(atob(imageBase64), c => c.charCodeAt(0));
+    const blob = new Blob([imageData], { type: 'image/jpeg' });
+
+    // Create form data
+    const formData = new FormData();
+    formData.append('images', blob, 'image.jpg');
+    formData.append('modifiers', JSON.stringify(['similar_images']));
+    formData.append('project', 'indiasouth');
+
+    const plantnetResponse = await fetch(`https://my-api.plantnet.org/v2/identify/indiasouth?api-key=${PLANTNET_API_KEY}&include-related-images=false&no-reject=false&lang=en`, {
+      method: 'POST',
+      body: formData,
     });
 
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "AI service rate limited. Please try again shortly." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (aiResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please add funds." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const errText = await aiResponse.text();
-      console.error("AI gateway error:", aiResponse.status, errText);
-      throw new Error(`AI gateway error: ${aiResponse.status}`);
+    if (!plantnetResponse.ok) {
+      const errText = await plantnetResponse.text();
+      console.error("PlantNet API error:", plantnetResponse.status, errText);
+      throw new Error(`PlantNet API error: ${plantnetResponse.status}`);
     }
 
-    const aiData = await aiResponse.json();
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    const plantnetData = await plantnetResponse.json();
 
-    if (!toolCall?.function?.arguments) {
-      throw new Error("No structured response from AI");
+    if (!plantnetData.results || plantnetData.results.length === 0) {
+      return new Response(JSON.stringify({
+        common_name: "Unknown",
+        scientific_name: "Unknown",
+        confidence: 0,
+        description: "No species identified by PlantNet"
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    const detection = JSON.parse(toolCall.function.arguments);
+    const topResult = plantnetData.results[0];
+    const species = topResult.species;
+    const score = topResult.score;
+
+    const detection = {
+      common_name: species.commonNames?.[0] || species.scientificNameWithoutAuthor,
+      scientific_name: species.scientificNameWithoutAuthor,
+      confidence: Math.round(score * 100),
+      description: `Identified using PlantNet AI model. Score: ${score.toFixed(2)}`
+    };
 
     return new Response(JSON.stringify(detection), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

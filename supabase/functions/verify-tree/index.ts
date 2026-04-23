@@ -29,32 +29,21 @@ serve(async (req) => {
     const userContent: any[] = [
       {
         type: "text",
-        text: `Perform comprehensive multi-modal analysis of these tree plantation verification photos using advanced computer vision and botanical expertise:
+        text: `Analyze these tree plantation photos for verification. Perform ALL of the following checks:
 
-VERIFICATION CHECKLIST:
-1. **TREE AUTHENTICITY**: Confirm presence of a genuine, living tree/plant. Detect artificial/fake trees, drawings, or CGI.
-2. **PHOTO GENUINENESS**: Analyze for authentic outdoor photography. Flag screenshots, stock photos, edited images, or digital artifacts.
-3. **SPECIES VERIFICATION**: ${species ? `Verify if the tree matches "${species}". Provide detailed morphological analysis.` : "Identify species using leaf shape, bark texture, branching pattern, and other characteristics."}
-4. **TREE HEALTH ASSESSMENT**: Evaluate overall health using leaf color, density, structural integrity, and signs of disease/pest damage.
-5. **HUMAN VERIFICATION**: ${selfieBase64 ? "Confirm presence of a real person in natural pose with the tree." : "No selfie provided."}
-6. **TEMPORAL DIFFERENCE**: ${beforeBase64 ? "Verify before/after photos show genuine change over time (growth, seasonal changes)." : "No before photo for temporal analysis."}
-7. **FRAUD DETECTION**: Check for photo manipulation, duplication, or suspicious patterns using advanced image forensics.
+1. TREE PRESENCE: Is there a real tree/plant in the "after" photo? (not fake/artificial)
+2. GENUINE PHOTO: Is it an authentic outdoor photo? (not screenshot, stock image, or digitally manipulated)
+3. SPECIES MATCH: ${species ? `Does it look like "${species}"?` : "Identify the species if possible."}
+4. HEALTH STATUS: What's the tree's health? (healthy/moderate/unhealthy)
+5. ${selfieBase64 ? "HUMAN PRESENCE: Is there a real person visible in the selfie photo?" : "No selfie provided for human check."}
+6. ${beforeBase64 ? "IMAGE DIFFERENCE: Are the before and after photos actually different images (not the same photo uploaded twice)?" : "No before photo provided for comparison."}
 
-ANALYSIS REQUIREMENTS:
-- Use multi-scale analysis (close-up details + full context)
-- Consider environmental context (soil, surroundings, lighting)
-- Apply botanical taxonomy for species identification
-- Provide confidence scores for each criterion
-- Flag any inconsistencies or red flags
+Provide a confidence score 0-100 and mark as failed if:
+- No real tree detected
+- Photos appear fake or duplicated
+- ${selfieBase64 ? "No human visible in selfie" : ""}
 
-REJECTION CRITERIA:
-- No visible tree or artificial substitute
-- Evidence of photo manipulation or stock images
-- Missing human in required selfie
-- Identical before/after photos
-- Confidence below 70% for critical checks
-
-You MUST use the verify_tree tool for your response.`,
+You MUST respond using the verify_tree tool.`,
       },
       {
         type: "image_url",
@@ -87,7 +76,7 @@ You MUST use the verify_tree tool for your response.`,
         messages: [
           {
             role: "system",
-            content: `You are an advanced AI botanist and computer vision expert specializing in tree plantation verification. Use state-of-the-art image analysis techniques to thoroughly validate submissions. Employ multi-modal reasoning combining visual features, contextual clues, and botanical knowledge. Be extremely rigorous in fraud detection - reject any submission that shows signs of manipulation, duplication, or artificial content. Analyze lighting, shadows, textures, backgrounds, and metadata-like artifacts. For species identification, use detailed morphological characteristics. Provide quantitative confidence scores based on multiple verification criteria.`,
+            content: `You are an expert botanist and anti-fraud image analyst for a tree plantation verification platform. You must thoroughly check every submitted image for authenticity. Be strict — reject anything suspicious. You MUST respond using the verify_tree tool.`,
           },
           { role: "user", content: userContent },
         ],
@@ -100,22 +89,19 @@ You MUST use the verify_tree tool for your response.`,
               parameters: {
                 type: "object",
                 properties: {
-                  is_tree: { type: "boolean", description: "Whether the after photo contains a real, living tree or plant using advanced visual analysis" },
-                  is_genuine_photo: { type: "boolean", description: "Whether photos appear to be genuine outdoor photographs without manipulation artifacts" },
-                  has_human_in_selfie: { type: "boolean", description: "Whether a real person is clearly visible and naturally posed in the selfie photo" },
-                  images_are_different: { type: "boolean", description: "Whether before and after photos show genuine temporal differences" },
-                  is_duplicate: { type: "boolean", description: "Whether this appears to be a duplicate or previously submitted photo" },
-                  species_match: { type: "string", enum: ["match", "mismatch", "uncertain", "no_claim"], description: "Species verification result" },
-                  detected_species: { type: "string", description: "Scientifically identified species with confidence reasoning" },
-                  health_status: { type: "string", enum: ["healthy", "moderate", "unhealthy", "unknown"], description: "Overall tree health assessment" },
-                  health_recommendation: { type: "string", description: "Specific care recommendations based on health analysis" },
-                  confidence: { type: "number", description: "Overall confidence score 0-100 based on multi-criteria analysis" },
-                  analysis: { type: "string", description: "Comprehensive analysis explaining all verification checks and reasoning" },
-                  co2_absorption_rate: { type: "number", description: "Estimated annual CO2 absorption in kg/year based on species and size" },
+                  is_tree: { type: "boolean", description: "Whether the after photo contains a real tree or plant" },
+                  is_genuine_photo: { type: "boolean", description: "Whether photos appear to be genuine outdoor photographs" },
+                  has_human_in_selfie: { type: "boolean", description: "Whether a real person is visible in the selfie photo" },
+                  images_are_different: { type: "boolean", description: "Whether before and after photos are actually different images" },
+                  is_duplicate: { type: "boolean", description: "Whether this appears to be a duplicate/reused submission" },
+                  species_match: { type: "string", enum: ["match", "mismatch", "uncertain", "no_claim"] },
+                  detected_species: { type: "string", description: "The species detected in the photo" },
+                  health_status: { type: "string", enum: ["healthy", "moderate", "unhealthy", "unknown"] },
+                  health_recommendation: { type: "string", description: "Care recommendation based on health assessment" },
+                  confidence: { type: "number", description: "Overall confidence score 0-100" },
+                  analysis: { type: "string", description: "Detailed analysis explaining all verification checks" },
+                  co2_absorption_rate: { type: "number", description: "Estimated CO2 absorption in kg/year for this species" },
                   is_native: { type: "boolean", description: "Whether this species is native to the Indian subcontinent" },
-                  environmental_context: { type: "string", description: "Analysis of planting environment (soil type, climate suitability, urban/rural setting)" },
-                  growth_stage: { type: "string", enum: ["sapling", "young", "mature", "unknown"], description: "Estimated growth stage of the tree" },
-                  fraud_indicators: { type: "array", items: { type: "string" }, description: "List of any detected fraud indicators or red flags" },
                 },
                 required: ["is_tree", "is_genuine_photo", "has_human_in_selfie", "images_are_different", "species_match", "health_status", "confidence", "analysis"],
                 additionalProperties: false,
@@ -147,15 +133,14 @@ You MUST use the verify_tree tool for your response.`,
 
     const verification = JSON.parse(toolCall.function.arguments);
 
-    // Determine verification status with advanced criteria
+    // Determine verification status with strict rules
     const passesAllChecks =
       verification.is_tree &&
       verification.is_genuine_photo &&
-      verification.confidence >= 75 && // Increased threshold for advanced AI
+      verification.confidence >= 60 &&
       (selfieBase64 ? verification.has_human_in_selfie : true) &&
       (beforeBase64 ? verification.images_are_different : true) &&
-      !verification.is_duplicate &&
-      (!verification.fraud_indicators || verification.fraud_indicators.length === 0);
+      !verification.is_duplicate;
 
     const status = passesAllChecks ? "verified" : "rejected";
 
@@ -187,13 +172,6 @@ You MUST use the verify_tree tool for your response.`,
         ai_confidence: verification.confidence,
         ai_analysis: finalAnalysis,
         ai_detected_species: verification.detected_species || null,
-        ai_health_status: verification.health_status,
-        ai_health_recommendation: verification.health_recommendation,
-        ai_co2_absorption: verification.co2_absorption_rate,
-        ai_is_native: verification.is_native,
-        ai_environmental_context: verification.environmental_context,
-        ai_growth_stage: verification.growth_stage,
-        ai_fraud_indicators: verification.fraud_indicators,
         updated_at: new Date().toISOString(),
       })
       .eq("id", treeId);
