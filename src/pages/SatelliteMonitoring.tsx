@@ -96,6 +96,33 @@ const SatelliteMonitoring = () => {
     },
   });
 
+  // Maharashtra state polygon (from India states GeoJSON)
+  const { data: mhFeature } = useQuery({
+    queryKey: ["mh-state-geojson"],
+    staleTime: Infinity,
+    queryFn: async () => {
+      const res = await fetch(INDIA_STATES_URL);
+      const gj = await res.json();
+      const f = gj.features.find((x: any) => {
+        const n = (x.properties?.NAME_1 || x.properties?.st_nm || x.properties?.name || "").toString().toLowerCase();
+        return n.includes("maharashtra");
+      });
+      return f || null;
+    },
+  });
+
+  // Maharashtra district boundaries
+  const { data: mhDistrictsGeo } = useQuery({
+    queryKey: ["mh-districts-geojson"],
+    staleTime: Infinity,
+    queryFn: async () => {
+      try { const r = await fetch(MH_DISTRICTS_URL); return r.ok ? await r.json() : null; }
+      catch { return null; }
+    },
+  });
+
+  const maskFeature = useMemo(() => (mhFeature ? buildMaharashtraMask(mhFeature) : null), [mhFeature]);
+
   const filteredTrees = districtFilter === "all"
     ? trees
     : trees.filter(t => t.location?.toLowerCase().includes(districtFilter.toLowerCase()));
