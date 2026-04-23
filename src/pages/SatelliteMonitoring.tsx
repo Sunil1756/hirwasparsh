@@ -287,15 +287,15 @@ const SatelliteMonitoring = () => {
                     : "© OpenStreetMap contributors"}
                 />
 
-                {/* Mask everything outside Maharashtra */}
+                {/* Mask everything outside Maharashtra (or selected district) */}
                 <Pane name="mh-mask" style={{ zIndex: 400 }}>
-                  {maskFeature && (
+                  {(districtMaskFeature || maskFeature) && (
                     <GeoJSON
-                      key="mask"
-                      data={maskFeature as any}
+                      key={districtMaskFeature ? `mask-${districtFilter}` : "mask-state"}
+                      data={(districtMaskFeature || maskFeature) as any}
                       style={{
                         fillColor: "#000",
-                        fillOpacity: 0.78,
+                        fillOpacity: districtMaskFeature ? 0.85 : 0.78,
                         color: "transparent",
                         weight: 0,
                         interactive: false,
@@ -323,6 +323,15 @@ const SatelliteMonitoring = () => {
                   />
                 )}
 
+                {/* Selected district highlight */}
+                {selectedDistrictFeature && (
+                  <GeoJSON
+                    key={`sel-${districtFilter}`}
+                    data={selectedDistrictFeature as any}
+                    style={{ color: "#22c55e", weight: 3, opacity: 1, fillOpacity: 0 } as any}
+                  />
+                )}
+
                 {/* State outline emphasis */}
                 {mhFeature && (
                   <GeoJSON
@@ -330,14 +339,14 @@ const SatelliteMonitoring = () => {
                     data={mhFeature as any}
                     style={{
                       color: "#22c55e",
-                      weight: 2.5,
-                      opacity: 0.95,
+                      weight: selectedDistrictFeature ? 1.2 : 2.5,
+                      opacity: selectedDistrictFeature ? 0.6 : 0.95,
                       fillOpacity: 0,
                     } as any}
                   />
                 )}
 
-                {mhFeature && <FitToFeature feature={mhFeature} />}
+                {activeFitFeature && <FitToFeature feature={activeFitFeature} padding={selectedDistrictFeature ? 0.15 : 0.05} />}
 
                 {viewMode === "heatmap" ? (
                   <HeatmapLayer points={heatPoints} />
