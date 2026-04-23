@@ -41,16 +41,42 @@ const buildMaharashtraMask = (mhFeature: any): GeoJSON.Feature => {
   };
 };
 
-// Auto-fit map to Maharashtra polygon once it loads
-const FitToFeature = ({ feature }: { feature: any }) => {
+// Auto-fit map to a feature (state or district) when it changes
+const FitToFeature = ({ feature, padding = 0.05 }: { feature: any; padding?: number }) => {
   const map = useMap();
   useEffect(() => {
     if (!feature) return;
     const layer = L.geoJSON(feature);
-    map.fitBounds(layer.getBounds(), { padding: [10, 10] });
-    map.setMaxBounds(layer.getBounds().pad(0.05));
-  }, [map, feature]);
+    const bounds = layer.getBounds();
+    map.fitBounds(bounds, { padding: [10, 10] });
+    map.setMaxBounds(bounds.pad(padding));
+  }, [map, feature, padding]);
   return null;
+};
+
+// Ray-casting point-in-polygon (lng, lat ordering as per GeoJSON)
+const pointInRing = (lng: number, lat: number, ring: number[][]) => {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    const intersect = ((yi > lat) !== (yj > lat)) && (lng < ((xj - xi) * (lat - yi)) / (yj - yi || 1e-12) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+};
+const pointInFeature = (lat: number, lng: number, feat: any): boolean => {
+  if (!feat?.geometry) return false;
+  const { type, coordinates } = feat.geometry;
+  const polys = type === "Polygon" ? [coordinates] : type === "MultiPolygon" ? coordinates : [];
+  for (const poly of polys) {
+    if (poly.length === 0) continue;
+    if (!pointInRing(lng, lat, poly[0])) continue;
+    let inHole = false;
+    for (let h = 1; h < poly.length; h++) if (pointInRing(lng, lat, poly[h])) { inHole = true; break; }
+    if (!inHole) return true;
+  }
+  return false;
 };
 
 const MH_DISTRICTS = [
