@@ -1,57 +1,19 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Satellite, MapPin, TreePine, AlertTriangle, Loader2, Layers, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { MapContainer, TileLayer, CircleMarker, Popup, GeoJSON, useMap, Pane, ZoomControl, ScaleControl } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Popup, GeoJSON, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet.heat";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Slider } from "@/components/ui/slider";
 
-// Maharashtra center and tight bounds (state extent)
+// Maharashtra center and bounds
 const MH_CENTER: [number, number] = [19.7515, 75.7139];
-const MH_BOUNDS: L.LatLngBoundsExpression = [[15.4, 72.4], [22.4, 81.0]];
-
-// India-states GeoJSON (community-maintained, contains Maharashtra polygon)
-const INDIA_STATES_URL =
-  "https://raw.githubusercontent.com/geohacker/india/master/state/india_state.geojson";
-// Maharashtra district boundaries
-const MH_DISTRICTS_URL =
-  "https://raw.githubusercontent.com/datameet/maps/master/maharashtra/maharashtra.geojson";
-
-// Build a world polygon with the Maharashtra ring as a hole → masks everything outside MH
-const buildMaharashtraMask = (mhFeature: any): GeoJSON.Feature => {
-  const world: number[][] = [
-    [-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85],
-  ];
-  const rings: number[][][] = [world];
-  const geom = mhFeature.geometry;
-  const pushRings = (coords: any) => {
-    // outer ring of each polygon becomes a hole
-    coords.forEach((poly: any) => rings.push(poly[0]));
-  };
-  if (geom.type === "Polygon") pushRings([geom.coordinates]);
-  else if (geom.type === "MultiPolygon") pushRings(geom.coordinates);
-  return {
-    type: "Feature",
-    properties: { mask: true },
-    geometry: { type: "Polygon", coordinates: rings as any },
-  };
-};
-
-// Auto-fit map to Maharashtra polygon once it loads
-const FitToFeature = ({ feature }: { feature: any }) => {
-  const map = useMap();
-  useEffect(() => {
-    if (!feature) return;
-    const layer = L.geoJSON(feature);
-    map.fitBounds(layer.getBounds(), { padding: [10, 10] });
-    map.setMaxBounds(layer.getBounds().pad(0.05));
-  }, [map, feature]);
-  return null;
-};
+const MH_BOUNDS: L.LatLngBoundsExpression = [[15.6, 72.6], [22.1, 80.9]];
 
 const MH_DISTRICTS = [
   "Pune", "Solapur", "Kolhapur", "Sangli", "Satara", "Nagpur", "Nashik",
@@ -95,33 +57,6 @@ const SatelliteMonitoring = () => {
       return data;
     },
   });
-
-  // Maharashtra state polygon (from India states GeoJSON)
-  const { data: mhFeature } = useQuery({
-    queryKey: ["mh-state-geojson"],
-    staleTime: Infinity,
-    queryFn: async () => {
-      const res = await fetch(INDIA_STATES_URL);
-      const gj = await res.json();
-      const f = gj.features.find((x: any) => {
-        const n = (x.properties?.NAME_1 || x.properties?.st_nm || x.properties?.name || "").toString().toLowerCase();
-        return n.includes("maharashtra");
-      });
-      return f || null;
-    },
-  });
-
-  // Maharashtra district boundaries
-  const { data: mhDistrictsGeo } = useQuery({
-    queryKey: ["mh-districts-geojson"],
-    staleTime: Infinity,
-    queryFn: async () => {
-      try { const r = await fetch(MH_DISTRICTS_URL); return r.ok ? await r.json() : null; }
-      catch { return null; }
-    },
-  });
-
-  const maskFeature = useMemo(() => (mhFeature ? buildMaharashtraMask(mhFeature) : null), [mhFeature]);
 
   const filteredTrees = districtFilter === "all"
     ? trees
@@ -220,73 +155,11 @@ const SatelliteMonitoring = () => {
                 center={MH_CENTER}
                 zoom={7}
                 maxBounds={MH_BOUNDS}
-                maxBoundsViscosity={1}
                 minZoom={6}
-                maxZoom={16}
                 scrollWheelZoom
-                zoomControl={false}
-                style={{ height: "600px", width: "100%", background: "hsl(var(--background))" }}
+                style={{ height: "500px", width: "100%" }}
               >
-                <ZoomControl position="topright" />
-                <ScaleControl position="bottomleft" />
-                <TileLayer
-                  url={tileUrl}
-                  attribution={tileLayer === "satellite"
-                    ? "Imagery © Esri"
-                    : "© OpenStreetMap contributors"}
-                />
-
-                {/* Mask everything outside Maharashtra */}
-                <Pane name="mh-mask" style={{ zIndex: 400 }}>
-                  {maskFeature && (
-                    <GeoJSON
-                      key="mask"
-                      data={maskFeature as any}
-                      style={{
-                        fillColor: "#000",
-                        fillOpacity: 0.78,
-                        color: "transparent",
-                        weight: 0,
-                        interactive: false,
-                      } as any}
-                    />
-                  )}
-                </Pane>
-
-                {/* District boundaries */}
-                {mhDistrictsGeo && (
-                  <GeoJSON
-                    key="districts"
-                    data={mhDistrictsGeo as any}
-                    style={{
-                      color: "hsl(var(--primary))",
-                      weight: 1,
-                      opacity: 0.55,
-                      fillOpacity: 0,
-                      dashArray: "3 3",
-                    } as any}
-                    onEachFeature={(feat, layer) => {
-                      const name = feat.properties?.district || feat.properties?.NAME_2 || feat.properties?.name;
-                      if (name) layer.bindTooltip(String(name), { sticky: true, direction: "top" });
-                    }}
-                  />
-                )}
-
-                {/* State outline emphasis */}
-                {mhFeature && (
-                  <GeoJSON
-                    key="mh-outline"
-                    data={mhFeature as any}
-                    style={{
-                      color: "#22c55e",
-                      weight: 2.5,
-                      opacity: 0.95,
-                      fillOpacity: 0,
-                    } as any}
-                  />
-                )}
-
-                {mhFeature && <FitToFeature feature={mhFeature} />}
+                <TileLayer url={tileUrl} />
 
                 {viewMode === "heatmap" ? (
                   <HeatmapLayer points={heatPoints} />
@@ -298,7 +171,7 @@ const SatelliteMonitoring = () => {
                       radius={7}
                       pathOptions={{
                         color: t.admin_status === "approved" ? "#22c55e" : t.admin_status === "rejected" ? "#ef4444" : "#f59e0b",
-                        fillOpacity: 0.85,
+                        fillOpacity: 0.8,
                         weight: 2,
                       }}
                     >
