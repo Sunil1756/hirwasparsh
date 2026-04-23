@@ -220,11 +220,73 @@ const SatelliteMonitoring = () => {
                 center={MH_CENTER}
                 zoom={7}
                 maxBounds={MH_BOUNDS}
+                maxBoundsViscosity={1}
                 minZoom={6}
+                maxZoom={16}
                 scrollWheelZoom
-                style={{ height: "500px", width: "100%" }}
+                zoomControl={false}
+                style={{ height: "600px", width: "100%", background: "hsl(var(--background))" }}
               >
-                <TileLayer url={tileUrl} />
+                <ZoomControl position="topright" />
+                <ScaleControl position="bottomleft" />
+                <TileLayer
+                  url={tileUrl}
+                  attribution={tileLayer === "satellite"
+                    ? "Imagery © Esri"
+                    : "© OpenStreetMap contributors"}
+                />
+
+                {/* Mask everything outside Maharashtra */}
+                <Pane name="mh-mask" style={{ zIndex: 400 }}>
+                  {maskFeature && (
+                    <GeoJSON
+                      key="mask"
+                      data={maskFeature as any}
+                      style={{
+                        fillColor: "#000",
+                        fillOpacity: 0.78,
+                        color: "transparent",
+                        weight: 0,
+                        interactive: false,
+                      } as any}
+                    />
+                  )}
+                </Pane>
+
+                {/* District boundaries */}
+                {mhDistrictsGeo && (
+                  <GeoJSON
+                    key="districts"
+                    data={mhDistrictsGeo as any}
+                    style={{
+                      color: "hsl(var(--primary))",
+                      weight: 1,
+                      opacity: 0.55,
+                      fillOpacity: 0,
+                      dashArray: "3 3",
+                    } as any}
+                    onEachFeature={(feat, layer) => {
+                      const name = feat.properties?.district || feat.properties?.NAME_2 || feat.properties?.name;
+                      if (name) layer.bindTooltip(String(name), { sticky: true, direction: "top" });
+                    }}
+                  />
+                )}
+
+                {/* State outline emphasis */}
+                {mhFeature && (
+                  <GeoJSON
+                    key="mh-outline"
+                    data={mhFeature as any}
+                    style={{
+                      color: "#22c55e",
+                      weight: 2.5,
+                      opacity: 0.95,
+                      fillOpacity: 0,
+                    } as any}
+                  />
+                )}
+
+                {mhFeature && <FitToFeature feature={mhFeature} />}
 
                 {viewMode === "heatmap" ? (
                   <HeatmapLayer points={heatPoints} />
@@ -236,7 +298,7 @@ const SatelliteMonitoring = () => {
                       radius={7}
                       pathOptions={{
                         color: t.admin_status === "approved" ? "#22c55e" : t.admin_status === "rejected" ? "#ef4444" : "#f59e0b",
-                        fillOpacity: 0.8,
+                        fillOpacity: 0.85,
                         weight: 2,
                       }}
                     >
