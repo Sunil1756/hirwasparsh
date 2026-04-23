@@ -72,7 +72,7 @@ You MUST respond using the verify_tree tool.`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "openai/gpt-4o",
+        model: "google/gemini-2.5-flash",
         messages: [
           {
             role: "system",

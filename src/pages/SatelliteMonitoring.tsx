@@ -41,42 +41,16 @@ const buildMaharashtraMask = (mhFeature: any): GeoJSON.Feature => {
   };
 };
 
-// Auto-fit map to a feature (state or district) when it changes
-const FitToFeature = ({ feature, padding = 0.05 }: { feature: any; padding?: number }) => {
+// Auto-fit map to Maharashtra polygon once it loads
+const FitToFeature = ({ feature }: { feature: any }) => {
   const map = useMap();
   useEffect(() => {
     if (!feature) return;
     const layer = L.geoJSON(feature);
-    const bounds = layer.getBounds();
-    map.fitBounds(bounds, { padding: [10, 10] });
-    map.setMaxBounds(bounds.pad(padding));
-  }, [map, feature, padding]);
+    map.fitBounds(layer.getBounds(), { padding: [10, 10] });
+    map.setMaxBounds(layer.getBounds().pad(0.05));
+  }, [map, feature]);
   return null;
-};
-
-// Ray-casting point-in-polygon (lng, lat ordering as per GeoJSON)
-const pointInRing = (lng: number, lat: number, ring: number[][]) => {
-  let inside = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const [xi, yi] = ring[i];
-    const [xj, yj] = ring[j];
-    const intersect = ((yi > lat) !== (yj > lat)) && (lng < ((xj - xi) * (lat - yi)) / (yj - yi || 1e-12) + xi);
-    if (intersect) inside = !inside;
-  }
-  return inside;
-};
-const pointInFeature = (lat: number, lng: number, feat: any): boolean => {
-  if (!feat?.geometry) return false;
-  const { type, coordinates } = feat.geometry;
-  const polys = type === "Polygon" ? [coordinates] : type === "MultiPolygon" ? coordinates : [];
-  for (const poly of polys) {
-    if (poly.length === 0) continue;
-    if (!pointInRing(lng, lat, poly[0])) continue;
-    let inHole = false;
-    for (let h = 1; h < poly.length; h++) if (pointInRing(lng, lat, poly[h])) { inHole = true; break; }
-    if (!inHole) return true;
-  }
-  return false;
 };
 
 const MH_DISTRICTS = [
@@ -149,34 +123,9 @@ const SatelliteMonitoring = () => {
 
   const maskFeature = useMemo(() => (mhFeature ? buildMaharashtraMask(mhFeature) : null), [mhFeature]);
 
-  // Selected district feature from districts GeoJSON
-  const selectedDistrictFeature = useMemo(() => {
-    if (districtFilter === "all" || !mhDistrictsGeo) return null;
-    const target = districtFilter.toLowerCase();
-    return ((mhDistrictsGeo as any).features || []).find((f: any) => {
-      const n = (f.properties?.district || f.properties?.NAME_2 || f.properties?.name || "").toString().toLowerCase();
-      return n === target || n.includes(target) || target.includes(n);
-    }) || null;
-  }, [districtFilter, mhDistrictsGeo]);
-
-  // Mask everything outside the selected district when one is chosen
-  const districtMaskFeature = useMemo(
-    () => (selectedDistrictFeature ? buildMaharashtraMask(selectedDistrictFeature) : null),
-    [selectedDistrictFeature]
-  );
-
-  const activeFitFeature = selectedDistrictFeature || mhFeature;
-
-  const filteredTrees = useMemo(() => {
-    if (districtFilter === "all") return trees;
-    if (selectedDistrictFeature) {
-      return trees.filter(t =>
-        t.latitude != null && t.longitude != null &&
-        pointInFeature(t.latitude, t.longitude, selectedDistrictFeature)
-      );
-    }
-    return trees.filter(t => t.location?.toLowerCase().includes(districtFilter.toLowerCase()));
-  }, [trees, districtFilter, selectedDistrictFeature]);
+  const filteredTrees = districtFilter === "all"
+    ? trees
+    : trees.filter(t => t.location?.toLowerCase().includes(districtFilter.toLowerCase()));
 
   const approvedTrees = filteredTrees.filter(t => t.admin_status === "approved");
   const heatPoints: [number, number, number][] = filteredTrees
@@ -287,15 +236,15 @@ const SatelliteMonitoring = () => {
                     : "© OpenStreetMap contributors"}
                 />
 
-                {/* Mask everything outside Maharashtra (or selected district) */}
+                {/* Mask everything outside Maharashtra */}
                 <Pane name="mh-mask" style={{ zIndex: 400 }}>
-                  {(districtMaskFeature || maskFeature) && (
+                  {maskFeature && (
                     <GeoJSON
-                      key={districtMaskFeature ? `mask-${districtFilter}` : "mask-state"}
-                      data={(districtMaskFeature || maskFeature) as any}
+                      key="mask"
+                      data={maskFeature as any}
                       style={{
                         fillColor: "#000",
-                        fillOpacity: districtMaskFeature ? 0.85 : 0.78,
+                        fillOpacity: 0.78,
                         color: "transparent",
                         weight: 0,
                         interactive: false,
@@ -323,15 +272,6 @@ const SatelliteMonitoring = () => {
                   />
                 )}
 
-                {/* Selected district highlight */}
-                {selectedDistrictFeature && (
-                  <GeoJSON
-                    key={`sel-${districtFilter}`}
-                    data={selectedDistrictFeature as any}
-                    style={{ color: "#22c55e", weight: 3, opacity: 1, fillOpacity: 0 } as any}
-                  />
-                )}
-
                 {/* State outline emphasis */}
                 {mhFeature && (
                   <GeoJSON
@@ -339,14 +279,14 @@ const SatelliteMonitoring = () => {
                     data={mhFeature as any}
                     style={{
                       color: "#22c55e",
-                      weight: selectedDistrictFeature ? 1.2 : 2.5,
-                      opacity: selectedDistrictFeature ? 0.6 : 0.95,
+                      weight: 2.5,
+                      opacity: 0.95,
                       fillOpacity: 0,
                     } as any}
                   />
                 )}
 
-                {activeFitFeature && <FitToFeature feature={activeFitFeature} padding={selectedDistrictFeature ? 0.15 : 0.05} />}
+                {mhFeature && <FitToFeature feature={mhFeature} />}
 
                 {viewMode === "heatmap" ? (
                   <HeatmapLayer points={heatPoints} />
