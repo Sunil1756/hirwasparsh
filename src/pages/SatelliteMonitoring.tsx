@@ -149,9 +149,34 @@ const SatelliteMonitoring = () => {
 
   const maskFeature = useMemo(() => (mhFeature ? buildMaharashtraMask(mhFeature) : null), [mhFeature]);
 
-  const filteredTrees = districtFilter === "all"
-    ? trees
-    : trees.filter(t => t.location?.toLowerCase().includes(districtFilter.toLowerCase()));
+  // Selected district feature from districts GeoJSON
+  const selectedDistrictFeature = useMemo(() => {
+    if (districtFilter === "all" || !mhDistrictsGeo) return null;
+    const target = districtFilter.toLowerCase();
+    return ((mhDistrictsGeo as any).features || []).find((f: any) => {
+      const n = (f.properties?.district || f.properties?.NAME_2 || f.properties?.name || "").toString().toLowerCase();
+      return n === target || n.includes(target) || target.includes(n);
+    }) || null;
+  }, [districtFilter, mhDistrictsGeo]);
+
+  // Mask everything outside the selected district when one is chosen
+  const districtMaskFeature = useMemo(
+    () => (selectedDistrictFeature ? buildMaharashtraMask(selectedDistrictFeature) : null),
+    [selectedDistrictFeature]
+  );
+
+  const activeFitFeature = selectedDistrictFeature || mhFeature;
+
+  const filteredTrees = useMemo(() => {
+    if (districtFilter === "all") return trees;
+    if (selectedDistrictFeature) {
+      return trees.filter(t =>
+        t.latitude != null && t.longitude != null &&
+        pointInFeature(t.latitude, t.longitude, selectedDistrictFeature)
+      );
+    }
+    return trees.filter(t => t.location?.toLowerCase().includes(districtFilter.toLowerCase()));
+  }, [trees, districtFilter, selectedDistrictFeature]);
 
   const approvedTrees = filteredTrees.filter(t => t.admin_status === "approved");
   const heatPoints: [number, number, number][] = filteredTrees
