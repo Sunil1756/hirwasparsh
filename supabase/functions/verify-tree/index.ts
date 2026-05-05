@@ -13,6 +13,27 @@ serve(async (req) => {
   }
 
   try {
+    // ---- Authentication ----
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+    const userId = claimsData.claims.sub;
+
     const { imageBase64, selfieBase64, beforeBase64, treeId, species, photoHash } = await req.json();
 
     if (!imageBase64 || !treeId) {
@@ -20,6 +41,15 @@ serve(async (req) => {
         JSON.stringify({ error: "imageBase64 and treeId are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Verify tree ownership before doing any AI work
+    const { data: ownedTree, error: ownErr } = await userClient
+      .from("trees").select("id, user_id").eq("id", treeId).maybeSingle();
+    if (ownErr || !ownedTree || ownedTree.user_id !== userId) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
