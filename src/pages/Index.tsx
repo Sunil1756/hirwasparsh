@@ -146,11 +146,11 @@ const Index = () => {
               </motion.span>
               Smart Green Verification Platform
             </motion.div>
-            <h1 className="font-heading text-5xl md:text-7xl font-extrabold text-primary-foreground mb-6 leading-[1.05] tracking-tight">
+            <h1 className="font-heading text-5xl md:text-7xl font-extrabold text-nature-900 mb-6 leading-[1.05] tracking-tight drop-shadow-sm">
               Grow a Greener Future<br />
-              <span className="text-base md:text-2xl font-semibold text-primary-foreground/90 block mt-3 mb-1">with</span>
+              <span className="text-base md:text-2xl font-semibold text-nature-900/80 block mt-3 mb-1">with</span>
               <motion.span
-                className="text-gradient-nature inline-block"
+                className="text-primary inline-block"
                 animate={{ scale: [1, 1.02, 1] }}
                 transition={{ duration: 4, repeat: Infinity }}
               >
@@ -158,16 +158,16 @@ const Index = () => {
               </motion.span>
             </h1>
 
-            <p className="font-heading text-xl md:text-2xl font-semibold text-primary-foreground mb-4">
+            <p className="font-heading text-xl md:text-2xl font-semibold text-nature-900 mb-4">
               Plant with Purpose. Grow with Proof.
             </p>
             <div className="flex items-center justify-center gap-3 mb-6 opacity-80">
-              <span className="h-px w-12 bg-primary-foreground/40" />
-              <Leaf className="h-4 w-4 text-primary-foreground/70" />
-              <span className="h-px w-12 bg-primary-foreground/40" />
+              <span className="h-px w-12 bg-primary/50" />
+              <Leaf className="h-4 w-4 text-primary" />
+              <span className="h-px w-12 bg-primary/50" />
             </div>
 
-            <p className="text-base md:text-lg text-primary-foreground/85 max-w-2xl mx-auto mb-10 leading-relaxed">
+            <p className="text-base md:text-lg text-nature-900/80 max-w-2xl mx-auto mb-10 leading-relaxed">
               Plant trees, track real growth, and verify environmental impact using AI-powered transparency and community participation.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
