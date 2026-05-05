@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { TreePine, Leaf, MapPin, Users, BarChart3, Shield, Globe, Award, ArrowRight, AlertTriangle, Lightbulb, Sprout } from "lucide-react";
+import { TreePine, Leaf, MapPin, Users, BarChart3, Shield, Globe, Award, ArrowRight, AlertTriangle, Lightbulb, Sprout, ShieldCheck, TrendingUp, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AnimatedCounter from "@/components/AnimatedCounter";
 import { supabase } from "@/integrations/supabase/client";
@@ -144,25 +144,36 @@ const Index = () => {
               <motion.span animate={{ rotate: [0, 15, -15, 0] }} transition={{ duration: 2, repeat: Infinity }}>
                 <Sprout className="h-4 w-4" />
               </motion.span>
-              Smart Green Community Platform
+              Smart Green Verification Platform
             </motion.div>
-            <h1 className="font-heading text-5xl md:text-7xl font-extrabold text-primary-foreground mb-6 leading-tight">
+            <h1 className="font-heading text-5xl md:text-7xl font-extrabold text-primary-foreground mb-6 leading-[1.05] tracking-tight">
               Grow a Greener Future<br />
+              <span className="text-base md:text-2xl font-semibold text-primary-foreground/90 block mt-3 mb-1">with</span>
               <motion.span
-                className="text-sky inline-block"
+                className="text-gradient-nature inline-block"
                 animate={{ scale: [1, 1.02, 1] }}
                 transition={{ duration: 4, repeat: Infinity }}
               >
-                with Green Enlightenment
+                Green Enlightenment
               </motion.span>
             </h1>
-            <p className="text-lg md:text-xl text-primary-foreground/80 max-w-2xl mx-auto mb-8">
-              Plant trees, track growth, and build green communities using AI technology and community participation.
+
+            <p className="font-heading text-xl md:text-2xl font-semibold text-primary-foreground mb-4">
+              Plant with Purpose. Grow with Proof.
+            </p>
+            <div className="flex items-center justify-center gap-3 mb-6 opacity-80">
+              <span className="h-px w-12 bg-primary-foreground/40" />
+              <Leaf className="h-4 w-4 text-primary-foreground/70" />
+              <span className="h-px w-12 bg-primary-foreground/40" />
+            </div>
+
+            <p className="text-base md:text-lg text-primary-foreground/85 max-w-2xl mx-auto mb-10 leading-relaxed">
+              Plant trees, track real growth, and verify environmental impact using AI-powered transparency and community participation.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link to="/plant">
                 <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.97 }}>
-                  <Button size="lg" className="text-lg px-8 gap-2">
+                  <Button size="lg" className="text-lg px-8 gap-2 shadow-lg">
                     <motion.span animate={{ rotate: [0, -20, 20, 0] }} transition={{ duration: 2, repeat: Infinity, delay: 1 }}>
                       <Leaf className="h-5 w-5" />
                     </motion.span>
@@ -172,12 +183,33 @@ const Index = () => {
               </Link>
               <Link to="/tree-map">
                 <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.97 }}>
-                  <Button size="lg" variant="outline" className="text-lg px-8 gap-2 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
+                  <Button size="lg" variant="outline" className="text-lg px-8 gap-2 border-primary-foreground/40 bg-primary-foreground/5 backdrop-blur-sm text-primary-foreground hover:bg-primary-foreground/15">
                     <MapPin className="h-5 w-5" /> Explore Tree Map
                   </Button>
                 </motion.div>
               </Link>
             </div>
+
+            {/* Trust strip */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.8 }}
+              className="mt-14 grid grid-cols-2 sm:grid-cols-4 gap-6 max-w-3xl mx-auto"
+            >
+              {[
+                { icon: <ShieldCheck className="h-6 w-6" />, label: "Verified Plantation" },
+                { icon: <TrendingUp className="h-6 w-6" />, label: "Real-time Tracking" },
+                { icon: <Bot className="h-6 w-6" />, label: "AI-Powered Verification" },
+                { icon: <Users className="h-6 w-6" />, label: "Community Driven" },
+              ].map((item, i) => (
+                <div key={i} className="flex flex-col items-center gap-2 text-primary-foreground/90 relative">
+                  {i > 0 && <span className="hidden sm:block absolute left-0 top-1/2 -translate-y-1/2 h-10 w-px bg-primary-foreground/20" />}
+                  {item.icon}
+                  <span className="text-xs md:text-sm font-medium text-center leading-tight">{item.label}</span>
+                </div>
+              ))}
+            </motion.div>
           </motion.div>
         </div>
 
