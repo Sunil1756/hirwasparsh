@@ -175,7 +175,6 @@ You MUST respond using the verify_tree tool.`,
     const status = passesAllChecks ? "verified" : "rejected";
 
     // Check for duplicate photo hash in database
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
