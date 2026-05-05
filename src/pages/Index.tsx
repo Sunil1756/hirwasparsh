@@ -203,9 +203,9 @@ const Index = () => {
                 { icon: <Bot className="h-6 w-6" />, label: "AI-Powered Verification" },
                 { icon: <Users className="h-6 w-6" />, label: "Community Driven" },
               ].map((item, i) => (
-                <div key={i} className="flex flex-col items-center gap-2 text-primary-foreground/90 relative">
-                  {i > 0 && <span className="hidden sm:block absolute left-0 top-1/2 -translate-y-1/2 h-10 w-px bg-primary-foreground/20" />}
-                  {item.icon}
+                <div key={i} className="flex flex-col items-center gap-2 text-nature-900/85 relative">
+                  {i > 0 && <span className="hidden sm:block absolute left-0 top-1/2 -translate-y-1/2 h-10 w-px bg-nature-900/20" />}
+                  <span className="text-primary">{item.icon}</span>
                   <span className="text-xs md:text-sm font-medium text-center leading-tight">{item.label}</span>
                 </div>
               ))}
