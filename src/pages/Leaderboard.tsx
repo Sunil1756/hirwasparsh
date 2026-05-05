@@ -137,9 +137,9 @@ const Leaderboard = () => {
   const rest = ranked.slice(3);
 
   const shareCard = (name: string, trees: number, points: number) => {
-    const text = `🌳 ${name} planted ${trees} trees & earned ${points} Green Points on Hirwa Sparsh! Join the movement: ${window.location.origin}`;
+    const text = `🌳 ${name} planted ${trees} trees & earned ${points} Green Points on Green Enlightenment! Join the movement: ${window.location.origin}`;
     if (navigator.share) {
-      navigator.share({ title: "Hirwa Sparsh", text }).catch(() => {});
+      navigator.share({ title: "Green Enlightenment", text }).catch(() => {});
     } else {
       navigator.clipboard.writeText(text);
       toast({ title: "Copied!", description: "Share text copied to clipboard." });

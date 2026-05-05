@@ -16,9 +16,9 @@ const About = () => (
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm mb-6">
             <TreePine className="h-4 w-4" /> About Us
           </div>
-          <h1 className="font-heading text-5xl font-bold mb-6">About Hirwa Sparsh</h1>
+          <h1 className="font-heading text-5xl font-bold mb-6">About Green Enlightenment</h1>
           <p className="text-muted-foreground text-lg leading-relaxed mb-8">
-            Hirwa Sparsh is a technology-driven platform designed to increase tree plantation, track environmental impact, and build green communities using AI, satellite monitoring, and community participation.
+            Green Enlightenment is a technology-driven platform designed to increase tree plantation, track environmental impact, and build green communities using AI, satellite monitoring, and community participation.
           </p>
           <p className="text-muted-foreground leading-relaxed">
             Our mission is to connect citizens, schools, NGOs, governments, and corporate CSR programs on a single platform to collectively drive reforestation and environmental sustainability.
