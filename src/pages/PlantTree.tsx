@@ -206,6 +206,13 @@ const PlantTree = () => {
     return urlData.publicUrl;
   };
 
+  const uploadSelfie = async (file: File, path: string) => {
+    // Selfies go to the PRIVATE 'selfies' bucket. Store the storage path (not a public URL).
+    const { data, error } = await supabase.storage.from("selfies").upload(path, file, { upsert: true });
+    if (error) throw error;
+    return data.path;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
