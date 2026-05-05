@@ -126,8 +126,8 @@ const Index = () => {
     <div className="min-h-screen">
       {/* Hero */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        <img src={heroBg} alt="Lush green forest" className="absolute inset-0 w-full h-full object-cover" width={1920} height={1080} />
-        <div className="absolute inset-0 bg-gradient-to-b from-nature-900/70 via-nature-900/50 to-background" />
+        <img src={heroBg} alt="Lush green misty mountain valley" className="absolute inset-0 w-full h-full object-cover" width={1920} height={1080} />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-white/10 to-background/80" />
 
         {/* Floating leaf particles */}
         {[...Array(6)].map((_, i) => (
