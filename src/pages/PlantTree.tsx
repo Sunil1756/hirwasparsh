@@ -244,7 +244,7 @@ const PlantTree = () => {
       const [beforeUrl, afterUrl, selfieUrl] = await Promise.all([
         uploadPhoto(beforePhoto, `${authUserId}/${ts}_before.jpg`),
         uploadPhoto(afterPhoto, `${authUserId}/${ts}_after.jpg`),
-        uploadPhoto(selfiePhoto, `${authUserId}/${ts}_selfie.jpg`),
+        uploadSelfie(selfiePhoto, `${authUserId}/${ts}_selfie.jpg`),
       ]);
 
       // Simple hash for duplicate detection
