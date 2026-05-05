@@ -126,8 +126,8 @@ const Index = () => {
     <div className="min-h-screen">
       {/* Hero */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        <img src={heroBg} alt="Lush green forest" className="absolute inset-0 w-full h-full object-cover" width={1920} height={1080} />
-        <div className="absolute inset-0 bg-gradient-to-b from-nature-900/70 via-nature-900/50 to-background" />
+        <img src={heroBg} alt="Lush green misty mountain valley" className="absolute inset-0 w-full h-full object-cover" width={1920} height={1080} />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-white/10 to-background/80" />
 
         {/* Floating leaf particles */}
         {[...Array(6)].map((_, i) => (
@@ -146,11 +146,11 @@ const Index = () => {
               </motion.span>
               Smart Green Verification Platform
             </motion.div>
-            <h1 className="font-heading text-5xl md:text-7xl font-extrabold text-primary-foreground mb-6 leading-[1.05] tracking-tight">
+            <h1 className="font-heading text-5xl md:text-7xl font-extrabold text-nature-900 mb-6 leading-[1.05] tracking-tight drop-shadow-sm">
               Grow a Greener Future<br />
-              <span className="text-base md:text-2xl font-semibold text-primary-foreground/90 block mt-3 mb-1">with</span>
+              <span className="text-base md:text-2xl font-semibold text-nature-900/80 block mt-3 mb-1">with</span>
               <motion.span
-                className="text-gradient-nature inline-block"
+                className="text-primary inline-block"
                 animate={{ scale: [1, 1.02, 1] }}
                 transition={{ duration: 4, repeat: Infinity }}
               >
@@ -158,16 +158,16 @@ const Index = () => {
               </motion.span>
             </h1>
 
-            <p className="font-heading text-xl md:text-2xl font-semibold text-primary-foreground mb-4">
+            <p className="font-heading text-xl md:text-2xl font-semibold text-nature-900 mb-4">
               Plant with Purpose. Grow with Proof.
             </p>
             <div className="flex items-center justify-center gap-3 mb-6 opacity-80">
-              <span className="h-px w-12 bg-primary-foreground/40" />
-              <Leaf className="h-4 w-4 text-primary-foreground/70" />
-              <span className="h-px w-12 bg-primary-foreground/40" />
+              <span className="h-px w-12 bg-primary/50" />
+              <Leaf className="h-4 w-4 text-primary" />
+              <span className="h-px w-12 bg-primary/50" />
             </div>
 
-            <p className="text-base md:text-lg text-primary-foreground/85 max-w-2xl mx-auto mb-10 leading-relaxed">
+            <p className="text-base md:text-lg text-nature-900/80 max-w-2xl mx-auto mb-10 leading-relaxed">
               Plant trees, track real growth, and verify environmental impact using AI-powered transparency and community participation.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -203,9 +203,9 @@ const Index = () => {
                 { icon: <Bot className="h-6 w-6" />, label: "AI-Powered Verification" },
                 { icon: <Users className="h-6 w-6" />, label: "Community Driven" },
               ].map((item, i) => (
-                <div key={i} className="flex flex-col items-center gap-2 text-primary-foreground/90 relative">
-                  {i > 0 && <span className="hidden sm:block absolute left-0 top-1/2 -translate-y-1/2 h-10 w-px bg-primary-foreground/20" />}
-                  {item.icon}
+                <div key={i} className="flex flex-col items-center gap-2 text-nature-900/85 relative">
+                  {i > 0 && <span className="hidden sm:block absolute left-0 top-1/2 -translate-y-1/2 h-10 w-px bg-nature-900/20" />}
+                  <span className="text-primary">{item.icon}</span>
                   <span className="text-xs md:text-sm font-medium text-center leading-tight">{item.label}</span>
                 </div>
               ))}
