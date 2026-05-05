@@ -69,7 +69,7 @@ const Login = () => {
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-md">
         <div className="text-center mb-8">
           <TreePine className="h-12 w-12 text-primary mx-auto mb-3" />
-          <h1 className="font-heading text-3xl font-bold">Hirwa Sparsh</h1>
+          <h1 className="font-heading text-3xl font-bold">Green Enlightenment</h1>
           <p className="text-muted-foreground text-sm">Connecting People with Nature</p>
         </div>
 

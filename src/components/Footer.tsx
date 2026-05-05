@@ -7,7 +7,7 @@ const Footer = () => (
       <div>
         <div className="flex items-center gap-2 font-heading font-bold text-xl mb-4">
           <TreePine className="h-6 w-6" />
-          Hirwa Sparsh
+          Green Enlightenment
         </div>
         <p className="text-sm opacity-80">Connecting People with Nature through Technology</p>
       </div>
@@ -36,7 +36,7 @@ const Footer = () => (
       </div>
     </div>
     <div className="container mx-auto px-4 mt-12 pt-8 border-t border-primary-foreground/20 text-center text-sm opacity-60">
-      © 2026 Hirwa Sparsh. All rights reserved.
+      © 2026 Green Enlightenment. All rights reserved.
     </div>
   </footer>
 );

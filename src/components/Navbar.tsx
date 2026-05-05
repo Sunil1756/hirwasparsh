@@ -31,7 +31,7 @@ const Navbar = () => {
       <div className="container mx-auto flex items-center justify-between h-16 px-4">
         <Link to="/" className="flex items-center gap-2 font-heading font-bold text-xl text-primary">
           <TreePine className="h-7 w-7" />
-          Hirwa Sparsh
+          Green Enlightenment
         </Link>
 
         <div className="hidden lg:flex items-center gap-1">

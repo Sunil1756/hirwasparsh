@@ -153,7 +153,7 @@ const Index = () => {
                 animate={{ scale: [1, 1.02, 1] }}
                 transition={{ duration: 4, repeat: Infinity }}
               >
-                with Hirwa Sparsh
+                with Green Enlightenment
               </motion.span>
             </h1>
             <p className="text-lg md:text-xl text-primary-foreground/80 max-w-2xl mx-auto mb-8">
@@ -197,7 +197,7 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} className="text-center mb-16">
             <motion.h2 variants={fadeUp} custom={0} className="font-heading text-4xl font-bold text-foreground mb-4">The Problem We Face</motion.h2>
-            <motion.p variants={fadeUp} custom={1} className="text-muted-foreground max-w-xl mx-auto">Our planet needs urgent action. Here's why Hirwa Sparsh exists.</motion.p>
+            <motion.p variants={fadeUp} custom={1} className="text-muted-foreground max-w-xl mx-auto">Our planet needs urgent action. Here's why Green Enlightenment exists.</motion.p>
           </motion.div>
           <div className="grid md:grid-cols-3 gap-8">
             {problems.map((p, i) => (
@@ -241,7 +241,7 @@ const Index = () => {
               Technology Meets <span className="text-gradient-nature">Nature</span>
             </motion.h2>
             <motion.p variants={fadeUp} custom={2} className="text-muted-foreground max-w-2xl mx-auto mb-4">
-              Hirwa Sparsh combines AI, satellite monitoring, and gamification to make tree plantation trackable, verifiable, and rewarding for everyone.
+              Green Enlightenment combines AI, satellite monitoring, and gamification to make tree plantation trackable, verifiable, and rewarding for everyone.
             </motion.p>
           </motion.div>
         </div>

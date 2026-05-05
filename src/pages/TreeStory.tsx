@@ -146,7 +146,7 @@ const TreeStory = () => {
     // Watermark
     ctx.fillStyle = "#ffffff80";
     ctx.font = "24px sans-serif";
-    ctx.fillText("Hirwa Sparsh – Growing India's Future 🌱", 540, 1800);
+    ctx.fillText("Green Enlightenment – Growing India's Future 🌱", 540, 1800);
 
     return canvas.toDataURL("image/png");
   }, [tree, planter, growthUpdates]);
@@ -162,7 +162,7 @@ const TreeStory = () => {
 
   const shareToSocial = useCallback(async (platform: string) => {
     const url = `${window.location.origin}/tree-story/${id}`;
-    const text = `Check out my tree's growth story on Hirwa Sparsh! 🌳🌱`;
+    const text = `Check out my tree's growth story on Green Enlightenment! 🌳🌱`;
     const encodedUrl = encodeURIComponent(url);
     const encodedText = encodeURIComponent(text);
 
@@ -301,7 +301,7 @@ const TreeStory = () => {
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
-                    Hirwa Sparsh – Growing India's Future 🌱
+                    Green Enlightenment – Growing India's Future 🌱
                   </p>
                 </CardContent>
               </Card>
