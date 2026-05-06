@@ -1,12 +1,12 @@
-import { TreePine } from "lucide-react";
 import { Link } from "react-router-dom";
+import logo from "@/assets/logo.png";
 
 const Footer = () => (
   <footer className="bg-nature-900 text-primary-foreground py-16">
     <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
       <div>
         <div className="flex items-center gap-2 font-heading font-bold text-xl mb-4">
-          <TreePine className="h-6 w-6" />
+          <img src={logo} alt="Green Enlightenment logo" width={32} height={32} loading="lazy" className="h-8 w-8 rounded-full object-contain bg-white/10" />
           Green Enlightenment
         </div>
         <p className="text-sm opacity-80">Connecting People with Nature through Technology</p>

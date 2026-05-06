@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { TreePine, Menu, X, LogOut, Shield, Building2, Satellite, Leaf } from "lucide-react";
+import { Menu, X, LogOut, Shield, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
+import logo from "@/assets/logo.png";
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
@@ -30,7 +31,7 @@ const Navbar = () => {
     <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border/20">
       <div className="container mx-auto flex items-center justify-between h-16 px-4">
         <Link to="/" className="flex items-center gap-2 font-heading font-bold text-xl text-primary">
-          <TreePine className="h-7 w-7" />
+          <img src={logo} alt="Green Enlightenment logo" width={36} height={36} className="h-9 w-9 rounded-full object-contain" />
           Green Enlightenment
         </Link>
 
