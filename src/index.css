@@ -25,7 +25,7 @@
     --border: 150 15% 88%;
     --input: 150 15% 88%;
     --ring: 125 56% 24%;
-    --radius: 0.75rem;
+    --radius: 0.875rem;
 
     --nature-50: 125 40% 96%;
     --nature-100: 125 38% 90%;
@@ -79,7 +79,14 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply text-foreground antialiased;
+    background-color: hsl(var(--background));
+    background-image:
+      linear-gradient(to bottom, hsl(var(--background) / 0.85), hsl(var(--background) / 0.95)),
+      url('/nature-bg.jpg');
+    background-size: cover;
+    background-attachment: fixed;
+    background-position: center;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Poppins', sans-serif;
