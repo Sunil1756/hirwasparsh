@@ -246,7 +246,7 @@ const GrowthUpdates = () => {
               <div className="space-y-4">
                 <div>
                   <Label>Select Tree</Label>
-                  <Select value={selectedTree} onValueChange={(v) => { setSelectedTree(v); setSelectedDay(""); }}>
+                  <Select value={selectedTree} onValueChange={(v) => { setSelectedTree(v); setSelectedDay(""); setQrVerified(false); }}>
                     <SelectTrigger><SelectValue placeholder="Choose your approved tree" /></SelectTrigger>
                     <SelectContent>
                       {userTrees.map(t => (
@@ -255,6 +255,26 @@ const GrowthUpdates = () => {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {selectedTree && !qrVerified && (
+                  <div className="rounded-xl p-4 border-2 border-yellow-500 bg-yellow-500/10">
+                    <div className="flex items-center gap-2 text-yellow-700 font-semibold mb-2">
+                      <QrCode className="h-5 w-5" /> QR Authentication Required
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Scan this tree's QR code on-site. Updates require GPS proximity to the registered tree.
+                    </p>
+                    <Button size="sm" onClick={() => setQrScannerOpen(true)} className="gap-2">
+                      <Camera className="h-4 w-4" /> Open Scanner
+                    </Button>
+                  </div>
+                )}
+
+                {selectedTree && qrVerified && (
+                  <div className="rounded-xl p-3 border border-primary/30 bg-primary/5 flex items-center gap-2 text-sm text-primary">
+                    <CheckCircle className="h-4 w-4" /> QR + GPS verified — you can submit this update
+                  </div>
+                )}
 
                 {selectedTree && (
                   <div>
