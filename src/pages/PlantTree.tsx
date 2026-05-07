@@ -537,12 +537,40 @@ const PlantTree = () => {
                 )}
               </div>
 
-              <div>
-                <Label className="flex items-center gap-2 mb-2"><FileText className="h-4 w-4" /> Description (Optional)</Label>
-                <Textarea placeholder="Tell us about your tree..." rows={3} value={description} onChange={e => setDescription(e.target.value)} />
-              </div>
+              {/* Nearby tree warnings */}
+              {blockingTree && (
+                <div className="rounded-xl p-4 border-2 border-destructive bg-destructive/10 space-y-3">
+                  <div className="flex items-center gap-2 text-destructive font-semibold">
+                    <Ban className="h-5 w-5" /> Tree already registered at this exact location
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    "{blockingTree.tree_name}" ({blockingTree.species}) is just {blockingTree.distance_meters.toFixed(1)}m away.
+                    Registration of a new tree here is blocked.
+                  </p>
+                  <Button type="button" size="sm" variant="default" className="gap-2 bg-primary"
+                    onClick={() => setAdoptMode(blockingTree)}>
+                    <HandHeart className="h-4 w-4" /> Adopt This Tree Instead
+                  </Button>
+                </div>
+              )}
 
-              <Button type="submit" size="lg" className="w-full text-lg gap-2" disabled={isSubmitting || isDetecting || !latitude}>
+              {!blockingTree && nearbyTrees.length > 0 && (
+                <div className="rounded-xl p-4 border-2 border-yellow-500 bg-yellow-500/10 space-y-3">
+                  <div className="flex items-center gap-2 text-yellow-700 font-semibold">
+                    <AlertTriangle className="h-5 w-5" /> A nearby registered tree exists ({nearbyTrees[0].distance_meters.toFixed(1)}m away)
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Please confirm this is a different tree, not the same "{nearbyTrees[0].tree_name}".
+                  </p>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" checked={warningConfirmed} onChange={e => setWarningConfirmed(e.target.checked)} />
+                    Yes, this is a different tree.
+                  </label>
+                </div>
+              )}
+
+              <Button type="submit" size="lg" className="w-full text-lg gap-2"
+                disabled={isSubmitting || isDetecting || !latitude || !!blockingTree || (nearbyTrees.length > 0 && !warningConfirmed)}>
                 {isSubmitting ? (
                   <><Loader2 className="h-5 w-5 animate-spin" /> Submitting...</>
                 ) : (
