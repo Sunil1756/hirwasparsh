@@ -276,8 +276,11 @@ const TreeMap = () => {
                   {/* Floating legend */}
                   <div className="absolute bottom-4 left-4 z-[500] glass-card rounded-xl px-3 py-2 text-xs space-y-1">
                     <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#22c55e] shadow-[0_0_8px_#22c55e]" /> Verified</div>
-                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#f59e0b] shadow-[0_0_8px_#f59e0b]" /> Pending</div>
+                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#f59e0b] shadow-[0_0_8px_#f59e0b]" /> Pending / Flagged</div>
                     <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#ef4444] shadow-[0_0_8px_#ef4444]" /> Rejected</div>
+                    <div className="border-t border-border my-1" />
+                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full border-2 border-[#ef4444]" /> 5m blocked</div>
+                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full border-2 border-[#f59e0b]" /> 10m warning</div>
                   </div>
                 </div>
               )}
