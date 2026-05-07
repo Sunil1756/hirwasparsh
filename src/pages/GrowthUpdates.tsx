@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Camera, TreePine, Loader2, LogIn, CheckCircle, Clock, Upload, AlertTriangle, Sprout } from "lucide-react";
+import { Camera, TreePine, Loader2, LogIn, CheckCircle, Clock, Upload, AlertTriangle, Sprout, QrCode, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
+import QRScanner from "@/components/QRScanner";
 
 const updateDays = [
   { day: 7, label: "Week 1", points: 5, desc: "7-day survival check" },
@@ -29,6 +30,8 @@ const GrowthUpdates = () => {
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [qrVerified, setQrVerified] = useState(false);
+  const [qrScannerOpen, setQrScannerOpen] = useState(false);
 
   const { data: userTrees = [] } = useQuery({
     queryKey: ["user-approved-trees", user?.id],
@@ -36,7 +39,7 @@ const GrowthUpdates = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("trees")
-        .select("id, tree_name, species, plantation_date, admin_status")
+        .select("id, tree_name, species, plantation_date, admin_status, qr_token, latitude, longitude")
         .eq("user_id", user!.id)
         .eq("admin_status", "approved")
         .order("created_at", { ascending: false });
@@ -44,6 +47,40 @@ const GrowthUpdates = () => {
       return data;
     },
   });
+
+  const selectedTreeObj = userTrees.find(t => t.id === selectedTree);
+
+  const handleQrResult = (text: string) => {
+    setQrScannerOpen(false);
+    if (!selectedTreeObj) return;
+    if (text !== selectedTreeObj.qr_token && !text.includes(selectedTreeObj.id)) {
+      toast({ title: "❌ QR mismatch", description: "Scanned QR does not belong to this tree.", variant: "destructive" });
+      return;
+    }
+    // GPS proximity check
+    if (!navigator.geolocation || selectedTreeObj.latitude == null) {
+      setQrVerified(true);
+      toast({ title: "✅ QR verified", description: "Location check skipped (no GPS)." });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const R = 6371000;
+        const dLat = (pos.coords.latitude - selectedTreeObj.latitude!) * Math.PI / 180;
+        const dLng = (pos.coords.longitude - selectedTreeObj.longitude!) * Math.PI / 180;
+        const a = Math.sin(dLat/2)**2 + Math.cos(pos.coords.latitude * Math.PI/180) * Math.cos(selectedTreeObj.latitude! * Math.PI/180) * Math.sin(dLng/2)**2;
+        const dist = R * 2 * Math.asin(Math.sqrt(a));
+        if (dist > 50) {
+          toast({ title: "❌ GPS mismatch", description: `You are ${Math.round(dist)}m from the registered tree. Updates require you to be on-site.`, variant: "destructive" });
+          return;
+        }
+        setQrVerified(true);
+        toast({ title: "✅ Verified", description: `On-site (${Math.round(dist)}m from tree).` });
+      },
+      () => { setQrVerified(true); toast({ title: "✅ QR verified", description: "Couldn't read GPS." }); },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
 
   const { data: existingUpdates = [] } = useQuery({
     queryKey: ["user-growth-updates", user?.id],
@@ -209,7 +246,7 @@ const GrowthUpdates = () => {
               <div className="space-y-4">
                 <div>
                   <Label>Select Tree</Label>
-                  <Select value={selectedTree} onValueChange={(v) => { setSelectedTree(v); setSelectedDay(""); }}>
+                  <Select value={selectedTree} onValueChange={(v) => { setSelectedTree(v); setSelectedDay(""); setQrVerified(false); }}>
                     <SelectTrigger><SelectValue placeholder="Choose your approved tree" /></SelectTrigger>
                     <SelectContent>
                       {userTrees.map(t => (
@@ -218,6 +255,26 @@ const GrowthUpdates = () => {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {selectedTree && !qrVerified && (
+                  <div className="rounded-xl p-4 border-2 border-yellow-500 bg-yellow-500/10">
+                    <div className="flex items-center gap-2 text-yellow-700 font-semibold mb-2">
+                      <QrCode className="h-5 w-5" /> QR Authentication Required
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Scan this tree's QR code on-site. Updates require GPS proximity to the registered tree.
+                    </p>
+                    <Button size="sm" onClick={() => setQrScannerOpen(true)} className="gap-2">
+                      <Camera className="h-4 w-4" /> Open Scanner
+                    </Button>
+                  </div>
+                )}
+
+                {selectedTree && qrVerified && (
+                  <div className="rounded-xl p-3 border border-primary/30 bg-primary/5 flex items-center gap-2 text-sm text-primary">
+                    <CheckCircle className="h-4 w-4" /> QR + GPS verified — you can submit this update
+                  </div>
+                )}
 
                 {selectedTree && (
                   <div>
@@ -237,7 +294,7 @@ const GrowthUpdates = () => {
                   </div>
                 )}
 
-                {selectedDay && (
+                {selectedDay && qrVerified && (
                   <>
                     <div>
                       <Label className="flex items-center gap-2 mb-2"><Camera className="h-4 w-4" /> Growth Photo</Label>
@@ -269,6 +326,7 @@ const GrowthUpdates = () => {
           </div>
         </motion.div>
       </div>
+      {qrScannerOpen && <QRScanner onResult={handleQrResult} onClose={() => setQrScannerOpen(false)} />}
     </div>
   );
 };

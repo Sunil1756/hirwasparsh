@@ -163,44 +163,69 @@ You MUST respond using the verify_tree tool.`,
 
     const verification = JSON.parse(toolCall.function.arguments);
 
-    // Determine verification status with strict rules
-    const passesAllChecks =
-      verification.is_tree &&
-      verification.is_genuine_photo &&
-      verification.confidence >= 60 &&
-      (selfieBase64 ? verification.has_human_in_selfie : true) &&
-      (beforeBase64 ? verification.images_are_different : true) &&
-      !verification.is_duplicate;
-
-    const status = passesAllChecks ? "verified" : "rejected";
-
-    // Check for duplicate photo hash in database
+    // Service-role client for privileged updates
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
+    // Check duplicate photo hash
     let isDuplicate = false;
     if (photoHash) {
       const { data: existing } = await supabaseClient
-        .from("trees")
-        .select("id")
-        .eq("photo_hash", photoHash)
-        .neq("id", treeId)
-        .limit(1);
+        .from("trees").select("id").eq("photo_hash", photoHash).neq("id", treeId).limit(1);
       if (existing && existing.length > 0) isDuplicate = true;
     }
 
-    const finalStatus = isDuplicate ? "rejected" : status;
-    const finalAnalysis = isDuplicate
-      ? `DUPLICATE DETECTED: This photo has been submitted before. ${verification.analysis}`
-      : verification.analysis;
+    // Compute AI validation score 0-100 (composite)
+    const conf = Number(verification.confidence) || 0;
+    let score = conf;
+    if (!verification.is_tree) score -= 40;
+    if (!verification.is_genuine_photo) score -= 30;
+    if (selfieBase64 && !verification.has_human_in_selfie) score -= 25;
+    if (beforeBase64 && !verification.images_are_different) score -= 25;
+    if (isDuplicate || verification.is_duplicate) score -= 50;
+    score = Math.max(0, Math.min(100, score));
+
+    // Decision rules
+    let finalStatus: "verified" | "rejected" | "pending";
+    let flaggedReason: string | null = null;
+    let analysisPrefix = "";
+
+    if (score < 50) {
+      finalStatus = "rejected";
+      analysisPrefix = `❌ AUTO-REJECTED (AI score ${score}/100 < 50%). `;
+    } else if (isDuplicate) {
+      finalStatus = "rejected";
+      analysisPrefix = "❌ DUPLICATE PHOTO DETECTED. ";
+    } else if (
+      !verification.is_tree ||
+      !verification.is_genuine_photo ||
+      (selfieBase64 && !verification.has_human_in_selfie) ||
+      (beforeBase64 && !verification.images_are_different)
+    ) {
+      finalStatus = "rejected";
+    } else if (score < 70) {
+      // Borderline → flag for manual review
+      finalStatus = "pending";
+      flaggedReason = `Borderline AI score (${score}/100) — requires manual review`;
+      analysisPrefix = `🚩 FLAGGED FOR REVIEW. `;
+    } else {
+      finalStatus = "verified";
+    }
+
+    const finalAnalysis = `${analysisPrefix}${verification.analysis}`;
 
     const { error: updateError } = await supabaseClient
       .from("trees")
       .update({
         verification_status: finalStatus,
         ai_confidence: verification.confidence,
+        ai_validation_score: score,
         ai_analysis: finalAnalysis,
         ai_detected_species: verification.detected_species || null,
+        flagged_reason: flaggedReason,
+        // If AI auto-rejects, also set admin_status so it shows in flagged queue
+        ...(finalStatus === "rejected" ? { admin_status: "rejected" } : {}),
+        ...(flaggedReason ? { admin_status: "flagged" } : {}),
         updated_at: new Date().toISOString(),
       })
       .eq("id", treeId);
@@ -211,7 +236,7 @@ You MUST respond using the verify_tree tool.`,
     }
 
     return new Response(
-      JSON.stringify({ status: finalStatus, verification: { ...verification, is_duplicate: isDuplicate } }),
+      JSON.stringify({ status: finalStatus, score, flagged_reason: flaggedReason, verification: { ...verification, is_duplicate: isDuplicate } }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {

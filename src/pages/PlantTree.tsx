@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
-import { TreePine, Upload, MapPin, Calendar, Ruler, FileText, Loader2, CheckCircle, ShieldCheck, ShieldX, Clock, Bot, Camera, AlertTriangle, User } from "lucide-react";
+import { TreePine, Upload, MapPin, Calendar, Ruler, FileText, Loader2, CheckCircle, ShieldCheck, ShieldX, Clock, Bot, Camera, AlertTriangle, User, Heart, Ban, HandHeart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSearchParams } from "react-router-dom";
 import exifr from "exifr";
+
+type NearbyTree = {
+  id: string; tree_name: string; species: string; user_id: string;
+  latitude: number; longitude: number; distance_meters: number;
+  qr_token: string | null; photo_url: string | null;
+};
 
 type SpeciesDetection = {
   common_name: string;
@@ -61,6 +67,33 @@ const PlantTree = () => {
   const [speciesDetection, setSpeciesDetection] = useState<SpeciesDetection | null>(null);
   const [isDetecting, setIsDetecting] = useState(false);
   const [speciesConfirmed, setSpeciesConfirmed] = useState(false);
+
+  // Nearby duplicate detection
+  const [nearbyTrees, setNearbyTrees] = useState<NearbyTree[]>([]);
+  const [blockingTree, setBlockingTree] = useState<NearbyTree | null>(null);
+  const [warningConfirmed, setWarningConfirmed] = useState(false);
+  const [adoptMode, setAdoptMode] = useState<NearbyTree | null>(null);
+  const [adoptCurrentPhoto, setAdoptCurrentPhoto] = useState<File | null>(null);
+  const [adoptCurrentPreview, setAdoptCurrentPreview] = useState<string | null>(null);
+  const [adoptSelfiePhoto, setAdoptSelfiePhoto] = useState<File | null>(null);
+  const [adoptSelfiePreview, setAdoptSelfiePreview] = useState<string | null>(null);
+  const [adoptRole, setAdoptRole] = useState<"adopter" | "guardian">("adopter");
+
+  // Run nearby check whenever GPS becomes available
+  useEffect(() => {
+    if (latitude == null || longitude == null) return;
+    (async () => {
+      const { data, error } = await supabase.rpc("find_nearby_trees", {
+        _lat: latitude, _lng: longitude, _max_meters: 10,
+      });
+      if (error) { console.error("nearby check failed", error); return; }
+      const list = (data || []) as NearbyTree[];
+      setNearbyTrees(list);
+      const blocker = list.find(t => t.distance_meters <= 5);
+      setBlockingTree(blocker || null);
+      if (!blocker) setWarningConfirmed(false);
+    })();
+  }, [latitude, longitude]);
 
   const reverseGeocode = useCallback(async (lat: number, lng: number) => {
     try {
@@ -313,6 +346,45 @@ const PlantTree = () => {
     }
   };
 
+  const handleAdoptSubmit = async () => {
+    if (!user || !adoptMode) return;
+    if (!adoptCurrentPhoto || !adoptSelfiePhoto) {
+      toast({ title: "Both photos required", description: "Upload current tree photo and a selfie with the tree.", variant: "destructive" });
+      return;
+    }
+    if (latitude == null || longitude == null) {
+      toast({ title: "Live GPS required", variant: "destructive" });
+      return;
+    }
+    if (adoptMode.distance_meters > 10) {
+      toast({ title: "GPS mismatch", description: "You must be at the tree's location to adopt it.", variant: "destructive" });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const ts = Date.now();
+      const [currentUrl, selfiePath] = await Promise.all([
+        uploadPhoto(adoptCurrentPhoto, `${user.id}/adopt_${ts}_current.jpg`),
+        uploadSelfie(adoptSelfiePhoto, `${user.id}/adopt_${ts}_selfie.jpg`),
+      ]);
+      const { error } = await supabase.from("tree_adopters").insert({
+        tree_id: adoptMode.id,
+        user_id: user.id,
+        role: adoptRole,
+        current_photo_url: currentUrl,
+        selfie_photo_url: selfiePath,
+        latitude, longitude,
+      });
+      if (error) throw error;
+      toast({ title: `🤝 You are now a Tree ${adoptRole === "guardian" ? "Guardian" : "Adopter"}!`, description: "Thank you for caring for an existing tree." });
+      setSubmitted(true);
+    } catch (e: any) {
+      toast({ title: "Adoption failed", description: e.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (submitted) {
     return (
       <div className="min-h-screen pt-24 flex items-center justify-center px-4">
@@ -509,7 +581,40 @@ const PlantTree = () => {
                 <Textarea placeholder="Tell us about your tree..." rows={3} value={description} onChange={e => setDescription(e.target.value)} />
               </div>
 
-              <Button type="submit" size="lg" className="w-full text-lg gap-2" disabled={isSubmitting || isDetecting || !latitude}>
+              {/* Nearby tree warnings */}
+              {blockingTree && (
+                <div className="rounded-xl p-4 border-2 border-destructive bg-destructive/10 space-y-3">
+                  <div className="flex items-center gap-2 text-destructive font-semibold">
+                    <Ban className="h-5 w-5" /> Tree already registered at this exact location
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    "{blockingTree.tree_name}" ({blockingTree.species}) is just {blockingTree.distance_meters.toFixed(1)}m away.
+                    Registration of a new tree here is blocked.
+                  </p>
+                  <Button type="button" size="sm" variant="default" className="gap-2 bg-primary"
+                    onClick={() => setAdoptMode(blockingTree)}>
+                    <HandHeart className="h-4 w-4" /> Adopt This Tree Instead
+                  </Button>
+                </div>
+              )}
+
+              {!blockingTree && nearbyTrees.length > 0 && (
+                <div className="rounded-xl p-4 border-2 border-yellow-500 bg-yellow-500/10 space-y-3">
+                  <div className="flex items-center gap-2 text-yellow-700 font-semibold">
+                    <AlertTriangle className="h-5 w-5" /> A nearby registered tree exists ({nearbyTrees[0].distance_meters.toFixed(1)}m away)
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Please confirm this is a different tree, not the same "{nearbyTrees[0].tree_name}".
+                  </p>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" checked={warningConfirmed} onChange={e => setWarningConfirmed(e.target.checked)} />
+                    Yes, this is a different tree.
+                  </label>
+                </div>
+              )}
+
+              <Button type="submit" size="lg" className="w-full text-lg gap-2"
+                disabled={isSubmitting || isDetecting || !latitude || !!blockingTree || (nearbyTrees.length > 0 && !warningConfirmed)}>
                 {isSubmitting ? (
                   <><Loader2 className="h-5 w-5 animate-spin" /> Submitting...</>
                 ) : (
@@ -524,6 +629,69 @@ const PlantTree = () => {
           )}
         </motion.div>
       </div>
+
+      {/* Adoption Modal */}
+      {adoptMode && (
+        <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+             onClick={() => setAdoptMode(null)}>
+          <div className="glass-card rounded-2xl w-full max-w-lg p-6 my-8" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-4">
+              <HandHeart className="h-6 w-6 text-primary" />
+              <h2 className="font-heading text-xl font-bold">Adopt This Tree</h2>
+            </div>
+            <div className="rounded-xl bg-primary/5 p-3 mb-4">
+              <div className="font-medium">{adoptMode.tree_name}</div>
+              <div className="text-xs text-muted-foreground">{adoptMode.species} · {adoptMode.distance_meters.toFixed(1)}m from you</div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <Label className="mb-2 block">Choose your role</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setAdoptRole("adopter")}
+                    className={`rounded-xl border-2 p-3 text-left ${adoptRole === "adopter" ? "border-primary bg-primary/5" : "border-border"}`}>
+                    <Heart className="h-4 w-4 text-primary mb-1" />
+                    <div className="font-medium text-sm">🤝 Adopter</div>
+                    <div className="text-xs text-muted-foreground">Care for this tree</div>
+                  </button>
+                  <button type="button" onClick={() => setAdoptRole("guardian")}
+                    className={`rounded-xl border-2 p-3 text-left ${adoptRole === "guardian" ? "border-primary bg-primary/5" : "border-border"}`}>
+                    <ShieldCheck className="h-4 w-4 text-primary mb-1" />
+                    <div className="font-medium text-sm">🌿 Guardian</div>
+                    <div className="text-xs text-muted-foreground">Long-term protector</div>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <Label className="flex items-center gap-2 mb-2"><Camera className="h-4 w-4" /> Current Tree Photo</Label>
+                <Input type="file" accept="image/*" capture="environment"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) { setAdoptCurrentPhoto(f); setAdoptCurrentPreview(URL.createObjectURL(f)); }}} />
+                {adoptCurrentPreview && <img src={adoptCurrentPreview} className="mt-2 w-full h-32 object-cover rounded-lg" alt="Current tree" />}
+              </div>
+
+              <div>
+                <Label className="flex items-center gap-2 mb-2"><User className="h-4 w-4" /> Selfie With Tree (live camera)</Label>
+                <Input type="file" accept="image/*" capture="user"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) { setAdoptSelfiePhoto(f); setAdoptSelfiePreview(URL.createObjectURL(f)); }}} />
+                {adoptSelfiePreview && <img src={adoptSelfiePreview} className="mt-2 w-full h-32 object-cover rounded-lg" alt="Selfie" />}
+              </div>
+
+              <div className="text-xs text-muted-foreground rounded-lg bg-muted/50 p-2">
+                ✓ GPS verified within 10m of tree location
+              </div>
+
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setAdoptMode(null)}>Cancel</Button>
+                <Button className="flex-1 gap-2" onClick={handleAdoptSubmit} disabled={isSubmitting}>
+                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <HandHeart className="h-4 w-4" />}
+                  Confirm Adoption
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
