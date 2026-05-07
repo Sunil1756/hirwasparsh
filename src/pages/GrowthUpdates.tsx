@@ -326,6 +326,7 @@ const GrowthUpdates = () => {
           </div>
         </motion.div>
       </div>
+      {qrScannerOpen && <QRScanner onResult={handleQrResult} onClose={() => setQrScannerOpen(false)} />}
     </div>
   );
 };
