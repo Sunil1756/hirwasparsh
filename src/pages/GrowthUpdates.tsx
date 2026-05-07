@@ -30,6 +30,8 @@ const GrowthUpdates = () => {
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [qrVerified, setQrVerified] = useState(false);
+  const [qrScannerOpen, setQrScannerOpen] = useState(false);
 
   const { data: userTrees = [] } = useQuery({
     queryKey: ["user-approved-trees", user?.id],
@@ -37,7 +39,7 @@ const GrowthUpdates = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("trees")
-        .select("id, tree_name, species, plantation_date, admin_status")
+        .select("id, tree_name, species, plantation_date, admin_status, qr_token, latitude, longitude")
         .eq("user_id", user!.id)
         .eq("admin_status", "approved")
         .order("created_at", { ascending: false });
@@ -45,6 +47,40 @@ const GrowthUpdates = () => {
       return data;
     },
   });
+
+  const selectedTreeObj = userTrees.find(t => t.id === selectedTree);
+
+  const handleQrResult = (text: string) => {
+    setQrScannerOpen(false);
+    if (!selectedTreeObj) return;
+    if (text !== selectedTreeObj.qr_token && !text.includes(selectedTreeObj.id)) {
+      toast({ title: "❌ QR mismatch", description: "Scanned QR does not belong to this tree.", variant: "destructive" });
+      return;
+    }
+    // GPS proximity check
+    if (!navigator.geolocation || selectedTreeObj.latitude == null) {
+      setQrVerified(true);
+      toast({ title: "✅ QR verified", description: "Location check skipped (no GPS)." });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const R = 6371000;
+        const dLat = (pos.coords.latitude - selectedTreeObj.latitude!) * Math.PI / 180;
+        const dLng = (pos.coords.longitude - selectedTreeObj.longitude!) * Math.PI / 180;
+        const a = Math.sin(dLat/2)**2 + Math.cos(pos.coords.latitude * Math.PI/180) * Math.cos(selectedTreeObj.latitude! * Math.PI/180) * Math.sin(dLng/2)**2;
+        const dist = R * 2 * Math.asin(Math.sqrt(a));
+        if (dist > 50) {
+          toast({ title: "❌ GPS mismatch", description: `You are ${Math.round(dist)}m from the registered tree. Updates require you to be on-site.`, variant: "destructive" });
+          return;
+        }
+        setQrVerified(true);
+        toast({ title: "✅ Verified", description: `On-site (${Math.round(dist)}m from tree).` });
+      },
+      () => { setQrVerified(true); toast({ title: "✅ QR verified", description: "Couldn't read GPS." }); },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
 
   const { data: existingUpdates = [] } = useQuery({
     queryKey: ["user-growth-updates", user?.id],
