@@ -68,6 +68,33 @@ const PlantTree = () => {
   const [isDetecting, setIsDetecting] = useState(false);
   const [speciesConfirmed, setSpeciesConfirmed] = useState(false);
 
+  // Nearby duplicate detection
+  const [nearbyTrees, setNearbyTrees] = useState<NearbyTree[]>([]);
+  const [blockingTree, setBlockingTree] = useState<NearbyTree | null>(null);
+  const [warningConfirmed, setWarningConfirmed] = useState(false);
+  const [adoptMode, setAdoptMode] = useState<NearbyTree | null>(null);
+  const [adoptCurrentPhoto, setAdoptCurrentPhoto] = useState<File | null>(null);
+  const [adoptCurrentPreview, setAdoptCurrentPreview] = useState<string | null>(null);
+  const [adoptSelfiePhoto, setAdoptSelfiePhoto] = useState<File | null>(null);
+  const [adoptSelfiePreview, setAdoptSelfiePreview] = useState<string | null>(null);
+  const [adoptRole, setAdoptRole] = useState<"adopter" | "guardian">("adopter");
+
+  // Run nearby check whenever GPS becomes available
+  useEffect(() => {
+    if (latitude == null || longitude == null) return;
+    (async () => {
+      const { data, error } = await supabase.rpc("find_nearby_trees", {
+        _lat: latitude, _lng: longitude, _max_meters: 10,
+      });
+      if (error) { console.error("nearby check failed", error); return; }
+      const list = (data || []) as NearbyTree[];
+      setNearbyTrees(list);
+      const blocker = list.find(t => t.distance_meters <= 5);
+      setBlockingTree(blocker || null);
+      if (!blocker) setWarningConfirmed(false);
+    })();
+  }, [latitude, longitude]);
+
   const reverseGeocode = useCallback(async (lat: number, lng: number) => {
     try {
       const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
