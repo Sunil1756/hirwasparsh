@@ -294,7 +294,7 @@ const GrowthUpdates = () => {
                   </div>
                 )}
 
-                {selectedDay && (
+                {selectedDay && qrVerified && (
                   <>
                     <div>
                       <Label className="flex items-center gap-2 mb-2"><Camera className="h-4 w-4" /> Growth Photo</Label>
