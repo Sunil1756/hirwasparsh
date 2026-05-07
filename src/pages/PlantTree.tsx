@@ -629,6 +629,69 @@ const PlantTree = () => {
           )}
         </motion.div>
       </div>
+
+      {/* Adoption Modal */}
+      {adoptMode && (
+        <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+             onClick={() => setAdoptMode(null)}>
+          <div className="glass-card rounded-2xl w-full max-w-lg p-6 my-8" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-4">
+              <HandHeart className="h-6 w-6 text-primary" />
+              <h2 className="font-heading text-xl font-bold">Adopt This Tree</h2>
+            </div>
+            <div className="rounded-xl bg-primary/5 p-3 mb-4">
+              <div className="font-medium">{adoptMode.tree_name}</div>
+              <div className="text-xs text-muted-foreground">{adoptMode.species} · {adoptMode.distance_meters.toFixed(1)}m from you</div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <Label className="mb-2 block">Choose your role</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setAdoptRole("adopter")}
+                    className={`rounded-xl border-2 p-3 text-left ${adoptRole === "adopter" ? "border-primary bg-primary/5" : "border-border"}`}>
+                    <Heart className="h-4 w-4 text-primary mb-1" />
+                    <div className="font-medium text-sm">🤝 Adopter</div>
+                    <div className="text-xs text-muted-foreground">Care for this tree</div>
+                  </button>
+                  <button type="button" onClick={() => setAdoptRole("guardian")}
+                    className={`rounded-xl border-2 p-3 text-left ${adoptRole === "guardian" ? "border-primary bg-primary/5" : "border-border"}`}>
+                    <ShieldCheck className="h-4 w-4 text-primary mb-1" />
+                    <div className="font-medium text-sm">🌿 Guardian</div>
+                    <div className="text-xs text-muted-foreground">Long-term protector</div>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <Label className="flex items-center gap-2 mb-2"><Camera className="h-4 w-4" /> Current Tree Photo</Label>
+                <Input type="file" accept="image/*" capture="environment"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) { setAdoptCurrentPhoto(f); setAdoptCurrentPreview(URL.createObjectURL(f)); }}} />
+                {adoptCurrentPreview && <img src={adoptCurrentPreview} className="mt-2 w-full h-32 object-cover rounded-lg" alt="Current tree" />}
+              </div>
+
+              <div>
+                <Label className="flex items-center gap-2 mb-2"><User className="h-4 w-4" /> Selfie With Tree (live camera)</Label>
+                <Input type="file" accept="image/*" capture="user"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) { setAdoptSelfiePhoto(f); setAdoptSelfiePreview(URL.createObjectURL(f)); }}} />
+                {adoptSelfiePreview && <img src={adoptSelfiePreview} className="mt-2 w-full h-32 object-cover rounded-lg" alt="Selfie" />}
+              </div>
+
+              <div className="text-xs text-muted-foreground rounded-lg bg-muted/50 p-2">
+                ✓ GPS verified within 10m of tree location
+              </div>
+
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setAdoptMode(null)}>Cancel</Button>
+                <Button className="flex-1 gap-2" onClick={handleAdoptSubmit} disabled={isSubmitting}>
+                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <HandHeart className="h-4 w-4" />}
+                  Confirm Adoption
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
