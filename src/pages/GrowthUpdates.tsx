@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Camera, TreePine, Loader2, LogIn, CheckCircle, Clock, Upload, AlertTriangle, Sprout } from "lucide-react";
+import { Camera, TreePine, Loader2, LogIn, CheckCircle, Clock, Upload, AlertTriangle, Sprout, QrCode, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
+import QRScanner from "@/components/QRScanner";
 
 const updateDays = [
   { day: 7, label: "Week 1", points: 5, desc: "7-day survival check" },
