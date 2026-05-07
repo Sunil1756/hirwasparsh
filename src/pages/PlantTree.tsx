@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
-import { TreePine, Upload, MapPin, Calendar, Ruler, FileText, Loader2, CheckCircle, ShieldCheck, ShieldX, Clock, Bot, Camera, AlertTriangle, User } from "lucide-react";
+import { TreePine, Upload, MapPin, Calendar, Ruler, FileText, Loader2, CheckCircle, ShieldCheck, ShieldX, Clock, Bot, Camera, AlertTriangle, User, Heart, Ban, HandHeart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSearchParams } from "react-router-dom";
 import exifr from "exifr";
+
+type NearbyTree = {
+  id: string; tree_name: string; species: string; user_id: string;
+  latitude: number; longitude: number; distance_meters: number;
+  qr_token: string | null; photo_url: string | null;
+};
 
 type SpeciesDetection = {
   common_name: string;
