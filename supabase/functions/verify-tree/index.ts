@@ -236,7 +236,7 @@ You MUST respond using the verify_tree tool.`,
     }
 
     return new Response(
-      JSON.stringify({ status: finalStatus, verification: { ...verification, is_duplicate: isDuplicate } }),
+      JSON.stringify({ status: finalStatus, score, flagged_reason: flaggedReason, verification: { ...verification, is_duplicate: isDuplicate } }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
