@@ -232,27 +232,44 @@ const TreeMap = () => {
                       </Polygon>
                     ))}
 
-                    {treesWithCoords.map(t => (
-                      <Marker key={t.id} position={[t.latitude!, t.longitude!]} icon={getIcon(t.verification_status)}>
-                        <Popup>
-                          <div className="text-sm min-w-[200px]">
-                            {t.photo_url && (
-                              <img src={t.photo_url} alt={t.tree_name} className="w-full h-28 object-cover rounded-lg mb-2" />
-                            )}
-                            <div className="font-semibold text-base">{t.tree_name}</div>
-                            <div className="text-muted-foreground text-xs">{t.species}</div>
-                            <div className="flex items-center gap-1 text-xs mt-1"><MapPin className="h-3 w-3" /> {t.location}</div>
-                            <div className="text-xs mt-1">Growth: {Math.min(100, Math.round(((t.height_cm ?? 30) / 500) * 100))}%</div>
-                            <div className="mt-2 flex items-center gap-2">
-                              {t.verification_status === "verified"
-                                ? <Badge className="text-[10px] gap-1"><ShieldCheck className="h-3 w-3" /> Verified</Badge>
-                                : <Badge variant="secondary" className="text-[10px] gap-1"><Clock className="h-3 w-3" /> Pending</Badge>}
-                              <Link to={`/tree/${t.id}`} className="text-xs text-primary underline ml-auto">View →</Link>
-                            </div>
-                          </div>
-                        </Popup>
-                      </Marker>
-                    ))}
+                    {treesWithCoords.map(t => {
+                      const stage =
+                        (t.height_cm ?? 0) < 100 ? { label: "🌱 Newly Planted", color: "bg-emerald-500/15 text-emerald-700" }
+                        : (t.height_cm ?? 0) < 300 ? { label: "🌿 Growing", color: "bg-lime-500/15 text-lime-700" }
+                        : { label: "🌳 Mature", color: "bg-green-700/15 text-green-800" };
+                      const verifBadge =
+                        t.verification_status === "verified" ? { label: "✅ Verified", cls: "bg-primary/10 text-primary" }
+                        : t.verification_status === "rejected" ? { label: "❌ Rejected", cls: "bg-destructive/10 text-destructive" }
+                        : (t as any).admin_status === "flagged" ? { label: "🚩 Flagged", cls: "bg-yellow-500/15 text-yellow-700" }
+                        : { label: "⏳ Pending", cls: "bg-amber-500/10 text-amber-700" };
+                      return (
+                        <div key={t.id}>
+                          <Circle center={[t.latitude!, t.longitude!]} radius={5}
+                            pathOptions={{ color: "#ef4444", fillColor: "#ef4444", fillOpacity: 0.08, weight: 1, dashArray: "3 4" }} />
+                          <Circle center={[t.latitude!, t.longitude!]} radius={10}
+                            pathOptions={{ color: "#f59e0b", fillColor: "#f59e0b", fillOpacity: 0.05, weight: 1, dashArray: "2 5" }} />
+                          <Marker position={[t.latitude!, t.longitude!]} icon={getIcon(t.verification_status)}>
+                            <Popup>
+                              <div className="text-sm min-w-[200px]">
+                                {t.photo_url && (
+                                  <img src={t.photo_url} alt={t.tree_name} className="w-full h-28 object-cover rounded-lg mb-2" />
+                                )}
+                                <div className="font-semibold text-base">{t.tree_name}</div>
+                                <div className="text-muted-foreground text-xs">{t.species}</div>
+                                <div className="flex items-center gap-1 text-xs mt-1"><MapPin className="h-3 w-3" /> {t.location}</div>
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${stage.color}`}>{stage.label}</span>
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${verifBadge.cls}`}>{verifBadge.label}</span>
+                                </div>
+                                <div className="mt-2 text-right">
+                                  <Link to={`/tree/${t.id}`} className="text-xs text-primary underline">View →</Link>
+                                </div>
+                              </div>
+                            </Popup>
+                          </Marker>
+                        </div>
+                      );
+                    })}
                   </MapContainer>
                   <div className="map-tint" />
 
