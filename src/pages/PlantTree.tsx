@@ -537,6 +537,11 @@ const PlantTree = () => {
                 )}
               </div>
 
+              <div>
+                <Label className="flex items-center gap-2 mb-2"><FileText className="h-4 w-4" /> Description (Optional)</Label>
+                <Textarea placeholder="Tell us about your tree..." rows={3} value={description} onChange={e => setDescription(e.target.value)} />
+              </div>
+
               {/* Nearby tree warnings */}
               {blockingTree && (
                 <div className="rounded-xl p-4 border-2 border-destructive bg-destructive/10 space-y-3">
