@@ -303,6 +303,42 @@ export type Database = {
         }
         Relationships: []
       }
+      tree_adopters: {
+        Row: {
+          created_at: string
+          current_photo_url: string | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          role: string
+          selfie_photo_url: string | null
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_photo_url?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          role?: string
+          selfie_photo_url?: string | null
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_photo_url?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          role?: string
+          selfie_photo_url?: string | null
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tree_health_updates: {
         Row: {
           created_at: string
@@ -349,12 +385,14 @@ export type Database = {
           ai_detected_species: string | null
           ai_scientific_name: string | null
           ai_species_confidence: number | null
+          ai_validation_score: number | null
           before_photo_url: string | null
           created_at: string
           description: string | null
           device_fingerprint: string | null
           drive_id: string | null
           exif_timestamp: string | null
+          flagged_reason: string | null
           height_cm: number
           id: string
           latitude: number | null
@@ -364,6 +402,7 @@ export type Database = {
           photo_url: string | null
           plantation_date: string
           points_awarded: number
+          qr_token: string | null
           selfie_photo_url: string | null
           species: string
           tree_name: string
@@ -378,12 +417,14 @@ export type Database = {
           ai_detected_species?: string | null
           ai_scientific_name?: string | null
           ai_species_confidence?: number | null
+          ai_validation_score?: number | null
           before_photo_url?: string | null
           created_at?: string
           description?: string | null
           device_fingerprint?: string | null
           drive_id?: string | null
           exif_timestamp?: string | null
+          flagged_reason?: string | null
           height_cm: number
           id?: string
           latitude?: number | null
@@ -393,6 +434,7 @@ export type Database = {
           photo_url?: string | null
           plantation_date: string
           points_awarded?: number
+          qr_token?: string | null
           selfie_photo_url?: string | null
           species: string
           tree_name: string
@@ -407,12 +449,14 @@ export type Database = {
           ai_detected_species?: string | null
           ai_scientific_name?: string | null
           ai_species_confidence?: number | null
+          ai_validation_score?: number | null
           before_photo_url?: string | null
           created_at?: string
           description?: string | null
           device_fingerprint?: string | null
           drive_id?: string | null
           exif_timestamp?: string | null
+          flagged_reason?: string | null
           height_cm?: number
           id?: string
           latitude?: number | null
@@ -422,6 +466,7 @@ export type Database = {
           photo_url?: string | null
           plantation_date?: string
           points_awarded?: number
+          qr_token?: string | null
           selfie_photo_url?: string | null
           species?: string
           tree_name?: string
@@ -462,6 +507,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      find_nearby_trees: {
+        Args: { _lat: number; _lng: number; _max_meters?: number }
+        Returns: {
+          distance_meters: number
+          id: string
+          latitude: number
+          longitude: number
+          photo_url: string
+          qr_token: string
+          species: string
+          tree_name: string
+          user_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
