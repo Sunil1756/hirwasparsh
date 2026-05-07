@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { MapContainer, TileLayer, Marker, Popup, Polygon, LayersControl } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Polygon, Circle } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -203,21 +203,11 @@ const TreeMap = () => {
               ) : (
                 <div className="relative">
                   <MapContainer center={center} zoom={treesWithCoords.length > 0 ? 9 : 6} scrollWheelZoom style={{ height: "600px", width: "100%" }}>
-                    <LayersControl position="topright">
-                      <LayersControl.BaseLayer checked name="Satellite">
-                        <TileLayer
-                          attribution='Tiles &copy; Esri'
-                          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                          maxZoom={19}
-                        />
-                      </LayersControl.BaseLayer>
-                      <LayersControl.Overlay checked name="Labels">
-                        <TileLayer
-                          url="https://stamen-tiles.a.ssl.fastly.net/toner-labels/{z}/{x}/{y}.png"
-                          opacity={0.6}
-                        />
-                      </LayersControl.Overlay>
-                    </LayersControl>
+                    <TileLayer
+                      attribution='Tiles &copy; Esri'
+                      url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                      maxZoom={19}
+                    />
 
                     {showCoverage && droneZones.map(z => (
                       <Polygon
