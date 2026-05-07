@@ -346,6 +346,45 @@ const PlantTree = () => {
     }
   };
 
+  const handleAdoptSubmit = async () => {
+    if (!user || !adoptMode) return;
+    if (!adoptCurrentPhoto || !adoptSelfiePhoto) {
+      toast({ title: "Both photos required", description: "Upload current tree photo and a selfie with the tree.", variant: "destructive" });
+      return;
+    }
+    if (latitude == null || longitude == null) {
+      toast({ title: "Live GPS required", variant: "destructive" });
+      return;
+    }
+    if (adoptMode.distance_meters > 10) {
+      toast({ title: "GPS mismatch", description: "You must be at the tree's location to adopt it.", variant: "destructive" });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const ts = Date.now();
+      const [currentUrl, selfiePath] = await Promise.all([
+        uploadPhoto(adoptCurrentPhoto, `${user.id}/adopt_${ts}_current.jpg`),
+        uploadSelfie(adoptSelfiePhoto, `${user.id}/adopt_${ts}_selfie.jpg`),
+      ]);
+      const { error } = await supabase.from("tree_adopters").insert({
+        tree_id: adoptMode.id,
+        user_id: user.id,
+        role: adoptRole,
+        current_photo_url: currentUrl,
+        selfie_photo_url: selfiePath,
+        latitude, longitude,
+      });
+      if (error) throw error;
+      toast({ title: `🤝 You are now a Tree ${adoptRole === "guardian" ? "Guardian" : "Adopter"}!`, description: "Thank you for caring for an existing tree." });
+      setSubmitted(true);
+    } catch (e: any) {
+      toast({ title: "Adoption failed", description: e.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (submitted) {
     return (
       <div className="min-h-screen pt-24 flex items-center justify-center px-4">
