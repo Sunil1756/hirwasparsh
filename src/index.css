@@ -82,7 +82,7 @@
     @apply text-foreground antialiased;
     background-color: hsl(var(--background));
     background-image:
-      linear-gradient(to bottom, hsl(var(--background) / 0.85), hsl(var(--background) / 0.95)),
+      linear-gradient(to bottom, hsl(var(--background) / 0.55), hsl(var(--background) / 0.7)),
       url('/nature-bg.jpg');
     background-size: cover;
     background-attachment: fixed;
