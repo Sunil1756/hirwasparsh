@@ -171,7 +171,7 @@ const AdminDashboard = () => {
                     </div>
 
                     {/* Actions */}
-                    {s.admin_status === "pending" && (
+                    {(s.admin_status === "pending" || s.admin_status === "flagged") && (
                       <div className="flex gap-2 mt-3 pt-3 border-t border-border">
                         <Button size="sm" onClick={() => updateMutation.mutate({ id: s.id, adminStatus: "approved" })}
                           disabled={updateMutation.isPending} className="gap-1">
