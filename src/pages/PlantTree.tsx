@@ -41,6 +41,8 @@ const PlantTree = () => {
 
   const [currentStep, setCurrentStep] = useState<PhotoStep>("before");
   const [submitted, setSubmitted] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<{ status: string; score: number; flagged_reason?: string | null; breakdown?: any } | null>(null);
+  const [verifying, setVerifying] = useState(false);
   const [location, setLocation] = useState("");
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
@@ -313,27 +315,31 @@ const PlantTree = () => {
 
       if (insertError) throw insertError;
 
-      // Trigger enhanced AI verification with all 3 photos
+      // Trigger enhanced AI verification with all 3 photos — AWAIT to show result
       if (tree) {
-        const [afterB64, selfieB64, beforeB64] = await Promise.all([
-          fileToBase64(afterPhoto),
-          fileToBase64(selfiePhoto),
-          fileToBase64(beforePhoto),
-        ]);
-        supabase.functions.invoke("verify-tree", {
-          body: {
-            imageBase64: afterB64,
-            selfieBase64: selfieB64,
-            beforeBase64: beforeB64,
-            treeId: tree.id,
-            species,
-            photoHash,
-          },
-        }).catch(console.error);
+        setVerifying(true);
+        setSubmitted(true);
+        try {
+          const [afterB64, selfieB64, beforeB64] = await Promise.all([
+            fileToBase64(afterPhoto),
+            fileToBase64(selfiePhoto),
+            fileToBase64(beforePhoto),
+          ]);
+          const { data: vData, error: vErr } = await supabase.functions.invoke("verify-tree", {
+            body: { imageBase64: afterB64, selfieBase64: selfieB64, beforeBase64: beforeB64, treeId: tree.id, species, photoHash },
+          });
+          if (vErr) throw vErr;
+          setVerifyResult(vData);
+        } catch (e) {
+          console.error("verify-tree error:", e);
+          setVerifyResult({ status: "pending", score: 0, flagged_reason: "AI verification could not run — manual admin review required." });
+        } finally {
+          setVerifying(false);
+        }
+      } else {
+        setSubmitted(true);
       }
-
-      setSubmitted(true);
-      toast({ title: "🌳 Plantation Submitted!", description: "Your submission is pending admin approval. Points will be credited after verification." });
+      toast({ title: "🌳 Plantation Submitted!", description: "AI verification running…" });
     } catch (error: any) {
       console.error("[PlantTree] Submission error:", error);
       const msg = error?.message || "Unknown error";
@@ -386,19 +392,54 @@ const PlantTree = () => {
   };
 
   if (submitted) {
+    const score = verifyResult?.score ?? 0;
+    const status = verifyResult?.status;
+    const isRejected = status === "rejected";
+    const isVerified = status === "verified";
+    const isPending = status === "pending" || !status;
+    const ringColor = isRejected ? "text-destructive" : isVerified ? "text-primary" : "text-yellow-500";
+    const StatusIcon = isRejected ? ShieldX : isVerified ? ShieldCheck : Clock;
+    const statusLabel = verifying
+      ? "AI Verification Running…"
+      : isRejected
+        ? "❌ Auto-Rejected by AI"
+        : isVerified
+          ? "✅ AI Verified — Pending Admin Approval"
+          : "⚠️ Flagged for Manual Review";
+
     return (
       <div className="min-h-screen pt-24 flex items-center justify-center px-4">
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-          className="glass-card rounded-2xl p-12 text-center max-w-md">
-          <Clock className="h-16 w-16 text-primary mx-auto mb-4" />
-          <h2 className="font-heading text-2xl font-bold mb-2">Submission Received!</h2>
-          <p className="text-muted-foreground mb-4">
-            Your plantation is under review. An admin will verify your photos.
-            <br /><strong>Points will be credited only after admin approval.</strong>
-          </p>
-          <div className="inline-block bg-accent/20 text-accent-foreground px-4 py-2 rounded-full text-sm font-medium mb-6">
-            ⏳ Pending Admin Review
-          </div>
+          className="glass-card rounded-2xl p-10 text-center max-w-md w-full">
+          {verifying ? (
+            <Loader2 className="h-16 w-16 text-primary mx-auto mb-4 animate-spin" />
+          ) : (
+            <StatusIcon className={`h-16 w-16 mx-auto mb-4 ${ringColor}`} />
+          )}
+          <h2 className="font-heading text-2xl font-bold mb-2">{statusLabel}</h2>
+
+          {!verifying && verifyResult && (
+            <div className="my-6">
+              <div className="text-sm text-muted-foreground mb-1">AI Verification Score</div>
+              <div className={`font-heading text-5xl font-bold ${ringColor}`}>{score}<span className="text-2xl text-muted-foreground">/100</span></div>
+              <div className="mt-2 text-xs text-muted-foreground">
+                {isRejected
+                  ? "Score below 50% — submission rejected, no points awarded."
+                  : isVerified
+                    ? "Score ≥ 75% — awaiting final admin approval to credit +10 points."
+                    : "Score 50–74% — admin will review manually."}
+              </div>
+              {verifyResult.flagged_reason && (
+                <div className="mt-3 text-xs bg-muted/50 rounded-lg p-2 text-muted-foreground">{verifyResult.flagged_reason}</div>
+              )}
+            </div>
+          )}
+
+          {!verifying && !isRejected && (
+            <p className="text-muted-foreground text-sm mb-4">
+              <strong>Points are credited only after admin approval.</strong>
+            </p>
+          )}
           <Button className="w-full" onClick={() => window.location.reload()}>Submit Another Plantation</Button>
         </motion.div>
       </div>
