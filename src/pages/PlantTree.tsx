@@ -41,6 +41,8 @@ const PlantTree = () => {
 
   const [currentStep, setCurrentStep] = useState<PhotoStep>("before");
   const [submitted, setSubmitted] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<{ status: string; score: number; flagged_reason?: string | null; breakdown?: any } | null>(null);
+  const [verifying, setVerifying] = useState(false);
   const [location, setLocation] = useState("");
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
