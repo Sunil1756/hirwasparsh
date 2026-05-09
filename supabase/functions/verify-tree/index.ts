@@ -93,7 +93,7 @@ Respond ONLY via the verify_tree tool. Be strict — when in doubt, score lower.
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "google/gemini-3.1-pro-preview",
         messages: [
           { role: "system", content: `You are a STRICT environmental plantation auditor and anti-fraud image analyst.
 
