@@ -315,27 +315,31 @@ const PlantTree = () => {
 
       if (insertError) throw insertError;
 
-      // Trigger enhanced AI verification with all 3 photos
+      // Trigger enhanced AI verification with all 3 photos — AWAIT to show result
       if (tree) {
-        const [afterB64, selfieB64, beforeB64] = await Promise.all([
-          fileToBase64(afterPhoto),
-          fileToBase64(selfiePhoto),
-          fileToBase64(beforePhoto),
-        ]);
-        supabase.functions.invoke("verify-tree", {
-          body: {
-            imageBase64: afterB64,
-            selfieBase64: selfieB64,
-            beforeBase64: beforeB64,
-            treeId: tree.id,
-            species,
-            photoHash,
-          },
-        }).catch(console.error);
+        setVerifying(true);
+        setSubmitted(true);
+        try {
+          const [afterB64, selfieB64, beforeB64] = await Promise.all([
+            fileToBase64(afterPhoto),
+            fileToBase64(selfiePhoto),
+            fileToBase64(beforePhoto),
+          ]);
+          const { data: vData, error: vErr } = await supabase.functions.invoke("verify-tree", {
+            body: { imageBase64: afterB64, selfieBase64: selfieB64, beforeBase64: beforeB64, treeId: tree.id, species, photoHash },
+          });
+          if (vErr) throw vErr;
+          setVerifyResult(vData);
+        } catch (e) {
+          console.error("verify-tree error:", e);
+          setVerifyResult({ status: "pending", score: 0, flagged_reason: "AI verification could not run — manual admin review required." });
+        } finally {
+          setVerifying(false);
+        }
+      } else {
+        setSubmitted(true);
       }
-
-      setSubmitted(true);
-      toast({ title: "🌳 Plantation Submitted!", description: "Your submission is pending admin approval. Points will be credited after verification." });
+      toast({ title: "🌳 Plantation Submitted!", description: "AI verification running…" });
     } catch (error: any) {
       console.error("[PlantTree] Submission error:", error);
       const msg = error?.message || "Unknown error";
