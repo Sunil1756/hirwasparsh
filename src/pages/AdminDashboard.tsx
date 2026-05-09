@@ -170,9 +170,9 @@ const AdminDashboard = () => {
                       </div>
                     </div>
 
-                    {/* Actions */}
+                    {/* Actions — pending/flagged: full controls; rejected: human override */}
                     {(s.admin_status === "pending" || s.admin_status === "flagged") && (
-                      <div className="flex gap-2 mt-3 pt-3 border-t border-border">
+                      <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border">
                         <Button size="sm" onClick={() => updateMutation.mutate({ id: s.id, adminStatus: "approved" })}
                           disabled={updateMutation.isPending} className="gap-1">
                           <CheckCircle className="h-4 w-4" /> Approve (+10 pts)
@@ -186,6 +186,28 @@ const AdminDashboard = () => {
                           <AlertTriangle className="h-4 w-4" /> Flag
                         </Button>
                         <Link to={`/tree/${s.id}`}><Button size="sm" variant="ghost" className="gap-1"><Eye className="h-4 w-4" /> Profile</Button></Link>
+                      </div>
+                    )}
+                    {s.admin_status === "rejected" && (
+                      <div className="mt-3 pt-3 border-t border-border">
+                        <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
+                          <AlertTriangle className="h-3 w-3 text-destructive" />
+                          Auto-rejected by AI. Human override available — review photos & analysis carefully before overturning.
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button size="sm" variant="outline" onClick={() => {
+                            if (confirm("Override AI rejection and approve this submission? +10 points will be credited to the user.")) {
+                              updateMutation.mutate({ id: s.id, adminStatus: "approved" });
+                            }
+                          }} disabled={updateMutation.isPending} className="gap-1 border-primary/40 text-primary hover:bg-primary/10">
+                            <CheckCircle className="h-4 w-4" /> Override → Approve (+10 pts)
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => updateMutation.mutate({ id: s.id, adminStatus: "flagged" })}
+                            disabled={updateMutation.isPending} className="gap-1">
+                            <AlertTriangle className="h-4 w-4" /> Send to Manual Review
+                          </Button>
+                          <Link to={`/tree/${s.id}`}><Button size="sm" variant="ghost" className="gap-1"><Eye className="h-4 w-4" /> Profile</Button></Link>
+                        </div>
                       </div>
                     )}
                   </div>
