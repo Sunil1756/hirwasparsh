@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Shield, TreePine, Users, CheckCircle, XCircle, Clock, AlertTriangle, Eye, Loader2, MapPin } from "lucide-react";
+import { Shield, TreePine, Users, CheckCircle, XCircle, Clock, AlertTriangle, Eye, Loader2, MapPin, Inbox, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,7 @@ const AdminDashboard = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [reviewFilter, setReviewFilter] = useState<"all" | "rejected" | "flagged" | "pending">("all");
 
   const { data: stats } = useQuery({
     queryKey: ["admin-stats"],
@@ -107,6 +108,83 @@ const AdminDashboard = () => {
                 <div className="font-heading text-2xl font-bold">{s.value}</div>
               </div>
             ))}
+          </div>
+
+          {/* Manual Review Queue */}
+          <div className="glass-card rounded-2xl p-6 mb-6 border-2 border-yellow-500/20">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-2">
+                <Inbox className="h-5 w-5 text-yellow-600" />
+                <h2 className="font-heading text-xl font-semibold">Manual Review Queue</h2>
+                <Badge className="bg-yellow-500/10 text-yellow-600">
+                  {submissions.filter(s => s.admin_status === "rejected" || s.admin_status === "flagged" || s.admin_status === "pending").length}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                {(["all", "pending", "flagged", "rejected"] as const).map(f => (
+                  <Button key={f} size="sm" variant={reviewFilter === f ? "default" : "outline"}
+                    onClick={() => setReviewFilter(f)} className="capitalize text-xs h-7">
+                    {f}
+                    <span className="ml-1 opacity-70">
+                      ({f === "all"
+                        ? submissions.filter(s => ["rejected","flagged","pending"].includes(s.admin_status)).length
+                        : submissions.filter(s => s.admin_status === f).length})
+                    </span>
+                  </Button>
+                ))}
+              </div>
+            </div>
+            {(() => {
+              const queue = submissions.filter(s => {
+                if (reviewFilter === "all") return ["rejected","flagged","pending"].includes(s.admin_status);
+                return s.admin_status === reviewFilter;
+              });
+              if (isLoading) return <div className="text-center py-6"><Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" /></div>;
+              if (queue.length === 0) return <p className="text-muted-foreground text-center py-6 text-sm">Queue empty — nothing to review.</p>;
+              return (
+                <div className="space-y-2">
+                  {queue.map(s => (
+                    <div key={s.id} className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-accent/5 transition-colors">
+                      {s.photo_url && (
+                        <button onClick={() => setSelectedPhoto(s.photo_url)}>
+                          <img src={s.photo_url} className="w-14 h-14 rounded-md object-cover" alt="" />
+                        </button>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm truncate">{s.tree_name}</span>
+                          <Badge className={`text-[10px] ${statusColor(s.admin_status)}`}>{s.admin_status}</Badge>
+                          {s.ai_validation_score != null && (
+                            <Badge variant="outline" className={`text-[10px] ${Number(s.ai_validation_score) < 50 ? "text-destructive" : Number(s.ai_validation_score) < 75 ? "text-yellow-600" : "text-primary"}`}>
+                              AI {Number(s.ai_validation_score).toFixed(0)}%
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">{s.species} · {s.flagged_reason || s.location?.substring(0, 50)}</div>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <Button size="sm" variant="outline" onClick={() => {
+                          if (s.admin_status === "rejected" && !confirm("Override AI rejection? +10 pts will be credited.")) return;
+                          updateMutation.mutate({ id: s.id, adminStatus: "approved" });
+                        }} disabled={updateMutation.isPending} className="h-8 px-2 border-primary/40 text-primary hover:bg-primary/10">
+                          <CheckCircle className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => updateMutation.mutate({ id: s.id, adminStatus: "flagged" })}
+                          disabled={updateMutation.isPending} className="h-8 px-2">
+                          <AlertTriangle className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => updateMutation.mutate({ id: s.id, adminStatus: "rejected" })}
+                          disabled={updateMutation.isPending} className="h-8 px-2 text-destructive hover:bg-destructive/10">
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                        <Link to={`/tree/${s.id}`}><Button size="sm" variant="ghost" className="h-8 px-2"><Eye className="h-4 w-4" /></Button></Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Submissions */}
