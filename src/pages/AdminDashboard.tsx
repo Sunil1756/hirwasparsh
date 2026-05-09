@@ -14,6 +14,7 @@ const AdminDashboard = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [reviewFilter, setReviewFilter] = useState<"all" | "rejected" | "flagged" | "pending">("all");
 
   const { data: stats } = useQuery({
     queryKey: ["admin-stats"],
