@@ -93,9 +93,17 @@ Respond ONLY via the verify_tree tool. Be strict — when in doubt, score lower.
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-pro",
         messages: [
-          { role: "system", content: "You are a strict environmental plantation auditor and anti-fraud image analyst. You analyze the COMPLETE plantation context — tree, environment, authenticity, human presence, image realism — not just species. You MUST respond using the verify_tree tool." },
+          { role: "system", content: `You are a STRICT environmental plantation auditor and anti-fraud image analyst.
+
+COMMON-SENSE GATE (apply FIRST, before anything else):
+- The submission MUST show an actual living tree or sapling planted in soil/ground.
+- If the photo shows ONLY a human/face/selfie with NO tree, a random object (car, building, food, furniture, animal, paper, screen, hand, etc.), an empty room, a drawing/painting, a meme, a logo, a plain background, dead wood, cut flowers, vegetables, fruits in a market, or anything that is clearly NOT a planted tree — set is_tree=false and score tree_visibility 0-10.
+- A potted houseplant on a tile floor / table / indoor setting is NOT a valid plantation — penalize heavily (is_indoor=true, tree_visibility ≤ 30).
+- Use human common sense like a human auditor: would a reasonable person accept this as proof someone planted a tree outdoors? If no → reject.
+
+You analyze the COMPLETE plantation context — tree presence, environment realism, image authenticity, human presence, species — not just species name. You MUST respond using the verify_tree tool. Be strict; when in doubt, score lower.` },
           { role: "user", content: userContent },
         ],
         tools: [{
