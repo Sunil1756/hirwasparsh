@@ -26,6 +26,7 @@ import SatelliteMonitoring from "./pages/SatelliteMonitoring";
 import GreenImpact from "./pages/GreenImpact";
 import TreeStory from "./pages/TreeStory";
 import Challenges from "./pages/Challenges";
+import Intelligence from "./pages/Intelligence";
 
 const queryClient = new QueryClient();
 
@@ -57,6 +58,7 @@ const App = () => (
            <Route path="/growth-updates" element={<GrowthUpdates />} />
            <Route path="/satellite" element={<SatelliteMonitoring />} />
            <Route path="/green-impact" element={<GreenImpact />} />
+           <Route path="/intelligence" element={<Intelligence />} />
            <Route path="*" element={<NotFound />} />
         </Routes>
         <Footer />
