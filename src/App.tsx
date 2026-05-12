@@ -26,6 +26,7 @@ import SatelliteMonitoring from "./pages/SatelliteMonitoring";
 import GreenImpact from "./pages/GreenImpact";
 import TreeStory from "./pages/TreeStory";
 import Challenges from "./pages/Challenges";
+import Intelligence from "./pages/Intelligence";
 
 const queryClient = new QueryClient();
 
