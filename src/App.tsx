@@ -58,6 +58,7 @@ const App = () => (
            <Route path="/growth-updates" element={<GrowthUpdates />} />
            <Route path="/satellite" element={<SatelliteMonitoring />} />
            <Route path="/green-impact" element={<GreenImpact />} />
+           <Route path="/intelligence" element={<Intelligence />} />
            <Route path="*" element={<NotFound />} />
         </Routes>
         <Footer />
