@@ -19,7 +19,6 @@ const Navbar = () => {
     { to: "/growth-updates", label: "Growth" },
     { to: "/tree-map", label: "Tree Map" },
     { to: "/drives", label: "Drives" },
-    { to: "/analytics", label: "Analytics" },
     { to: "/intelligence", label: "AI Intelligence" },
     { to: "/leaderboard", label: "Leaderboard" },
     { to: "/contact", label: "Contact" },
