@@ -20,6 +20,7 @@ const Navbar = () => {
     { to: "/tree-map", label: "Tree Map" },
     { to: "/drives", label: "Drives" },
     { to: "/analytics", label: "Analytics" },
+    { to: "/intelligence", label: "AI Intelligence" },
     { to: "/leaderboard", label: "Leaderboard" },
     { to: "/contact", label: "Contact" },
     { to: "/challenges", label: "Challenges" },
