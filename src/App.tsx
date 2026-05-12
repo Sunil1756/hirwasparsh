@@ -44,7 +44,7 @@ const App = () => (
           <Route path="/plant" element={<PlantTree />} />
           <Route path="/dashboard" element={<CommunityDashboard />} />
           <Route path="/tree-map" element={<TreeMap />} />
-          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/analytics" element={<Navigate to="/intelligence" replace />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/government" element={<GovernmentDashboard />} />
