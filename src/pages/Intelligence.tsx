@@ -36,7 +36,7 @@ const Intelligence = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("trees")
-        .select("id,species,location,latitude,longitude,admin_status,verification_status,ai_validation_score,ai_confidence,created_at,flagged_reason");
+        .select("id,species,location,latitude,longitude,admin_status,verification_status,ai_validation_score,ai_confidence,created_at");
       if (error) throw error;
       return data || [];
     },
