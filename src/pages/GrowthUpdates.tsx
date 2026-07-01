@@ -37,14 +37,9 @@ const GrowthUpdates = () => {
     queryKey: ["user-approved-trees", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("trees")
-        .select("id, tree_name, species, plantation_date, admin_status, qr_token, latitude, longitude")
-        .eq("user_id", user!.id)
-        .eq("admin_status", "approved")
-        .order("created_at", { ascending: false });
+      const { data, error } = await supabase.rpc("get_my_trees_with_token");
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
   });
 

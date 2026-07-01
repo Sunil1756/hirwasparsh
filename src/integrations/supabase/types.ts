@@ -507,6 +507,47 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_get_trees: {
+        Args: { _limit?: number; _status?: string }
+        Returns: {
+          admin_status: string
+          ai_analysis: string | null
+          ai_confidence: number | null
+          ai_detected_species: string | null
+          ai_scientific_name: string | null
+          ai_species_confidence: number | null
+          ai_validation_score: number | null
+          before_photo_url: string | null
+          created_at: string
+          description: string | null
+          device_fingerprint: string | null
+          drive_id: string | null
+          exif_timestamp: string | null
+          flagged_reason: string | null
+          height_cm: number
+          id: string
+          latitude: number | null
+          location: string
+          longitude: number | null
+          photo_hash: string | null
+          photo_url: string | null
+          plantation_date: string
+          points_awarded: number
+          qr_token: string | null
+          selfie_photo_url: string | null
+          species: string
+          tree_name: string
+          updated_at: string
+          user_id: string | null
+          verification_status: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "trees"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       find_nearby_trees: {
         Args: { _lat: number; _lng: number; _max_meters?: number }
         Returns: {
@@ -519,6 +560,20 @@ export type Database = {
           species: string
           tree_name: string
           user_id: string
+        }[]
+      }
+      get_my_trees_with_token: {
+        Args: never
+        Returns: {
+          admin_status: string
+          created_at: string
+          id: string
+          latitude: number
+          longitude: number
+          plantation_date: string
+          qr_token: string
+          species: string
+          tree_name: string
         }[]
       }
       has_role: {
