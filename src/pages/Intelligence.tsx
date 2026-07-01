@@ -54,7 +54,7 @@ const Intelligence = () => {
   });
 
   const approved = trees.filter(t => t.admin_status === "approved");
-  const flagged = trees.filter(t => t.admin_status === "flagged" || t.flagged_reason);
+  const flagged = trees.filter(t => t.admin_status === "flagged");
   const rejected = trees.filter(t => t.admin_status === "rejected");
   const pending = trees.filter(t => t.admin_status === "pending");
 
