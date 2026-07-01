@@ -39,13 +39,9 @@ const AdminDashboard = () => {
     queryKey: ["admin-submissions"],
     enabled: isAdmin,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("trees")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(50);
+      const { data, error } = await supabase.rpc("admin_get_trees", { _limit: 50 });
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
   });
 
