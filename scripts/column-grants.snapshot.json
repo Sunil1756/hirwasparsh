@@ -1,0 +1,153 @@
+{
+  "tables": {
+    "profiles": [
+      "anon=arwdDxtm/postgres",
+      "authenticated=awdDxtm/postgres",
+      "postgres=arwdDxtm/postgres",
+      "sandbox_exec=ar/postgres",
+      "service_role=arwdDxtm/postgres"
+    ],
+    "tree_adopters": [
+      "anon=arwdDxtm/postgres",
+      "authenticated=awdDxtm/postgres",
+      "postgres=arwdDxtm/postgres",
+      "sandbox_exec=ar/postgres",
+      "service_role=arwdDxtm/postgres"
+    ],
+    "trees": [
+      "anon=arwdDxtm/postgres",
+      "authenticated=awdDxtm/postgres",
+      "postgres=arwdDxtm/postgres",
+      "sandbox_exec=ar/postgres",
+      "service_role=arwdDxtm/postgres"
+    ]
+  },
+  "columns": {
+    "profiles": {
+      "avatar_url": [
+        "authenticated=r/postgres"
+      ],
+      "created_at": [
+        "authenticated=r/postgres"
+      ],
+      "full_name": [
+        "authenticated=r/postgres"
+      ],
+      "green_points": [
+        "authenticated=r/postgres"
+      ],
+      "id": [
+        "authenticated=r/postgres"
+      ],
+      "team_id": [
+        "authenticated=r/postgres"
+      ],
+      "trees_planted": [
+        "authenticated=r/postgres"
+      ],
+      "updated_at": [
+        "authenticated=r/postgres"
+      ]
+    },
+    "tree_adopters": {
+      "created_at": [
+        "authenticated=r/postgres"
+      ],
+      "current_photo_url": [
+        "authenticated=r/postgres"
+      ],
+      "id": [
+        "authenticated=r/postgres"
+      ],
+      "latitude": [
+        "authenticated=r/postgres"
+      ],
+      "longitude": [
+        "authenticated=r/postgres"
+      ],
+      "role": [
+        "authenticated=r/postgres"
+      ],
+      "tree_id": [
+        "authenticated=r/postgres"
+      ],
+      "user_id": [
+        "authenticated=r/postgres"
+      ]
+    },
+    "trees": {
+      "admin_status": [
+        "authenticated=r/postgres"
+      ],
+      "ai_analysis": [
+        "authenticated=r/postgres"
+      ],
+      "ai_confidence": [
+        "authenticated=r/postgres"
+      ],
+      "ai_detected_species": [
+        "authenticated=r/postgres"
+      ],
+      "ai_scientific_name": [
+        "authenticated=r/postgres"
+      ],
+      "ai_species_confidence": [
+        "authenticated=r/postgres"
+      ],
+      "ai_validation_score": [
+        "authenticated=r/postgres"
+      ],
+      "before_photo_url": [
+        "authenticated=r/postgres"
+      ],
+      "created_at": [
+        "authenticated=r/postgres"
+      ],
+      "description": [
+        "authenticated=r/postgres"
+      ],
+      "drive_id": [
+        "authenticated=r/postgres"
+      ],
+      "height_cm": [
+        "authenticated=r/postgres"
+      ],
+      "id": [
+        "authenticated=r/postgres"
+      ],
+      "latitude": [
+        "authenticated=r/postgres"
+      ],
+      "location": [
+        "authenticated=r/postgres"
+      ],
+      "longitude": [
+        "authenticated=r/postgres"
+      ],
+      "photo_url": [
+        "authenticated=r/postgres"
+      ],
+      "plantation_date": [
+        "authenticated=r/postgres"
+      ],
+      "points_awarded": [
+        "authenticated=r/postgres"
+      ],
+      "species": [
+        "authenticated=r/postgres"
+      ],
+      "tree_name": [
+        "authenticated=r/postgres"
+      ],
+      "updated_at": [
+        "authenticated=r/postgres"
+      ],
+      "user_id": [
+        "authenticated=r/postgres"
+      ],
+      "verification_status": [
+        "authenticated=r/postgres"
+      ]
+    }
+  }
+}
