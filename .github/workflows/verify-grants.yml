@@ -1,0 +1,46 @@
+name: Verify Supabase column GRANTs
+
+# Guards the fixes for security findings:
+#   - profiles_green_points_public
+#   - tree_adopters_selfie_url_exposed
+#   - trees_sensitive_columns_exposed
+#
+# Fails the build if table/column ACLs on profiles, trees, or tree_adopters
+# drift from scripts/column-grants.snapshot.json, or if a sensitive column
+# is granted SELECT to anon/authenticated at the column level.
+#
+# Requires repository secret DATABASE_URL pointing at the Supabase Postgres
+# instance with a role able to read pg_class / pg_attribute ACLs (owner or
+# service role via the direct connection string, NOT the pooler).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - "scripts/verify-column-grants.mjs"
+      - "scripts/column-grants.snapshot.json"
+      - ".github/workflows/verify-grants.yml"
+  pull_request:
+    paths:
+      - "supabase/migrations/**"
+      - "scripts/verify-column-grants.mjs"
+      - "scripts/column-grants.snapshot.json"
+      - ".github/workflows/verify-grants.yml"
+  workflow_dispatch:
+
+jobs:
+  verify-grants:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.DATABASE_URL != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - name: Verify column-level GRANTs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run verify:grants
