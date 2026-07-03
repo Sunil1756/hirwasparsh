@@ -10,7 +10,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "verify:grants": "node scripts/verify-column-grants.mjs",
+    "verify:grants:update": "node scripts/verify-column-grants.mjs --update"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
