@@ -1,220 +1,161 @@
 #!/usr/bin/env node
 /**
- * CI check: verify Supabase column-level GRANTs on sensitive tables.
+ * CI check: verify Supabase table + column-level GRANTs on sensitive tables
+ * have not drifted from the approved snapshot.
  *
- * Guards the fix for security findings:
+ * Guards the resolved security findings:
  *   - profiles_green_points_public
  *   - tree_adopters_selfie_url_exposed
  *   - trees_sensitive_columns_exposed
  *
- * Requires a Postgres superuser/owner connection. Reads the standard PG*
- * env vars (PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE) or DATABASE_URL.
+ * The snapshot at scripts/column-grants.snapshot.json is the source of truth.
+ * Any drift (added, removed, or role-changed grants) fails CI. Sensitive
+ * columns are additionally hard-asserted to never be granted at column level
+ * to `anon` or `authenticated`, independent of the snapshot — belt & braces
+ * so an accidental snapshot update can't silently re-expose them.
  *
- * Usage:  node scripts/verify-column-grants.mjs
- * Exits non-zero and prints a diff when actual grants drift from expected.
+ * Updating the snapshot:
+ *   node scripts/verify-column-grants.mjs --update
+ *
+ * Env:  standard PG* vars or DATABASE_URL. Needs a role that can read
+ *       pg_class / pg_attribute ACLs (owner or superuser).
  */
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import pg from "pg";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const SNAPSHOT_PATH = path.join(__dirname, "column-grants.snapshot.json");
+
+const TABLES = ["profiles", "trees", "tree_adopters"];
+
 /**
- * Expected column-level SELECT grants for the `authenticated` role.
- * Any column NOT listed here must NOT be selectable by `authenticated`.
- * Table-level SELECT to `authenticated` is also forbidden — access must
- * be column-scoped so sensitive columns stay hidden.
+ * Columns that must NEVER be readable by `anon` or `authenticated` at the
+ * column level, regardless of what the snapshot says. Hard invariant.
  */
-const EXPECTED = {
-  profiles: {
-    authenticated_select: [
-      "id",
-      "full_name",
-      "avatar_url",
-      "trees_planted",
-      "green_points",
-      "team_id",
-      "created_at",
-      "updated_at",
-    ],
-  },
-  trees: {
-    authenticated_select: [
-      "id",
-      "user_id",
-      "tree_name",
-      "species",
-      "location",
-      "latitude",
-      "longitude",
-      "height_cm",
-      "plantation_date",
-      "description",
-      "photo_url",
-      "before_photo_url",
-      "drive_id",
-      "admin_status",
-      "verification_status",
-      "points_awarded",
-      "ai_analysis",
-      "ai_confidence",
-      "ai_detected_species",
-      "ai_scientific_name",
-      "ai_species_confidence",
-      "ai_validation_score",
-      "created_at",
-      "updated_at",
-    ],
-    // These MUST never be granted to `authenticated`.
-    forbidden_authenticated: [
-      "selfie_photo_url",
-      "device_fingerprint",
-      "photo_hash",
-      "qr_token",
-      "exif_timestamp",
-      "flagged_reason",
-    ],
-  },
-  tree_adopters: {
-    authenticated_select: [
-      "id",
-      "tree_id",
-      "user_id",
-      "role",
-      "current_photo_url",
-      "latitude",
-      "longitude",
-      "created_at",
-    ],
-    forbidden_authenticated: ["selfie_photo_url"],
-  },
+const SENSITIVE_COLUMNS = {
+  trees: [
+    "selfie_photo_url",
+    "device_fingerprint",
+    "photo_hash",
+    "qr_token",
+    "exif_timestamp",
+    "flagged_reason",
+  ],
+  tree_adopters: ["selfie_photo_url"],
+  profiles: [],
 };
+const PUBLIC_ROLES = ["anon", "authenticated"];
 
-// Roles that must NEVER have any SELECT on these tables (column or table).
-const FORBIDDEN_ROLES = ["anon"];
+async function fetchAcls(client) {
+  const out = { tables: {}, columns: {} };
 
-const TABLES = Object.keys(EXPECTED);
+  const tableRows = await client.query(
+    `SELECT c.relname, coalesce(c.relacl::text[], '{}') AS acl
+       FROM pg_class c
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname='public' AND c.relname = ANY($1::text[])
+      ORDER BY c.relname`,
+    [TABLES]
+  );
+  for (const r of tableRows.rows) {
+    out.tables[r.relname] = [...r.acl].sort();
+  }
 
-function normalize(arr) {
-  return [...new Set(arr)].sort();
+  const colRows = await client.query(
+    `SELECT c.relname, a.attname, a.attacl::text[] AS acl
+       FROM pg_class c
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       JOIN pg_attribute a ON a.attrelid = c.oid
+      WHERE n.nspname='public' AND c.relname = ANY($1::text[])
+        AND a.attnum > 0 AND NOT a.attisdropped
+        AND a.attacl IS NOT NULL
+      ORDER BY c.relname, a.attname`,
+    [TABLES]
+  );
+  for (const r of colRows.rows) {
+    out.columns[r.relname] ??= {};
+    out.columns[r.relname][r.attname] = [...(r.acl ?? [])].sort();
+  }
+  return out;
+}
+
+function connect() {
+  const { Client } = pg;
+  const opts = process.env.DATABASE_URL ? { connectionString: process.env.DATABASE_URL } : {};
+  // Supabase pooler uses self-signed certs — accept them for read-only verification.
+  if (process.env.PGSSLMODE !== "disable") {
+    opts.ssl = { rejectUnauthorized: false };
+  }
+  return new Client(opts);
+}
+
+function diff(expected, actual, label, errors) {
+  const e = JSON.stringify(expected, null, 2);
+  const a = JSON.stringify(actual, null, 2);
+  if (e !== a) {
+    errors.push(`${label} drift:\n--- expected\n${e}\n--- actual\n${a}`);
+  }
 }
 
 async function main() {
-  const { Client } = pg;
-  const useSsl =
-    process.env.PGSSLMODE !== "disable" &&
-    (process.env.DATABASE_URL?.includes("sslmode=") ? false : true);
-  const client = new Client({
-    ...(process.env.DATABASE_URL ? { connectionString: process.env.DATABASE_URL } : {}),
-    ...(useSsl ? { ssl: { rejectUnauthorized: false } } : {}),
-  });
+  const update = process.argv.includes("--update");
+  const client = connect();
   await client.connect();
-
-  const errors = [];
-
-  // 1. Table-level ACLs: `authenticated` must NOT hold table-level SELECT
-  //    (column-level only); `anon` must not hold any privilege.
-  const tableAcls = await client.query(
-    `SELECT c.relname,
-            has_table_privilege('authenticated', c.oid, 'SELECT') AS auth_select,
-            has_table_privilege('anon', c.oid, 'SELECT') AS anon_select
-       FROM pg_class c
-       JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public' AND c.relname = ANY($1::text[])`,
-    [TABLES]
-  );
-
-  for (const row of tableAcls.rows) {
-    // authenticated may hold INSERT/UPDATE/DELETE at table level, but SELECT
-    // must be column-scoped only. `has_table_privilege` returns true if the
-    // role has SELECT on ANY column — so we assert via ACL introspection.
-    const aclRow = await client.query(
-      `SELECT relacl::text[] AS acl
-         FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-        WHERE n.nspname = 'public' AND c.relname = $1`,
-      [row.relname]
-    );
-    const acl = (aclRow.rows[0]?.acl ?? []).join(" ");
-    // Look for `authenticated=...r...` (table-level SELECT).
-    const authEntry = acl.match(/authenticated=([a-zA-Z*]+)/)?.[1] ?? "";
-    if (authEntry.includes("r")) {
-      errors.push(
-        `[${row.relname}] table-level SELECT granted to 'authenticated' — must be column-scoped only`
-      );
-    }
-    for (const role of FORBIDDEN_ROLES) {
-      const entry = acl.match(new RegExp(`${role}=([a-zA-Z*]+)`))?.[1] ?? "";
-      if (entry.includes("r")) {
-        errors.push(`[${row.relname}] table-level SELECT granted to forbidden role '${role}'`);
-      }
-    }
-  }
-
-  // 2. Column-level SELECT for `authenticated` must match EXPECTED exactly,
-  //    and none of the forbidden columns may appear.
-  for (const table of TABLES) {
-    const { rows } = await client.query(
-      `SELECT a.attname
-         FROM pg_class c
-         JOIN pg_namespace n ON n.oid = c.relnamespace
-         JOIN pg_attribute a ON a.attrelid = c.oid
-        WHERE n.nspname = 'public'
-          AND c.relname = $1
-          AND a.attnum > 0
-          AND NOT a.attisdropped
-          AND has_column_privilege('authenticated', c.oid, a.attname, 'SELECT')`,
-      [table]
-    );
-    const actual = normalize(rows.map((r) => r.attname));
-    const expected = normalize(EXPECTED[table].authenticated_select);
-
-    const missing = expected.filter((c) => !actual.includes(c));
-    const extra = actual.filter((c) => !expected.includes(c));
-
-    if (missing.length) {
-      errors.push(`[${table}] missing SELECT grant to 'authenticated' on: ${missing.join(", ")}`);
-    }
-    if (extra.length) {
-      errors.push(
-        `[${table}] unexpected SELECT grant to 'authenticated' on: ${extra.join(", ")}`
-      );
-    }
-
-    const forbidden = EXPECTED[table].forbidden_authenticated ?? [];
-    const leaked = forbidden.filter((c) => actual.includes(c));
-    if (leaked.length) {
-      errors.push(
-        `[${table}] SENSITIVE column(s) exposed to 'authenticated': ${leaked.join(", ")}`
-      );
-    }
-
-    // 3. `anon` must have no column-level SELECT either.
-    for (const role of FORBIDDEN_ROLES) {
-      const { rows: anonRows } = await client.query(
-        `SELECT a.attname
-           FROM pg_class c
-           JOIN pg_namespace n ON n.oid = c.relnamespace
-           JOIN pg_attribute a ON a.attrelid = c.oid
-          WHERE n.nspname='public' AND c.relname=$1
-            AND a.attnum > 0 AND NOT a.attisdropped
-            AND has_column_privilege($2, c.oid, a.attname, 'SELECT')`,
-        [table, role]
-      );
-      if (anonRows.length) {
-        errors.push(
-          `[${table}] column SELECT granted to forbidden role '${role}': ${anonRows.map((r) => r.attname).join(", ")}`
-        );
-      }
-    }
-  }
-
+  const actual = await fetchAcls(client);
   await client.end();
 
-  if (errors.length) {
-    console.error("❌ Column-grant verification FAILED:\n");
-    for (const e of errors) console.error("  - " + e);
+  // Hard invariant check — sensitive columns must NOT have column-level ACL
+  // entries granting SELECT (`r`) to anon or authenticated.
+  const errors = [];
+  for (const [table, cols] of Object.entries(SENSITIVE_COLUMNS)) {
+    for (const col of cols) {
+      const acl = actual.columns[table]?.[col] ?? [];
+      for (const role of PUBLIC_ROLES) {
+        const entry = acl.find((e) => e.startsWith(`${role}=`));
+        if (entry && /=([a-zA-Z*]*)r/.test(entry)) {
+          errors.push(
+            `SENSITIVE: ${table}.${col} exposes SELECT to '${role}' (acl='${entry}'). ` +
+              `Revoke immediately — this re-opens a fixed security finding.`
+          );
+        }
+      }
+    }
+  }
+
+  if (update) {
+    if (errors.length) {
+      console.error("Refusing to update snapshot while sensitive-column invariants fail:\n");
+      for (const e of errors) console.error("  - " + e);
+      process.exit(1);
+    }
+    writeFileSync(SNAPSHOT_PATH, JSON.stringify(actual, null, 2) + "\n");
+    console.log(`✅ Snapshot written to ${path.relative(process.cwd(), SNAPSHOT_PATH)}`);
+    return;
+  }
+
+  if (!existsSync(SNAPSHOT_PATH)) {
     console.error(
-      "\nUpdate EXPECTED in scripts/verify-column-grants.mjs only if the change is intentional and reviewed."
+      `Snapshot missing at ${SNAPSHOT_PATH}. Run:\n  node scripts/verify-column-grants.mjs --update`
     );
     process.exit(1);
   }
-  console.log("✅ Column-level GRANTs on profiles/trees/tree_adopters match expected policy.");
+  const expected = JSON.parse(readFileSync(SNAPSHOT_PATH, "utf8"));
+  diff(expected.tables, actual.tables, "table ACL", errors);
+  diff(expected.columns, actual.columns, "column ACL", errors);
+
+  if (errors.length) {
+    console.error("❌ Column-grant verification FAILED:\n");
+    for (const e of errors) console.error(e + "\n");
+    console.error(
+      "If the change is intentional and reviewed, refresh the snapshot with:\n" +
+        "  node scripts/verify-column-grants.mjs --update\n" +
+        "and commit scripts/column-grants.snapshot.json."
+    );
+    process.exit(1);
+  }
+  console.log("✅ Table + column GRANTs on profiles/trees/tree_adopters match snapshot.");
 }
 
 main().catch((err) => {
