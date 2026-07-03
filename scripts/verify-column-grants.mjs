@@ -97,9 +97,13 @@ function normalize(arr) {
 
 async function main() {
   const { Client } = pg;
-  const client = new Client(
-    process.env.DATABASE_URL ? { connectionString: process.env.DATABASE_URL } : {}
-  );
+  const useSsl =
+    process.env.PGSSLMODE !== "disable" &&
+    (process.env.DATABASE_URL?.includes("sslmode=") ? false : true);
+  const client = new Client({
+    ...(process.env.DATABASE_URL ? { connectionString: process.env.DATABASE_URL } : {}),
+    ...(useSsl ? { ssl: { rejectUnauthorized: false } } : {}),
+  });
   await client.connect();
 
   const errors = [];
