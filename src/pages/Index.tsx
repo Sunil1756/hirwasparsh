@@ -125,9 +125,11 @@ const Index = () => {
   return (
     <div className="min-h-screen">
       {/* Hero */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-28 pb-32">
         <img src={heroBg} alt="Lush green misty mountain valley" className="absolute inset-0 w-full h-full object-cover" width={1920} height={1080} />
-        <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-white/10 to-background/80" />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-white/10 to-background/60" />
+        {/* Smooth fade into next section */}
+        <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-b from-transparent via-muted/30 to-muted/50 pointer-events-none z-[1]" />
 
         {/* Floating leaf particles */}
         {[...Array(6)].map((_, i) => (
@@ -146,9 +148,17 @@ const Index = () => {
               </motion.span>
               Smart Green Verification Platform
             </motion.div>
-            <h1 className="font-heading text-5xl md:text-7xl font-extrabold text-nature-900 mb-6 leading-[1.05] tracking-tight drop-shadow-sm">
+            <h1
+              className="font-heading font-extrabold text-nature-900 mb-6 leading-[1.1] tracking-tight drop-shadow-sm text-balance"
+              style={{ fontSize: "clamp(2rem, 5.5vw, 4.5rem)" }}
+            >
               Grow a Greener Future<br />
-              <span className="text-base md:text-2xl font-semibold text-nature-900/80 block mt-3 mb-1">with</span>
+              <span
+                className="block font-semibold text-nature-900/80 mt-3 mb-1"
+                style={{ fontSize: "clamp(0.9rem, 1.6vw, 1.375rem)" }}
+              >
+                with
+              </span>
               <motion.span
                 className="text-primary inline-block"
                 animate={{ scale: [1, 1.02, 1] }}
@@ -158,7 +168,10 @@ const Index = () => {
               </motion.span>
             </h1>
 
-            <p className="font-heading text-xl md:text-2xl font-semibold text-nature-900 mb-4">
+            <p
+              className="font-heading font-semibold text-nature-900 mb-4"
+              style={{ fontSize: "clamp(1rem, 2vw, 1.5rem)" }}
+            >
               Plant with Purpose. Grow with Proof.
             </p>
             <div className="flex items-center justify-center gap-3 mb-6 opacity-80">
