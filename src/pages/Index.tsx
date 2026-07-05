@@ -125,11 +125,12 @@ const Index = () => {
   return (
     <div className="min-h-screen">
       {/* Hero */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-28 pb-32">
+      <section className="relative flex items-center justify-center overflow-hidden pt-32 md:pt-36 pb-24 md:pb-32 min-h-[calc(100vh-4rem)]">
         <img src={heroBg} alt="Lush green misty mountain valley" className="absolute inset-0 w-full h-full object-cover" width={1920} height={1080} />
-        <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-white/10 to-background/60" />
-        {/* Smooth fade into next section */}
-        <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-b from-transparent via-muted/30 to-muted/50 pointer-events-none z-[1]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-white/5 to-transparent" />
+        {/* Smooth fade into next section (matches muted/50 of Problem section) */}
+        <div className="absolute bottom-0 left-0 right-0 h-64 bg-gradient-to-b from-transparent via-[hsl(var(--muted)/0.25)] to-[hsl(var(--muted)/0.5)] pointer-events-none z-[1]" />
+
 
         {/* Floating leaf particles */}
         {[...Array(6)].map((_, i) => (
