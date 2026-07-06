@@ -237,26 +237,39 @@ You analyze the COMPLETE plantation context — tree presence, environment reali
     score = Math.max(0, Math.min(100, Math.round(score)));
 
     // ===== Decision logic =====
-    let finalStatus: "verified" | "rejected" | "pending";
+    // Policy: NEVER auto-verify. Either auto-reject on fraud/quality issues,
+    // or route to "pending" for mandatory admin approval before points credit.
+    let finalStatus: "rejected" | "pending";
     let flaggedReason: string | null = null;
     let prefix = "";
 
-    if (score < 50 || hashDuplicate || v.is_ai_generated || v.is_screenshot || !v.is_tree) {
+    const treeVisibility = dims.tree_visibility;
+    const envAuth = dims.environmental_authenticity;
+    const imgAuth = dims.image_authenticity;
+    const isMatureTree = v.plantation_stage === "mature";
+    const tooSmallOrUnclear = treeVisibility < 40;
+
+    const rejectReasons: string[] = [];
+    if (score < 55) rejectReasons.push(`AI score ${score}/100 too low`);
+    if (hashDuplicate) rejectReasons.push("duplicate photo detected");
+    if (v.is_ai_generated) rejectReasons.push("AI-generated image detected");
+    if (v.is_screenshot) rejectReasons.push("screenshot detected");
+    if (v.is_indoor) rejectReasons.push("indoor scene — not a valid plantation");
+    if (!v.is_tree) rejectReasons.push("no real tree detected");
+    if (isMatureTree) rejectReasons.push("already-grown mature tree — only newly planted saplings are eligible");
+    if (tooSmallOrUnclear) rejectReasons.push(`tree not clearly visible (visibility ${treeVisibility}/100)`);
+    if (envAuth < 40) rejectReasons.push(`environment doesn't look like an outdoor plantation (${envAuth}/100)`);
+    if (imgAuth < 40) rejectReasons.push(`image authenticity too low (${imgAuth}/100)`);
+    if (selfieBase64 && v.has_human_in_selfie === false) rejectReasons.push("selfie has no human with the tree");
+    if (beforeBase64 && v.images_are_different === false) rejectReasons.push("before/after photos look identical");
+
+    if (rejectReasons.length > 0) {
       finalStatus = "rejected";
-      const reasons = [];
-      if (score < 50) reasons.push(`AI score ${score}/100 < 50%`);
-      if (hashDuplicate) reasons.push("duplicate photo detected");
-      if (v.is_ai_generated) reasons.push("AI-generated image detected");
-      if (v.is_screenshot) reasons.push("screenshot detected");
-      if (!v.is_tree) reasons.push("no real tree detected");
-      prefix = `❌ AUTO-REJECTED (${reasons.join("; ")}). `;
-    } else if (score < 75) {
-      finalStatus = "pending";
-      flaggedReason = `Pending manual review — AI verification score ${score}/100`;
-      prefix = `⚠️ FLAGGED FOR REVIEW (score ${score}/100). `;
+      prefix = `❌ AUTO-REJECTED (${rejectReasons.join("; ")}). `;
     } else {
-      finalStatus = "verified";
-      prefix = `✅ AUTO-VERIFIED (score ${score}/100). `;
+      finalStatus = "pending";
+      flaggedReason = `Awaiting admin approval — AI verification score ${score}/100`;
+      prefix = `⏳ PENDING ADMIN APPROVAL (AI score ${score}/100). Points will be credited only after an admin approves. `;
     }
 
     const breakdown = `\n\n📊 Score Breakdown:\n` +
@@ -280,11 +293,11 @@ You analyze the COMPLETE plantation context — tree presence, environment reali
         ai_analysis: finalAnalysis,
         ai_detected_species: v.detected_species || null,
         flagged_reason: flaggedReason,
-        ...(finalStatus === "rejected" ? { admin_status: "rejected" } : {}),
-        ...(flaggedReason ? { admin_status: "flagged" } : {}),
+        admin_status: finalStatus === "rejected" ? "rejected" : "pending",
         updated_at: new Date().toISOString(),
       })
       .eq("id", treeId);
+
 
     if (updateError) {
       console.error("DB update error:", updateError);
