@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
-import { Shield, TreePine, Users, CheckCircle, XCircle, Clock, AlertTriangle, Eye, Loader2, MapPin, Inbox, Filter } from "lucide-react";
+import { Shield, TreePine, Users, CheckCircle, XCircle, Clock, AlertTriangle, Eye, Loader2, MapPin, Inbox, Filter, Lock, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,11 +12,27 @@ import { Link } from "react-router-dom";
 import { useState } from "react";
 
 const AdminDashboard = () => {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, loading, signOut } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [reviewFilter, setReviewFilter] = useState<"all" | "rejected" | "flagged" | "pending">("all");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [signingIn, setSigningIn] = useState(false);
+
+  const handleAdminSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSigningIn(true);
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    setSigningIn(false);
+    if (error) {
+      toast({ title: "Sign-in failed", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Signed in — verifying admin role…" });
+  };
+
 
   const { data: stats } = useQuery({
     queryKey: ["admin-stats"],
