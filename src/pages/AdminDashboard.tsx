@@ -78,18 +78,92 @@ const AdminDashboard = () => {
     },
   });
 
-  if (!isAdmin) {
+  // Auth still resolving
+  if (loading) {
     return (
       <div className="min-h-screen pt-24 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Shield className="h-16 w-16 mx-auto text-muted-foreground" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Not signed in → dedicated admin login form
+  if (!user) {
+    return (
+      <div className="min-h-screen pt-24 pb-12 flex items-center justify-center px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card rounded-2xl p-8 w-full max-w-md border-2 border-primary/20"
+        >
+          <div className="flex flex-col items-center text-center mb-6">
+            <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+              <Lock className="h-7 w-7 text-primary" />
+            </div>
+            <h2 className="font-heading text-2xl font-bold">Admin Login</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Restricted area. Only accounts with the admin role can continue.
+            </p>
+          </div>
+          <form onSubmit={handleAdminSignIn} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="admin-email">Email</Label>
+              <Input
+                id="admin-email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@example.com"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="admin-password">Password</Label>
+              <Input
+                id="admin-password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={signingIn}>
+              {signingIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Shield className="h-4 w-4" /> Sign in as Admin</>}
+            </Button>
+          </form>
+          <p className="text-xs text-muted-foreground text-center mt-4">
+            Not an admin? <Link to="/" className="text-primary hover:underline">Return to site</Link>
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Signed in but lacks admin role → hard deny
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen pt-24 flex items-center justify-center px-4">
+        <div className="glass-card rounded-2xl p-8 max-w-md text-center space-y-4">
+          <Shield className="h-16 w-16 mx-auto text-destructive" />
           <h2 className="font-heading text-2xl font-bold">Admin Access Required</h2>
-          <p className="text-muted-foreground">You don't have admin privileges to access this page.</p>
-          <Link to="/"><Button>Go Home</Button></Link>
+          <p className="text-muted-foreground">
+            Your account (<span className="font-medium">{user.email}</span>) does not have the admin role.
+            Approval actions and this dashboard are restricted to administrators.
+          </p>
+          <div className="flex gap-2 justify-center">
+            <Link to="/"><Button variant="outline">Go Home</Button></Link>
+            <Button variant="destructive" onClick={signOut}>
+              <LogOut className="h-4 w-4" /> Sign out
+            </Button>
+          </div>
         </div>
       </div>
     );
   }
+
 
   const statusColor = (s: string) =>
     s === "approved" ? "bg-primary/10 text-primary" :
