@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
-import { Shield, TreePine, Users, CheckCircle, XCircle, Clock, AlertTriangle, Eye, Loader2, MapPin, Inbox, Filter, Lock, LogOut } from "lucide-react";
+import { Shield, TreePine, Users, CheckCircle, XCircle, Clock, AlertTriangle, Eye, Loader2, MapPin, Inbox, Filter, Lock, LogOut, Activity } from "lucide-react";
+import AnimatedCounter from "@/components/AnimatedCounter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,6 +50,29 @@ const AdminDashboard = () => {
         totalUsers: usersRes.count ?? 0,
         pending: pendingRes.count ?? 0,
         flagged: flaggedRes.count ?? 0,
+      };
+    },
+  });
+
+  const { data: today } = useQuery({
+    queryKey: ["admin-today-activity"],
+    enabled: isAdmin,
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const iso = startOfDay.toISOString();
+      const q = (action: string) =>
+        supabase
+          .from("admin_audit_log")
+          .select("id", { count: "exact", head: true })
+          .eq("action", action)
+          .gte("created_at", iso);
+      const [approved, rejected, flagged] = await Promise.all([q("approved"), q("rejected"), q("flagged")]);
+      return {
+        approved: approved.count ?? 0,
+        rejected: rejected.count ?? 0,
+        flagged: flagged.count ?? 0,
       };
     },
   });
