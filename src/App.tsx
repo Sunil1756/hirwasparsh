@@ -14,6 +14,7 @@ import TreeMap from "./pages/TreeMap";
 import Analytics from "./pages/Analytics";
 import Leaderboard from "./pages/Leaderboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminAuditLog from "./pages/AdminAuditLog";
 import GovernmentDashboard from "./pages/GovernmentDashboard";
 import Login from "./pages/Login";
 import Contact from "./pages/Contact";
@@ -48,6 +49,7 @@ const App = () => (
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin-login" element={<AdminDashboard />} />
+          <Route path="/admin/audit-log" element={<AdminAuditLog />} />
           <Route path="/government" element={<GovernmentDashboard />} />
           <Route path="/login" element={<Login />} />
           <Route path="/contact" element={<Contact />} />
