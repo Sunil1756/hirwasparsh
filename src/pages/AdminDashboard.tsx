@@ -175,9 +175,16 @@ const AdminDashboard = () => {
     <div className="min-h-screen pt-24 pb-12">
       <div className="container mx-auto px-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="flex items-center gap-3 mb-8">
-            <Shield className="h-8 w-8 text-primary" />
-            <h1 className="font-heading text-4xl font-bold">Admin Dashboard</h1>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
+            <div className="flex items-center gap-3">
+              <Shield className="h-8 w-8 text-primary" />
+              <h1 className="font-heading text-4xl font-bold">Admin Dashboard</h1>
+            </div>
+            <Link to="/admin/audit-log">
+              <Button variant="outline" size="sm" className="gap-1">
+                <Inbox className="h-4 w-4" /> View Audit Log
+              </Button>
+            </Link>
           </div>
 
           {/* Stats */}
