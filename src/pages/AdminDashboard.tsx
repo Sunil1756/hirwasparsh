@@ -211,7 +211,24 @@ const AdminDashboard = () => {
             </Link>
           </div>
 
-          {/* Stats */}
+          {/* Today's Activity — animated summary */}
+          <div className="glass-card rounded-2xl p-6 mb-6 border border-primary/20">
+            <div className="flex items-center gap-2 mb-4">
+              <Activity className="h-5 w-5 text-primary" />
+              <h2 className="font-heading text-xl font-semibold">Today's Activity</h2>
+              <span className="text-xs text-muted-foreground ml-auto">
+                Since {new Date(new Date().setHours(0,0,0,0)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <AnimatedCounter end={today?.approved ?? 0} label="Approved Today" icon={<CheckCircle className="h-6 w-6" />} />
+              <AnimatedCounter end={today?.rejected ?? 0} label="Rejected Today" icon={<XCircle className="h-6 w-6" />} />
+              <AnimatedCounter end={today?.flagged ?? 0} label="Flagged Today" icon={<AlertTriangle className="h-6 w-6" />} />
+              <AnimatedCounter end={stats?.pending ?? 0} label="Total Pending" icon={<Clock className="h-6 w-6" />} />
+            </div>
+          </div>
+
+
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {[
               { label: "Total Trees", value: stats?.totalTrees ?? 0, icon: <TreePine className="h-5 w-5" />, color: "text-primary" },
