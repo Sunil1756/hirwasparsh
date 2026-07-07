@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
-import { Shield, TreePine, Users, CheckCircle, XCircle, Clock, AlertTriangle, Eye, Loader2, MapPin, Inbox, Filter, Lock, LogOut } from "lucide-react";
+import { Shield, TreePine, Users, CheckCircle, XCircle, Clock, AlertTriangle, Eye, Loader2, MapPin, Inbox, Filter, Lock, LogOut, Activity } from "lucide-react";
+import AnimatedCounter from "@/components/AnimatedCounter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,6 +50,29 @@ const AdminDashboard = () => {
         totalUsers: usersRes.count ?? 0,
         pending: pendingRes.count ?? 0,
         flagged: flaggedRes.count ?? 0,
+      };
+    },
+  });
+
+  const { data: today } = useQuery({
+    queryKey: ["admin-today-activity"],
+    enabled: isAdmin,
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const iso = startOfDay.toISOString();
+      const q = (action: string) =>
+        supabase
+          .from("admin_audit_log")
+          .select("id", { count: "exact", head: true })
+          .eq("action", action)
+          .gte("created_at", iso);
+      const [approved, rejected, flagged] = await Promise.all([q("approved"), q("rejected"), q("flagged")]);
+      return {
+        approved: approved.count ?? 0,
+        rejected: rejected.count ?? 0,
+        flagged: flagged.count ?? 0,
       };
     },
   });
@@ -187,7 +211,24 @@ const AdminDashboard = () => {
             </Link>
           </div>
 
-          {/* Stats */}
+          {/* Today's Activity — animated summary */}
+          <div className="glass-card rounded-2xl p-6 mb-6 border border-primary/20">
+            <div className="flex items-center gap-2 mb-4">
+              <Activity className="h-5 w-5 text-primary" />
+              <h2 className="font-heading text-xl font-semibold">Today's Activity</h2>
+              <span className="text-xs text-muted-foreground ml-auto">
+                Since {new Date(new Date().setHours(0,0,0,0)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <AnimatedCounter end={today?.approved ?? 0} label="Approved Today" icon={<CheckCircle className="h-6 w-6" />} />
+              <AnimatedCounter end={today?.rejected ?? 0} label="Rejected Today" icon={<XCircle className="h-6 w-6" />} />
+              <AnimatedCounter end={today?.flagged ?? 0} label="Flagged Today" icon={<AlertTriangle className="h-6 w-6" />} />
+              <AnimatedCounter end={stats?.pending ?? 0} label="Total Pending" icon={<Clock className="h-6 w-6" />} />
+            </div>
+          </div>
+
+
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {[
               { label: "Total Trees", value: stats?.totalTrees ?? 0, icon: <TreePine className="h-5 w-5" />, color: "text-primary" },
