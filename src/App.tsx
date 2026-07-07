@@ -47,6 +47,7 @@ const App = () => (
           <Route path="/analytics" element={<Navigate to="/intelligence" replace />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin-login" element={<AdminDashboard />} />
           <Route path="/government" element={<GovernmentDashboard />} />
           <Route path="/login" element={<Login />} />
           <Route path="/contact" element={<Contact />} />
