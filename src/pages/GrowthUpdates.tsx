@@ -77,7 +77,7 @@ const GrowthUpdates = () => {
         toast({ title: "✅ Verified", description: `On-site (${Math.round(dist)}m from tree).` });
       },
       () => { setQrVerified(true); toast({ title: "✅ QR verified", description: "Couldn't read GPS." }); },
-      { enableHighAccuracy: true, timeout: 8000 }
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
     );
   };
 
