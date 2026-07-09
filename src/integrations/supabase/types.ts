@@ -161,6 +161,7 @@ export type Database = {
           created_at: string
           id: string
           notes: string | null
+          photo_hash: string | null
           photo_url: string | null
           points_awarded: number | null
           tree_id: string
@@ -172,6 +173,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          photo_hash?: string | null
           photo_url?: string | null
           points_awarded?: number | null
           tree_id: string
@@ -183,6 +185,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          photo_hash?: string | null
           photo_url?: string | null
           points_awarded?: number | null
           tree_id?: string
