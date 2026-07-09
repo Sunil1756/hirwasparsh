@@ -161,6 +161,7 @@ export type Database = {
           created_at: string
           id: string
           notes: string | null
+          photo_hash: string | null
           photo_url: string | null
           points_awarded: number | null
           tree_id: string
@@ -172,6 +173,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          photo_hash?: string | null
           photo_url?: string | null
           points_awarded?: number | null
           tree_id: string
@@ -183,6 +185,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          photo_hash?: string | null
           photo_url?: string | null
           points_awarded?: number | null
           tree_id?: string
@@ -379,6 +382,56 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      tree_delegations: {
+        Row: {
+          created_at: string
+          delegate_email: string | null
+          delegate_id: string
+          end_date: string
+          id: string
+          note: string | null
+          owner_id: string
+          start_date: string
+          status: string
+          tree_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          delegate_email?: string | null
+          delegate_id: string
+          end_date: string
+          id?: string
+          note?: string | null
+          owner_id: string
+          start_date: string
+          status?: string
+          tree_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          delegate_email?: string | null
+          delegate_id?: string
+          end_date?: string
+          id?: string
+          note?: string | null
+          owner_id?: string
+          start_date?: string
+          status?: string
+          tree_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tree_delegations_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tree_health_updates: {
         Row: {

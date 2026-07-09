@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Camera, TreePine, Loader2, LogIn, CheckCircle, Clock, Upload, AlertTriangle, Sprout, QrCode, MapPin } from "lucide-react";
+import { Camera, TreePine, Loader2, LogIn, CheckCircle, Clock, Upload, AlertTriangle, Sprout, QrCode, MapPin, HandHeart, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import QRScanner from "@/components/QRScanner";
+import { compressImage, sha256File, haversineMeters } from "@/lib/imageProcessing";
 
 const updateDays = [
   { day: 7, label: "Week 1", points: 5, desc: "7-day survival check" },
@@ -30,8 +32,10 @@ const GrowthUpdates = () => {
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [submitStage, setSubmitStage] = useState("");
   const [qrVerified, setQrVerified] = useState(false);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
+  const [delegateTree, setDelegateTree] = useState<any | null>(null);
 
   const { data: userTrees = [] } = useQuery({
     queryKey: ["user-approved-trees", user?.id],
@@ -73,7 +77,7 @@ const GrowthUpdates = () => {
         toast({ title: "✅ Verified", description: `On-site (${Math.round(dist)}m from tree).` });
       },
       () => { setQrVerified(true); toast({ title: "✅ QR verified", description: "Couldn't read GPS." }); },
-      { enableHighAccuracy: true, timeout: 8000 }
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
     );
   };
 
@@ -91,20 +95,76 @@ const GrowthUpdates = () => {
     },
   });
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setPhoto(file);
-    setPhotoPreview(URL.createObjectURL(file));
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.files?.[0];
+    if (!raw) return;
+    const compressed = await compressImage(raw, 1200, 0.75);
+    setPhoto(compressed);
+    setPhotoPreview(URL.createObjectURL(compressed));
   };
+
+  // Get fresh, high-accuracy GPS on submit and enforce accuracy + proximity to assigned tree
+  const getFreshLocation = () =>
+    new Promise<GeolocationPosition>((resolve, reject) => {
+      if (!navigator.geolocation) return reject(new Error("Geolocation unavailable"));
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 0,
+      });
+    });
 
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!user || !selectedTree || !selectedDay) throw new Error("Missing fields");
       setIsUploading(true);
 
+      // 1) Verifying Location
+      setSubmitStage("Verifying Location...");
+      const pos = await getFreshLocation();
+      if (pos.coords.accuracy > 12) {
+        throw new Error(
+          `GPS Signal Too Weak (±${Math.round(pos.coords.accuracy)}m). Step out from under heavy concrete structures or trees into the open to lock your physical coordinates.`
+        );
+      }
+      if (selectedTreeObj?.latitude != null && selectedTreeObj?.longitude != null) {
+        const dist = haversineMeters(
+          pos.coords.latitude,
+          pos.coords.longitude,
+          selectedTreeObj.latitude,
+          selectedTreeObj.longitude
+        );
+        if (dist > 20) {
+          throw new Error("You must be physically near the assigned tree to log an update.");
+        }
+      }
+
+      // 2) Checking Data Integrity — SHA-256 duplicate check against growth_updates.photo_hash
       let photoUrl: string | null = null;
+      let photoHash: string | null = null;
       if (photo) {
+        setSubmitStage("Checking Data Integrity...");
+        photoHash = await sha256File(photo);
+        const { data: dup } = await supabase
+          .from("growth_updates")
+          .select("id")
+          .eq("photo_hash", photoHash)
+          .limit(1);
+        if (dup && dup.length > 0) {
+          throw new Error("Duplicate image detected. Please take a fresh, real-time photograph of your assigned tree.");
+        }
+        // Also check trees table for reused registration photo
+        const { data: dupTree } = await supabase
+          .from("trees")
+          .select("id")
+          .eq("photo_hash", photoHash)
+          .limit(1);
+        if (dupTree && dupTree.length > 0) {
+          throw new Error("Duplicate image detected. Please take a fresh, real-time photograph of your assigned tree.");
+        }
+
+        // 3) Uploading
+        setSubmitStage("Uploading...");
         const path = `${user.id}/growth_${Date.now()}.jpg`;
         const { data, error } = await supabase.storage.from("treebank").upload(path, photo, { upsert: true });
         if (error) throw error;
@@ -112,11 +172,13 @@ const GrowthUpdates = () => {
         photoUrl = urlData.publicUrl;
       }
 
+      setSubmitStage("Saving update...");
       const { error } = await supabase.from("growth_updates").insert({
         tree_id: selectedTree,
         user_id: user.id,
         update_day: parseInt(selectedDay),
         photo_url: photoUrl,
+        photo_hash: photoHash,
         notes: notes || null,
       });
       if (error) throw error;
@@ -131,10 +193,12 @@ const GrowthUpdates = () => {
       setPhoto(null);
       setPhotoPreview(null);
       setIsUploading(false);
+      setSubmitStage("");
     },
     onError: (e: any) => {
       toast({ title: "Error", description: e.message, variant: "destructive" });
       setIsUploading(false);
+      setSubmitStage("");
     },
   });
 
@@ -209,16 +273,27 @@ const GrowthUpdates = () => {
                         <span className="text-xs text-muted-foreground">{progress}%</span>
                       </div>
                       <Progress value={progress} className="h-2 mb-2" />
-                      <div className="flex gap-2">
-                        {updateDays.map(d => {
-                          const done = doneDays.includes(d.day);
-                          return (
-                            <Badge key={d.day} variant={done ? "default" : "outline"} className={`text-xs gap-1 ${done ? "bg-primary/10 text-primary" : ""}`}>
-                              {done ? <CheckCircle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
-                              Day {d.day}
-                            </Badge>
-                          );
-                        })}
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex gap-2">
+                          {updateDays.map(d => {
+                            const done = doneDays.includes(d.day);
+                            return (
+                              <Badge key={d.day} variant={done ? "default" : "outline"} className={`text-xs gap-1 ${done ? "bg-primary/10 text-primary" : ""}`}>
+                                {done ? <CheckCircle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                                Day {d.day}
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="gap-1 h-7 text-xs"
+                          onClick={() => setDelegateTree(t)}
+                        >
+                          <HandHeart className="h-3 w-3" /> Delegate Tree Care
+                        </Button>
                       </div>
                     </div>
                   );
@@ -312,7 +387,7 @@ const GrowthUpdates = () => {
 
                     <Button className="w-full gap-2" onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending || isUploading}>
                       {submitMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                      Submit Day {selectedDay} Update
+                      {submitMutation.isPending ? (submitStage || "Submitting...") : `Submit Day ${selectedDay} Update`}
                     </Button>
                   </>
                 )}
@@ -322,8 +397,180 @@ const GrowthUpdates = () => {
         </motion.div>
       </div>
       {qrScannerOpen && <QRScanner onResult={handleQrResult} onClose={() => setQrScannerOpen(false)} />}
+      {delegateTree && (
+        <DelegateModal
+          tree={delegateTree}
+          onClose={() => setDelegateTree(null)}
+        />
+      )}
     </div>
   );
 };
+
+// ─── Delegate Tree Care modal ──────────────────────────────────────────────
+function DelegateModal({ tree, onClose }: { tree: any; onClose: () => void }) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [delegateInput, setDelegateInput] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const { data: existing = [] } = useQuery({
+    queryKey: ["tree-delegations", tree.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tree_delegations")
+        .select("*")
+        .eq("tree_id", tree.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const handleSubmit = async () => {
+    if (!user) return;
+    if (!delegateInput.trim() || !startDate || !endDate) {
+      toast({ title: "Fill all required fields", variant: "destructive" });
+      return;
+    }
+    if (new Date(endDate) < new Date(startDate)) {
+      toast({ title: "End date must be after start date", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      // Resolve delegate: accept email or user id
+      const input = delegateInput.trim();
+      let delegateId: string | null = null;
+      let delegateEmail: string | null = null;
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input);
+      if (isUuid) {
+        delegateId = input;
+      } else {
+        delegateEmail = input.toLowerCase();
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .ilike("full_name", input)
+          .maybeSingle();
+        if (prof?.id) delegateId = prof.id;
+      }
+      if (!delegateId) {
+        toast({
+          title: "Delegate not found",
+          description: "Ask your classmate for their exact User ID from their profile page.",
+          variant: "destructive",
+        });
+        setSaving(false);
+        return;
+      }
+      if (delegateId === user.id) {
+        toast({ title: "You cannot delegate to yourself", variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      const { error } = await supabase.from("tree_delegations").insert({
+        tree_id: tree.id,
+        owner_id: user.id,
+        delegate_id: delegateId,
+        delegate_email: delegateEmail,
+        start_date: startDate,
+        end_date: endDate,
+        note: note || null,
+        status: "active",
+      });
+      if (error) throw error;
+      toast({ title: "🤝 Delegation created", description: "Your classmate will receive dashboard notifications for this tree during the selected period." });
+      queryClient.invalidateQueries({ queryKey: ["tree-delegations", tree.id] });
+      setDelegateInput(""); setStartDate(""); setEndDate(""); setNote("");
+    } catch (e: any) {
+      toast({ title: "Could not create delegation", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const revoke = async (id: string) => {
+    const { error } = await supabase.from("tree_delegations").delete().eq("id", id);
+    if (error) return toast({ title: "Revoke failed", description: error.message, variant: "destructive" });
+    queryClient.invalidateQueries({ queryKey: ["tree-delegations", tree.id] });
+    toast({ title: "Delegation revoked" });
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div className="glass-card rounded-2xl w-full max-w-lg p-6 my-8" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <HandHeart className="h-6 w-6 text-primary" />
+            <h2 className="font-heading text-xl font-bold">Delegate Tree Care</h2>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose}><X className="h-4 w-4" /></Button>
+        </div>
+
+        <div className="rounded-xl bg-primary/5 p-3 mb-4">
+          <div className="font-medium">{tree.tree_name}</div>
+          <div className="text-xs text-muted-foreground">{tree.species}</div>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <Label>Classmate's User ID or Email</Label>
+            <Input
+              placeholder="user-id-uuid or friend@college.edu"
+              value={delegateInput}
+              onChange={(e) => setDelegateInput(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              User IDs are the most reliable — email lookup only works if their profile name matches.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label>Start date</Label>
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </div>
+            <div>
+              <Label>End date</Label>
+              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <Label>Note (optional)</Label>
+            <Textarea rows={2} placeholder="Summer break — please water twice a week" value={note} onChange={(e) => setNote(e.target.value)} />
+          </div>
+          <Button className="w-full gap-2" onClick={handleSubmit} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <HandHeart className="h-4 w-4" />}
+            Delegate Care
+          </Button>
+        </div>
+
+        {existing.length > 0 && (
+          <div className="mt-6">
+            <h3 className="font-semibold text-sm mb-2">Active & past delegations</h3>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {existing.map((d: any) => (
+                <div key={d.id} className="flex items-center justify-between rounded-lg border border-border p-2 text-xs">
+                  <div>
+                    <div className="font-medium">{d.delegate_email || d.delegate_id}</div>
+                    <div className="text-muted-foreground">{d.start_date} → {d.end_date}</div>
+                  </div>
+                  <Button size="sm" variant="ghost" className="h-6 text-destructive" onClick={() => revoke(d.id)}>Revoke</Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default GrowthUpdates;

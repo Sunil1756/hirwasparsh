@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSearchParams } from "react-router-dom";
 import exifr from "exifr";
+import { compressImage, sha256File } from "@/lib/imageProcessing";
 
 type NearbyTree = {
   id: string; tree_name: string; species: string; user_id: string;
@@ -47,7 +48,9 @@ const PlantTree = () => {
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [geoStatus, setGeoStatus] = useState<"idle" | "loading" | "success" | "browser" | "failed">("idle");
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStage, setSubmitStage] = useState<string>("");
   const [treeName, setTreeName] = useState("");
   const [species, setSpecies] = useState("");
   const [plantationDate, setPlantationDate] = useState("");
@@ -117,11 +120,12 @@ const PlantTree = () => {
       async (pos) => {
         setLatitude(pos.coords.latitude);
         setLongitude(pos.coords.longitude);
+        setGpsAccuracy(pos.coords.accuracy ?? null);
         await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
         setGeoStatus("success");
       },
       () => setGeoStatus("failed"),
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
     );
   }, [reverseGeocode]);
 
@@ -182,8 +186,14 @@ const PlantTree = () => {
   };
 
   const handlePhotoUpload = async (step: PhotoStep, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const raw = e.target.files?.[0];
+    if (!raw) return;
+
+    // Validate EXIF on the ORIGINAL file (before compression strips metadata)
+    const warnings = await validateExif(raw);
+
+    // Client-side compression: max 1200px width, JPEG q=0.75
+    const file = await compressImage(raw, 1200, 0.75);
 
     const preview = URL.createObjectURL(file);
 
@@ -198,8 +208,6 @@ const PlantTree = () => {
       setSelfiePreview(preview);
     }
 
-    // EXIF validation
-    const warnings = await validateExif(file);
     if (warnings.length > 0) {
       setExifWarnings(prev => [...prev.filter(w => !w.includes(step)), ...warnings]);
     }
@@ -262,19 +270,49 @@ const PlantTree = () => {
       toast({ title: "Location required", variant: "destructive" });
       return;
     }
+    if (gpsAccuracy != null && gpsAccuracy > 12) {
+      toast({
+        title: "GPS Signal Too Weak",
+        description: `Accuracy is ${Math.round(gpsAccuracy)}m. Move into the open (away from concrete/canopy) to lock coordinates.`,
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
-      // Verify the auth session is still valid (prevents RLS failures from stale sessions)
+      setSubmitStage("Verifying Location...");
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !sessionData.session?.user?.id) {
         toast({ title: "Session expired", description: "Please log in again to submit your plantation.", variant: "destructive" });
         setIsSubmitting(false);
+        setSubmitStage("");
         return;
       }
       const authUserId = sessionData.session.user.id;
-      console.log("[PlantTree] Submitting as user:", authUserId);
 
+      // Checking data integrity — SHA-256 hash of the compressed "after" photo
+      setSubmitStage("Checking Data Integrity...");
+      const photoHash = await sha256File(afterPhoto);
+
+      const { data: dupRows, error: dupErr } = await supabase
+        .from("trees")
+        .select("id")
+        .eq("photo_hash", photoHash)
+        .limit(1);
+      if (dupErr) console.warn("duplicate check failed", dupErr);
+      if (dupRows && dupRows.length > 0) {
+        toast({
+          title: "Duplicate image detected",
+          description: "Please take a fresh, real-time photograph of your assigned tree.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        setSubmitStage("");
+        return;
+      }
+
+      setSubmitStage("Uploading...");
       const ts = Date.now();
       const [beforeUrl, afterUrl, selfieUrl] = await Promise.all([
         uploadPhoto(beforePhoto, `${authUserId}/${ts}_before.jpg`),
@@ -282,9 +320,7 @@ const PlantTree = () => {
         uploadSelfie(selfiePhoto, `${authUserId}/${ts}_selfie.jpg`),
       ]);
 
-      // Simple hash for duplicate detection
-      const photoHash = `${afterPhoto.size}_${afterPhoto.lastModified}_${afterPhoto.name}`;
-
+      setSubmitStage("Saving submission...");
       const { data: tree, error: insertError } = await supabase
         .from("trees")
         .insert({
@@ -315,11 +351,11 @@ const PlantTree = () => {
 
       if (insertError) throw insertError;
 
-      // Trigger enhanced AI verification with all 3 photos — AWAIT to show result
       if (tree) {
         setVerifying(true);
         setSubmitted(true);
         try {
+          setSubmitStage("Running AI verification...");
           const [afterB64, selfieB64, beforeB64] = await Promise.all([
             fileToBase64(afterPhoto),
             fileToBase64(selfiePhoto),
@@ -349,8 +385,10 @@ const PlantTree = () => {
       toast({ title: "Submission failed", description: hint, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
+      setSubmitStage("");
     }
   };
+
 
   const handleAdoptSubmit = async () => {
     if (!user || !adoptMode) return;
@@ -596,7 +634,16 @@ const PlantTree = () => {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 text-sm text-primary"><CheckCircle className="h-4 w-4" /> Location detected</div>
                     <p className="text-sm">{location}</p>
-                    <p className="text-xs text-muted-foreground">GPS: {latitude?.toFixed(6)}, {longitude?.toFixed(6)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      GPS: {latitude?.toFixed(6)}, {longitude?.toFixed(6)}
+                      {gpsAccuracy != null && ` · ±${Math.round(gpsAccuracy)}m`}
+                    </p>
+                    {gpsAccuracy != null && gpsAccuracy > 12 && (
+                      <div className="mt-2 rounded-lg border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive flex items-start gap-2">
+                        <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                        <span><strong>GPS Signal Too Weak.</strong> Please step out from under heavy concrete structures or trees into the open to lock your physical coordinates.</span>
+                      </div>
+                    )}
                   </div>
                 )}
                 {(geoStatus === "loading" || geoStatus === "browser") && (
@@ -655,9 +702,9 @@ const PlantTree = () => {
               )}
 
               <Button type="submit" size="lg" className="w-full text-lg gap-2"
-                disabled={isSubmitting || isDetecting || !latitude || !!blockingTree || (nearbyTrees.length > 0 && !warningConfirmed)}>
+                disabled={isSubmitting || isDetecting || !latitude || !!blockingTree || (gpsAccuracy != null && gpsAccuracy > 12) || (nearbyTrees.length > 0 && !warningConfirmed)}>
                 {isSubmitting ? (
-                  <><Loader2 className="h-5 w-5 animate-spin" /> Submitting...</>
+                  <><Loader2 className="h-5 w-5 animate-spin" /> {submitStage || "Submitting..."}</>
                 ) : (
                   <><TreePine className="h-5 w-5" /> Submit Plantation</>
                 )}
