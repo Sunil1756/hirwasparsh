@@ -284,19 +284,23 @@ You analyze the COMPLETE plantation context — tree presence, environment reali
     const envAuth = dims.environmental_authenticity;
     const imgAuth = dims.image_authenticity;
     const isMatureTree = v.plantation_stage === "mature";
-    const tooSmallOrUnclear = treeVisibility < 40;
+    const tooSmallOrUnclear = treeVisibility < 50;
+    const isYoungAdult = v.plantation_stage === "young" && treeVisibility > 85 && v.health_status === "healthy";
 
     const rejectReasons: string[] = [];
-    if (score < 55) rejectReasons.push(`AI score ${score}/100 too low`);
+    if (score < 60) rejectReasons.push(`AI score ${score}/100 too low`);
     if (hashDuplicate) rejectReasons.push("duplicate photo detected");
     if (v.is_ai_generated) rejectReasons.push("AI-generated image detected");
     if (v.is_screenshot) rejectReasons.push("screenshot detected");
+    if (v.has_watermark) rejectReasons.push("watermark/overlay detected on photo");
     if (v.is_indoor) rejectReasons.push("indoor scene — not a valid plantation");
-    if (!v.is_tree) rejectReasons.push("no real tree detected");
+    if (!v.is_tree) rejectReasons.push("no real tree detected in photo");
+    if (v.is_genuine_photo === false) rejectReasons.push("photo appears edited or not a genuine camera capture");
     if (isMatureTree) rejectReasons.push("already-grown mature tree — only newly planted saplings are eligible");
+    if (isYoungAdult) rejectReasons.push("tree already fully established — only freshly planted saplings qualify");
     if (tooSmallOrUnclear) rejectReasons.push(`tree not clearly visible (visibility ${treeVisibility}/100)`);
-    if (envAuth < 40) rejectReasons.push(`environment doesn't look like an outdoor plantation (${envAuth}/100)`);
-    if (imgAuth < 40) rejectReasons.push(`image authenticity too low (${imgAuth}/100)`);
+    if (envAuth < 45) rejectReasons.push(`environment doesn't look like an outdoor plantation (${envAuth}/100)`);
+    if (imgAuth < 50) rejectReasons.push(`image authenticity too low (${imgAuth}/100)`);
     if (selfieBase64 && v.has_human_in_selfie === false) rejectReasons.push("selfie has no human with the tree");
     if (beforeBase64 && v.images_are_different === false) rejectReasons.push("before/after photos look identical");
 
