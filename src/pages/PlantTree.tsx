@@ -186,8 +186,14 @@ const PlantTree = () => {
   };
 
   const handlePhotoUpload = async (step: PhotoStep, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const raw = e.target.files?.[0];
+    if (!raw) return;
+
+    // Validate EXIF on the ORIGINAL file (before compression strips metadata)
+    const warnings = await validateExif(raw);
+
+    // Client-side compression: max 1200px width, JPEG q=0.75
+    const file = await compressImage(raw, 1200, 0.75);
 
     const preview = URL.createObjectURL(file);
 
@@ -202,8 +208,6 @@ const PlantTree = () => {
       setSelfiePreview(preview);
     }
 
-    // EXIF validation
-    const warnings = await validateExif(file);
     if (warnings.length > 0) {
       setExifWarnings(prev => [...prev.filter(w => !w.includes(step)), ...warnings]);
     }
