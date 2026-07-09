@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Camera, TreePine, Loader2, LogIn, CheckCircle, Clock, Upload, AlertTriangle, Sprout, QrCode, MapPin } from "lucide-react";
+import { Camera, TreePine, Loader2, LogIn, CheckCircle, Clock, Upload, AlertTriangle, Sprout, QrCode, MapPin, HandHeart, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import QRScanner from "@/components/QRScanner";
+import { compressImage, sha256File, haversineMeters } from "@/lib/imageProcessing";
 
 const updateDays = [
   { day: 7, label: "Week 1", points: 5, desc: "7-day survival check" },
