@@ -634,7 +634,16 @@ const PlantTree = () => {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 text-sm text-primary"><CheckCircle className="h-4 w-4" /> Location detected</div>
                     <p className="text-sm">{location}</p>
-                    <p className="text-xs text-muted-foreground">GPS: {latitude?.toFixed(6)}, {longitude?.toFixed(6)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      GPS: {latitude?.toFixed(6)}, {longitude?.toFixed(6)}
+                      {gpsAccuracy != null && ` · ±${Math.round(gpsAccuracy)}m`}
+                    </p>
+                    {gpsAccuracy != null && gpsAccuracy > 12 && (
+                      <div className="mt-2 rounded-lg border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive flex items-start gap-2">
+                        <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                        <span><strong>GPS Signal Too Weak.</strong> Please step out from under heavy concrete structures or trees into the open to lock your physical coordinates.</span>
+                      </div>
+                    )}
                   </div>
                 )}
                 {(geoStatus === "loading" || geoStatus === "browser") && (
