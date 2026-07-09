@@ -120,11 +120,12 @@ const PlantTree = () => {
       async (pos) => {
         setLatitude(pos.coords.latitude);
         setLongitude(pos.coords.longitude);
+        setGpsAccuracy(pos.coords.accuracy ?? null);
         await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
         setGeoStatus("success");
       },
       () => setGeoStatus("failed"),
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
     );
   }, [reverseGeocode]);
 
