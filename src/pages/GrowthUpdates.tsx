@@ -273,16 +273,27 @@ const GrowthUpdates = () => {
                         <span className="text-xs text-muted-foreground">{progress}%</span>
                       </div>
                       <Progress value={progress} className="h-2 mb-2" />
-                      <div className="flex gap-2">
-                        {updateDays.map(d => {
-                          const done = doneDays.includes(d.day);
-                          return (
-                            <Badge key={d.day} variant={done ? "default" : "outline"} className={`text-xs gap-1 ${done ? "bg-primary/10 text-primary" : ""}`}>
-                              {done ? <CheckCircle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
-                              Day {d.day}
-                            </Badge>
-                          );
-                        })}
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex gap-2">
+                          {updateDays.map(d => {
+                            const done = doneDays.includes(d.day);
+                            return (
+                              <Badge key={d.day} variant={done ? "default" : "outline"} className={`text-xs gap-1 ${done ? "bg-primary/10 text-primary" : ""}`}>
+                                {done ? <CheckCircle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                                Day {d.day}
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="gap-1 h-7 text-xs"
+                          onClick={() => setDelegateTree(t)}
+                        >
+                          <HandHeart className="h-3 w-3" /> Delegate Tree Care
+                        </Button>
                       </div>
                     </div>
                   );
