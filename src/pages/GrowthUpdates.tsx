@@ -32,8 +32,10 @@ const GrowthUpdates = () => {
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [submitStage, setSubmitStage] = useState("");
   const [qrVerified, setQrVerified] = useState(false);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
+  const [delegateTree, setDelegateTree] = useState<any | null>(null);
 
   const { data: userTrees = [] } = useQuery({
     queryKey: ["user-approved-trees", user?.id],
