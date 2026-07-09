@@ -270,19 +270,49 @@ const PlantTree = () => {
       toast({ title: "Location required", variant: "destructive" });
       return;
     }
+    if (gpsAccuracy != null && gpsAccuracy > 12) {
+      toast({
+        title: "GPS Signal Too Weak",
+        description: `Accuracy is ${Math.round(gpsAccuracy)}m. Move into the open (away from concrete/canopy) to lock coordinates.`,
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
-      // Verify the auth session is still valid (prevents RLS failures from stale sessions)
+      setSubmitStage("Verifying Location...");
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !sessionData.session?.user?.id) {
         toast({ title: "Session expired", description: "Please log in again to submit your plantation.", variant: "destructive" });
         setIsSubmitting(false);
+        setSubmitStage("");
         return;
       }
       const authUserId = sessionData.session.user.id;
-      console.log("[PlantTree] Submitting as user:", authUserId);
 
+      // Checking data integrity — SHA-256 hash of the compressed "after" photo
+      setSubmitStage("Checking Data Integrity...");
+      const photoHash = await sha256File(afterPhoto);
+
+      const { data: dupRows, error: dupErr } = await supabase
+        .from("trees")
+        .select("id")
+        .eq("photo_hash", photoHash)
+        .limit(1);
+      if (dupErr) console.warn("duplicate check failed", dupErr);
+      if (dupRows && dupRows.length > 0) {
+        toast({
+          title: "Duplicate image detected",
+          description: "Please take a fresh, real-time photograph of your assigned tree.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        setSubmitStage("");
+        return;
+      }
+
+      setSubmitStage("Uploading...");
       const ts = Date.now();
       const [beforeUrl, afterUrl, selfieUrl] = await Promise.all([
         uploadPhoto(beforePhoto, `${authUserId}/${ts}_before.jpg`),
@@ -290,9 +320,7 @@ const PlantTree = () => {
         uploadSelfie(selfiePhoto, `${authUserId}/${ts}_selfie.jpg`),
       ]);
 
-      // Simple hash for duplicate detection
-      const photoHash = `${afterPhoto.size}_${afterPhoto.lastModified}_${afterPhoto.name}`;
-
+      setSubmitStage("Saving submission...");
       const { data: tree, error: insertError } = await supabase
         .from("trees")
         .insert({
@@ -323,11 +351,11 @@ const PlantTree = () => {
 
       if (insertError) throw insertError;
 
-      // Trigger enhanced AI verification with all 3 photos — AWAIT to show result
       if (tree) {
         setVerifying(true);
         setSubmitted(true);
         try {
+          setSubmitStage("Running AI verification...");
           const [afterB64, selfieB64, beforeB64] = await Promise.all([
             fileToBase64(afterPhoto),
             fileToBase64(selfiePhoto),
@@ -357,8 +385,10 @@ const PlantTree = () => {
       toast({ title: "Submission failed", description: hint, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
+      setSubmitStage("");
     }
   };
+
 
   const handleAdoptSubmit = async () => {
     if (!user || !adoptMode) return;
