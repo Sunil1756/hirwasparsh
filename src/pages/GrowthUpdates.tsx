@@ -95,20 +95,76 @@ const GrowthUpdates = () => {
     },
   });
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setPhoto(file);
-    setPhotoPreview(URL.createObjectURL(file));
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.files?.[0];
+    if (!raw) return;
+    const compressed = await compressImage(raw, 1200, 0.75);
+    setPhoto(compressed);
+    setPhotoPreview(URL.createObjectURL(compressed));
   };
+
+  // Get fresh, high-accuracy GPS on submit and enforce accuracy + proximity to assigned tree
+  const getFreshLocation = () =>
+    new Promise<GeolocationPosition>((resolve, reject) => {
+      if (!navigator.geolocation) return reject(new Error("Geolocation unavailable"));
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 0,
+      });
+    });
 
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!user || !selectedTree || !selectedDay) throw new Error("Missing fields");
       setIsUploading(true);
 
+      // 1) Verifying Location
+      setSubmitStage("Verifying Location...");
+      const pos = await getFreshLocation();
+      if (pos.coords.accuracy > 12) {
+        throw new Error(
+          `GPS Signal Too Weak (±${Math.round(pos.coords.accuracy)}m). Step out from under heavy concrete structures or trees into the open to lock your physical coordinates.`
+        );
+      }
+      if (selectedTreeObj?.latitude != null && selectedTreeObj?.longitude != null) {
+        const dist = haversineMeters(
+          pos.coords.latitude,
+          pos.coords.longitude,
+          selectedTreeObj.latitude,
+          selectedTreeObj.longitude
+        );
+        if (dist > 20) {
+          throw new Error("You must be physically near the assigned tree to log an update.");
+        }
+      }
+
+      // 2) Checking Data Integrity — SHA-256 duplicate check against growth_updates.photo_hash
       let photoUrl: string | null = null;
+      let photoHash: string | null = null;
       if (photo) {
+        setSubmitStage("Checking Data Integrity...");
+        photoHash = await sha256File(photo);
+        const { data: dup } = await supabase
+          .from("growth_updates")
+          .select("id")
+          .eq("photo_hash", photoHash)
+          .limit(1);
+        if (dup && dup.length > 0) {
+          throw new Error("Duplicate image detected. Please take a fresh, real-time photograph of your assigned tree.");
+        }
+        // Also check trees table for reused registration photo
+        const { data: dupTree } = await supabase
+          .from("trees")
+          .select("id")
+          .eq("photo_hash", photoHash)
+          .limit(1);
+        if (dupTree && dupTree.length > 0) {
+          throw new Error("Duplicate image detected. Please take a fresh, real-time photograph of your assigned tree.");
+        }
+
+        // 3) Uploading
+        setSubmitStage("Uploading...");
         const path = `${user.id}/growth_${Date.now()}.jpg`;
         const { data, error } = await supabase.storage.from("treebank").upload(path, photo, { upsert: true });
         if (error) throw error;
@@ -116,11 +172,13 @@ const GrowthUpdates = () => {
         photoUrl = urlData.publicUrl;
       }
 
+      setSubmitStage("Saving update...");
       const { error } = await supabase.from("growth_updates").insert({
         tree_id: selectedTree,
         user_id: user.id,
         update_day: parseInt(selectedDay),
         photo_url: photoUrl,
+        photo_hash: photoHash,
         notes: notes || null,
       });
       if (error) throw error;
@@ -135,10 +193,12 @@ const GrowthUpdates = () => {
       setPhoto(null);
       setPhotoPreview(null);
       setIsUploading(false);
+      setSubmitStage("");
     },
     onError: (e: any) => {
       toast({ title: "Error", description: e.message, variant: "destructive" });
       setIsUploading(false);
+      setSubmitStage("");
     },
   });
 
