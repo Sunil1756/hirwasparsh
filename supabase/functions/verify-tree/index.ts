@@ -58,6 +58,43 @@ serve(async (req) => {
       });
     }
 
+    // ===== Location proximity restriction (anti-fake plantation) =====
+    // Reject if another tree already exists within MIN_DISTANCE_METERS of this one.
+    // This prevents multiple submissions at the same GPS point.
+    const MIN_DISTANCE_METERS = 5; // enforced range: 3-7m
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    if (ownedTree.latitude != null && ownedTree.longitude != null) {
+      const { data: nearby } = await adminClient.rpc("find_nearby_trees", {
+        _lat: ownedTree.latitude,
+        _lng: ownedTree.longitude,
+        _max_meters: MIN_DISTANCE_METERS,
+      });
+      const conflict = (nearby || []).find((t: any) => t.id !== treeId);
+      if (conflict) {
+        const distance = Math.round(conflict.distance_meters * 10) / 10;
+        const sameUser = conflict.user_id === userId;
+        const reason = `❌ AUTO-REJECTED: Another tree already exists ${distance}m away (minimum ${MIN_DISTANCE_METERS}m required between plantations)${sameUser ? " — you already registered a tree at this spot" : ""}. Move at least ${MIN_DISTANCE_METERS}m away and try again.`;
+        await adminClient.from("trees").update({
+          verification_status: "rejected",
+          admin_status: "rejected",
+          ai_validation_score: 0,
+          ai_analysis: reason,
+          flagged_reason: `Duplicate location (${distance}m from tree ${conflict.id})`,
+          updated_at: new Date().toISOString(),
+        }).eq("id", treeId);
+        return new Response(JSON.stringify({
+          status: "rejected",
+          score: 0,
+          flagged_reason: reason,
+          reason: "location_conflict",
+          nearest_distance_m: distance,
+          min_required_m: MIN_DISTANCE_METERS,
+        }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
