@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSearchParams } from "react-router-dom";
 import exifr from "exifr";
+import { compressImage, sha256File } from "@/lib/imageProcessing";
 
 type NearbyTree = {
   id: string; tree_name: string; species: string; user_id: string;
