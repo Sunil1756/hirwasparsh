@@ -702,9 +702,9 @@ const PlantTree = () => {
               )}
 
               <Button type="submit" size="lg" className="w-full text-lg gap-2"
-                disabled={isSubmitting || isDetecting || !latitude || !!blockingTree || (nearbyTrees.length > 0 && !warningConfirmed)}>
+                disabled={isSubmitting || isDetecting || !latitude || !!blockingTree || (gpsAccuracy != null && gpsAccuracy > 12) || (nearbyTrees.length > 0 && !warningConfirmed)}>
                 {isSubmitting ? (
-                  <><Loader2 className="h-5 w-5 animate-spin" /> Submitting...</>
+                  <><Loader2 className="h-5 w-5 animate-spin" /> {submitStage || "Submitting..."}</>
                 ) : (
                   <><TreePine className="h-5 w-5" /> Submit Plantation</>
                 )}
