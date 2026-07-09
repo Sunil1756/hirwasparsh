@@ -387,7 +387,7 @@ const GrowthUpdates = () => {
 
                     <Button className="w-full gap-2" onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending || isUploading}>
                       {submitMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                      Submit Day {selectedDay} Update
+                      {submitMutation.isPending ? (submitStage || "Submitting...") : `Submit Day ${selectedDay} Update`}
                     </Button>
                   </>
                 )}
@@ -397,8 +397,180 @@ const GrowthUpdates = () => {
         </motion.div>
       </div>
       {qrScannerOpen && <QRScanner onResult={handleQrResult} onClose={() => setQrScannerOpen(false)} />}
+      {delegateTree && (
+        <DelegateModal
+          tree={delegateTree}
+          onClose={() => setDelegateTree(null)}
+        />
+      )}
     </div>
   );
 };
+
+// ─── Delegate Tree Care modal ──────────────────────────────────────────────
+function DelegateModal({ tree, onClose }: { tree: any; onClose: () => void }) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [delegateInput, setDelegateInput] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const { data: existing = [] } = useQuery({
+    queryKey: ["tree-delegations", tree.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tree_delegations")
+        .select("*")
+        .eq("tree_id", tree.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const handleSubmit = async () => {
+    if (!user) return;
+    if (!delegateInput.trim() || !startDate || !endDate) {
+      toast({ title: "Fill all required fields", variant: "destructive" });
+      return;
+    }
+    if (new Date(endDate) < new Date(startDate)) {
+      toast({ title: "End date must be after start date", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      // Resolve delegate: accept email or user id
+      const input = delegateInput.trim();
+      let delegateId: string | null = null;
+      let delegateEmail: string | null = null;
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input);
+      if (isUuid) {
+        delegateId = input;
+      } else {
+        delegateEmail = input.toLowerCase();
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .ilike("full_name", input)
+          .maybeSingle();
+        if (prof?.id) delegateId = prof.id;
+      }
+      if (!delegateId) {
+        toast({
+          title: "Delegate not found",
+          description: "Ask your classmate for their exact User ID from their profile page.",
+          variant: "destructive",
+        });
+        setSaving(false);
+        return;
+      }
+      if (delegateId === user.id) {
+        toast({ title: "You cannot delegate to yourself", variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      const { error } = await supabase.from("tree_delegations").insert({
+        tree_id: tree.id,
+        owner_id: user.id,
+        delegate_id: delegateId,
+        delegate_email: delegateEmail,
+        start_date: startDate,
+        end_date: endDate,
+        note: note || null,
+        status: "active",
+      });
+      if (error) throw error;
+      toast({ title: "🤝 Delegation created", description: "Your classmate will receive dashboard notifications for this tree during the selected period." });
+      queryClient.invalidateQueries({ queryKey: ["tree-delegations", tree.id] });
+      setDelegateInput(""); setStartDate(""); setEndDate(""); setNote("");
+    } catch (e: any) {
+      toast({ title: "Could not create delegation", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const revoke = async (id: string) => {
+    const { error } = await supabase.from("tree_delegations").delete().eq("id", id);
+    if (error) return toast({ title: "Revoke failed", description: error.message, variant: "destructive" });
+    queryClient.invalidateQueries({ queryKey: ["tree-delegations", tree.id] });
+    toast({ title: "Delegation revoked" });
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div className="glass-card rounded-2xl w-full max-w-lg p-6 my-8" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <HandHeart className="h-6 w-6 text-primary" />
+            <h2 className="font-heading text-xl font-bold">Delegate Tree Care</h2>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose}><X className="h-4 w-4" /></Button>
+        </div>
+
+        <div className="rounded-xl bg-primary/5 p-3 mb-4">
+          <div className="font-medium">{tree.tree_name}</div>
+          <div className="text-xs text-muted-foreground">{tree.species}</div>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <Label>Classmate's User ID or Email</Label>
+            <Input
+              placeholder="user-id-uuid or friend@college.edu"
+              value={delegateInput}
+              onChange={(e) => setDelegateInput(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              User IDs are the most reliable — email lookup only works if their profile name matches.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label>Start date</Label>
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </div>
+            <div>
+              <Label>End date</Label>
+              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <Label>Note (optional)</Label>
+            <Textarea rows={2} placeholder="Summer break — please water twice a week" value={note} onChange={(e) => setNote(e.target.value)} />
+          </div>
+          <Button className="w-full gap-2" onClick={handleSubmit} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <HandHeart className="h-4 w-4" />}
+            Delegate Care
+          </Button>
+        </div>
+
+        {existing.length > 0 && (
+          <div className="mt-6">
+            <h3 className="font-semibold text-sm mb-2">Active & past delegations</h3>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {existing.map((d: any) => (
+                <div key={d.id} className="flex items-center justify-between rounded-lg border border-border p-2 text-xs">
+                  <div>
+                    <div className="font-medium">{d.delegate_email || d.delegate_id}</div>
+                    <div className="text-muted-foreground">{d.start_date} → {d.end_date}</div>
+                  </div>
+                  <Button size="sm" variant="ghost" className="h-6 text-destructive" onClick={() => revoke(d.id)}>Revoke</Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default GrowthUpdates;
