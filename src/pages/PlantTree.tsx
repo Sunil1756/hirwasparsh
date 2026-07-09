@@ -48,7 +48,9 @@ const PlantTree = () => {
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [geoStatus, setGeoStatus] = useState<"idle" | "loading" | "success" | "browser" | "failed">("idle");
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStage, setSubmitStage] = useState<string>("");
   const [treeName, setTreeName] = useState("");
   const [species, setSpecies] = useState("");
   const [plantationDate, setPlantationDate] = useState("");
