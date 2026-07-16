@@ -4,6 +4,7 @@ import { Menu, X, LogOut, Shield, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
+import NotificationsBell from "@/components/NotificationsBell";
 import logo from "@/assets/logo.png";
 
 const Navbar = () => {
