@@ -30,7 +30,8 @@ type RejectionRow = {
   tree_name: string | null;
   species: string | null;
   photo_url: string | null;
-  rejection_reason: string | null;
+  flagged_reason: string | null;
+  ai_analysis: string | null;
   user_id: string;
   updated_at: string;
 };
