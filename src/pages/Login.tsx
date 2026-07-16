@@ -27,6 +27,8 @@ const Login = () => {
   const [signupName, setSignupName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
+  const [accountType, setAccountType] = useState<AccountType>("individual");
+  const [orgName, setOrgName] = useState("");
 
   useEffect(() => {
     if (user) navigate("/dashboard");
@@ -50,12 +52,20 @@ const Login = () => {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (accountType !== "individual" && !orgName.trim()) {
+      toast({ title: "Organization name required", description: "Please enter your NGO or school/college name.", variant: "destructive" });
+      return;
+    }
     setLoading(true);
     const { error } = await supabase.auth.signUp({
       email: signupEmail,
       password: signupPassword,
       options: {
-        data: { full_name: signupName },
+        data: {
+          full_name: signupName,
+          account_type: accountType,
+          organization_name: accountType === "individual" ? null : orgName.trim(),
+        },
         emailRedirectTo: window.location.origin,
       },
     });
