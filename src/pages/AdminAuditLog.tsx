@@ -64,7 +64,7 @@ const AdminAuditLog = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("trees")
-        .select("id, tree_name, species, photo_url, rejection_reason, user_id, updated_at")
+        .select("id, tree_name, species, photo_url, flagged_reason, ai_analysis, user_id, updated_at")
         .eq("admin_status", "rejected")
         .order("updated_at", { ascending: false })
         .limit(200);
