@@ -202,6 +202,39 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          data: Json
+          id: string
+          read: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          data?: Json
+          id?: string
+          read?: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          data?: Json
+          id?: string
+          read?: boolean
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       plantation_drives: {
         Row: {
           created_at: string
@@ -249,31 +282,46 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_type: Database["public"]["Enums"]["account_type"]
           avatar_url: string | null
           created_at: string
+          current_streak: number
           full_name: string | null
           green_points: number
           id: string
+          last_activity_date: string | null
+          longest_streak: number
+          organization_name: string | null
           team_id: string | null
           trees_planted: number
           updated_at: string
         }
         Insert: {
+          account_type?: Database["public"]["Enums"]["account_type"]
           avatar_url?: string | null
           created_at?: string
+          current_streak?: number
           full_name?: string | null
           green_points?: number
           id: string
+          last_activity_date?: string | null
+          longest_streak?: number
+          organization_name?: string | null
           team_id?: string | null
           trees_planted?: number
           updated_at?: string
         }
         Update: {
+          account_type?: Database["public"]["Enums"]["account_type"]
           avatar_url?: string | null
           created_at?: string
+          current_streak?: number
           full_name?: string | null
           green_points?: number
           id?: string
+          last_activity_date?: string | null
+          longest_streak?: number
+          organization_name?: string | null
           team_id?: string | null
           trees_planted?: number
           updated_at?: string
@@ -679,6 +727,7 @@ export type Database = {
       }
     }
     Enums: {
+      account_type: "individual" | "ngo" | "school_college"
       app_role: "admin" | "moderator" | "user" | "government"
     }
     CompositeTypes: {
@@ -807,6 +856,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      account_type: ["individual", "ngo", "school_college"],
       app_role: ["admin", "moderator", "user", "government"],
     },
   },
