@@ -113,16 +113,46 @@ const Login = () => {
             <TabsContent value="signup">
               <form onSubmit={handleSignup} className="space-y-4">
                 <div>
+                  <Label className="mb-2 block">I'm registering as</Label>
+                  <RadioGroup value={accountType} onValueChange={(v) => setAccountType(v as AccountType)} className="grid grid-cols-3 gap-2">
+                    {[
+                      { v: "individual", label: "Individual", Icon: UserCircle2 },
+                      { v: "ngo", label: "NGO", Icon: Building2 },
+                      { v: "school_college", label: "School / College", Icon: GraduationCap },
+                    ].map(({ v, label, Icon }) => (
+                      <Label
+                        key={v}
+                        htmlFor={`acct-${v}`}
+                        className={`flex flex-col items-center gap-1 rounded-lg border p-3 cursor-pointer text-xs font-medium transition ${
+                          accountType === v ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/40"
+                        }`}
+                      >
+                        <RadioGroupItem id={`acct-${v}`} value={v} className="sr-only" />
+                        <Icon className="h-5 w-5" />
+                        <span className="text-center leading-tight">{label}</span>
+                      </Label>
+                    ))}
+                  </RadioGroup>
+                </div>
+                <div>
                   <Label className="flex items-center gap-2 mb-2"><User className="h-4 w-4" /> Full Name</Label>
                   <Input placeholder="Your full name" required value={signupName} onChange={e => setSignupName(e.target.value)} />
                 </div>
+                {accountType !== "individual" && (
+                  <div>
+                    <Label className="flex items-center gap-2 mb-2">
+                      <Building2 className="h-4 w-4" /> {accountType === "ngo" ? "NGO Name" : "School / College Name"}
+                    </Label>
+                    <Input placeholder={accountType === "ngo" ? "e.g. Green Earth Foundation" : "e.g. St. Xavier's College"} required value={orgName} onChange={e => setOrgName(e.target.value)} maxLength={200} />
+                  </div>
+                )}
                 <div>
                   <Label className="flex items-center gap-2 mb-2"><Mail className="h-4 w-4" /> Email</Label>
                   <Input type="email" placeholder="you@example.com" required value={signupEmail} onChange={e => setSignupEmail(e.target.value)} />
                 </div>
                 <div>
                   <Label className="flex items-center gap-2 mb-2"><Lock className="h-4 w-4" /> Password</Label>
-                  <Input type="password" placeholder="••••••••" required value={signupPassword} onChange={e => setSignupPassword(e.target.value)} />
+                  <Input type="password" placeholder="••••••••" required minLength={6} value={signupPassword} onChange={e => setSignupPassword(e.target.value)} />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
@@ -132,6 +162,13 @@ const Login = () => {
             </TabsContent>
           </Tabs>
         </div>
+
+        <p className="text-center text-xs text-muted-foreground mt-4">
+          Administrator?{" "}
+          <button type="button" onClick={() => navigate("/admin")} className="text-primary hover:underline font-medium">
+            Sign in on the admin page
+          </button>
+        </p>
       </motion.div>
     </div>
   );
