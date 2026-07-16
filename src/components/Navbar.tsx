@@ -63,6 +63,7 @@ const Navbar = () => {
         <div className="hidden lg:flex items-center gap-2">
           {user ? (
             <>
+              <NotificationsBell />
               <span className="text-sm text-muted-foreground truncate max-w-[150px]">
                 {user.user_metadata?.full_name || user.email}
               </span>
