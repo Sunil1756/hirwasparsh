@@ -49,6 +49,37 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // ===== Server-side upload hardening: validate MIME + size on every image =====
+    const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // 8 MB per image after base64 decode
+    const validateImagePayload = (label: string, b64: string): string | null => {
+      if (typeof b64 !== "string" || b64.length < 128) return `${label}: image too small or malformed`;
+      const approxBytes = Math.floor((b64.length * 3) / 4);
+      if (approxBytes > MAX_IMAGE_BYTES) return `${label}: image exceeds 8MB limit`;
+      let head: Uint8Array;
+      try {
+        const bin = atob(b64.slice(0, 24));
+        head = new Uint8Array([...bin].map(c => c.charCodeAt(0)));
+      } catch { return `${label}: invalid base64`; }
+      const isJPEG = head[0] === 0xFF && head[1] === 0xD8 && head[2] === 0xFF;
+      const isPNG = head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4E && head[3] === 0x47;
+      const isWEBP = head[0] === 0x52 && head[1] === 0x49 && head[2] === 0x46 && head[3] === 0x46 &&
+                     head[8] === 0x57 && head[9] === 0x45 && head[10] === 0x42 && head[11] === 0x50;
+      if (!isJPEG && !isPNG && !isWEBP) return `${label}: unsupported image format (JPEG/PNG/WEBP only)`;
+      return null;
+    };
+    for (const [lbl, val] of [["photo", imageBase64], ["selfie", selfieBase64], ["before", beforeBase64]] as const) {
+      if (!val) continue;
+      const err = validateImagePayload(lbl, val as string);
+      if (err) return new Response(JSON.stringify({ error: err }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Photo hash format guard (expect 64-char SHA-256 hex if supplied)
+    if (photoHash && !/^[a-f0-9]{64}$/i.test(String(photoHash))) {
+      return new Response(JSON.stringify({ error: "photoHash must be a 64-char SHA-256 hex string" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // Verify ownership + load tree (need lat/lng for GPS scoring)
     const { data: ownedTree, error: ownErr } = await userClient
       .from("trees").select("id, user_id, latitude, longitude").eq("id", treeId).maybeSingle();

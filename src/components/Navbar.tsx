@@ -4,6 +4,7 @@ import { Menu, X, LogOut, Shield, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
+import NotificationsBell from "@/components/NotificationsBell";
 import logo from "@/assets/logo.png";
 
 const Navbar = () => {
@@ -62,6 +63,7 @@ const Navbar = () => {
         <div className="hidden lg:flex items-center gap-2">
           {user ? (
             <>
+              <NotificationsBell />
               <span className="text-sm text-muted-foreground truncate max-w-[150px]">
                 {user.user_metadata?.full_name || user.email}
               </span>

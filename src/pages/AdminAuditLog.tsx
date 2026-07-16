@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ScrollText, Loader2, Shield, ArrowLeft, CheckCircle, XCircle, AlertTriangle, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -23,20 +25,51 @@ const actionStyle = (a: string) =>
   a === "flagged"  ? { icon: <AlertTriangle className="h-4 w-4" />, cls: "bg-yellow-500/10 text-yellow-600" } :
                      { icon: <Clock className="h-4 w-4" />, cls: "bg-accent/20 text-accent-foreground" };
 
+type RejectionRow = {
+  id: string;
+  tree_name: string | null;
+  species: string | null;
+  photo_url: string | null;
+  flagged_reason: string | null;
+  ai_analysis: string | null;
+  user_id: string;
+  updated_at: string;
+};
+
+type FilterTab = "all" | "approved" | "rejected" | "flagged";
+
 const AdminAuditLog = () => {
   const { user, isAdmin, loading } = useAuth();
+  const [tab, setTab] = useState<FilterTab>("all");
 
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ["admin-audit-log"],
+    queryKey: ["admin-audit-log", tab],
     enabled: isAdmin,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("admin_audit_log")
         .select("id, tree_id, action, previous_status, new_status, actor_email, created_at")
         .order("created_at", { ascending: false })
         .limit(500);
+      if (tab !== "all") q = q.eq("action", tab);
+      const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as AuditRow[];
+    },
+  });
+
+  const { data: rejections = [], isLoading: rejLoading } = useQuery({
+    queryKey: ["admin-rejection-details"],
+    enabled: isAdmin && tab === "rejected",
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("trees")
+        .select("id, tree_name, species, photo_url, flagged_reason, ai_analysis, user_id, updated_at")
+        .eq("admin_status", "rejected")
+        .order("updated_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data ?? []) as RejectionRow[];
     },
   });
 
@@ -76,11 +109,20 @@ const AdminAuditLog = () => {
             <Link to="/admin"><Button variant="outline" size="sm"><ArrowLeft className="h-4 w-4" /> Back to Dashboard</Button></Link>
           </div>
 
+          <Tabs value={tab} onValueChange={(v) => setTab(v as FilterTab)} className="mb-4">
+            <TabsList className="grid grid-cols-4 w-full max-w-md">
+              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="approved">Approved</TabsTrigger>
+              <TabsTrigger value="rejected">Rejected</TabsTrigger>
+              <TabsTrigger value="flagged">Flagged</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
           <div className="glass-card rounded-2xl p-6">
             {isLoading ? (
               <div className="text-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" /></div>
             ) : rows.length === 0 ? (
-              <p className="text-center py-10 text-muted-foreground">No admin actions have been recorded yet.</p>
+              <p className="text-center py-10 text-muted-foreground">No {tab === "all" ? "" : tab} actions recorded.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -123,6 +165,42 @@ const AdminAuditLog = () => {
               </div>
             )}
           </div>
+
+          {tab === "rejected" && (
+            <div className="glass-card rounded-2xl p-6 mt-6">
+              <h2 className="font-heading text-xl font-semibold mb-4 flex items-center gap-2">
+                <XCircle className="h-5 w-5 text-destructive" /> Rejected Submissions — Detail
+              </h2>
+              {rejLoading ? (
+                <div className="text-center py-6"><Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" /></div>
+              ) : rejections.length === 0 ? (
+                <p className="text-center py-6 text-muted-foreground">No rejected submissions yet.</p>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {rejections.map((r) => (
+                    <div key={r.id} className="border border-border rounded-lg p-3 flex gap-3">
+                      {r.photo_url ? (
+                        <img src={r.photo_url} alt={r.tree_name ?? "tree"} className="h-20 w-20 object-cover rounded-md flex-shrink-0" loading="lazy" />
+                      ) : (
+                        <div className="h-20 w-20 rounded-md bg-muted flex-shrink-0" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <Link to={`/tree/${r.id}`} className="font-medium text-sm hover:underline">
+                          {r.tree_name ?? "Unnamed"} {r.species ? <span className="text-muted-foreground">· {r.species}</span> : null}
+                        </Link>
+                        <p className="text-xs text-destructive mt-1 line-clamp-2">
+                          {r.flagged_reason ?? r.ai_analysis?.slice(0, 200) ?? "No reason recorded"}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          {new Date(r.updated_at).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </motion.div>
       </div>
     </div>
