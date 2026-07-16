@@ -25,20 +25,50 @@ const actionStyle = (a: string) =>
   a === "flagged"  ? { icon: <AlertTriangle className="h-4 w-4" />, cls: "bg-yellow-500/10 text-yellow-600" } :
                      { icon: <Clock className="h-4 w-4" />, cls: "bg-accent/20 text-accent-foreground" };
 
+type RejectionRow = {
+  id: string;
+  tree_name: string | null;
+  species: string | null;
+  photo_url: string | null;
+  rejection_reason: string | null;
+  user_id: string;
+  updated_at: string;
+};
+
+type FilterTab = "all" | "approved" | "rejected" | "flagged";
+
 const AdminAuditLog = () => {
   const { user, isAdmin, loading } = useAuth();
+  const [tab, setTab] = useState<FilterTab>("all");
 
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ["admin-audit-log"],
+    queryKey: ["admin-audit-log", tab],
     enabled: isAdmin,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("admin_audit_log")
         .select("id, tree_id, action, previous_status, new_status, actor_email, created_at")
         .order("created_at", { ascending: false })
         .limit(500);
+      if (tab !== "all") q = q.eq("action", tab);
+      const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as AuditRow[];
+    },
+  });
+
+  const { data: rejections = [], isLoading: rejLoading } = useQuery({
+    queryKey: ["admin-rejection-details"],
+    enabled: isAdmin && tab === "rejected",
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("trees")
+        .select("id, tree_name, species, photo_url, rejection_reason, user_id, updated_at")
+        .eq("admin_status", "rejected")
+        .order("updated_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data ?? []) as RejectionRow[];
     },
   });
 
