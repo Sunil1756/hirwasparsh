@@ -68,11 +68,18 @@ const TreeMap = () => {
   const [filter, setFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [stageFilter, setStageFilter] = useState("all");
+  const [speciesFilter, setSpeciesFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all");
   const [droneOnly, setDroneOnly] = useState(false);
   const [showDronePanel, setShowDronePanel] = useState(false);
   const [showCoverage, setShowCoverage] = useState(true);
 
   const { data: trees = [], isLoading } = useQuery({ queryKey: ["trees"], queryFn: fetchTrees });
+
+  const speciesOptions = useMemo(
+    () => Array.from(new Set(trees.map((t) => t.species).filter(Boolean))).sort(),
+    [trees],
+  );
 
   const filtered = useMemo(() => trees.filter(t => {
     const stageOk =
@@ -80,6 +87,13 @@ const TreeMap = () => {
       (stageFilter === "sapling" && (t.height_cm ?? 0) < 100) ||
       (stageFilter === "young" && (t.height_cm ?? 0) >= 100 && (t.height_cm ?? 0) < 300) ||
       (stageFilter === "mature" && (t.height_cm ?? 0) >= 300);
+    const speciesOk = speciesFilter === "all" || t.species === speciesFilter;
+    const dateOk = (() => {
+      if (dateFilter === "all") return true;
+      const days = dateFilter === "7d" ? 7 : dateFilter === "30d" ? 30 : 90;
+      const cutoff = Date.now() - days * 86400000;
+      return new Date(t.created_at).getTime() >= cutoff;
+    })();
     const inDrone = droneZones.some(z => {
       if (!t.latitude || !t.longitude) return false;
       const lats = z.coords.map(c => c[0]); const lngs = z.coords.map(c => c[1]);
@@ -87,13 +101,13 @@ const TreeMap = () => {
         && t.longitude >= Math.min(...lngs) && t.longitude <= Math.max(...lngs);
     });
     return (statusFilter === "all" || t.verification_status === statusFilter)
-      && stageOk
+      && stageOk && speciesOk && dateOk
       && (!droneOnly || inDrone)
       && (filter === "" ||
         t.tree_name.toLowerCase().includes(filter.toLowerCase()) ||
         t.species.toLowerCase().includes(filter.toLowerCase()) ||
         t.location.toLowerCase().includes(filter.toLowerCase()));
-  }), [trees, statusFilter, stageFilter, droneOnly, filter]);
+  }), [trees, statusFilter, stageFilter, speciesFilter, dateFilter, droneOnly, filter]);
 
   const treesWithCoords = filtered.filter(t => t.latitude && t.longitude);
   const center: [number, number] = treesWithCoords.length > 0
@@ -158,6 +172,32 @@ const TreeMap = () => {
                     <SelectItem value="sapling">Sapling (&lt;1m)</SelectItem>
                     <SelectItem value="young">Young (1–3m)</SelectItem>
                     <SelectItem value="mature">Mature (3m+)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs uppercase tracking-wide text-muted-foreground">Species</Label>
+                <Select value={speciesFilter} onValueChange={setSpeciesFilter}>
+                  <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    <SelectItem value="all">All Species</SelectItem>
+                    {speciesOptions.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs uppercase tracking-wide text-muted-foreground">Planted</Label>
+                <Select value={dateFilter} onValueChange={setDateFilter}>
+                  <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Any time</SelectItem>
+                    <SelectItem value="7d">Last 7 days</SelectItem>
+                    <SelectItem value="30d">Last 30 days</SelectItem>
+                    <SelectItem value="90d">Last 90 days</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

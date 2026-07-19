@@ -1,12 +1,14 @@
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { TreePine, MapPin, Calendar, Ruler, ShieldCheck, Clock, Loader2, Download, Heart, Droplets, AlertTriangle, Skull, Bot } from "lucide-react";
+import { TreePine, MapPin, Calendar, Ruler, ShieldCheck, Clock, Loader2, Download, Heart, Droplets, AlertTriangle, Skull, Bot, Activity, Sun, CloudRain, Sparkles, Wind } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useRef } from "react";
+import BeforeAfterSlider from "@/components/BeforeAfterSlider";
+import { computeHealthScore, computeImpact, careTips, nearbyNativeSuggestions, treeAgeMonths, ageLabel } from "@/lib/treeIntelligence";
 
 const healthIcon: Record<string, React.ReactNode> = {
   healthy: <Heart className="h-4 w-4 text-primary" />,
@@ -48,6 +50,20 @@ const TreeProfile = () => {
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
+    },
+  });
+
+  const { data: growthUpdates = [] } = useQuery({
+    queryKey: ["growth-updates", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("growth_updates")
+        .select("id, photo_url, update_day, created_at")
+        .eq("tree_id", id!)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data || [];
     },
   });
 
@@ -94,6 +110,24 @@ const TreeProfile = () => {
     );
   }
 
+  // ---- Intelligence layer ----
+  const treeAny = tree as any;
+  const beforeUrl: string | null = treeAny.before_photo_url || null;
+  const latestGrowthPhoto = [...growthUpdates].reverse().find((g) => g.photo_url)?.photo_url;
+  const afterUrl = latestGrowthPhoto || tree.photo_url;
+  const showSlider = !!(beforeUrl && afterUrl && beforeUrl !== afterUrl);
+
+  const { score, band, reasons } = computeHealthScore(tree as any, healthUpdates as any, growthUpdates as any);
+  const impact = computeImpact(tree as any);
+  const care = careTips(tree as any);
+  const natives = nearbyNativeSuggestions(tree.location || "");
+  const ageM = treeAgeMonths(tree as any);
+  const bandColor =
+    band === "excellent" ? "hsl(142 71% 45%)"
+    : band === "good" ? "hsl(88 60% 45%)"
+    : band === "fair" ? "hsl(38 92% 50%)"
+    : "hsl(0 84% 60%)";
+
   return (
     <div className="min-h-screen pt-24 pb-12">
       <div className="container mx-auto px-4 max-w-4xl">
@@ -101,7 +135,9 @@ const TreeProfile = () => {
           <div className="grid md:grid-cols-3 gap-8">
             {/* Left: Photo + QR */}
             <div className="space-y-6">
-              {tree.photo_url ? (
+              {showSlider ? (
+                <BeforeAfterSlider beforeUrl={beforeUrl!} afterUrl={afterUrl!} beforeLabel="Planted" afterLabel="Now" />
+              ) : tree.photo_url ? (
                 <img src={tree.photo_url} alt={tree.tree_name} className="w-full rounded-2xl object-cover aspect-square" />
               ) : (
                 <div className="w-full rounded-2xl bg-muted/50 aspect-square flex items-center justify-center">
@@ -198,20 +234,92 @@ const TreeProfile = () => {
                   </div>
                 )}
               </div>
+              {/* AI Health Score */}
+              <div className="glass-card rounded-2xl p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Activity className="h-5 w-5 text-primary" />
+                  <h2 className="font-heading text-lg font-semibold">AI Tree Health Score</h2>
+                  <Badge variant="secondary" className="ml-auto capitalize">{band}</Badge>
+                </div>
+                <div className="flex items-center gap-6">
+                  <div className="relative shrink-0">
+                    <svg width="120" height="120" viewBox="0 0 120 120">
+                      <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
+                      <motion.circle
+                        cx="60" cy="60" r="50" fill="none" stroke={bandColor} strokeWidth="10" strokeLinecap="round"
+                        transform="rotate(-90 60 60)"
+                        initial={{ strokeDasharray: "0 314" }}
+                        animate={{ strokeDasharray: `${(score / 100) * 314} 314` }}
+                        transition={{ duration: 1.2, ease: "easeOut" }}
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="font-heading text-3xl font-bold" style={{ color: bandColor }}>{score}</span>
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider">/ 100</span>
+                    </div>
+                  </div>
+                  <div className="flex-1 space-y-1.5 text-xs">
+                    {reasons.map((r, i) => (
+                      <div key={i} className="flex items-center gap-2 text-muted-foreground">
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary" /> {r}
+                      </div>
+                    ))}
+                    <div className="pt-2 flex flex-wrap gap-2">
+                      <Badge variant="outline" className="gap-1 text-xs"><Calendar className="h-3 w-3" /> Age: {ageLabel(ageM)}</Badge>
+                      {tree.ai_confidence != null && (
+                        <Badge variant="outline" className="gap-1 text-xs"><Bot className="h-3 w-3" /> AI conf: {tree.ai_confidence}%</Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {/* Environmental Impact */}
               <div className="glass-card rounded-2xl p-6">
-                <h2 className="font-heading text-lg font-semibold mb-3">Environmental Impact</h2>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center p-4 rounded-xl bg-primary/5">
-                    <div className="font-heading text-2xl font-bold text-primary">~21 kg</div>
-                    <div className="text-xs text-muted-foreground">CO₂ absorbed / year</div>
-                  </div>
-                  <div className="text-center p-4 rounded-xl bg-primary/5">
-                    <div className="font-heading text-2xl font-bold text-primary">~100 L</div>
-                    <div className="text-xs text-muted-foreground">Water filtered / year</div>
-                  </div>
+                <h2 className="font-heading text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" /> Environmental Impact
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {[
+                    { icon: <Wind className="h-4 w-4" />, label: "CO₂ absorbed", value: `${impact.co2KgPerYear} kg/yr` },
+                    { icon: <Sparkles className="h-4 w-4" />, label: "O₂ generated", value: `${impact.o2KgPerYear} kg/yr` },
+                    { icon: <Sun className="h-4 w-4" />, label: "Shade area", value: `${impact.shadeM2} m²` },
+                    { icon: <CloudRain className="h-4 w-4" />, label: "Rainwater filtered", value: `${impact.rainwaterLitersPerYear} L/yr` },
+                    { icon: <TreePine className="h-4 w-4" />, label: "Biodiversity", value: `${impact.biodiversityScore}/100` },
+                    { icon: <Activity className="h-4 w-4" />, label: "Cars offset", value: `${impact.carsOffsetPerYear}` },
+                  ].map((s, i) => (
+                    <div key={i} className="rounded-xl bg-primary/5 p-3">
+                      <div className="flex items-center gap-1.5 text-primary text-xs mb-1">{s.icon}{s.label}</div>
+                      <div className="font-heading font-bold text-lg">{s.value}</div>
+                    </div>
+                  ))}
                 </div>
+              </div>
+
+              {/* Care Tips */}
+              <div className="glass-card rounded-2xl p-6">
+                <h2 className="font-heading text-lg font-semibold mb-3 flex items-center gap-2">
+                  <Droplets className="h-5 w-5 text-primary" /> Care Guide
+                </h2>
+                <div className="rounded-xl bg-primary/5 p-3 mb-3">
+                  <div className="text-xs text-muted-foreground">Recommended watering</div>
+                  <div className="text-sm font-medium">{care.watering}</div>
+                </div>
+                <ul className="space-y-1.5 text-sm text-muted-foreground">
+                  {care.tips.map((t, i) => (
+                    <li key={i} className="flex gap-2"><span className="text-primary">•</span>{t}</li>
+                  ))}
+                </ul>
+                {natives.length > 0 && (
+                  <div className="mt-4 pt-3 border-t border-border/50">
+                    <div className="text-xs text-muted-foreground mb-2">Suggested native companions nearby</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {natives.map((n) => (
+                        <span key={n} className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">{n}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Health Timeline */}
