@@ -110,6 +110,24 @@ const TreeProfile = () => {
     );
   }
 
+  // ---- Intelligence layer ----
+  const treeAny = tree as any;
+  const beforeUrl: string | null = treeAny.before_photo_url || null;
+  const latestGrowthPhoto = [...growthUpdates].reverse().find((g) => g.photo_url)?.photo_url;
+  const afterUrl = latestGrowthPhoto || tree.photo_url;
+  const showSlider = !!(beforeUrl && afterUrl && beforeUrl !== afterUrl);
+
+  const { score, band, reasons } = computeHealthScore(tree as any, healthUpdates as any, growthUpdates as any);
+  const impact = computeImpact(tree as any);
+  const care = careTips(tree as any);
+  const natives = nearbyNativeSuggestions(tree.location || "");
+  const ageM = treeAgeMonths(tree as any);
+  const bandColor =
+    band === "excellent" ? "hsl(142 71% 45%)"
+    : band === "good" ? "hsl(88 60% 45%)"
+    : band === "fair" ? "hsl(38 92% 50%)"
+    : "hsl(0 84% 60%)";
+
   return (
     <div className="min-h-screen pt-24 pb-12">
       <div className="container mx-auto px-4 max-w-4xl">
@@ -117,7 +135,9 @@ const TreeProfile = () => {
           <div className="grid md:grid-cols-3 gap-8">
             {/* Left: Photo + QR */}
             <div className="space-y-6">
-              {tree.photo_url ? (
+              {showSlider ? (
+                <BeforeAfterSlider beforeUrl={beforeUrl!} afterUrl={afterUrl!} beforeLabel="Planted" afterLabel="Now" />
+              ) : tree.photo_url ? (
                 <img src={tree.photo_url} alt={tree.tree_name} className="w-full rounded-2xl object-cover aspect-square" />
               ) : (
                 <div className="w-full rounded-2xl bg-muted/50 aspect-square flex items-center justify-center">
