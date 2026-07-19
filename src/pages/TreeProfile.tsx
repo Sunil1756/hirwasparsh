@@ -1,12 +1,14 @@
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { TreePine, MapPin, Calendar, Ruler, ShieldCheck, Clock, Loader2, Download, Heart, Droplets, AlertTriangle, Skull, Bot } from "lucide-react";
+import { TreePine, MapPin, Calendar, Ruler, ShieldCheck, Clock, Loader2, Download, Heart, Droplets, AlertTriangle, Skull, Bot, Activity, Sun, CloudRain, Sparkles, Wind } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useRef } from "react";
+import BeforeAfterSlider from "@/components/BeforeAfterSlider";
+import { computeHealthScore, computeImpact, careTips, nearbyNativeSuggestions, treeAgeMonths, ageLabel } from "@/lib/treeIntelligence";
 
 const healthIcon: Record<string, React.ReactNode> = {
   healthy: <Heart className="h-4 w-4 text-primary" />,
