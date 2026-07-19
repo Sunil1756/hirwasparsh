@@ -53,6 +53,20 @@ const TreeProfile = () => {
     },
   });
 
+  const { data: growthUpdates = [] } = useQuery({
+    queryKey: ["growth-updates", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("growth_updates")
+        .select("id, photo_url, update_day, created_at")
+        .eq("tree_id", id!)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const profileUrl = `${window.location.origin}/tree/${id}`;
 
   const downloadQR = useCallback(() => {
