@@ -234,25 +234,6 @@ const TreeProfile = () => {
                   </div>
                 )}
               </div>
-
-              {/* Environmental Impact */}
-              <div className="glass-card rounded-2xl p-6">
-                <h2 className="font-heading text-lg font-semibold mb-3">Environmental Impact</h2>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center p-4 rounded-xl bg-primary/5">
-                    <div className="font-heading text-2xl font-bold text-primary">~21 kg</div>
-                    <div className="text-xs text-muted-foreground">CO₂ absorbed / year</div>
-                  </div>
-                  <div className="text-center p-4 rounded-xl bg-primary/5">
-                    <div className="font-heading text-2xl font-bold text-primary">~100 L</div>
-                    <div className="text-xs text-muted-foreground">Water filtered / year</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Health Timeline */}
-              <div className="glass-card rounded-2xl p-6">
-                <h2 className="font-heading text-lg font-semibold mb-4">Growth & Health Timeline</h2>
               {/* AI Health Score */}
               <div className="glass-card rounded-2xl p-6">
                 <div className="flex items-center gap-2 mb-4">
