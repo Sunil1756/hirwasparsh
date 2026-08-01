@@ -260,7 +260,7 @@ const AICareAssistant = () => {
                   {[
                     { icon: Droplets, label: "Watering", v: result.watering },
                     { icon: Sprout, label: "Mulching", v: result.mulching },
-                    { icon: Leafish, label: "Fertilizing", v: result.fertilizing },
+                    { icon: Sprout, label: "Fertilizing", v: result.fertilizing },
                     { icon: Scissors, label: "Pruning", v: result.pruning },
                   ].map((c) => (
                     <div key={c.label} className="rounded-lg border border-primary/10 bg-background/60 p-2.5">
