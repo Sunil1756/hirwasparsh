@@ -304,7 +304,11 @@ const Intelligence = () => {
           </div>
         </div>
 
+        {/* AI Care Assistant */}
+        <AICareAssistant />
+
         {/* Health indicators */}
+
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: "O₂ Generated", value: o2, suffix: " kg/yr", icon: Wind, color: "text-cyan-600 bg-cyan-500/10" },
