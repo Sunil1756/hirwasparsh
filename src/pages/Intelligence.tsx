@@ -10,6 +10,7 @@ import {
   RadialBar, PolarAngleAxis, BarChart, Bar, CartesianGrid, Legend,
 } from "recharts";
 import { useEffect, useState } from "react";
+import AICareAssistant from "@/components/AICareAssistant";
 
 const COLORS = ["#1B5E20", "#4CAF50", "#81C784", "#A5D6A7", "#C8E6C9"];
 
