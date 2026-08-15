@@ -78,6 +78,10 @@
   * {
     @apply border-border;
   }
+  html, body {
+    @apply overflow-x-hidden;
+    max-width: 100%;
+  }
   body {
     @apply text-foreground antialiased;
     background-color: hsl(var(--background));

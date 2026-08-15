@@ -125,82 +125,67 @@ const Index = () => {
   return (
     <div className="min-h-screen">
       {/* Hero */}
-      <section className="relative flex items-center justify-center overflow-hidden pt-32 md:pt-36 pb-24 md:pb-32 min-h-[calc(100vh-4rem)]">
+      <section className="relative flex items-center justify-center overflow-hidden pt-24 md:pt-28 pb-16 md:pb-24 min-h-[calc(100svh-4rem)]">
         <img src={heroBg} alt="Lush green misty mountain valley" className="absolute inset-0 w-full h-full object-cover" width={1920} height={1080} />
-        <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-white/5 to-transparent" />
-        {/* Smooth fade into next section (matches muted/50 of Problem section) */}
-        <div className="absolute bottom-0 left-0 right-0 h-64 bg-gradient-to-b from-transparent via-[hsl(var(--muted)/0.25)] to-[hsl(var(--muted)/0.5)] pointer-events-none z-[1]" />
-
+        {/* Readability overlay: deep green gradient */}
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,hsl(var(--nature-900)/0.72)_0%,hsl(var(--nature-900)/0.55)_45%,hsl(var(--nature-900)/0.78)_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,hsl(var(--nature-900)/0.45)_100%)]" />
+        {/* Smooth fade into next section */}
+        <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-b from-transparent to-[hsl(var(--muted)/0.5)] pointer-events-none z-[1]" />
 
         {/* Floating leaf particles */}
-        {[...Array(6)].map((_, i) => (
-          <FloatingTree key={i} delay={i * 1.5} x={`${10 + i * 15}%`} size={16 + i * 4} />
+        {[...Array(4)].map((_, i) => (
+          <FloatingTree key={i} delay={i * 2} x={`${12 + i * 22}%`} size={16 + i * 4} />
         ))}
 
-        <div className="relative z-10 container mx-auto px-4 text-center">
-          <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
-            <motion.div
-              className="inline-flex items-center gap-2 bg-primary/20 backdrop-blur-sm text-primary-foreground px-4 py-2 rounded-full text-sm mb-6"
-              animate={{ scale: [1, 1.03, 1] }}
-              transition={{ duration: 3, repeat: Infinity }}
-            >
-              <motion.span animate={{ rotate: [0, 15, -15, 0] }} transition={{ duration: 2, repeat: Infinity }}>
-                <Sprout className="h-4 w-4" />
-              </motion.span>
+        <div className="relative z-10 w-full max-w-6xl mx-auto px-5 sm:px-8 text-center">
+          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} className="flex flex-col items-center">
+            <div className="inline-flex items-center gap-2 bg-primary-foreground/10 backdrop-blur-md border border-primary-foreground/20 text-primary-foreground px-4 py-1.5 rounded-full text-xs sm:text-sm mb-7 tracking-wide">
+              <Sprout className="h-4 w-4" />
               Smart Green Verification Platform
-            </motion.div>
+            </div>
+
             <h1
-              className="font-heading font-extrabold text-nature-900 mb-6 leading-[1.1] tracking-tight drop-shadow-sm text-balance"
-              style={{ fontSize: "clamp(2rem, 5.5vw, 4.5rem)" }}
+              className="font-heading font-extrabold text-primary-foreground leading-[1.05] tracking-[-0.02em] text-balance"
+              style={{ fontSize: "clamp(2.1rem, 5.2vw, 4rem)" }}
             >
-              Grow a Greener Future<br />
-              <span
-                className="block font-semibold text-nature-900/80 mt-3 mb-1"
-                style={{ fontSize: "clamp(0.9rem, 1.6vw, 1.375rem)" }}
-              >
-                with
-              </span>
-              <motion.span
-                className="text-primary inline-block"
-                animate={{ scale: [1, 1.02, 1] }}
-                transition={{ duration: 4, repeat: Infinity }}
-              >
-                Green Enlightenment
-              </motion.span>
+              MAKE EVERY TREE COUNT.
             </h1>
 
             <p
-              className="font-heading font-semibold text-nature-900 mb-4"
-              style={{ fontSize: "clamp(1rem, 2vw, 1.5rem)" }}
+              className="font-heading font-semibold text-primary-foreground/95 mt-3"
+              style={{ fontSize: "clamp(1.25rem, 2.8vw, 2.25rem)" }}
             >
-              Plant with Purpose. Grow with Proof.
+              Green Enlightenment
             </p>
-            <div className="flex items-center justify-center gap-3 mb-6 opacity-80">
-              <span className="h-px w-12 bg-primary/50" />
-              <Leaf className="h-4 w-4 text-primary" />
-              <span className="h-px w-12 bg-primary/50" />
+
+            <div className="flex items-center justify-center gap-3 my-5 opacity-70">
+              <span className="h-px w-10 bg-primary-foreground/50" />
+              <Leaf className="h-4 w-4 text-primary-foreground" />
+              <span className="h-px w-10 bg-primary-foreground/50" />
             </div>
 
-            <p className="text-base md:text-lg text-nature-900/80 max-w-2xl mx-auto mb-10 leading-relaxed">
-              Plant trees, track real growth, and verify environmental impact using AI-powered transparency and community participation.
+            <p
+              className="font-medium text-primary-foreground/90 tracking-wide"
+              style={{ fontSize: "clamp(0.95rem, 1.7vw, 1.25rem)" }}
+            >
+              Plant with Proof. Grow with Trust.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/plant">
-                <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.97 }}>
-                  <Button size="lg" className="text-lg px-8 gap-2 shadow-lg">
-                    <motion.span animate={{ rotate: [0, -20, 20, 0] }} transition={{ duration: 2, repeat: Infinity, delay: 1 }}>
-                      <Leaf className="h-5 w-5" />
-                    </motion.span>
-                    Plant a Tree
-                  </Button>
-                </motion.div>
+
+            <p className="mt-5 text-sm sm:text-base text-primary-foreground/75 max-w-2xl mx-auto leading-relaxed">
+              Plant trees, verify their survival, track their growth, and measure real environmental impact with AI-powered transparency.
+            </p>
+
+            <div className="mt-9 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-stretch sm:items-center w-full sm:w-auto">
+              <Link to="/plant" className="w-full sm:w-auto">
+                <Button size="lg" className="w-full sm:w-auto h-12 px-8 rounded-xl text-base gap-2 shadow-lg">
+                  <Leaf className="h-5 w-5" /> Plant a Tree
+                </Button>
               </Link>
-              <Link to="/tree-map">
-                <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.97 }}>
-                  <Button size="lg" variant="outline" className="text-lg px-8 gap-2 border-primary-foreground/40 bg-primary-foreground/5 backdrop-blur-sm text-primary-foreground hover:bg-primary-foreground/15">
-                    <MapPin className="h-5 w-5" /> Explore Tree Map
-                  </Button>
-                </motion.div>
+              <Link to="/tree-map" className="w-full sm:w-auto">
+                <Button size="lg" variant="outline" className="w-full sm:w-auto h-12 px-8 rounded-xl text-base gap-2 border-primary-foreground/40 bg-primary-foreground/10 backdrop-blur-md text-primary-foreground hover:bg-primary-foreground/20 hover:text-primary-foreground">
+                  <MapPin className="h-5 w-5" /> Explore Tree Map
+                </Button>
               </Link>
             </div>
 
@@ -208,34 +193,23 @@ const Index = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6, duration: 0.8 }}
-              className="mt-14 grid grid-cols-2 sm:grid-cols-4 gap-6 max-w-3xl mx-auto"
+              transition={{ delay: 0.5, duration: 0.8 }}
+              className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-5 max-w-3xl mx-auto w-full"
             >
               {[
-                { icon: <ShieldCheck className="h-6 w-6" />, label: "Verified Plantation" },
-                { icon: <TrendingUp className="h-6 w-6" />, label: "Real-time Tracking" },
-                { icon: <Bot className="h-6 w-6" />, label: "AI-Powered Verification" },
-                { icon: <Users className="h-6 w-6" />, label: "Community Driven" },
+                { icon: <ShieldCheck className="h-5 w-5" />, label: "Verified Plantation" },
+                { icon: <TrendingUp className="h-5 w-5" />, label: "Real-time Tracking" },
+                { icon: <Bot className="h-5 w-5" />, label: "AI-Powered Verification" },
+                { icon: <Users className="h-5 w-5" />, label: "Community Driven" },
               ].map((item, i) => (
-                <div key={i} className="flex flex-col items-center gap-2 text-nature-900/85 relative">
-                  {i > 0 && <span className="hidden sm:block absolute left-0 top-1/2 -translate-y-1/2 h-10 w-px bg-nature-900/20" />}
-                  <span className="text-primary">{item.icon}</span>
-                  <span className="text-xs md:text-sm font-medium text-center leading-tight">{item.label}</span>
+                <div key={i} className="flex flex-col items-center gap-2 text-primary-foreground/85">
+                  <span className="text-primary-foreground">{item.icon}</span>
+                  <span className="text-[11px] md:text-xs font-medium text-center leading-tight tracking-wide uppercase">{item.label}</span>
                 </div>
               ))}
             </motion.div>
           </motion.div>
         </div>
-
-        {/* Animated growing tree silhouette */}
-        <motion.div
-          className="absolute bottom-0 left-1/2 -translate-x-1/2 text-primary-foreground/10 pointer-events-none"
-          initial={{ scale: 0.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 2, delay: 0.5 }}
-        >
-          <TreePine className="h-40 w-40 md:h-64 md:w-64" />
-        </motion.div>
       </section>
 
       {/* Problem Section */}
