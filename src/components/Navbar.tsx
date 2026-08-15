@@ -29,30 +29,30 @@ const Navbar = () => {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border/20">
-      <div className="container mx-auto flex items-center justify-between h-16 px-4">
-        <Link to="/" className="flex items-center gap-2 font-heading font-bold text-xl text-primary">
-          <img src={logo} alt="Green Enlightenment logo" width={36} height={36} className="h-9 w-9 rounded-full object-contain" />
-          Green Enlightenment
+      <div className="mx-auto w-full max-w-[1600px] flex items-center justify-between gap-3 h-16 px-4 sm:px-6">
+        <Link to="/" className="flex items-center gap-2 shrink-0 font-heading font-bold text-primary whitespace-nowrap text-base xl:text-[15px] 2xl:text-base leading-none">
+          <img src={logo} alt="Green Enlightenment logo" width={32} height={32} className="h-8 w-8 rounded-full object-contain" />
+          <span>Green Enlightenment</span>
         </Link>
 
-        <div className="hidden lg:flex items-center gap-1">
+        <div className="hidden xl:flex items-center justify-center flex-1 min-w-0 gap-0.5 2xl:gap-1">
           {navLinks.map(link => (
             <Link key={link.to} to={link.to}
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-2 2xl:px-2.5 py-2 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors ${
                 location.pathname === link.to ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary hover:bg-primary/5"
               }`}>
               {link.label}
             </Link>
           ))}
           {isAdmin && (
-            <Link to="/admin" className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${
+            <Link to="/admin" className={`px-2 py-2 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
               location.pathname === "/admin" ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary hover:bg-primary/5"
             }`}>
               <Shield className="h-3 w-3" /> Admin
             </Link>
           )}
           {(isGovernment || isAdmin) && (
-            <Link to="/government" className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${
+            <Link to="/government" className={`px-2 py-2 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
               location.pathname === "/government" ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary hover:bg-primary/5"
             }`}>
               <Building2 className="h-3 w-3" /> Govt
@@ -60,26 +60,26 @@ const Navbar = () => {
           )}
         </div>
 
-        <div className="hidden lg:flex items-center gap-2">
+        <div className="hidden xl:flex items-center gap-1.5 shrink-0">
           {user ? (
             <>
               <NotificationsBell />
-              <span className="text-sm text-muted-foreground truncate max-w-[150px]">
+              <span className="text-[13px] text-muted-foreground truncate max-w-[120px]">
                 {user.user_metadata?.full_name || user.email}
               </span>
-              <Button variant="ghost" size="sm" onClick={signOut}>
+              <Button variant="ghost" size="sm" className="whitespace-nowrap" onClick={signOut}>
                 <LogOut className="h-4 w-4 mr-1" /> Log Out
               </Button>
             </>
           ) : (
             <>
-              <Link to="/login"><Button variant="ghost" size="sm">Log In</Button></Link>
-              <Link to="/login"><Button size="sm">Sign Up</Button></Link>
+              <Link to="/login"><Button variant="ghost" size="sm" className="whitespace-nowrap">Log In</Button></Link>
+              <Link to="/login"><Button size="sm" className="whitespace-nowrap">Sign Up</Button></Link>
             </>
           )}
         </div>
 
-        <button className="lg:hidden" onClick={() => setOpen(!open)}>
+        <button className="xl:hidden" aria-label="Toggle menu" onClick={() => setOpen(!open)}>
           {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
       </div>
