@@ -1,7 +1,16 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, LogOut, Shield, Building2 } from "lucide-react";
+import { Menu, X, LogOut, Shield, Building2, User, Settings, TreePine, Bell, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import NotificationsBell from "@/components/NotificationsBell";
@@ -27,12 +36,24 @@ const Navbar = () => {
     { to: "/green-impact", label: "Green Impact" },
   ];
 
+  const displayName = (user?.user_metadata?.full_name as string) || user?.email || "";
+  const initials = displayName
+    .replace(/@.*/, "")
+    .split(/[\s._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p: string) => p[0]?.toUpperCase())
+    .join("") || "U";
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border/20">
-      <div className="mx-auto w-full max-w-[1600px] flex items-center justify-between gap-3 h-16 px-4 sm:px-6">
-        <Link to="/" className="flex items-center gap-2 shrink-0 font-heading font-bold text-primary whitespace-nowrap text-base xl:text-[15px] 2xl:text-base leading-none">
+    <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border/20 shadow-[0_1px_12px_-6px_hsl(var(--primary)/0.35)]">
+      <div className="mx-auto w-full max-w-[1600px] flex items-center justify-between gap-4 h-16 px-4 sm:px-6">
+        <Link
+          to="/"
+          className="flex items-center gap-2 shrink-0 font-heading font-bold text-primary whitespace-nowrap leading-none text-[15px]"
+        >
           <img src={logo} alt="Green Enlightenment logo" width={32} height={32} className="h-8 w-8 rounded-full object-contain" />
-          <span>Green Enlightenment</span>
+          <span className="hidden sm:inline">Green Enlightenment</span>
         </Link>
 
         <div className="hidden xl:flex items-center justify-center flex-1 min-w-0 gap-0.5 2xl:gap-1">
@@ -60,35 +81,76 @@ const Navbar = () => {
           )}
         </div>
 
-        <div className="hidden xl:flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           {user ? (
             <>
               <NotificationsBell />
-              <span className="text-[13px] text-muted-foreground truncate max-w-[120px]">
-                {user.user_metadata?.full_name || user.email}
-              </span>
-              <Button variant="ghost" size="sm" className="whitespace-nowrap" onClick={signOut}>
-                <LogOut className="h-4 w-4 mr-1" /> Log Out
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    aria-label="Account menu"
+                    className="flex items-center gap-1 rounded-full pl-0.5 pr-1.5 py-0.5 hover:bg-primary/5 transition-colors"
+                  >
+                    <Avatar className="h-8 w-8 border border-primary/20">
+                      <AvatarFallback className="bg-primary/10 text-primary text-[11px] font-semibold">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 bg-popover z-[60]">
+                  <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">
+                    {displayName}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/dashboard"><User className="h-4 w-4 mr-2" /> Profile</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/growth-updates"><TreePine className="h-4 w-4 mr-2" /> My Trees</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/dashboard"><Bell className="h-4 w-4 mr-2" /> Notifications</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/dashboard"><Settings className="h-4 w-4 mr-2" /> Settings</Link>
+                  </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin"><Shield className="h-4 w-4 mr-2" /> Admin Dashboard</Link>
+                    </DropdownMenuItem>
+                  )}
+                  {(isGovernment || isAdmin) && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/government"><Building2 className="h-4 w-4 mr-2" /> Government</Link>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={signOut}>
+                    <LogOut className="h-4 w-4 mr-2" /> Log Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           ) : (
-            <>
+            <div className="hidden sm:flex items-center gap-1.5">
               <Link to="/login"><Button variant="ghost" size="sm" className="whitespace-nowrap">Log In</Button></Link>
               <Link to="/login"><Button size="sm" className="whitespace-nowrap">Sign Up</Button></Link>
-            </>
+            </div>
           )}
-        </div>
 
-        <button className="xl:hidden" aria-label="Toggle menu" onClick={() => setOpen(!open)}>
-          {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </button>
+          <button className="xl:hidden ml-1" aria-label="Toggle menu" onClick={() => setOpen(!open)}>
+            {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+        </div>
       </div>
 
       <AnimatePresence>
         {open && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-            className="xl:hidden glass-card border-t border-border/20">
-            <div className="container mx-auto px-4 py-4 flex flex-col gap-2">
+            className="xl:hidden glass-card border-t border-border/20 overflow-hidden">
+            <div className="container mx-auto px-4 py-4 flex flex-col gap-1.5 max-h-[70vh] overflow-y-auto">
               {navLinks.map(link => (
                 <Link key={link.to} to={link.to} onClick={() => setOpen(false)}
                   className={`px-3 py-2 rounded-md text-sm font-medium ${
