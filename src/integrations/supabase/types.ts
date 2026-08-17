@@ -280,6 +280,81 @@ export type Database = {
         }
         Relationships: []
       }
+      plantation_projects: {
+        Row: {
+          ai_report: string | null
+          ai_score: number | null
+          boundary: Json
+          bulk_data: Json
+          bulk_rows: number
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string
+          id: string
+          latitude: number | null
+          location: string
+          longitude: number | null
+          organization_name: string
+          organization_type: string
+          plantation_date: string
+          project_name: string
+          species: string[]
+          status: string
+          target_trees: number
+          updated_at: string
+          user_id: string
+          verified_trees: number
+        }
+        Insert: {
+          ai_report?: string | null
+          ai_score?: number | null
+          boundary?: Json
+          bulk_data?: Json
+          bulk_rows?: number
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          location: string
+          longitude?: number | null
+          organization_name: string
+          organization_type?: string
+          plantation_date: string
+          project_name: string
+          species?: string[]
+          status?: string
+          target_trees?: number
+          updated_at?: string
+          user_id: string
+          verified_trees?: number
+        }
+        Update: {
+          ai_report?: string | null
+          ai_score?: number | null
+          boundary?: Json
+          bulk_data?: Json
+          bulk_rows?: number
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          location?: string
+          longitude?: number | null
+          organization_name?: string
+          organization_type?: string
+          plantation_date?: string
+          project_name?: string
+          species?: string[]
+          status?: string
+          target_trees?: number
+          updated_at?: string
+          user_id?: string
+          verified_trees?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           account_type: Database["public"]["Enums"]["account_type"]
@@ -332,6 +407,65 @@ export type Database = {
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_evidence: {
+        Row: {
+          ai_analysis: string | null
+          ai_score: number | null
+          ai_status: string | null
+          captured_at: string | null
+          created_at: string
+          evidence_type: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          notes: string | null
+          photo_url: string | null
+          project_id: string
+          survival_percent: number | null
+          user_id: string
+        }
+        Insert: {
+          ai_analysis?: string | null
+          ai_score?: number | null
+          ai_status?: string | null
+          captured_at?: string | null
+          created_at?: string
+          evidence_type?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          notes?: string | null
+          photo_url?: string | null
+          project_id: string
+          survival_percent?: number | null
+          user_id: string
+        }
+        Update: {
+          ai_analysis?: string | null
+          ai_score?: number | null
+          ai_status?: string | null
+          captured_at?: string | null
+          created_at?: string
+          evidence_type?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          notes?: string | null
+          photo_url?: string | null
+          project_id?: string
+          survival_percent?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_evidence_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "plantation_projects"
             referencedColumns: ["id"]
           },
         ]
