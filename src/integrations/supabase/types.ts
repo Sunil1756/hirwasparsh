@@ -718,6 +718,14 @@ export type Database = {
           tree_name: string
         }[]
       }
+      get_platform_stats: {
+        Args: never
+        Returns: {
+          trees: number
+          verified_trees: number
+          volunteers: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
