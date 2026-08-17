@@ -50,11 +50,12 @@ const Navbar = () => {
       <div className="mx-auto w-full max-w-[1600px] flex items-center justify-between gap-4 h-16 px-4 sm:px-6">
         <Link
           to="/"
-          className="flex items-center gap-2 shrink-0 font-heading font-bold text-primary whitespace-nowrap leading-none text-[15px]"
+          className="flex items-center gap-2 shrink-0 font-heading font-bold text-primary whitespace-nowrap leading-none text-[15px] sm:text-[15px]"
         >
-          <img src={logo} alt="Green Enlightenment logo" width={32} height={32} className="h-8 w-8 rounded-full object-contain" />
-          <span className="hidden sm:inline">Green Enlightenment</span>
+          <img src={logo} alt="Green Enlightenment logo" width={34} height={34} className="h-[34px] w-[34px] rounded-full object-contain" />
+          <span className="inline text-[15px] min-[360px]:text-[16px] sm:text-[15px]">Green Enlightenment</span>
         </Link>
+
 
         <div className="hidden xl:flex items-center justify-center flex-1 min-w-0 gap-0.5 2xl:gap-1">
           {navLinks.map(link => (
@@ -141,8 +142,9 @@ const Navbar = () => {
           )}
 
           <button className="xl:hidden ml-1" aria-label="Toggle menu" onClick={() => setOpen(!open)}>
-            {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            {open ? <X className="h-7 w-7" /> : <Menu className="h-7 w-7" />}
           </button>
+
         </div>
       </div>
 
