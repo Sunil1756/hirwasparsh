@@ -31,7 +31,7 @@ const Login = () => {
   const [orgName, setOrgName] = useState("");
 
   useEffect(() => {
-    if (user) navigate("/dashboard");
+    if (user) navigate("/");
   }, [user, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -45,10 +45,11 @@ const Login = () => {
     if (error) {
       toast({ title: "Login failed", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Welcome back! 🌿", description: "Redirecting to your dashboard..." });
-      navigate("/dashboard");
+      toast({ title: "Welcome back! 🌿", description: "You're signed in." });
+      navigate("/");
     }
   };
+
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
