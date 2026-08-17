@@ -110,13 +110,12 @@ const Index = () => {
   const { data: stats } = useQuery({
     queryKey: ["home-stats"],
     queryFn: async () => {
-      const [treesRes, profilesRes] = await Promise.all([
-        supabase.from("trees").select("id", { count: "exact", head: true }),
-        supabase.from("profiles").select("id", { count: "exact", head: true }),
-      ]);
-      return { trees: treesRes.count || 0, volunteers: profilesRes.count || 0 };
+      const { data } = await supabase.rpc("get_platform_stats");
+      const row = Array.isArray(data) ? data[0] : data;
+      return { trees: Number(row?.trees ?? 0), volunteers: Number(row?.volunteers ?? 0) };
     },
   });
+
 
   const treesPlanted = stats?.trees || 0;
   const co2Absorbed = Math.round(treesPlanted * 22);
