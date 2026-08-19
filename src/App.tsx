@@ -9,6 +9,8 @@ import Footer from "@/components/Footer";
 import Index from "./pages/Index";
 import About from "./pages/About";
 import PlantTree from "./pages/PlantTree";
+import PlantChooser from "./pages/PlantChooser";
+import OrganizationPlantation from "./pages/OrganizationPlantation";
 import CommunityDashboard from "./pages/CommunityDashboard";
 import TreeMap from "./pages/TreeMap";
 import Analytics from "./pages/Analytics";
@@ -42,7 +44,9 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/about" element={<About />} />
-          <Route path="/plant" element={<PlantTree />} />
+          <Route path="/plant" element={<PlantChooser />} />
+          <Route path="/plant/individual" element={<PlantTree />} />
+          <Route path="/plant/organization" element={<OrganizationPlantation />} />
           <Route path="/dashboard" element={<CommunityDashboard />} />
           <Route path="/tree-map" element={<TreeMap />} />
           <Route path="/analytics" element={<Navigate to="/intelligence" replace />} />
