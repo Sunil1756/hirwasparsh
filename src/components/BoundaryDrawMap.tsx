@@ -32,26 +32,32 @@ interface Props {
   points: LatLng[];
   onChange: (pts: LatLng[]) => void;
   center: LatLng;
-  height?: number;
+  height?: string | number;
   onNext?: () => void;
   onUseGps?: () => void;
 }
 
-const BoundaryDrawMap = ({ points, onChange, center, height = 380, onNext, onUseGps }: Props) => {
+const BoundaryDrawMap = ({ points, onChange, center, height, onNext, onUseGps }: Props) => {
   const areas = useMemo(() => computeAreas(points), [points]);
   const canProceed = points.length >= 3;
+  const mapHeight = height ?? "min(70vh, 720px)";
 
   return (
-    <div className="relative rounded-xl overflow-hidden border border-border/40">
+    <div className="relative w-full rounded-xl overflow-hidden border border-border/40" style={{ minHeight: mapHeight }}>
       <MapContainer
         center={points[0] ?? center}
         zoom={points.length ? 16 : 6}
         scrollWheelZoom
-        style={{ height, width: "100%" }}
+        style={{ height: mapHeight, width: "100%" }}
       >
         <TileLayer
           attribution="Tiles &copy; Esri"
           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+          maxZoom={19}
+        />
+        {/* Hybrid label overlay: place names, roads and district borders */}
+        <TileLayer
+          url="https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
           maxZoom={19}
         />
         <ClickCatcher onAdd={(pt) => onChange([...points, pt])} />
@@ -75,57 +81,56 @@ const BoundaryDrawMap = ({ points, onChange, center, height = 380, onNext, onUse
         ))}
       </MapContainer>
 
-      {/* Floating control bar */}
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] flex flex-wrap items-center justify-center gap-2 rounded-full bg-card/85 backdrop-blur-xl border border-border/40 shadow-lg px-2 py-1.5">
+      {/* Compact toolbar docked top-right */}
+      <div className="absolute top-2 right-2 z-[1000] flex items-center gap-1 rounded-full bg-card/90 backdrop-blur-xl border border-border/40 shadow-md px-1.5 py-1">
         <Button
           type="button"
           size="sm"
           variant="ghost"
-          className="h-8 rounded-full px-3"
+          className="h-8 rounded-full px-2.5 text-xs"
           disabled={points.length === 0}
           onClick={() => onChange(points.slice(0, -1))}
         >
-          <Undo2 className="h-4 w-4 mr-1.5" /> Undo
+          <Undo2 className="h-4 w-4 sm:mr-1.5" /> <span className="hidden sm:inline">Undo</span>
         </Button>
         <Button
           type="button"
           size="sm"
           variant="ghost"
-          className="h-8 rounded-full px-3"
+          className="h-8 rounded-full px-2.5 text-xs"
           disabled={points.length === 0}
           onClick={() => onChange([])}
         >
-          <Trash2 className="h-4 w-4 mr-1.5" /> Clear
+          <Trash2 className="h-4 w-4 sm:mr-1.5" /> <span className="hidden sm:inline">Clear</span>
         </Button>
         {onUseGps && (
-          <Button type="button" size="sm" variant="ghost" className="h-8 rounded-full px-3" onClick={onUseGps}>
-            <MapPin className="h-4 w-4 mr-1.5" /> GPS
+          <Button type="button" size="sm" variant="ghost" className="h-8 rounded-full px-2.5 text-xs" onClick={onUseGps}>
+            <MapPin className="h-4 w-4 sm:mr-1.5" /> <span className="hidden sm:inline">GPS</span>
           </Button>
         )}
         {onNext && (
-          <Button type="button" size="sm" className="h-8 rounded-full px-4" disabled={!canProceed} onClick={onNext}>
-            Next <ArrowRight className="h-4 w-4 ml-1.5" />
+          <Button type="button" size="sm" className="h-8 rounded-full px-3 text-xs" disabled={!canProceed} onClick={onNext}>
+            Next <ArrowRight className="h-4 w-4 ml-1" />
           </Button>
         )}
       </div>
 
-      {/* Floating bottom area card */}
-      <div className="absolute bottom-3 left-3 right-3 z-[1000] rounded-2xl bg-card/85 backdrop-blur-xl border border-border/40 shadow-lg px-4 py-3 flex items-center justify-between gap-4">
-        <div>
-          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Enclosed area</div>
-          <div className="font-heading text-lg font-bold text-primary leading-tight">
-            {areas.acres.toFixed(2)} acres
-          </div>
-          <div className="text-xs text-muted-foreground">{areas.hectares.toFixed(3)} hectares</div>
-        </div>
-        <div className="text-right">
-          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Points</div>
-          <div className="font-heading text-lg font-bold">{points.length}</div>
-          {!canProceed && <div className="text-[11px] text-muted-foreground">Tap map to add 3+</div>}
-        </div>
+      {/* Slim bottom summary strip */}
+      <div className="absolute bottom-2 left-2 right-2 z-[1000] rounded-full bg-card/90 backdrop-blur-xl border border-border/40 shadow-md px-4 py-2 flex items-center justify-between gap-3 text-xs">
+        <span className="truncate">
+          <span className="text-muted-foreground">Area </span>
+          <span className="font-heading font-bold text-primary">{areas.acres.toFixed(2)} ac</span>
+          <span className="text-muted-foreground"> · {areas.hectares.toFixed(3)} ha</span>
+        </span>
+        <span className="shrink-0">
+          <span className="text-muted-foreground">Points </span>
+          <span className="font-heading font-bold">{points.length}</span>
+          {!canProceed && <span className="text-muted-foreground"> · tap to add 3+</span>}
+        </span>
       </div>
     </div>
   );
 };
+
 
 export default BoundaryDrawMap;
