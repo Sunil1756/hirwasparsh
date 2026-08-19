@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
+import { diagnoseTreeAI, getSeasonalCareAI } from "@/lib/gemini";
 import { compressImage } from "@/lib/imageProcessing";
 import { nearbyNativeSuggestions } from "@/lib/treeIntelligence";
 import { useToast } from "@/hooks/use-toast";
@@ -95,24 +96,39 @@ const AICareAssistant = () => {
     setLoading(true);
     setResult(null);
     try {
-      const payload: Record<string, unknown> = {
-        mode,
-        species,
-        location,
-        ageMonths: ageMonths ? Number(ageMonths) : undefined,
-      };
       if (mode === "diagnose") {
-        payload.imageBase64 = await toBase64(file!);
-        payload.symptoms = symptoms;
+        const b64 = await toBase64(file!);
+        const res = await diagnoseTreeAI({
+          imageBase64: b64,
+          species,
+          symptoms,
+          ageMonths: ageMonths ? Number(ageMonths) : undefined,
+          location,
+        });
+        setResult(res);
+        setResultMode("diagnose");
+      } else if (mode === "seasonal") {
+        const res = await getSeasonalCareAI({
+          species,
+          ageMonths: ageMonths ? Number(ageMonths) : undefined,
+          location,
+        });
+        setResult(res);
+        setResultMode("seasonal");
+      } else {
+        const payload: Record<string, unknown> = {
+          mode,
+          species,
+          location,
+          goal,
+          space,
+        };
+        const { data, error } = await supabase.functions.invoke("tree-assistant", { body: payload });
+        if (error) throw error;
+        if ((data as any)?.error) throw new Error((data as any).error);
+        setResult((data as any).result);
+        setResultMode(mode);
       }
-      if (mode === "seasonal") payload.month = new Date().toLocaleString("en-IN", { month: "long" });
-      if (mode === "recommend") { payload.goal = goal; payload.space = space; }
-
-      const { data, error } = await supabase.functions.invoke("tree-assistant", { body: payload });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
-      setResult((data as any).result);
-      setResultMode(mode);
     } catch (e: any) {
       toast({ title: "Assistant unavailable", description: e?.message || "Please try again in a moment.", variant: "destructive" });
     } finally {

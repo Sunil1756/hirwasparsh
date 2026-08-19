@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSearchParams } from "react-router-dom";
 import exifr from "exifr";
 import { compressImage, sha256File } from "@/lib/imageProcessing";
+import { detectSpeciesAI } from "@/lib/gemini";
 
 type NearbyTree = {
   id: string; tree_name: string; species: string; user_id: string;
@@ -172,10 +173,8 @@ const PlantTree = () => {
     setSpeciesConfirmed(false);
     try {
       const imageBase64 = await fileToBase64(file);
-      const { data, error } = await supabase.functions.invoke("detect-species", { body: { imageBase64 } });
-      if (error) throw error;
-      const detection = data as SpeciesDetection;
-      setSpeciesDetection(detection);
+      const detection = await detectSpeciesAI(imageBase64);
+      setSpeciesDetection(detection as SpeciesDetection);
       setSpecies(detection.common_name);
       toast({ title: "🤖 Species Detected!", description: `${detection.common_name} (${detection.confidence}% confidence)` });
     } catch {
