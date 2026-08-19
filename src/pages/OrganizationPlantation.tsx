@@ -462,28 +462,15 @@ const OrganizationPlantation = () => {
                   <Label>Plantation location *</Label>
                   <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Village / taluka / district" />
                 </div>
-                <div className="rounded-xl overflow-hidden border border-border/40">
-                  <MapContainer center={boundary[0] ?? MH_CENTER} zoom={boundary.length ? 15 : 6} style={{ height: 320, width: "100%" }}>
-                    <TileLayer
-                      url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                      attribution="Esri"
-                    />
-                    {boundary.length >= 3 && <Polygon positions={boundary} pathOptions={{ color: "#4CAF50" }} />}
-                    {boundary.map((pt, i) => <Marker key={i} position={pt} />)}
-                  </MapContainer>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="outline" onClick={useMyLocation}>
-                    <MapPin className="h-4 w-4 mr-2" /> Add boundary point (my GPS)
-                  </Button>
-                  {boundary.length > 0 && (
-                    <Button type="button" variant="ghost" onClick={() => setBoundary([])}>
-                      <Trash2 className="h-4 w-4 mr-2" /> Clear ({boundary.length})
-                    </Button>
-                  )}
-                </div>
+                <BoundaryDrawMap
+                  points={boundary}
+                  onChange={setBoundary}
+                  center={MH_CENTER as [number, number]}
+                  onUseGps={useMyLocation}
+                  onNext={() => setStep((s) => s + 1)}
+                />
                 <p className="text-xs text-muted-foreground">
-                  Walk the site perimeter and add at least 3 points to record the plantation boundary.
+                  Tap the map to drop boundary pins, or use GPS while walking the site perimeter. At least 3 points are required.
                 </p>
               </div>
             )}
