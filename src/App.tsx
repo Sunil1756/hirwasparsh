@@ -9,6 +9,8 @@ import Footer from "@/components/Footer";
 import Index from "./pages/Index";
 import About from "./pages/About";
 import PlantTree from "./pages/PlantTree";
+import PlantChooser from "./pages/PlantChooser";
+import OrganizationPlantation from "./pages/OrganizationPlantation";
 import CommunityDashboard from "./pages/CommunityDashboard";
 import TreeMap from "./pages/TreeMap";
 import Analytics from "./pages/Analytics";
