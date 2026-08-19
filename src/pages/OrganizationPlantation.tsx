@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { MapContainer, TileLayer, Polygon, Marker } from "react-leaflet";
+import BoundaryDrawMap from "@/components/BoundaryDrawMap";
 import {
   Building2, MapPin, Target, Leaf, Upload, Camera, Satellite, Bot, ShieldCheck,
   FileText, Activity, Loader2, Plus, ArrowLeft, ArrowRight, Trash2, CheckCircle2,
