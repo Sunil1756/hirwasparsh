@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSearchParams } from "react-router-dom";
 import exifr from "exifr";
 import { compressImage, sha256File } from "@/lib/imageProcessing";
-import { detectSpeciesAI } from "@/lib/gemini";
+import { detectSpeciesAI, screenTreeImageWithAI } from "@/lib/gemini";
 import { enqueueOfflineTree } from "@/lib/offlineSyncService";
 import { VernacularVoiceAssistant } from "@/components/VernacularVoiceAssistant";
 
@@ -71,8 +71,13 @@ const PlantTree = () => {
   // EXIF warnings
   const [exifWarnings, setExifWarnings] = useState<string[]>([]);
 
-  // AI species detection
+  // AI species detection & anti-fraud screening
   const [speciesDetection, setSpeciesDetection] = useState<SpeciesDetection | null>(null);
+  const [aiScreeningResult, setAiScreeningResult] = useState<{
+    isValidTreePhoto: boolean;
+    rejectionReason: string | null;
+    detectedSubject: string;
+  } | null>(null);
   const [isDetecting, setIsDetecting] = useState(false);
   const [speciesConfirmed, setSpeciesConfirmed] = useState(false);
 
@@ -173,14 +178,40 @@ const PlantTree = () => {
     setIsDetecting(true);
     setSpeciesDetection(null);
     setSpeciesConfirmed(false);
+    setAiScreeningResult(null);
     try {
       const imageBase64 = await fileToBase64(file);
+
+      // 1. Strict AI Anti-Fraud / Non-tree screening gatekeeper
+      try {
+        const screenRes = await screenTreeImageWithAI(imageBase64);
+        setAiScreeningResult(screenRes);
+        if (!screenRes.isValidTreePhoto) {
+          toast({
+            title: "❌ Invalid Tree Photo Detected",
+            description: screenRes.rejectionReason || "Please upload a photo of a real living tree or planted sapling.",
+            variant: "destructive",
+          });
+          setIsDetecting(false);
+          return;
+        }
+      } catch (screenErr) {
+        console.warn("Screening check warning:", screenErr);
+      }
+
+      // 2. Botanical Species Detection
       const detection = await detectSpeciesAI(imageBase64);
       setSpeciesDetection(detection as SpeciesDetection);
       setSpecies(detection.common_name);
-      toast({ title: "🤖 Species Detected!", description: `${detection.common_name} (${detection.confidence}% confidence)` });
+      toast({
+        title: "🤖 Living Tree Verified & Species Detected!",
+        description: `${detection.common_name} (${detection.confidence}% confidence)`,
+      });
     } catch {
-      toast({ title: "AI Detection Failed", description: "Please enter the species manually.", variant: "destructive" });
+      toast({
+        title: "Species Identification",
+        description: "Please confirm or enter the species name below.",
+      });
     } finally {
       setIsDetecting(false);
     }
@@ -599,6 +630,27 @@ const PlantTree = () => {
                 <span className="text-sm font-medium">AI is analyzing the tree species...</span>
               </div>
             </div>
+          )}
+
+          {/* AI Auto-Reject Screening Alert */}
+          {aiScreeningResult && !aiScreeningResult.isValidTreePhoto && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-4 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive mb-6 space-y-2"
+            >
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <AlertTriangle className="h-5 w-5 shrink-0" />
+                <span>Auto-Reject Warning: Non-Tree Image Detected</span>
+              </div>
+              <p className="text-xs text-foreground/90">
+                {aiScreeningResult.rejectionReason ||
+                  "The uploaded image does not appear to show a living tree sapling planted outdoors."}
+              </p>
+              <div className="text-[11px] text-muted-foreground">
+                AI Detected Subject: <strong>{aiScreeningResult.detectedSubject}</strong>. Please take a fresh photo of the planted tree.
+              </div>
+            </motion.div>
           )}
 
           {speciesDetection && !isDetecting && (
