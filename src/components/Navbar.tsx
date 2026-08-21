@@ -23,17 +23,17 @@ const Navbar = () => {
 
   const navLinks = [
     { to: "/", label: "Home" },
-    { to: "/about", label: "About" },
+    { to: "/satellite", label: "🛰️ Satellite & GIS" },
+    { to: "/tree-map", label: "Tree Map" },
     { to: "/plant", label: "Plant a Tree" },
     { to: "/dashboard", label: "Dashboard" },
     { to: "/growth-updates", label: "Growth" },
-    { to: "/tree-map", label: "Tree Map" },
-    { to: "/drives", label: "Drives" },
     { to: "/intelligence", label: "AI Intelligence" },
+    { to: "/drives", label: "Drives" },
     { to: "/leaderboard", label: "Leaderboard" },
-    { to: "/contact", label: "Contact" },
     { to: "/challenges", label: "Challenges" },
     { to: "/green-impact", label: "Green Impact" },
+    { to: "/about", label: "About" },
   ];
 
   const displayName = (user?.user_metadata?.full_name as string) || user?.email || "";

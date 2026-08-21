@@ -16,6 +16,9 @@ import { useQuery } from "@tanstack/react-query";
 import { MapContainer, TileLayer, Marker, Popup, Polygon, Circle } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { CanopyNDVITimeSeriesChart } from "@/components/CanopyNDVITimeSeriesChart";
+import { AllometricCarbonCalculator } from "@/components/AllometricCarbonCalculator";
+import { FieldScoutingModule } from "@/components/FieldScoutingModule";
 
 // Glowing pulse marker via DivIcon
 const makeGlowIcon = (color: string) =>
@@ -355,6 +358,23 @@ const TreeMap = () => {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Map My Crop Advanced Agroforestry Telemetry Suite */}
+          <div className="mt-12 space-y-8">
+            <div className="border-t border-primary/20 pt-8">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                <h2 className="font-heading text-2xl font-bold">Map My Crop Agroforestry Telemetry Suite</h2>
+              </div>
+              <p className="text-sm text-muted-foreground mb-6">
+                Multi-spectral time-series canopy curves, IPCC allometric carbon modeling, and field scouting anomaly dispatch.
+              </p>
+            </div>
+
+            <CanopyNDVITimeSeriesChart initialTreeCount={trees.length > 0 ? trees.length * 10 : 3500} />
+            <AllometricCarbonCalculator />
+            <FieldScoutingModule />
           </div>
         </motion.div>
       </div>
