@@ -118,18 +118,6 @@ const Navbar = () => {
               <Shield className="h-3 w-3" /> Admin
             </Link>
           )}
-          {(isGovernment || isAdmin) && (
-            <Link
-              to="/government"
-              className={`px-2 py-2 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
-                location.pathname === "/government"
-                  ? "text-primary bg-primary/10"
-                  : "text-muted-foreground hover:text-primary hover:bg-primary/5"
-              }`}
-            >
-              <Building2 className="h-3 w-3" /> Govt
-            </Link>
-          )}
         </div>
 
         {/* Right Side Action Controls */}
@@ -182,13 +170,6 @@ const Navbar = () => {
                     <DropdownMenuItem asChild>
                       <Link to="/admin">
                         <Shield className="h-4 w-4 mr-2" /> Admin Dashboard
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  {(isGovernment || isAdmin) && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/government">
-                        <Building2 className="h-4 w-4 mr-2" /> Government
                       </Link>
                     </DropdownMenuItem>
                   )}
@@ -283,15 +264,6 @@ const Navbar = () => {
                   className="px-3 py-2 rounded-xl text-xs font-medium text-primary hover:bg-primary/10 flex items-center gap-1.5 mt-1"
                 >
                   <Shield className="h-3.5 w-3.5" /> Admin Dashboard
-                </Link>
-              )}
-              {(isGovernment || isAdmin) && (
-                <Link
-                  to="/government"
-                  onClick={() => setOpen(false)}
-                  className="px-3 py-2 rounded-xl text-xs font-medium text-sky-600 dark:text-sky-400 hover:bg-sky-500/10 flex items-center gap-1.5"
-                >
-                  <Building2 className="h-3.5 w-3.5" /> Government Dashboard
                 </Link>
               )}
 
