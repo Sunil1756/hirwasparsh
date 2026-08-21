@@ -180,7 +180,9 @@ const TreeStory = () => {
     if (platform === "native" && navigator.share) {
       try {
         await navigator.share({ title: "My Tree Story", text, url });
-      } catch {}
+      } catch (err) {
+        console.debug("Native share cancelled or failed:", err);
+      }
       return;
     }
 

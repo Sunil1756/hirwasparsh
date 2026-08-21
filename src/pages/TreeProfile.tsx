@@ -87,7 +87,11 @@ const TreeProfile = () => {
       link.href = canvas.toDataURL("image/png");
       link.click();
     };
-    img.src = "data:image/svg+xml;base64," + btoa(svgData);
+    try {
+      img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+    } catch {
+      img.src = "data:image/svg+xml;utf8," + encodeURIComponent(svgData);
+    }
   }, [id]);
 
   if (isLoading) {

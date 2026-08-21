@@ -115,7 +115,6 @@ const Intelligence = () => {
     title: "Low-survival region detected",
     detail: `Survival rate ${survivalRate}% — possible drought / neglect risk.`,
   });
-  if (cityRanked.length && cityRanked[0][1] === undefined) {}
   Object.entries(cityMap).forEach(([city, n]) => {
     if (n === 1 && approved.length > 10) alerts.push({
       type: "info", icon: MapPin,

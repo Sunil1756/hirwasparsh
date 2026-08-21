@@ -120,7 +120,7 @@ export function careTips(tree: TreeLike): { watering: string; tips: string[] } {
   const isDrought = /neem|banyan|peepal|acacia|babul|mahogany/i.test(species);
   const isFruit = /mango|guava|jamun|orange|lemon|coconut|banana|papaya/i.test(species);
 
-  let watering = isSapling
+  const watering = isSapling
     ? "Every 2 days, ~5 L per session"
     : isDrought
       ? "Once a week in summer, skip in monsoon"
