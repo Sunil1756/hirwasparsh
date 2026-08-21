@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MapPin, TreePine, Filter, Search, ShieldCheck, Clock, Loader2,
-  Plane, Layers, Activity, Camera, Bot, X, Sparkles, TrendingUp, AlertTriangle
+  Plane, Layers, Activity, Camera, Bot, X, Sparkles, TrendingUp, AlertTriangle, Satellite
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { MapContainer, TileLayer, Marker, Popup, Polygon, Circle } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import SatelliteMonitoring from "./SatelliteMonitoring";
 
 // Glowing pulse marker via DivIcon
 const makeGlowIcon = (color: string) =>
@@ -65,6 +66,7 @@ const healthColor = (h: string) =>
   h === "Good" ? "#22c55e" : h === "Moderate" ? "#f59e0b" : "#ef4444";
 
 const TreeMap = () => {
+  const [activeTab, setActiveTab] = useState<"tree_map" | "satellite_gis">("tree_map");
   const [filter, setFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [stageFilter, setStageFilter] = useState("all");
@@ -131,7 +133,37 @@ const TreeMap = () => {
       `}</style>
 
       <div className="container mx-auto px-4">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        {/* Two-Option Mode Selector */}
+        <div className="flex items-center justify-center gap-2 p-1.5 rounded-2xl bg-muted/70 border border-primary/20 w-fit mx-auto mb-8 shadow-sm">
+          <button
+            onClick={() => setActiveTab("tree_map")}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+              activeTab === "tree_map"
+                ? "bg-primary text-primary-foreground shadow-md"
+                : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+            }`}
+          >
+            <TreePine className="h-4 w-4" />
+            🌳 Interactive Tree Map
+          </button>
+
+          <button
+            onClick={() => setActiveTab("satellite_gis")}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+              activeTab === "satellite_gis"
+                ? "bg-primary text-primary-foreground shadow-md"
+                : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+            }`}
+          >
+            <Satellite className="h-4 w-4" />
+            🛰️ Satellite GIS (Map My Crop)
+          </button>
+        </div>
+
+        {activeTab === "satellite_gis" ? (
+          <SatelliteMonitoring />
+        ) : (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <div className="text-center mb-8">
             <h1 className="font-heading text-4xl font-bold mb-2">Explore Tree Map</h1>
             <p className="text-muted-foreground">Satellite intelligence for every planted tree</p>
@@ -357,6 +389,7 @@ const TreeMap = () => {
             )}
           </div>
         </motion.div>
+        )}
       </div>
 
       {/* Drone Survey Modal */}
