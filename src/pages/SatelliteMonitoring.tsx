@@ -150,10 +150,10 @@ const SatelliteMonitoring = () => {
             <div className="flex flex-wrap items-center gap-2">
               <GeminiApiKeyModal />
               <ESGReportModal
-                totalTrees={filteredTrees.length || 150}
-                verifiedTrees={approvedTrees.length || 135}
+                totalTrees={filteredTrees.length}
+                verifiedTrees={approvedTrees.length}
                 organizationName={districtFilter === "all" ? "Maharashtra Green Mission" : `${districtFilter} Agroforestry Network`}
-                co2OffsetKg={totalCo2Kg || 3300}
+                co2OffsetKg={totalCo2Kg}
               />
             </div>
           </div>
@@ -190,8 +190,8 @@ const SatelliteMonitoring = () => {
             {[
               { label: "Total Plantations", value: filteredTrees.length.toLocaleString() },
               { label: "Verified Healthy", value: approvedTrees.length.toLocaleString() },
-              { label: "Survival Rate", value: filteredTrees.length > 0 ? `${Math.round((approvedTrees.length / filteredTrees.length) * 100)}%` : "92%" },
-              { label: "Annual Carbon Offset", value: `${((totalCo2Kg || 3300) / 1000).toFixed(1)} MT CO₂e` },
+              { label: "Survival Rate", value: filteredTrees.length > 0 ? `${Math.round((approvedTrees.length / filteredTrees.length) * 100)}%` : "0%" },
+              { label: "Annual Carbon Offset", value: `${(totalCo2Kg / 1000).toFixed(2)} MT CO₂e` },
             ].map((s, i) => (
               <div key={i} className="glass-card rounded-2xl p-4 text-center border border-primary/10">
                 <div className="text-xs text-muted-foreground">{s.label}</div>

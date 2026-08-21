@@ -23,7 +23,8 @@ const Navbar = () => {
 
   const navLinks = [
     { to: "/", label: "Home" },
-    { to: "/tree-map", label: "🗺️ Tree Map & GIS" },
+    { to: "/tree-map", label: "Tree Map" },
+    { to: "/satellite", label: "🛰️ Satellite & GIS" },
     { to: "/plant", label: "Plant a Tree" },
     { to: "/dashboard", label: "Dashboard" },
     { to: "/growth-updates", label: "Growth" },
@@ -33,6 +34,7 @@ const Navbar = () => {
     { to: "/challenges", label: "Challenges" },
     { to: "/green-impact", label: "Green Impact" },
     { to: "/about", label: "About" },
+    { to: "/contact", label: "Contact" },
   ];
 
   const displayName = (user?.user_metadata?.full_name as string) || user?.email || "";
