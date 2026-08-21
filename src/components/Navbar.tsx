@@ -23,8 +23,7 @@ const Navbar = () => {
 
   const navLinks = [
     { to: "/", label: "Home" },
-    { to: "/satellite", label: "🛰️ Satellite & GIS" },
-    { to: "/tree-map", label: "Tree Map" },
+    { to: "/tree-map", label: "🗺️ Tree Map & GIS" },
     { to: "/plant", label: "Plant a Tree" },
     { to: "/dashboard", label: "Dashboard" },
     { to: "/growth-updates", label: "Growth" },
