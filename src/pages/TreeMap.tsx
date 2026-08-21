@@ -1,21 +1,44 @@
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  MapPin, TreePine, Filter, Search, ShieldCheck, Clock, Loader2,
-  Plane, Layers, Activity, Camera, Bot, X, Sparkles, TrendingUp, AlertTriangle, Satellite, ShieldAlert
+  MapPin,
+  TreePine,
+  Filter,
+  Search,
+  ShieldCheck,
+  Clock,
+  Loader2,
+  Layers,
+  Activity,
+  Sparkles,
+  TrendingUp,
+  AlertTriangle,
+  Satellite,
+  ShieldAlert,
+  Calendar,
+  X,
+  ExternalLink,
+  Compass,
+  CheckCircle2,
+  Ruler,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { MapContainer, TileLayer, Marker, Popup, Polygon, Circle } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from "react-leaflet";
 import L from "leaflet";
-import SatelliteMonitoring from "./SatelliteMonitoring";
 import { FieldScoutingModule } from "@/components/FieldScoutingModule";
 import { ModuleASatelliteEngine } from "@/components/ModuleASatelliteEngine";
 
@@ -32,113 +55,143 @@ const makeGlowIcon = (color: string) =>
 const verifiedIcon = makeGlowIcon("#22c55e");
 const pendingIcon = makeGlowIcon("#f59e0b");
 const rejectedIcon = makeGlowIcon("#ef4444");
+
 const getIcon = (status: string) =>
   status === "verified" ? verifiedIcon : status === "rejected" ? rejectedIcon : pendingIcon;
+
+// Map tile layer options
+const BASEMAP_TILES = {
+  satellite: {
+    name: "Satellite (ESRI)",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attribution: "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community",
+  },
+  osm: {
+    name: "Standard OpenStreetMap",
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution: "&copy; OpenStreetMap contributors",
+  },
+  topo: {
+    name: "Topographic Relief",
+    url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+    attribution: "Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap",
+  },
+};
 
 const fetchTrees = async () => {
   const { data, error } = await supabase
     .from("trees")
-    .select("id, tree_name, species, location, latitude, longitude, verification_status, admin_status, ai_confidence, created_at, photo_url, height_cm")
+    .select(
+      "id, tree_name, species, location, latitude, longitude, verification_status, admin_status, ai_confidence, created_at, photo_url, height_cm"
+    )
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return data;
+  return data || [];
 };
 
-// Mock drone survey polygons over Maharashtra
-const droneZones: { name: string; coords: [number, number][]; health: "Good" | "Moderate" | "Critical"; density: number; survival: number }[] = [
-  {
-    name: "Pune Sector A",
-    coords: [[18.62, 73.78], [18.62, 73.95], [18.48, 73.95], [18.48, 73.78]],
-    health: "Good", density: 412, survival: 87,
-  },
-  {
-    name: "Solapur Belt",
-    coords: [[17.75, 75.85], [17.75, 76.05], [17.62, 76.05], [17.62, 75.85]],
-    health: "Moderate", density: 268, survival: 71,
-  },
-  {
-    name: "Nagpur Greenway",
-    coords: [[21.20, 79.00], [21.20, 79.18], [21.08, 79.18], [21.08, 79.00]],
-    health: "Critical", density: 132, survival: 48,
-  },
-];
-
-const healthColor = (h: string) =>
-  h === "Good" ? "#22c55e" : h === "Moderate" ? "#f59e0b" : "#ef4444";
+// Component to handle auto-panning map when filtered trees change
+function MapCenterController({ center, zoom }: { center: [number, number]; zoom: number }) {
+  const map = useMap();
+  useMemo(() => {
+    map.setView(center, zoom);
+  }, [center, zoom, map]);
+  return null;
+}
 
 const TreeMap = () => {
-  const [activeTab, setActiveTab] = useState<"tree_map" | "satellite_ndvi" | "field_scouting">("tree_map");
+  const [activeTab, setActiveTab] = useState<"tree_map" | "satellite_ndvi" | "field_scouting">(
+    "tree_map"
+  );
   const [filter, setFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [stageFilter, setStageFilter] = useState("all");
   const [speciesFilter, setSpeciesFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
-  const [droneOnly, setDroneOnly] = useState(false);
-  const [showDronePanel, setShowDronePanel] = useState(false);
-  const [showCoverage, setShowCoverage] = useState(true);
+  const [basemap, setBasemap] = useState<"satellite" | "osm" | "topo">("satellite");
+  const [showProximityRings, setShowProximityRings] = useState(true);
 
-  const { data: trees = [], isLoading } = useQuery({ queryKey: ["trees"], queryFn: fetchTrees });
+  const { data: trees = [], isLoading } = useQuery({
+    queryKey: ["trees"],
+    queryFn: fetchTrees,
+  });
 
   const speciesOptions = useMemo(
     () => Array.from(new Set(trees.map((t) => t.species).filter(Boolean))).sort(),
-    [trees],
+    [trees]
   );
 
-  const filtered = useMemo(() => trees.filter(t => {
-    const stageOk =
-      stageFilter === "all" ||
-      (stageFilter === "sapling" && (t.height_cm ?? 0) < 100) ||
-      (stageFilter === "young" && (t.height_cm ?? 0) >= 100 && (t.height_cm ?? 0) < 300) ||
-      (stageFilter === "mature" && (t.height_cm ?? 0) >= 300);
-    const speciesOk = speciesFilter === "all" || t.species === speciesFilter;
-    const dateOk = (() => {
-      if (dateFilter === "all") return true;
-      const days = dateFilter === "7d" ? 7 : dateFilter === "30d" ? 30 : 90;
-      const cutoff = Date.now() - days * 86400000;
-      return new Date(t.created_at).getTime() >= cutoff;
-    })();
-    const inDrone = droneZones.some(z => {
-      if (!t.latitude || !t.longitude) return false;
-      const lats = z.coords.map(c => c[0]); const lngs = z.coords.map(c => c[1]);
-      return t.latitude >= Math.min(...lats) && t.latitude <= Math.max(...lats)
-        && t.longitude >= Math.min(...lngs) && t.longitude <= Math.max(...lngs);
-    });
-    return (statusFilter === "all" || t.verification_status === statusFilter)
-      && stageOk && speciesOk && dateOk
-      && (!droneOnly || inDrone)
-      && (filter === "" ||
+  const filtered = useMemo(() => {
+    return trees.filter((t) => {
+      const stageOk =
+        stageFilter === "all" ||
+        (stageFilter === "sapling" && (t.height_cm ?? 0) < 100) ||
+        (stageFilter === "young" && (t.height_cm ?? 0) >= 100 && (t.height_cm ?? 0) < 300) ||
+        (stageFilter === "mature" && (t.height_cm ?? 0) >= 300);
+
+      const speciesOk = speciesFilter === "all" || t.species === speciesFilter;
+
+      const dateOk = (() => {
+        if (dateFilter === "all") return true;
+        const days = dateFilter === "7d" ? 7 : dateFilter === "30d" ? 30 : 90;
+        const cutoff = Date.now() - days * 86400000;
+        return new Date(t.created_at).getTime() >= cutoff;
+      })();
+
+      const statusOk = statusFilter === "all" || t.verification_status === statusFilter;
+
+      const textMatch =
+        filter === "" ||
         t.tree_name.toLowerCase().includes(filter.toLowerCase()) ||
         t.species.toLowerCase().includes(filter.toLowerCase()) ||
-        t.location.toLowerCase().includes(filter.toLowerCase()));
-  }), [trees, statusFilter, stageFilter, speciesFilter, dateFilter, droneOnly, filter]);
+        t.location.toLowerCase().includes(filter.toLowerCase());
 
-  const treesWithCoords = filtered.filter(t => t.latitude && t.longitude);
-  const center: [number, number] = treesWithCoords.length > 0
-    ? [treesWithCoords[0].latitude!, treesWithCoords[0].longitude!]
-    : [19.7515, 75.7139];
+      return statusOk && stageOk && speciesOk && dateOk && textMatch;
+    });
+  }, [trees, statusFilter, stageFilter, speciesFilter, dateFilter, filter]);
 
-  const verifiedCount = trees.filter(t => t.verification_status === "verified").length;
-  const avgSurvival = Math.round(droneZones.reduce((s, z) => s + z.survival, 0) / droneZones.length);
+  const treesWithCoords = useMemo(
+    () => filtered.filter((t) => t.latitude && t.longitude),
+    [filtered]
+  );
+
+  const center: [number, number] = useMemo(() => {
+    if (treesWithCoords.length > 0) {
+      return [treesWithCoords[0].latitude!, treesWithCoords[0].longitude!];
+    }
+    return [19.7515, 75.7139]; // Central Maharashtra coordinates
+  }, [treesWithCoords]);
+
+  const verifiedTrees = useMemo(
+    () => trees.filter((t) => t.verification_status === "verified"),
+    [trees]
+  );
+
+  const pendingTrees = useMemo(
+    () => trees.filter((t) => t.verification_status === "pending" || !t.verification_status),
+    [trees]
+  );
+
+  const totalCo2Kg = verifiedTrees.length * 22; // ~22 kg/tree/year average sequestration
 
   return (
     <div className="min-h-screen pt-24 pb-12">
-      {/* Inline styles for glow markers + tint */}
+      {/* Inline styles for glow markers */}
       <style>{`
         .tree-glow-marker { position:relative; width:22px; height:22px; }
         .tgm-dot { position:absolute; inset:6px; border-radius:9999px; background:var(--c); box-shadow:0 0 12px var(--c), 0 0 4px #fff inset; }
         .tgm-pulse { position:absolute; inset:0; border-radius:9999px; background:var(--c); opacity:.55; animation: tgm-pulse 2.2s ease-out infinite; }
         @keyframes tgm-pulse { 0%{transform:scale(.6);opacity:.7} 80%{transform:scale(2.2);opacity:0} 100%{opacity:0} }
-        .map-tint { position:absolute; inset:0; pointer-events:none; background:radial-gradient(ellipse at center, hsl(125 56% 24% / 0.08), hsl(125 56% 12% / 0.18)); mix-blend-mode:multiply; z-index:400; }
-        .leaflet-popup-content-wrapper { background:hsl(0 0% 100% / .85); backdrop-filter:blur(10px); border:1px solid hsl(125 40% 60% / .3); border-radius:14px; box-shadow:0 10px 30px hsl(125 56% 24% / .25); }
-        .leaflet-popup-tip { background:hsl(0 0% 100% / .85); }
+        .leaflet-popup-content-wrapper { background:hsl(var(--background) / .92); backdrop-filter:blur(12px); border:1px solid hsl(var(--primary) / .3); border-radius:16px; box-shadow:0 12px 36px rgba(0,0,0,0.25); color:hsl(var(--foreground)); }
+        .leaflet-popup-tip { background:hsl(var(--background) / .92); }
       `}</style>
 
       <div className="container mx-auto px-4">
         {/* 3-Option Sub-Navigation Tabs */}
         <div className="flex flex-wrap items-center justify-center gap-2 p-1.5 rounded-2xl bg-muted/70 border border-primary/20 w-fit mx-auto mb-8 shadow-sm">
           <button
+            type="button"
             onClick={() => setActiveTab("tree_map")}
-            className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+            className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
               activeTab === "tree_map"
                 ? "bg-primary text-primary-foreground shadow-md"
                 : "text-muted-foreground hover:text-foreground hover:bg-background/60"
@@ -149,8 +202,9 @@ const TreeMap = () => {
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab("satellite_ndvi")}
-            className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+            className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
               activeTab === "satellite_ndvi"
                 ? "bg-primary text-primary-foreground shadow-md"
                 : "text-muted-foreground hover:text-foreground hover:bg-background/60"
@@ -161,15 +215,16 @@ const TreeMap = () => {
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab("field_scouting")}
-            className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+            className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
               activeTab === "field_scouting"
                 ? "bg-primary text-primary-foreground shadow-md"
                 : "text-muted-foreground hover:text-foreground hover:bg-background/60"
             }`}
           >
             <ShieldAlert className="h-4 w-4" />
-            📍 Field Scouting (Module B)
+            📍 Field Scouting Matrix (Module B)
           </button>
         </div>
 
@@ -180,332 +235,431 @@ const TreeMap = () => {
         ) : activeTab === "field_scouting" ? (
           <div className="space-y-6">
             <div className="text-center mb-6">
-              <h2 className="font-heading text-3xl font-bold">Field Scouting & Anomaly Telemetry</h2>
-              <p className="text-sm text-muted-foreground">Geotag ground truth observations, pest & disease detection, and assign remediation tasks.</p>
+              <h2 className="font-heading text-3xl font-bold">Field Scouting & Anomaly Matrix</h2>
+              <p className="text-sm text-muted-foreground">
+                Geotag ground truth observations, pest & disease detection, and assign remediation tasks.
+              </p>
             </div>
             <FieldScoutingModule />
           </div>
         ) : (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="text-center mb-8">
-            <h1 className="font-heading text-4xl font-bold mb-2">Explore Tree Map</h1>
-            <p className="text-muted-foreground">Satellite intelligence for every planted tree</p>
-          </div>
-
-          <div className="grid lg:grid-cols-[300px_1fr] gap-6">
-            {/* Filter panel */}
-            <aside className="glass-card rounded-2xl p-5 h-fit space-y-5 lg:sticky lg:top-24">
-              <div className="flex items-center gap-2 text-primary">
-                <Filter className="h-4 w-4" />
-                <h3 className="font-heading font-semibold">Filters</h3>
-              </div>
-
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search trees..." className="pl-10 rounded-xl" value={filter} onChange={e => setFilter(e.target.value)} />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs uppercase tracking-wide text-muted-foreground">Verification</Label>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="verified">Verified</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs uppercase tracking-wide text-muted-foreground">Growth Stage</Label>
-                <Select value={stageFilter} onValueChange={setStageFilter}>
-                  <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Stages</SelectItem>
-                    <SelectItem value="sapling">Sapling (&lt;1m)</SelectItem>
-                    <SelectItem value="young">Young (1–3m)</SelectItem>
-                    <SelectItem value="mature">Mature (3m+)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs uppercase tracking-wide text-muted-foreground">Species</Label>
-                <Select value={speciesFilter} onValueChange={setSpeciesFilter}>
-                  <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-                  <SelectContent className="max-h-72">
-                    <SelectItem value="all">All Species</SelectItem>
-                    {speciesOptions.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs uppercase tracking-wide text-muted-foreground">Planted</Label>
-                <Select value={dateFilter} onValueChange={setDateFilter}>
-                  <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Any time</SelectItem>
-                    <SelectItem value="7d">Last 7 days</SelectItem>
-                    <SelectItem value="30d">Last 30 days</SelectItem>
-                    <SelectItem value="90d">Last 90 days</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded-xl bg-primary/5 border border-primary/10">
-                <div className="flex items-center gap-2">
-                  <Plane className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium">Drone surveyed</span>
+            {/* Top KPI Metrics Bar (100% Real Data) */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+              <div className="glass-card rounded-2xl p-4 border border-primary/20 text-center">
+                <div className="text-[11px] text-muted-foreground flex items-center justify-center gap-1">
+                  <TreePine className="h-3.5 w-3.5 text-primary" /> Total Planted Trees
                 </div>
-                <Switch checked={droneOnly} onCheckedChange={setDroneOnly} />
+                <div className="font-heading font-bold text-2xl sm:text-3xl text-foreground mt-1">
+                  {trees.length.toLocaleString()}
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">Live Database Records</div>
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-xl bg-primary/5 border border-primary/10">
-                <div className="flex items-center gap-2">
-                  <Layers className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium">Coverage layer</span>
+              <div className="glass-card rounded-2xl p-4 border border-emerald-500/30 bg-emerald-500/5 text-center">
+                <div className="text-[11px] text-muted-foreground flex items-center justify-center gap-1">
+                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> AI & Admin Verified
                 </div>
-                <Switch checked={showCoverage} onCheckedChange={setShowCoverage} />
-              </div>
-
-              <Button onClick={() => setShowDronePanel(true)} className="w-full rounded-xl gap-2 shadow-lg">
-                <Plane className="h-4 w-4" /> Drone Survey
-              </Button>
-
-              <div className="grid grid-cols-2 gap-2 pt-2">
-                <div className="rounded-xl bg-primary/5 p-3 text-center">
-                  <div className="text-xl font-heading font-bold text-primary">{trees.length}</div>
-                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Trees</div>
+                <div className="font-heading font-bold text-2xl sm:text-3xl text-emerald-600 dark:text-emerald-400 mt-1">
+                  {verifiedTrees.length.toLocaleString()}
                 </div>
-                <div className="rounded-xl bg-primary/5 p-3 text-center">
-                  <div className="text-xl font-heading font-bold text-primary">{verifiedCount}</div>
-                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Verified</div>
+                <div className="text-[10px] text-emerald-600/80 mt-0.5">
+                  {trees.length > 0
+                    ? `${Math.round((verifiedTrees.length / trees.length) * 100)}% Verified`
+                    : "Zero Baseline"}
                 </div>
               </div>
-            </aside>
 
-            {/* Map */}
-            <div className="relative glass-card rounded-2xl overflow-hidden">
-              {isLoading ? (
-                <div className="h-[600px] flex items-center justify-center">
-                  <Loader2 className="h-10 w-10 text-primary animate-spin" />
+              <div className="glass-card rounded-2xl p-4 border border-amber-500/30 bg-amber-500/5 text-center">
+                <div className="text-[11px] text-muted-foreground flex items-center justify-center gap-1">
+                  <Clock className="h-3.5 w-3.5 text-amber-600" /> Pending Verification
+                </div>
+                <div className="font-heading font-bold text-2xl sm:text-3xl text-amber-600 dark:text-amber-400 mt-1">
+                  {pendingTrees.length.toLocaleString()}
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">Awaiting Admin Audit</div>
+              </div>
+
+              <div className="glass-card rounded-2xl p-4 border border-sky-500/30 bg-sky-500/5 text-center">
+                <div className="text-[11px] text-muted-foreground flex items-center justify-center gap-1">
+                  <Sparkles className="h-3.5 w-3.5 text-sky-600" /> Annual CO₂ Offset
+                </div>
+                <div className="font-heading font-bold text-2xl sm:text-3xl text-sky-600 dark:text-sky-400 mt-1">
+                  {(totalCo2Kg / 1000).toFixed(2)} MT
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">IPCC Pantropical Metric</div>
+              </div>
+            </div>
+
+            <div className="grid lg:grid-cols-[310px_1fr] gap-6">
+              {/* Comprehensive GIS & Tree Filter Panel */}
+              <aside className="glass-card rounded-2xl p-5 h-fit space-y-4 lg:sticky lg:top-24 border border-primary/20">
+                <div className="flex items-center justify-between text-primary border-b pb-3">
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4" />
+                    <h3 className="font-heading font-semibold text-sm">Interactive GIS Filters</h3>
+                  </div>
+                  <Badge variant="outline" className="text-[11px] bg-primary/10 border-primary/20">
+                    {filtered.length} of {trees.length}
+                  </Badge>
+                </div>
+
+                {/* Search Bar */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by tree name, species, location..."
+                    className="pl-9 rounded-xl text-xs h-9"
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                  />
+                </div>
+
+                {/* Status Filter */}
+                <div className="space-y-1">
+                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                    Verification Status
+                  </Label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="rounded-xl h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses ({trees.length})</SelectItem>
+                      <SelectItem value="verified">✅ Verified ({verifiedTrees.length})</SelectItem>
+                      <SelectItem value="pending">⏳ Pending Review ({pendingTrees.length})</SelectItem>
+                      <SelectItem value="rejected">❌ Flagged / Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Growth Stage */}
+                <div className="space-y-1">
+                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                    Growth Stage (Height)
+                  </Label>
+                  <Select value={stageFilter} onValueChange={setStageFilter}>
+                    <SelectTrigger className="rounded-xl h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Growth Stages</SelectItem>
+                      <SelectItem value="sapling">🌱 Sapling (&lt; 100 cm)</SelectItem>
+                      <SelectItem value="young">🌿 Young Tree (100–300 cm)</SelectItem>
+                      <SelectItem value="mature">🌳 Mature Canopy (300+ cm)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Native Species Filter */}
+                <div className="space-y-1">
+                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                    Tree Species
+                  </Label>
+                  <Select value={speciesFilter} onValueChange={setSpeciesFilter}>
+                    <SelectTrigger className="rounded-xl h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      <SelectItem value="all">All Planted Species ({speciesOptions.length})</SelectItem>
+                      {speciesOptions.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Plantation Date Filter */}
+                <div className="space-y-1">
+                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                    Plantation Window
+                  </Label>
+                  <Select value={dateFilter} onValueChange={setDateFilter}>
+                    <SelectTrigger className="rounded-xl h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Time History</SelectItem>
+                      <SelectItem value="7d">Last 7 Days</SelectItem>
+                      <SelectItem value="30d">Last 30 Days</SelectItem>
+                      <SelectItem value="90d">Last 90 Days</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Basemap Switcher */}
+                <div className="space-y-1 pt-1">
+                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                    Satellite Basemap Layer
+                  </Label>
+                  <Select
+                    value={basemap}
+                    onValueChange={(val: any) => setBasemap(val)}
+                  >
+                    <SelectTrigger className="rounded-xl h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="satellite">🛰️ High-Res Satellite (ESRI)</SelectItem>
+                      <SelectItem value="osm">🗺️ Standard Street Map (OSM)</SelectItem>
+                      <SelectItem value="topo">⛰️ Topographic Elevation Map</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* 5m Proximity Circle Toggle */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-background/50 border border-primary/15">
+                  <div className="flex items-center gap-2">
+                    <Compass className="h-4 w-4 text-primary" />
+                    <div>
+                      <div className="text-xs font-semibold">5m Proximity Rings</div>
+                      <div className="text-[10px] text-muted-foreground">Anti-crowding buffer</div>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={showProximityRings}
+                    onCheckedChange={setShowProximityRings}
+                  />
+                </div>
+
+                {/* Reset Filters Button */}
+                {(filter ||
+                  statusFilter !== "all" ||
+                  stageFilter !== "all" ||
+                  speciesFilter !== "all" ||
+                  dateFilter !== "all") && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setFilter("");
+                      setStatusFilter("all");
+                      setStageFilter("all");
+                      setSpeciesFilter("all");
+                      setDateFilter("all");
+                    }}
+                    className="w-full text-xs text-muted-foreground hover:text-foreground h-8"
+                  >
+                    <X className="h-3.5 w-3.5 mr-1" /> Reset All Filters
+                  </Button>
+                )}
+              </aside>
+
+              {/* Real Leaflet Map */}
+              <div className="relative glass-card rounded-2xl overflow-hidden border border-primary/20 shadow-md">
+                {isLoading ? (
+                  <div className="h-[620px] flex items-center justify-center">
+                    <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <MapContainer
+                      center={center}
+                      zoom={treesWithCoords.length > 0 ? 8 : 6}
+                      scrollWheelZoom
+                      style={{ height: "620px", width: "100%" }}
+                    >
+                      <TileLayer
+                        attribution={BASEMAP_TILES[basemap].attribution}
+                        url={BASEMAP_TILES[basemap].url}
+                        maxZoom={19}
+                      />
+
+                      <MapCenterController
+                        center={center}
+                        zoom={treesWithCoords.length > 0 ? 8 : 6}
+                      />
+
+                      {treesWithCoords.map((t) => {
+                        const isVerified = t.verification_status === "verified";
+                        const isRejected = t.verification_status === "rejected";
+
+                        return (
+                          <div key={t.id}>
+                            {showProximityRings && (
+                              <Circle
+                                center={[t.latitude!, t.longitude!]}
+                                radius={5}
+                                pathOptions={{
+                                  color: isVerified
+                                    ? "#22c55e"
+                                    : isRejected
+                                    ? "#ef4444"
+                                    : "#f59e0b",
+                                  fillColor: isVerified
+                                    ? "#22c55e"
+                                    : isRejected
+                                    ? "#ef4444"
+                                    : "#f59e0b",
+                                  fillOpacity: 0.12,
+                                  weight: 1.5,
+                                  dashArray: "3 3",
+                                }}
+                              />
+                            )}
+
+                            <Marker
+                              position={[t.latitude!, t.longitude!]}
+                              icon={getIcon(t.verification_status)}
+                            >
+                              <Popup>
+                                <div className="text-xs min-w-[210px] space-y-2 p-1">
+                                  {t.photo_url && (
+                                    <img
+                                      src={t.photo_url}
+                                      alt={t.tree_name}
+                                      className="w-full h-28 object-cover rounded-xl border border-primary/20"
+                                    />
+                                  )}
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div>
+                                      <h4 className="font-heading font-bold text-sm text-foreground">
+                                        {t.tree_name}
+                                      </h4>
+                                      <p className="text-[11px] text-muted-foreground italic">
+                                        {t.species}
+                                      </p>
+                                    </div>
+                                    <Badge
+                                      className={`text-[10px] shrink-0 ${
+                                        isVerified
+                                          ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                                          : isRejected
+                                          ? "bg-destructive/20 text-destructive border-destructive/30"
+                                          : "bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30"
+                                      }`}
+                                    >
+                                      {t.verification_status || "pending"}
+                                    </Badge>
+                                  </div>
+
+                                  <div className="space-y-1 text-[11px] text-muted-foreground pt-1 border-t">
+                                    <div className="flex items-center gap-1">
+                                      <MapPin className="h-3 w-3 text-primary shrink-0" />
+                                      <span className="truncate">{t.location}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <Calendar className="h-3 w-3 text-primary shrink-0" />
+                                      <span>
+                                        {new Date(t.created_at).toLocaleDateString()}
+                                      </span>
+                                    </div>
+                                    {t.height_cm && (
+                                      <div className="flex items-center gap-1">
+                                        <Ruler className="h-3 w-3 text-primary shrink-0" />
+                                        <span>Height: {t.height_cm} cm</span>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <Link
+                                    to={`/tree/${t.id}`}
+                                    className="block pt-1"
+                                  >
+                                    <Button
+                                      size="sm"
+                                      className="w-full text-xs h-7 gap-1 font-semibold rounded-lg"
+                                    >
+                                      <span>View Digital Passport</span>
+                                      <ExternalLink className="h-3 w-3" />
+                                    </Button>
+                                  </Link>
+                                </div>
+                              </Popup>
+                            </Marker>
+                          </div>
+                        );
+                      })}
+                    </MapContainer>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Tree Cards Gallery Below Map */}
+            <div className="mt-8">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-heading font-bold text-xl flex items-center gap-2">
+                  <TreePine className="h-5 w-5 text-primary" />
+                  Planted Tree Registry ({filtered.length})
+                </h3>
+                <Link to="/plant">
+                  <Button size="sm" className="gap-1.5 text-xs font-semibold shadow-sm">
+                    <TreePine className="h-3.5 w-3.5" /> Plant a New Tree
+                  </Button>
+                </Link>
+              </div>
+
+              {filtered.length === 0 ? (
+                <div className="glass-card rounded-2xl p-8 text-center text-muted-foreground">
+                  <TreePine className="h-10 w-10 mx-auto mb-2 opacity-40 text-primary" />
+                  <p className="font-semibold text-foreground">No trees match the selected filters.</p>
+                  <p className="text-xs mt-1">Try resetting the filters or register a new plantation.</p>
                 </div>
               ) : (
-                <div className="relative">
-                  <MapContainer center={center} zoom={treesWithCoords.length > 0 ? 9 : 6} scrollWheelZoom style={{ height: "600px", width: "100%" }}>
-                    <TileLayer
-                      attribution='Tiles &copy; Esri'
-                      url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                      maxZoom={19}
-                    />
-
-                    {showCoverage && droneZones.map(z => (
-                      <Polygon
-                        key={z.name}
-                        positions={z.coords}
-                        pathOptions={{
-                          color: healthColor(z.health),
-                          fillColor: healthColor(z.health),
-                          fillOpacity: 0.18,
-                          weight: 2,
-                          dashArray: "6 6",
-                        }}
-                      >
-                        <Popup>
-                          <div className="text-sm">
-                            <strong>{z.name}</strong><br />
-                            Density: {z.density} trees/km²<br />
-                            Survival: {z.survival}%<br />
-                            Health: <span style={{ color: healthColor(z.health) }}>{z.health}</span>
+                <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {filtered.slice(0, 16).map((t) => (
+                    <Link
+                      key={t.id}
+                      to={`/tree/${t.id}`}
+                      className="glass-card rounded-2xl overflow-hidden border border-primary/15 hover:border-primary/40 hover:shadow-lg transition-all flex flex-col group"
+                    >
+                      <div className="relative aspect-video bg-muted overflow-hidden">
+                        {t.photo_url ? (
+                          <img
+                            src={t.photo_url}
+                            alt={t.tree_name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-primary/5">
+                            <TreePine className="h-8 w-8 text-primary/40" />
                           </div>
-                        </Popup>
-                      </Polygon>
-                    ))}
+                        )}
+                        <Badge
+                          className={`absolute top-2 right-2 text-[10px] capitalize shadow-md ${
+                            t.verification_status === "verified"
+                              ? "bg-emerald-500 text-white"
+                              : t.verification_status === "rejected"
+                              ? "bg-destructive text-white"
+                              : "bg-amber-500 text-white"
+                          }`}
+                        >
+                          {t.verification_status || "pending"}
+                        </Badge>
+                      </div>
 
-                    {treesWithCoords.map(t => {
-                      const stage =
-                        (t.height_cm ?? 0) < 100 ? { label: "🌱 Newly Planted", color: "bg-emerald-500/15 text-emerald-700" }
-                        : (t.height_cm ?? 0) < 300 ? { label: "🌿 Growing", color: "bg-lime-500/15 text-lime-700" }
-                        : { label: "🌳 Mature", color: "bg-green-700/15 text-green-800" };
-                      const verifBadge =
-                        t.verification_status === "verified" ? { label: "✅ Verified", cls: "bg-primary/10 text-primary" }
-                        : t.verification_status === "rejected" ? { label: "❌ Rejected", cls: "bg-destructive/10 text-destructive" }
-                        : (t as any).admin_status === "flagged" ? { label: "🚩 Flagged", cls: "bg-yellow-500/15 text-yellow-700" }
-                        : { label: "⏳ Pending", cls: "bg-amber-500/10 text-amber-700" };
-                      return (
-                        <div key={t.id}>
-                          <Circle center={[t.latitude!, t.longitude!]} radius={5}
-                            pathOptions={{ color: "#ef4444", fillColor: "#ef4444", fillOpacity: 0.08, weight: 1, dashArray: "3 4" }} />
-                          <Circle center={[t.latitude!, t.longitude!]} radius={10}
-                            pathOptions={{ color: "#f59e0b", fillColor: "#f59e0b", fillOpacity: 0.05, weight: 1, dashArray: "2 5" }} />
-                          <Marker position={[t.latitude!, t.longitude!]} icon={getIcon(t.verification_status)}>
-                            <Popup>
-                              <div className="text-sm min-w-[200px]">
-                                {t.photo_url && (
-                                  <img src={t.photo_url} alt={t.tree_name} className="w-full h-28 object-cover rounded-lg mb-2" />
-                                )}
-                                <div className="font-semibold text-base">{t.tree_name}</div>
-                                <div className="text-muted-foreground text-xs">{t.species}</div>
-                                <div className="flex items-center gap-1 text-xs mt-1"><MapPin className="h-3 w-3" /> {t.location}</div>
-                                <div className="flex flex-wrap gap-1 mt-2">
-                                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${stage.color}`}>{stage.label}</span>
-                                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${verifBadge.cls}`}>{verifBadge.label}</span>
-                                </div>
-                                <div className="mt-2 text-right">
-                                  <Link to={`/tree/${t.id}`} className="text-xs text-primary underline">View →</Link>
-                                </div>
-                              </div>
-                            </Popup>
-                          </Marker>
+                      <div className="p-3.5 flex-1 flex flex-col justify-between space-y-2 text-xs">
+                        <div>
+                          <h4 className="font-heading font-bold text-sm text-foreground truncate">
+                            {t.tree_name}
+                          </h4>
+                          <p className="text-muted-foreground italic text-[11px] truncate">
+                            {t.species}
+                          </p>
                         </div>
-                      );
-                    })}
-                  </MapContainer>
-                  <div className="map-tint" />
 
-                  {/* Floating legend */}
-                  <div className="absolute bottom-4 left-4 z-[500] glass-card rounded-xl px-3 py-2 text-xs space-y-1">
-                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#22c55e] shadow-[0_0_8px_#22c55e]" /> Verified</div>
-                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#f59e0b] shadow-[0_0_8px_#f59e0b]" /> Pending / Flagged</div>
-                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#ef4444] shadow-[0_0_8px_#ef4444]" /> Rejected</div>
-                    <div className="border-t border-border my-1" />
-                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full border-2 border-[#ef4444]" /> 5m blocked</div>
-                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full border-2 border-[#f59e0b]" /> 10m warning</div>
-                  </div>
+                        <div className="space-y-1 text-[10px] text-muted-foreground pt-2 border-t">
+                          <div className="flex items-center gap-1 truncate">
+                            <MapPin className="h-3 w-3 text-primary shrink-0" />
+                            <span className="truncate">{t.location}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span>{new Date(t.created_at).toLocaleDateString()}</span>
+                            {t.height_cm && <span>{t.height_cm} cm</span>}
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Tree list */}
-          <div className="mt-10">
-            {filtered.length === 0 ? (
-              <div className="text-center py-12">
-                <TreePine className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground">No trees match the filters.</p>
-              </div>
-            ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filtered.slice(0, 12).map(t => (
-                  <Link key={t.id} to={`/tree/${t.id}`} className="block glass-card rounded-2xl p-4 hover:nature-glow transition-all hover:-translate-y-0.5">
-                    <div className="flex items-start gap-3">
-                      <div className="bg-primary/10 rounded-xl p-2"><TreePine className="h-5 w-5 text-primary" /></div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-heading font-semibold truncate">{t.tree_name}</h3>
-                          {t.verification_status === "verified"
-                            ? <Badge className="shrink-0 text-xs gap-1"><ShieldCheck className="h-3 w-3" /> Verified</Badge>
-                            : <Badge variant="secondary" className="shrink-0 text-xs gap-1"><Clock className="h-3 w-3" /> Pending</Badge>}
-                        </div>
-                        <p className="text-sm text-muted-foreground">{t.species}</p>
-                        <p className="text-xs text-muted-foreground mt-1 truncate"><MapPin className="h-3 w-3 inline" /> {t.location}</p>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        </motion.div>
-        )}
-      </div>
-
-      {/* Drone Survey Modal */}
-      <AnimatePresence>
-        {showDronePanel && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[1000] bg-nature-900/60 backdrop-blur-sm flex items-center justify-center p-4"
-            onClick={() => setShowDronePanel(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
-              className="glass-card rounded-3xl w-full max-w-4xl max-h-[85vh] overflow-y-auto p-6"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="bg-primary/10 rounded-xl p-2"><Plane className="h-6 w-6 text-primary" /></div>
-                  <div>
-                    <h2 className="font-heading text-2xl font-bold">Drone Survey</h2>
-                    <p className="text-sm text-muted-foreground">Aerial intelligence across {droneZones.length} zones</p>
-                  </div>
-                </div>
-                <Button variant="ghost" size="icon" onClick={() => setShowDronePanel(false)}><X className="h-5 w-5" /></Button>
-              </div>
-
-              {/* AI summary */}
-              <div className="grid sm:grid-cols-3 gap-3 mb-6">
-                <div className="rounded-2xl bg-primary/5 p-4 border border-primary/10">
-                  <div className="flex items-center gap-2 text-primary mb-1"><Activity className="h-4 w-4" /><span className="text-xs uppercase tracking-wide">Avg Survival</span></div>
-                  <div className="text-2xl font-heading font-bold">{avgSurvival}%</div>
-                </div>
-                <div className="rounded-2xl bg-primary/5 p-4 border border-primary/10">
-                  <div className="flex items-center gap-2 text-primary mb-1"><TrendingUp className="h-4 w-4" /><span className="text-xs uppercase tracking-wide">Growth (vs prev)</span></div>
-                  <div className="text-2xl font-heading font-bold">+12.4%</div>
-                </div>
-                <div className="rounded-2xl bg-primary/5 p-4 border border-primary/10">
-                  <div className="flex items-center gap-2 text-primary mb-1"><AlertTriangle className="h-4 w-4" /><span className="text-xs uppercase tracking-wide">Anomalies</span></div>
-                  <div className="text-2xl font-heading font-bold">3 zones</div>
-                </div>
-              </div>
-
-              {/* Zone reports */}
-              <h3 className="font-heading font-semibold mb-3 flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Zone Reports</h3>
-              <div className="space-y-3 mb-6">
-                {droneZones.map(z => (
-                  <div key={z.name} className="rounded-2xl border border-border/40 bg-card/60 p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="font-semibold">{z.name}</div>
-                      <Badge style={{ background: healthColor(z.health), color: "#fff" }}>{z.health}</Badge>
-                    </div>
-                    <div className="grid grid-cols-3 gap-3 text-sm">
-                      <div><div className="text-xs text-muted-foreground">Density</div><div className="font-medium">{z.density}/km²</div></div>
-                      <div><div className="text-xs text-muted-foreground">Survival</div><div className="font-medium">{z.survival}%</div></div>
-                      <div><div className="text-xs text-muted-foreground">Status</div><div className="font-medium" style={{ color: healthColor(z.health) }}>{z.health}</div></div>
-                    </div>
-                    <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${z.survival}%`, background: healthColor(z.health) }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Aerial snapshots */}
-              <h3 className="font-heading font-semibold mb-3 flex items-center gap-2"><Camera className="h-4 w-4 text-primary" /> Aerial Snapshots</h3>
-              <div className="grid sm:grid-cols-2 gap-3 mb-6">
-                {[
-                  { label: "Before · Jan 2025", url: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=600" },
-                  { label: "After · Apr 2026", url: "https://images.unsplash.com/photo-1448375240586-882707db888b?w=600" },
-                ].map(s => (
-                  <div key={s.label} className="rounded-2xl overflow-hidden relative group">
-                    <img src={s.url} alt={s.label} className="w-full h-40 object-cover group-hover:scale-105 transition-transform" />
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-nature-900/80 to-transparent p-2 text-xs text-white">{s.label}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* AI insights */}
-              <div className="rounded-2xl bg-gradient-to-br from-primary/10 to-secondary/10 border border-primary/20 p-4">
-                <div className="flex items-center gap-2 mb-2 text-primary">
-                  <Sparkles className="h-4 w-4" />
-                  <span className="font-heading font-semibold">AI Insights</span>
-                </div>
-                <ul className="text-sm space-y-1.5 text-foreground/80">
-                  <li className="flex gap-2"><Bot className="h-4 w-4 text-primary shrink-0 mt-0.5" /> Pune Sector A shows strong canopy expansion — recommend scaling planting pattern.</li>
-                  <li className="flex gap-2"><Bot className="h-4 w-4 text-primary shrink-0 mt-0.5" /> Solapur Belt has 14 detected dead zones — schedule replanting in Q3.</li>
-                  <li className="flex gap-2"><Bot className="h-4 w-4 text-primary shrink-0 mt-0.5" /> Nagpur Greenway anomaly detected: irregular spacing reducing survival rate.</li>
-                </ul>
-              </div>
-            </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </div>
     </div>
   );
 };
