@@ -15,12 +15,12 @@ const fadeUp = {
 };
 
 const features = [
-  { icon: <TreePine className="h-8 w-8" />, title: "Plant & Register", desc: "Register tree plantations with photos and GPS location", link: "/plant" },
-  { icon: <Shield className="h-8 w-8" />, title: "AI Verification", desc: "AI-powered image recognition verifies tree uploads", link: "/plant" },
-  { icon: <MapPin className="h-8 w-8" />, title: "Interactive Map", desc: "View all planted trees on an interactive map", link: "/tree-map" },
-  { icon: <BarChart3 className="h-8 w-8" />, title: "Analytics", desc: "Track environmental impact with real-time data", link: "/analytics" },
-  { icon: <Award className="h-8 w-8" />, title: "Gamification", desc: "Earn points, badges, and compete on leaderboards", link: "/leaderboard" },
-  { icon: <Globe className="h-8 w-8" />, title: "Satellite Monitoring", desc: "Monitor green cover with vegetation index tracking", link: "/satellite" },
+  { icon: <Globe className="h-8 w-8" />, title: "Satellite NDVI Telemetry", desc: "Sentinel-2 multi-spectral NDVI & NDRE canopy vigor tracking", link: "/tree-map" },
+  { icon: <Shield className="h-8 w-8" />, title: "Field Scouting Matrix", desc: "Geotag pest, disease, and water stress with scientific remedies", link: "/scouting" },
+  { icon: <TreePine className="h-8 w-8" />, title: "Bulk CSV & Batch QR", desc: "Mass plantation onboarding with printable A4 field QR sheets", link: "/plant/bulk" },
+  { icon: <BarChart3 className="h-8 w-8" />, title: "IPCC Carbon Biomass", desc: "Pantropical allometric biomass modeling and ESG carbon credits", link: "/tree-map" },
+  { icon: <MapPin className="h-8 w-8" />, title: "Cadastral Parcel Modeler", desc: "Import Google Earth KML / GeoJSON boundaries with Turf.js", link: "/tree-map" },
+  { icon: <Bot className="h-8 w-8" />, title: "AI Tree Doctor & MRV", desc: "Gemini multi-modal health diagnostics and anti-fraud verification", link: "/intelligence" },
 ];
 
 const problems = [
