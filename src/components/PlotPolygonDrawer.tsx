@@ -91,6 +91,28 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
     }
   };
 
+  const handleLoadDemoParcel = () => {
+    const demoCoords: [number, number][] = [
+      [18.5204, 73.8567],
+      [18.5230, 73.8580],
+      [18.5245, 73.8550],
+      [18.5215, 73.8535],
+      [18.5204, 73.8567],
+    ];
+    setKmlData({
+      fileName: "Demo_Sahyadri_Agro_Parcel.kml",
+      polygonCoords: demoCoords,
+      areaSqMeters: 20234,
+      acres: 5.0,
+      hectares: 2.02,
+      perimeterKm: 1.15,
+      centerCoords: [18.522, 73.856],
+    });
+    setPlotName("Sahyadri Bio-Reserve Agroforestry Parcel");
+    setAreaSqM(20234);
+    toast.success("Loaded Demo 5-Acre Parcel Boundary!");
+  };
+
   return (
     <div className="glass-card rounded-2xl p-5 sm:p-6 border border-primary/20 shadow-md space-y-6">
       {/* Header */}
@@ -99,7 +121,7 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
           <div className="flex items-center gap-2">
             <PieChart className="h-5 w-5 text-primary" />
             <h3 className="font-heading font-semibold text-lg">
-              Module D: Forest Survey Boundary & Cadastral Parcel Modeler
+              Forest Survey Boundary & Cadastral Parcel Modeler (Module D)
             </h3>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -107,7 +129,15 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleLoadDemoParcel}
+            className="rounded-xl gap-1.5 border-primary/30 text-xs"
+          >
+            <Compass className="h-3.5 w-3.5 text-primary" /> Load Demo Parcel
+          </Button>
           <input
             ref={fileInputRef}
             type="file"

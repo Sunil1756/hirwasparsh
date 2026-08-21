@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -38,14 +38,18 @@ export function CanopyNDVITimeSeriesChart({
   const [treeCount, setTreeCount] = useState(initialTreeCount);
   const [activeMetric, setActiveMetric] = useState<"ndvi" | "biomass" | "combined">("combined");
 
-  const timeSeriesData = generateNDVITimeSeries({
-    speciesKey,
-    treeCount,
-  });
+  const timeSeriesData = useMemo(() => {
+    return generateNDVITimeSeries({
+      speciesKey,
+      treeCount,
+    });
+  }, [speciesKey, treeCount]);
 
   const latestData = timeSeriesData[timeSeriesData.length - 1];
   const baselineData = timeSeriesData[0];
-  const ndviGrowthRate = Math.round(((latestData.ndvi - baselineData.ndvi) / baselineData.ndvi) * 100);
+  const ndviGrowthRate = baselineData?.ndvi
+    ? Math.round(((latestData.ndvi - baselineData.ndvi) / baselineData.ndvi) * 100)
+    : 0;
 
   return (
     <div className="glass-card rounded-2xl p-5 sm:p-6 border border-primary/20 shadow-md">
