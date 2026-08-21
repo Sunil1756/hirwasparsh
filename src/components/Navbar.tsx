@@ -46,37 +46,52 @@ const Navbar = () => {
   const navLinks = [...primaryLinks, ...communityLinks];
 
   const displayName = (user?.user_metadata?.full_name as string) || user?.email || "";
-  const initials = displayName
-    .replace(/@.*/, "")
-    .split(/[\s._-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p: string) => p[0]?.toUpperCase())
-    .join("") || "U";
+  const initials =
+    displayName
+      .replace(/@.*/, "")
+      .split(/[\s._-]+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p: string) => p[0]?.toUpperCase())
+      .join("") || "U";
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border/20 shadow-[0_1px_12px_-6px_hsl(var(--primary)/0.35)]">
-      <div className="mx-auto w-full max-w-[1600px] flex items-center justify-between gap-4 h-16 px-4 sm:px-6">
+      <div className="mx-auto w-full max-w-[1600px] flex items-center justify-between gap-2 sm:gap-4 h-16 px-3 sm:px-6">
+        {/* Brand Logo & Name */}
         <Link
           to="/"
-          className="flex items-center gap-2 shrink-0 font-heading font-bold text-primary whitespace-nowrap leading-none text-[15px] sm:text-[15px]"
+          className="flex items-center gap-2 shrink-0 font-heading font-bold text-primary whitespace-nowrap leading-none text-[15px]"
         >
-          <img src={logo} alt="Green Enlightenment logo" width={34} height={34} className="h-[34px] w-[34px] rounded-full object-contain" />
-          <span className="inline text-[15px] min-[360px]:text-[16px] sm:text-[15px]">Green Enlightenment</span>
+          <img
+            src={logo}
+            alt="Green Enlightenment logo"
+            width={32}
+            height={32}
+            className="h-8 w-8 rounded-full object-contain shrink-0"
+          />
+          <span className="inline font-bold text-[14px] min-[380px]:text-[15px] sm:text-[16px]">
+            Green Enlightenment
+          </span>
         </Link>
 
-        {/* Desktop Streamlined Navigation */}
+        {/* Desktop Navigation (>= 1024px) */}
         <div className="hidden lg:flex items-center justify-center flex-1 min-w-0 gap-1 xl:gap-2">
-          {primaryLinks.map(link => (
-            <Link key={link.to} to={link.to}
+          {primaryLinks.map((link) => (
+            <Link
+              key={link.to}
+              to={link.to}
               className={`px-3 py-2 rounded-xl text-[13px] xl:text-[14px] font-semibold whitespace-nowrap transition-colors ${
-                location.pathname === link.to ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary hover:bg-primary/5"
-              }`}>
+                location.pathname === link.to
+                  ? "text-primary bg-primary/10"
+                  : "text-muted-foreground hover:text-primary hover:bg-primary/5"
+              }`}
+            >
               {link.label}
             </Link>
           ))}
 
-          {/* Community & More Dropdown */}
+          {/* Community Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-1 px-3 py-2 rounded-xl text-[13px] xl:text-[14px] font-semibold whitespace-nowrap text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
@@ -84,31 +99,44 @@ const Navbar = () => {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="center" className="w-48 bg-popover z-[60]">
-              {communityLinks.map(item => (
+              {communityLinks.map((item) => (
                 <DropdownMenuItem key={item.to} asChild>
-                  <Link to={item.to} className="w-full cursor-pointer text-xs">{item.label}</Link>
+                  <Link to={item.to} className="w-full cursor-pointer text-xs">
+                    {item.label}
+                  </Link>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
 
           {isAdmin && (
-            <Link to="/admin" className={`px-2 py-2 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
-              location.pathname === "/admin" ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary hover:bg-primary/5"
-            }`}>
+            <Link
+              to="/admin"
+              className={`px-2 py-2 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
+                location.pathname === "/admin"
+                  ? "text-primary bg-primary/10"
+                  : "text-muted-foreground hover:text-primary hover:bg-primary/5"
+              }`}
+            >
               <Shield className="h-3 w-3" /> Admin
             </Link>
           )}
           {(isGovernment || isAdmin) && (
-            <Link to="/government" className={`px-2 py-2 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
-              location.pathname === "/government" ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary hover:bg-primary/5"
-            }`}>
+            <Link
+              to="/government"
+              className={`px-2 py-2 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
+                location.pathname === "/government"
+                  ? "text-primary bg-primary/10"
+                  : "text-muted-foreground hover:text-primary hover:bg-primary/5"
+              }`}
+            >
               <Building2 className="h-3 w-3" /> Govt
             </Link>
           )}
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Right Side Action Controls */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <OfflineSyncModal />
           <LanguageSwitcher />
 
@@ -135,25 +163,37 @@ const Navbar = () => {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link to="/dashboard"><User className="h-4 w-4 mr-2" /> Profile</Link>
+                    <Link to="/dashboard">
+                      <User className="h-4 w-4 mr-2" /> Profile
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link to="/growth-updates"><TreePine className="h-4 w-4 mr-2" /> My Trees</Link>
+                    <Link to="/growth-updates">
+                      <TreePine className="h-4 w-4 mr-2" /> My Trees
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link to="/dashboard"><Bell className="h-4 w-4 mr-2" /> Notifications</Link>
+                    <Link to="/dashboard">
+                      <Bell className="h-4 w-4 mr-2" /> Notifications
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link to="/dashboard"><Settings className="h-4 w-4 mr-2" /> Settings</Link>
+                    <Link to="/dashboard">
+                      <Settings className="h-4 w-4 mr-2" /> Settings
+                    </Link>
                   </DropdownMenuItem>
                   {isAdmin && (
                     <DropdownMenuItem asChild>
-                      <Link to="/admin"><Shield className="h-4 w-4 mr-2" /> Admin Dashboard</Link>
+                      <Link to="/admin">
+                        <Shield className="h-4 w-4 mr-2" /> Admin Dashboard
+                      </Link>
                     </DropdownMenuItem>
                   )}
                   {(isGovernment || isAdmin) && (
                     <DropdownMenuItem asChild>
-                      <Link to="/government"><Building2 className="h-4 w-4 mr-2" /> Government</Link>
+                      <Link to="/government">
+                        <Building2 className="h-4 w-4 mr-2" /> Government
+                      </Link>
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />
@@ -165,49 +205,128 @@ const Navbar = () => {
             </>
           ) : (
             <div className="hidden sm:flex items-center gap-1.5">
-              <Link to="/login"><Button variant="ghost" size="sm" className="whitespace-nowrap">Log In</Button></Link>
-              <Link to="/login"><Button size="sm" className="whitespace-nowrap">Sign Up</Button></Link>
+              <Link to="/login">
+                <Button variant="ghost" size="sm" className="whitespace-nowrap h-8 px-2.5 text-xs">
+                  Log In
+                </Button>
+              </Link>
+              <Link to="/login">
+                <Button size="sm" className="whitespace-nowrap h-8 px-2.5 text-xs">
+                  Sign Up
+                </Button>
+              </Link>
             </div>
           )}
 
-          <button className="xl:hidden ml-1" aria-label="Toggle menu" onClick={() => setOpen(!open)}>
-            {open ? <X className="h-7 w-7" /> : <Menu className="h-7 w-7" />}
+          {/* Mobile & Tablet Hamburger Menu Button (Visible below 1024px) */}
+          <button
+            type="button"
+            className="lg:hidden flex items-center justify-center h-9 w-9 rounded-xl text-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0 border border-primary/20 bg-background/60 shadow-sm"
+            aria-label="Toggle menu"
+            onClick={() => setOpen(!open)}
+          >
+            {open ? <X className="h-5 w-5 text-foreground" /> : <Menu className="h-5 w-5 text-foreground" />}
           </button>
         </div>
       </div>
 
+      {/* Mobile Drawer Navigation Menu */}
       <AnimatePresence>
         {open && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-            className="xl:hidden glass-card border-t border-border/20 overflow-hidden">
-            <div className="container mx-auto px-4 py-4 flex flex-col gap-1.5 max-h-[70vh] overflow-y-auto">
-              {navLinks.map(link => (
-                <Link key={link.to} to={link.to} onClick={() => setOpen(false)}
-                  className={`px-3 py-2 rounded-md text-sm font-medium ${
-                    location.pathname === link.to ? "text-primary bg-primary/10" : "text-muted-foreground"
-                  }`}>
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="lg:hidden glass-card border-t border-border/20 overflow-hidden shadow-2xl bg-background/95 backdrop-blur-xl"
+          >
+            <div className="container mx-auto px-4 py-4 flex flex-col gap-1 max-h-[75vh] overflow-y-auto">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-3 py-1">
+                Main Menu
+              </div>
+              {primaryLinks.map((link) => (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  onClick={() => setOpen(false)}
+                  className={`px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-between ${
+                    location.pathname === link.to
+                      ? "text-primary bg-primary/15 font-bold"
+                      : "text-foreground hover:text-primary hover:bg-primary/5"
+                  }`}
+                >
+                  <span>{link.label}</span>
+                  {location.pathname === link.to && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  )}
+                </Link>
+              ))}
+
+              <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-3 pt-3 pb-1">
+                Community & Features
+              </div>
+              {communityLinks.map((link) => (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  onClick={() => setOpen(false)}
+                  className={`px-3 py-2 rounded-xl text-xs font-medium transition-colors ${
+                    location.pathname === link.to
+                      ? "text-primary bg-primary/10"
+                      : "text-muted-foreground hover:text-primary hover:bg-primary/5"
+                  }`}
+                >
                   {link.label}
                 </Link>
               ))}
+
               {isAdmin && (
-                <Link to="/admin" onClick={() => setOpen(false)} className="px-3 py-2 rounded-md text-sm font-medium text-muted-foreground flex items-center gap-1">
-                  <Shield className="h-3 w-3" /> Admin Dashboard
+                <Link
+                  to="/admin"
+                  onClick={() => setOpen(false)}
+                  className="px-3 py-2 rounded-xl text-xs font-medium text-primary hover:bg-primary/10 flex items-center gap-1.5 mt-1"
+                >
+                  <Shield className="h-3.5 w-3.5" /> Admin Dashboard
                 </Link>
               )}
               {(isGovernment || isAdmin) && (
-                <Link to="/government" onClick={() => setOpen(false)} className="px-3 py-2 rounded-md text-sm font-medium text-muted-foreground flex items-center gap-1">
-                  <Building2 className="h-3 w-3" /> Government Dashboard
+                <Link
+                  to="/government"
+                  onClick={() => setOpen(false)}
+                  className="px-3 py-2 rounded-xl text-xs font-medium text-sky-600 dark:text-sky-400 hover:bg-sky-500/10 flex items-center gap-1.5"
+                >
+                  <Building2 className="h-3.5 w-3.5" /> Government Dashboard
                 </Link>
               )}
-              {user ? (
-                <Button className="w-full mt-2" size="sm" variant="outline" onClick={() => { signOut(); setOpen(false); }}>
-                  <LogOut className="h-4 w-4 mr-1" /> Log Out
-                </Button>
-              ) : (
-                <Link to="/login" onClick={() => setOpen(false)}>
-                  <Button className="w-full mt-2" size="sm">Sign Up / Log In</Button>
-                </Link>
-              )}
+
+              <div className="pt-3 border-t border-border/20 mt-2">
+                {user ? (
+                  <Button
+                    className="w-full gap-2 text-xs font-semibold"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      signOut();
+                      setOpen(false);
+                    }}
+                  >
+                    <LogOut className="h-3.5 w-3.5" /> Log Out ({displayName})
+                  </Button>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Link to="/login" onClick={() => setOpen(false)}>
+                      <Button variant="outline" className="w-full text-xs font-semibold" size="sm">
+                        Log In
+                      </Button>
+                    </Link>
+                    <Link to="/login" onClick={() => setOpen(false)}>
+                      <Button className="w-full text-xs font-semibold" size="sm">
+                        Sign Up
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
           </motion.div>
         )}
