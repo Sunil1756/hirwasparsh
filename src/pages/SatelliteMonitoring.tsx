@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { AgroWeatherWidget } from "@/components/AgroWeatherWidget";
 import { NDVISpectralViewer } from "@/components/NDVISpectralViewer";
 import { PlotPolygonDrawer } from "@/components/PlotPolygonDrawer";
+import { CanopyNDVITimeSeriesChart } from "@/components/CanopyNDVITimeSeriesChart";
+import { AllometricCarbonCalculator } from "@/components/AllometricCarbonCalculator";
 import { ESGReportModal } from "@/components/ESGReportModal";
 import { GeminiApiKeyModal } from "@/components/GeminiApiKeyModal";
 import { getNdviColor } from "@/lib/remoteSensing";
@@ -284,6 +286,15 @@ const SatelliteMonitoring = () => {
           {/* Parcel Boundary & Carbon Estimator (Turf.js) */}
           <div className="mb-8">
             <PlotPolygonDrawer />
+          </div>
+
+          {/* 36-Month Satellite Time-Series & Allometric Carbon Engine */}
+          <div className="space-y-8 mb-8">
+            <CanopyNDVITimeSeriesChart
+              plotName={districtFilter === "all" ? "Maharashtra Agroforestry State Cluster" : `${districtFilter} Plantation Zone`}
+              initialTreeCount={filteredTrees.length > 0 ? filteredTrees.length * 15 : 3500}
+            />
+            <AllometricCarbonCalculator />
           </div>
 
           {/* District Rankings & Alerts */}
