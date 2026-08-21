@@ -15,9 +15,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { MapContainer, TileLayer, Marker, Popup, Polygon, Circle } from "react-leaflet";
 import L from "leaflet";
-import "leaflet/dist/leaflet.css";
 import SatelliteMonitoring from "./SatelliteMonitoring";
 import { FieldScoutingModule } from "@/components/FieldScoutingModule";
+import { NDVISpectralViewer } from "@/components/NDVISpectralViewer";
+import { AgroWeatherWidget } from "@/components/AgroWeatherWidget";
+import { CanopyNDVITimeSeriesChart } from "@/components/CanopyNDVITimeSeriesChart";
+import { AllometricCarbonCalculator } from "@/components/AllometricCarbonCalculator";
+import { PlotPolygonDrawer } from "@/components/PlotPolygonDrawer";
+import { ESGReportModal } from "@/components/ESGReportModal";
+import { GeminiApiKeyModal } from "@/components/GeminiApiKeyModal";
 
 // Glowing pulse marker via DivIcon
 const makeGlowIcon = (color: string) =>
@@ -174,7 +180,48 @@ const TreeMap = () => {
         </div>
 
         {activeTab === "satellite_ndvi" ? (
-          <SatelliteMonitoring />
+          <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-2">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Satellite className="h-6 w-6 text-primary" />
+                  <h2 className="font-heading text-2xl sm:text-3xl font-bold">
+                    Satellite NDVI Canopy & Carbon Intelligence (Module A)
+                  </h2>
+                </div>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                  High-resolution spectral analysis, 36-month canopy curves, and IPCC pantropical carbon modeling.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <GeminiApiKeyModal />
+                <ESGReportModal
+                  totalTrees={trees.length}
+                  verifiedTrees={trees.filter((t: any) => t.verification_status === "verified").length}
+                  organizationName="Maharashtra Green Mission"
+                  co2OffsetKg={trees.filter((t: any) => t.verification_status === "verified").length * 22}
+                />
+              </div>
+            </div>
+
+            {/* Live Agro-Climatic Intelligence */}
+            <AgroWeatherWidget latitude={19.7515} longitude={75.7139} locationName="Maharashtra Agroforestry Region" />
+
+            {/* Spectral NDVI Viewer */}
+            <NDVISpectralViewer />
+
+            {/* 36-Month Time Series Chart */}
+            <CanopyNDVITimeSeriesChart
+              initialTreeCount={Math.max(10, trees.filter((t: any) => t.verification_status === "verified").length)}
+              plotName="Maharashtra Agroforestry Cluster"
+            />
+
+            {/* Carbon Modeler */}
+            <AllometricCarbonCalculator />
+
+            {/* Cadastral Modeler (Module D) */}
+            <PlotPolygonDrawer />
+          </motion.div>
         ) : activeTab === "field_scouting" ? (
           <div className="space-y-6">
             <div className="text-center mb-6">

@@ -2,6 +2,7 @@
  * Plantation Field Scouting & Anomaly Telemetry Service
  * Inspired by Map My Crop: Geotagged Scouting, Disease/Pest Hotspots,
  * Water Stress alerts, and Remediation Task Management.
+ * 100% Real User Data (Zero Fake Mock Pins).
  */
 
 export type ScoutingIssueCategory =
@@ -71,70 +72,28 @@ export const SCOUTING_CATEGORY_CONFIG: Record<
   },
 };
 
-const DEFAULT_SCOUTING_PINS: ScoutingPin[] = [
-  {
-    id: "scout-01",
-    plotName: "Sahyadri Bio-Reserve Sector A",
-    title: "Leaf Blight on Young Teak Saplings",
-    category: "pest_disease",
-    severity: "moderate",
-    status: "open",
-    latitude: 18.524,
-    longitude: 73.862,
-    observedDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-    assignedTo: "Ramesh Pawar (Field Ranger)",
-    affectedTreeCount: 35,
-    affectedSpecies: "Teak (Tectona grandis)",
-    notes: "Fungal brown spots spreading on upper leaves after unseasonal humidity.",
-    recommendedRemedy: "Apply 0.2% Copper Oxychloride or organic fermented buttermilk spray.",
-  },
-  {
-    id: "scout-02",
-    plotName: "Satara Hillside Plantation Cluster",
-    title: "Surface Soil Desiccation & Wilting",
-    category: "water_stress",
-    severity: "critical",
-    status: "in_progress",
-    latitude: 17.685,
-    longitude: 74.025,
-    observedDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-    assignedTo: "Kavita Shinde (Agronomist)",
-    affectedTreeCount: 80,
-    affectedSpecies: "Neem & Banyan",
-    notes: "Drip pipeline blocked on ridge sector; topsoil moisture below 12%.",
-    recommendedRemedy: "Flush drip lines and emergency water bowser dispatch + mulching.",
-  },
-  {
-    id: "scout-03",
-    plotName: "Pune Agroforestry Agro-Park",
-    title: "Cattle Grazing Incident on Boundary Saplings",
-    category: "physical_damage",
-    severity: "moderate",
-    status: "resolved",
-    latitude: 18.512,
-    longitude: 73.845,
-    observedDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-    assignedTo: "Anand Deshmukh",
-    affectedTreeCount: 15,
-    affectedSpecies: "Subabul & Bamboo",
-    notes: "Fence wire damaged by stray cattle.",
-    recommendedRemedy: "Repaired thorn bush bio-fencing and staked damaged bamboo culms.",
-    resolvedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-  },
-];
+const LOCAL_STORAGE_KEY = "green_scouting_pins_real_v2";
 
-const LOCAL_STORAGE_KEY = "green_scouting_pins_v1";
-
+/**
+ * Loads genuinely logged field scouting pins from local storage.
+ * Starts strictly at [] (0 pins) to avoid showing fake mock data.
+ */
 export function loadScoutingPins(): ScoutingPin[] {
   try {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) return parsed;
+    }
   } catch (e) {
     console.error("Error reading scouting pins:", e);
   }
-  return DEFAULT_SCOUTING_PINS;
+  return [];
 }
 
+/**
+ * Saves field scouting pins.
+ */
 export function saveScoutingPins(pins: ScoutingPin[]) {
   try {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(pins));
@@ -143,6 +102,9 @@ export function saveScoutingPins(pins: ScoutingPin[]) {
   }
 }
 
+/**
+ * Adds a new genuine field scouting pin.
+ */
 export function addScoutingPin(pin: Omit<ScoutingPin, "id" | "observedDate">): ScoutingPin {
   const pins = loadScoutingPins();
   const newPin: ScoutingPin = {
@@ -155,6 +117,9 @@ export function addScoutingPin(pin: Omit<ScoutingPin, "id" | "observedDate">): S
   return newPin;
 }
 
+/**
+ * Updates status of a field scouting pin (open -> in_progress -> resolved).
+ */
 export function updateScoutingPinStatus(id: string, status: ScoutingStatus): ScoutingPin[] {
   const pins = loadScoutingPins();
   const updated = pins.map((p) => {
@@ -167,6 +132,16 @@ export function updateScoutingPinStatus(id: string, status: ScoutingStatus): Sco
     }
     return p;
   });
+  saveScoutingPins(updated);
+  return updated;
+}
+
+/**
+ * Deletes a field scouting pin.
+ */
+export function deleteScoutingPin(id: string): ScoutingPin[] {
+  const pins = loadScoutingPins();
+  const updated = pins.filter((p) => p.id !== id);
   saveScoutingPins(updated);
   return updated;
 }
