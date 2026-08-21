@@ -30,6 +30,7 @@ import GreenImpact from "./pages/GreenImpact";
 import TreeStory from "./pages/TreeStory";
 import Challenges from "./pages/Challenges";
 import Intelligence from "./pages/Intelligence";
+import FieldScoutingPage from "./pages/FieldScoutingPage";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +50,7 @@ const App = () => (
           <Route path="/plant/organization" element={<OrganizationPlantation />} />
           <Route path="/dashboard" element={<CommunityDashboard />} />
           <Route path="/tree-map" element={<TreeMap />} />
+          <Route path="/scouting" element={<FieldScoutingPage />} />
           <Route path="/analytics" element={<Navigate to="/intelligence" replace />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/admin" element={<AdminDashboard />} />
