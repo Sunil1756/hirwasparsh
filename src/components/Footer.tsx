@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { ACICBudgetModal } from "@/components/ACICBudgetModal";
 import logo from "@/assets/logo.png";
 
 const Footer = () => (
@@ -10,6 +11,9 @@ const Footer = () => (
           Green Enlightenment
         </div>
         <p className="text-sm opacity-80">Connecting People with Nature through Technology</p>
+        <div className="mt-4">
+          <ACICBudgetModal className="bg-white/10 text-white border-white/20 hover:bg-white/20" />
+        </div>
       </div>
       <div>
         <h4 className="font-heading font-semibold mb-3">Platform</h4>
