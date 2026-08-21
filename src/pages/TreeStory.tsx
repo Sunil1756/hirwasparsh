@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useRef, useCallback, useEffect } from "react";
+import { VernacularVoiceAssistant } from "@/components/VernacularVoiceAssistant";
 
 const STAGE_LABELS: Record<number, string> = {
   1: "🌱 Plantation Day",
@@ -220,8 +221,13 @@ const TreeStory = () => {
         </Link>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="font-heading text-3xl md:text-4xl font-bold mb-2">🌳 Tree Growth Story</h1>
-          <p className="text-muted-foreground mb-8">Watch how this tree has grown over time</p>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+            <h1 className="font-heading text-3xl md:text-4xl font-bold">🌳 Tree Growth Story</h1>
+            <VernacularVoiceAssistant
+              text={`${tree.tree_name} झाडाची वाढ गोष्ट. प्रजाती: ${tree.species}. लागवड दिनांक: ${new Date(tree.plantation_date).toLocaleDateString()}. एकूण नोंदवलेली वाढ आणि टप्पे खालील स्लाइडशोमध्ये पहा.`}
+            />
+          </div>
+          <p className="text-muted-foreground mb-8">Watch how this tree has grown over time through verified photo milestones</p>
 
           <div className="grid lg:grid-cols-5 gap-8">
             {/* Left: Slideshow Viewer */}

@@ -222,6 +222,11 @@ const Challenges = () => {
                             <ArrowRight className="h-4 w-4" /> Join Challenge
                           </Button>
                         )}
+                        {active && !user && (
+                          <Button size="sm" variant="outline" className="w-full" onClick={() => toast.info("Please log in to join community challenges.")}>
+                            Log In to Join
+                          </Button>
+                        )}
                         {joined && (
                           <Badge variant="outline" className="w-full justify-center">✅ You've joined!</Badge>
                         )}

@@ -51,6 +51,23 @@ export function CanopyNDVITimeSeriesChart({
     ? Math.round(((latestData.ndvi - baselineData.ndvi) / baselineData.ndvi) * 100)
     : 0;
 
+  const handleExportCSV = () => {
+    const headers = "Month,NDVI,NDRE,NDWI,Biomass_MT,CO2e_MT\n";
+    const rows = timeSeriesData
+      .map(
+        (d) =>
+          `${d.month},${d.ndvi},${d.ndre},${d.ndwi},${d.biomassMT},${d.co2eMT}`
+      )
+      .join("\n");
+    const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `NDVI_Telemetry_TimeSeries_${speciesKey}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="glass-card rounded-2xl p-5 sm:p-6 border border-primary/20 shadow-md">
       {/* Header */}
@@ -68,6 +85,14 @@ export function CanopyNDVITimeSeriesChart({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCSV}
+            className="h-8 text-xs gap-1.5 rounded-lg border-primary/20 hover:bg-primary/10"
+          >
+            <Download className="h-3.5 w-3.5" /> Export CSV
+          </Button>
           <Badge variant="outline" className="text-xs bg-primary/10 border-primary/30 text-primary">
             Map My Crop Telemetry Engine
           </Badge>
