@@ -66,13 +66,13 @@ const App = () => (
           <Route path="/contact" element={<Contact />} />
           <Route path="/tree/:id" element={<TreeProfile />} />
           <Route path="/tree-story/:id" element={<TreeStory />} />
-          <Route path="/challenges" element={<Challenges />} />
-          <Route path="/drives" element={<PlantationDrives />} />
-           <Route path="/tree-health" element={<TreeHealth />} />
-           <Route path="/growth-updates" element={<GrowthUpdates />} />
-           <Route path="/satellite" element={<SatelliteMonitoring />} />
-           <Route path="/green-impact" element={<GreenImpact />} />
-           <Route path="/intelligence" element={<Intelligence />} />
+          <Route path="/challenges" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/drives" element={<Navigate to="/plant" replace />} />
+          <Route path="/tree-health" element={<Navigate to="/intelligence" replace />} />
+          <Route path="/growth-updates" element={<GrowthUpdates />} />
+          <Route path="/satellite" element={<Navigate to="/tree-map" replace />} />
+          <Route path="/green-impact" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/intelligence" element={<Intelligence />} />
            <Route path="*" element={<NotFound />} />
         </Routes>
         <Footer />

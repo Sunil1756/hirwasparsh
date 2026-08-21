@@ -34,11 +34,8 @@ const Navbar = () => {
   ];
 
   const communityLinks = [
-    { to: "/growth-updates", label: "Growth Updates" },
-    { to: "/drives", label: "Plantation Drives" },
+    { to: "/growth-updates", label: "My Trees & Growth" },
     { to: "/leaderboard", label: t.nav_leaderboard },
-    { to: "/challenges", label: "Challenges" },
-    { to: "/green-impact", label: "Green Impact" },
     { to: "/about", label: t.nav_about },
     { to: "/contact", label: t.nav_contact },
   ];
