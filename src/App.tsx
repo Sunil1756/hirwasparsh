@@ -32,18 +32,20 @@ import Challenges from "./pages/Challenges";
 import Intelligence from "./pages/Intelligence";
 import FieldScoutingPage from "./pages/FieldScoutingPage";
 import BulkOnboardPage from "./pages/BulkOnboardPage";
+import { LanguageProvider } from "./contexts/LanguageContext";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-        <Navbar />
-        <Routes>
+    <LanguageProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+          <Navbar />
+          <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/about" element={<About />} />
           <Route path="/plant" element={<PlantChooser />} />
@@ -77,6 +79,7 @@ const App = () => (
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
+    </LanguageProvider>
   </QueryClientProvider>
 );
 

@@ -9,6 +9,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useRef } from "react";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
 import { computeHealthScore, computeImpact, careTips, nearbyNativeSuggestions, treeAgeMonths, ageLabel } from "@/lib/treeIntelligence";
+import { VernacularVoiceAssistant } from "@/components/VernacularVoiceAssistant";
 
 const healthIcon: Record<string, React.ReactNode> = {
   healthy: <Heart className="h-4 w-4 text-primary" />,
@@ -184,11 +185,17 @@ const TreeProfile = () => {
                       </div>
                     )}
                   </div>
-                  {tree.verification_status === "verified" ? (
-                    <Badge className="gap-1"><ShieldCheck className="h-3 w-3" /> Verified</Badge>
-                  ) : (
-                    <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" /> {tree.verification_status}</Badge>
-                  )}
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <VernacularVoiceAssistant
+                      text={`${tree.tree_name}. प्रजाती: ${tree.species}. ठिकाण: ${tree.location}. आरोग्य निर्देशांक: ${score} टक्के. पाणी देण्याचा सल्ला: ${care.watering}. वार्षिक कार्बन शोषण: ${impact.co2KgPerYear} किलो.`}
+                    />
+                    {tree.verification_status === "verified" ? (
+                      <Badge className="gap-1"><ShieldCheck className="h-3 w-3" /> Verified</Badge>
+                    ) : (
+                      <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" /> {tree.verification_status}</Badge>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-4">

@@ -13,6 +13,8 @@ import { useSearchParams } from "react-router-dom";
 import exifr from "exifr";
 import { compressImage, sha256File } from "@/lib/imageProcessing";
 import { detectSpeciesAI } from "@/lib/gemini";
+import { enqueueOfflineTree } from "@/lib/offlineSyncService";
+import { VernacularVoiceAssistant } from "@/components/VernacularVoiceAssistant";
 
 type NearbyTree = {
   id: string; tree_name: string; species: string; user_id: string;
@@ -311,6 +313,28 @@ const PlantTree = () => {
         return;
       }
 
+      // Offline mode handling for rural/remote areas
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        enqueueOfflineTree({
+          tree_name: treeName,
+          species,
+          location,
+          latitude: latitude ?? 19.7515,
+          longitude: longitude ?? 75.7139,
+          height_cm: heightCm ? Number(heightCm) : 45,
+          plantation_date: plantationDate || new Date().toISOString().split("T")[0],
+          notes: description || "Recorded in offline field mode",
+        });
+        setSubmitted(true);
+        setIsSubmitting(false);
+        setSubmitStage("");
+        toast({
+          title: "📡 Saved in Offline Queue!",
+          description: "Tree saved locally on device. Tap 'Sync' in the top bar once network is available.",
+        });
+        return;
+      }
+
       setSubmitStage("Uploading...");
       const ts = Date.now();
       const [beforeUrl, afterUrl, selfieUrl] = await Promise.all([
@@ -495,7 +519,12 @@ const PlantTree = () => {
             </div>
             <h1 className="font-heading text-4xl font-bold mb-2">Plant a Tree</h1>
             <p className="text-muted-foreground">Upload 3 photos: Before → After → Selfie. Points awarded after admin approval only.</p>
-            {driveId && <Badge variant="secondary" className="mt-2">Registering under a Plantation Drive</Badge>}
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
+              <VernacularVoiceAssistant
+                text="वृक्षारोपण नोंदणी मार्गदर्शक: प्रथम रोपण करण्यापूर्वीच्या रिकाम्या जागेचा फोटो घ्या. नंतर लावलेल्या रोपाचा फोटो घ्या आणि रोपासोबत एक सेल्फी अपलोड करा. योग्य प्रजाती निवडून सबमिट करा."
+              />
+              {driveId && <Badge variant="secondary">Registering under a Plantation Drive</Badge>}
+            </div>
           </div>
 
           {/* Photo Steps */}

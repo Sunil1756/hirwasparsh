@@ -13,30 +13,34 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import NotificationsBell from "@/components/NotificationsBell";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { OfflineSyncModal } from "@/components/OfflineSyncModal";
 import logo from "@/assets/logo.png";
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const { user, signOut, isAdmin, isGovernment } = useAuth();
+  const { t } = useLanguage();
 
   const primaryLinks = [
-    { to: "/", label: "Home" },
-    { to: "/tree-map", label: "🗺️ Tree Map & GIS" },
-    { to: "/plant", label: "Plant a Tree" },
-    { to: "/dashboard", label: "Dashboard" },
-    { to: "/intelligence", label: "AI Intelligence" },
+    { to: "/", label: t.nav_home },
+    { to: "/tree-map", label: t.nav_tree_map },
+    { to: "/plant", label: t.nav_plant },
+    { to: "/dashboard", label: t.nav_dashboard },
+    { to: "/intelligence", label: t.nav_intelligence },
   ];
 
   const communityLinks = [
     { to: "/growth-updates", label: "Growth Updates" },
     { to: "/drives", label: "Plantation Drives" },
-    { to: "/leaderboard", label: "Leaderboard" },
+    { to: "/leaderboard", label: t.nav_leaderboard },
     { to: "/challenges", label: "Challenges" },
     { to: "/green-impact", label: "Green Impact" },
-    { to: "/about", label: "About Us" },
-    { to: "/contact", label: "Contact" },
+    { to: "/about", label: t.nav_about },
+    { to: "/contact", label: t.nav_contact },
   ];
 
   const navLinks = [...primaryLinks, ...communityLinks];
@@ -105,6 +109,9 @@ const Navbar = () => {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <OfflineSyncModal />
+          <LanguageSwitcher />
+
           {user ? (
             <>
               <NotificationsBell />
@@ -166,7 +173,6 @@ const Navbar = () => {
           <button className="xl:hidden ml-1" aria-label="Toggle menu" onClick={() => setOpen(!open)}>
             {open ? <X className="h-7 w-7" /> : <Menu className="h-7 w-7" />}
           </button>
-
         </div>
       </div>
 
