@@ -14,6 +14,7 @@ import { NDVISpectralViewer } from "@/components/NDVISpectralViewer";
 import { PlotPolygonDrawer } from "@/components/PlotPolygonDrawer";
 import { CanopyNDVITimeSeriesChart } from "@/components/CanopyNDVITimeSeriesChart";
 import { AllometricCarbonCalculator } from "@/components/AllometricCarbonCalculator";
+import { FieldScoutingModule } from "@/components/FieldScoutingModule";
 import { ESGReportModal } from "@/components/ESGReportModal";
 import { GeminiApiKeyModal } from "@/components/GeminiApiKeyModal";
 import { getNdviColor } from "@/lib/remoteSensing";
@@ -295,6 +296,7 @@ const SatelliteMonitoring = () => {
               initialTreeCount={filteredTrees.length > 0 ? filteredTrees.length * 15 : 3500}
             />
             <AllometricCarbonCalculator />
+            <FieldScoutingModule />
           </div>
 
           {/* District Rankings & Alerts */}
