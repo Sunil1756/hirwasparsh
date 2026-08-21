@@ -21,20 +21,25 @@ const Navbar = () => {
   const location = useLocation();
   const { user, signOut, isAdmin, isGovernment } = useAuth();
 
-  const navLinks = [
+  const primaryLinks = [
     { to: "/", label: "Home" },
-    { to: "/tree-map", label: "Tree Map" },
+    { to: "/tree-map", label: "🗺️ Tree Map & GIS" },
     { to: "/plant", label: "Plant a Tree" },
     { to: "/dashboard", label: "Dashboard" },
-    { to: "/growth-updates", label: "Growth" },
     { to: "/intelligence", label: "AI Intelligence" },
-    { to: "/drives", label: "Drives" },
+  ];
+
+  const communityLinks = [
+    { to: "/growth-updates", label: "Growth Updates" },
+    { to: "/drives", label: "Plantation Drives" },
     { to: "/leaderboard", label: "Leaderboard" },
     { to: "/challenges", label: "Challenges" },
     { to: "/green-impact", label: "Green Impact" },
-    { to: "/about", label: "About" },
+    { to: "/about", label: "About Us" },
     { to: "/contact", label: "Contact" },
   ];
+
+  const navLinks = [...primaryLinks, ...communityLinks];
 
   const displayName = (user?.user_metadata?.full_name as string) || user?.email || "";
   const initials = displayName
@@ -56,16 +61,33 @@ const Navbar = () => {
           <span className="inline text-[15px] min-[360px]:text-[16px] sm:text-[15px]">Green Enlightenment</span>
         </Link>
 
-
-        <div className="hidden xl:flex items-center justify-center flex-1 min-w-0 gap-0.5 2xl:gap-1">
-          {navLinks.map(link => (
+        {/* Desktop Streamlined Navigation */}
+        <div className="hidden lg:flex items-center justify-center flex-1 min-w-0 gap-1 xl:gap-2">
+          {primaryLinks.map(link => (
             <Link key={link.to} to={link.to}
-              className={`px-2 2xl:px-2.5 py-2 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors ${
+              className={`px-3 py-2 rounded-xl text-[13px] xl:text-[14px] font-semibold whitespace-nowrap transition-colors ${
                 location.pathname === link.to ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary hover:bg-primary/5"
               }`}>
               {link.label}
             </Link>
           ))}
+
+          {/* Community & More Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-1 px-3 py-2 rounded-xl text-[13px] xl:text-[14px] font-semibold whitespace-nowrap text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
+                Community <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="w-48 bg-popover z-[60]">
+              {communityLinks.map(item => (
+                <DropdownMenuItem key={item.to} asChild>
+                  <Link to={item.to} className="w-full cursor-pointer text-xs">{item.label}</Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           {isAdmin && (
             <Link to="/admin" className={`px-2 py-2 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
               location.pathname === "/admin" ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary hover:bg-primary/5"
