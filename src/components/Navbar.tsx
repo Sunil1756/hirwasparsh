@@ -57,20 +57,20 @@ const Navbar = () => {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border/20 shadow-[0_1px_12px_-6px_hsl(var(--primary)/0.35)]">
-      <div className="mx-auto w-full max-w-[1600px] flex items-center justify-between gap-2 sm:gap-4 h-16 px-3 sm:px-6">
+      <div className="mx-auto w-full max-w-[1600px] flex items-center justify-between gap-1.5 sm:gap-4 h-16 px-2.5 sm:px-6">
         {/* Brand Logo & Name */}
         <Link
           to="/"
-          className="flex items-center gap-2 shrink-0 font-heading font-bold text-primary whitespace-nowrap leading-none text-[15px]"
+          className="flex items-center gap-1.5 sm:gap-2 shrink min-w-0 font-heading font-bold text-primary leading-none"
         >
           <img
             src={logo}
             alt="Green Enlightenment logo"
-            width={32}
-            height={32}
-            className="h-8 w-8 rounded-full object-contain shrink-0"
+            width={30}
+            height={30}
+            className="h-7 w-7 sm:h-8 sm:w-8 rounded-full object-contain shrink-0"
           />
-          <span className="inline font-bold text-[14px] min-[380px]:text-[15px] sm:text-[16px]">
+          <span className="truncate font-bold text-[13px] min-[360px]:text-[14px] sm:text-[16px] text-foreground">
             Green Enlightenment
           </span>
         </Link>
@@ -136,7 +136,7 @@ const Navbar = () => {
         </div>
 
         {/* Right Side Action Controls */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           <OfflineSyncModal />
           <LanguageSwitcher />
 
@@ -147,14 +147,13 @@ const Navbar = () => {
                 <DropdownMenuTrigger asChild>
                   <button
                     aria-label="Account menu"
-                    className="flex items-center gap-1 rounded-full pl-0.5 pr-1.5 py-0.5 hover:bg-primary/5 transition-colors"
+                    className="flex items-center gap-1 rounded-full p-0.5 hover:bg-primary/5 transition-colors shrink-0"
                   >
-                    <Avatar className="h-8 w-8 border border-primary/20">
-                      <AvatarFallback className="bg-primary/10 text-primary text-[11px] font-semibold">
+                    <Avatar className="h-7 w-7 sm:h-8 sm:w-8 border border-primary/20">
+                      <AvatarFallback className="bg-primary/10 text-primary text-[10px] sm:text-[11px] font-semibold">
                         {initials}
                       </AvatarFallback>
                     </Avatar>
-                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 bg-popover z-[60]">
@@ -204,7 +203,7 @@ const Navbar = () => {
               </DropdownMenu>
             </>
           ) : (
-            <div className="hidden sm:flex items-center gap-1.5">
+            <div className="hidden sm:flex items-center gap-1.5 shrink-0">
               <Link to="/login">
                 <Button variant="ghost" size="sm" className="whitespace-nowrap h-8 px-2.5 text-xs">
                   Log In
@@ -218,14 +217,14 @@ const Navbar = () => {
             </div>
           )}
 
-          {/* Mobile & Tablet Hamburger Menu Button (Visible below 1024px) */}
+          {/* Mobile & Tablet Hamburger Menu Button (Always visible on mobile/tablet below 1024px) */}
           <button
             type="button"
-            className="lg:hidden flex items-center justify-center h-9 w-9 rounded-xl text-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0 border border-primary/20 bg-background/60 shadow-sm"
+            className="lg:hidden flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 rounded-xl text-foreground hover:text-primary hover:bg-primary/10 transition-all shrink-0 border border-primary/30 bg-background/90 shadow-sm ml-0.5"
             aria-label="Toggle menu"
             onClick={() => setOpen(!open)}
           >
-            {open ? <X className="h-5 w-5 text-foreground" /> : <Menu className="h-5 w-5 text-foreground" />}
+            {open ? <X className="h-5 w-5 text-primary" /> : <Menu className="h-5 w-5 text-foreground" />}
           </button>
         </div>
       </div>

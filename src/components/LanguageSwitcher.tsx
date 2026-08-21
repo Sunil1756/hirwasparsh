@@ -25,7 +25,7 @@ export function LanguageSwitcher() {
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 px-2 text-xs font-semibold gap-1.5 rounded-full hover:bg-primary/10 border border-primary/20 text-foreground"
+          className="h-8 px-2 text-xs font-semibold gap-1 rounded-full hover:bg-primary/10 border border-primary/20 text-foreground shrink-0"
         >
           <Languages className="h-3.5 w-3.5 text-primary" />
           <span>{current.code.toUpperCase()}</span>
