@@ -32,29 +32,28 @@ const PlantChooser = () => {
           </p>
         </motion.div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-3">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.05 }}
-            className="glass-card rounded-2xl p-7 flex flex-col border border-border/40"
+            className="glass-card rounded-2xl p-6 flex flex-col border border-border/40"
           >
             <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-4">
               <TreePine className="h-6 w-6" />
             </div>
-            <h2 className="font-heading text-xl font-semibold">🌱 Individual Plantation</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              For planting and verifying individual trees.
+            <h2 className="font-heading text-lg font-semibold">🌱 Individual Tree</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              For planting and verifying single trees with mobile camera.
             </p>
-            <ul className="mt-5 space-y-2 text-sm text-muted-foreground flex-1">
-              <li className="flex gap-2"><MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" /> GPS location capture</li>
-              <li className="flex gap-2"><TreePine className="h-4 w-4 text-primary shrink-0 mt-0.5" /> Before / after plantation photo</li>
-              <li className="flex gap-2"><ShieldCheck className="h-4 w-4 text-primary shrink-0 mt-0.5" /> Identity / selfie verification</li>
-              <li className="flex gap-2"><ShieldCheck className="h-4 w-4 text-primary shrink-0 mt-0.5" /> AI verification → Tree ID → growth tracking</li>
+            <ul className="mt-4 space-y-2 text-xs text-muted-foreground flex-1">
+              <li className="flex gap-2"><MapPin className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> GPS location capture</li>
+              <li className="flex gap-2"><TreePine className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> Before / after photo</li>
+              <li className="flex gap-2"><ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> AI passport & badge</li>
             </ul>
-            <Link to="/plant/individual" className="mt-6">
-              <Button className="w-full h-11">
-                Continue as Individual <ArrowRight className="ml-2 h-4 w-4" />
+            <Link to="/plant/individual" className="mt-5">
+              <Button className="w-full h-10 text-xs">
+                Plant Individual <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Button>
             </Link>
           </motion.div>
@@ -62,25 +61,54 @@ const PlantChooser = () => {
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.12 }}
-            className="glass-card rounded-2xl p-7 flex flex-col border border-border/40"
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="glass-card rounded-2xl p-6 flex flex-col border border-primary/40 bg-primary/5 relative overflow-hidden"
+          >
+            <div className="absolute top-3 right-3">
+              <span className="text-[10px] uppercase font-bold tracking-wider bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+                Module C
+              </span>
+            </div>
+            <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center text-primary mb-4">
+              <Building2 className="h-6 w-6" />
+            </div>
+            <h2 className="font-heading text-lg font-semibold">📂 Bulk CSV & Batch QR</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Mass onboarding (1,000+ trees) and printable field QR tag sheets.
+            </p>
+            <ul className="mt-4 space-y-2 text-xs text-muted-foreground flex-1">
+              <li className="flex gap-2"><MapPin className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> Instant CSV / Excel parser</li>
+              <li className="flex gap-2"><TreePine className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> Printable A4 sticker tags</li>
+              <li className="flex gap-2"><ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> High-contrast QR codes</li>
+            </ul>
+            <Link to="/plant/bulk" className="mt-5">
+              <Button className="w-full h-10 text-xs bg-primary font-semibold shadow-md">
+                Open Bulk & QR Generator <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+              </Button>
+            </Link>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.15 }}
+            className="glass-card rounded-2xl p-6 flex flex-col border border-border/40"
           >
             <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-4">
               <Building2 className="h-6 w-6" />
             </div>
-            <h2 className="font-heading text-xl font-semibold">🏢 NGO / Organization Plantation</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              For NGOs, government departments, colleges, companies and large-scale plantation drives.
+            <h2 className="font-heading text-lg font-semibold">🏢 NGO / CSR Project</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Full enterprise project tracking, satellite monitoring & boundary polygon.
             </p>
-            <ul className="mt-5 space-y-2 text-sm text-muted-foreground flex-1">
-              <li className="flex gap-2"><MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" /> Project boundary on map + target trees</li>
-              <li className="flex gap-2"><TreePine className="h-4 w-4 text-primary shrink-0 mt-0.5" /> Bulk plantation data upload (CSV)</li>
-              <li className="flex gap-2"><Satellite className="h-4 w-4 text-primary shrink-0 mt-0.5" /> Drone imagery & satellite monitoring</li>
-              <li className="flex gap-2"><ShieldCheck className="h-4 w-4 text-primary shrink-0 mt-0.5" /> Sample field verification & survival reports</li>
+            <ul className="mt-4 space-y-2 text-xs text-muted-foreground flex-1">
+              <li className="flex gap-2"><MapPin className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> Map boundary drawing</li>
+              <li className="flex gap-2"><Satellite className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> Drone & satellite telemetry</li>
+              <li className="flex gap-2"><ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> Multi-year survival audits</li>
             </ul>
-            <Link to="/plant/organization" className="mt-6">
-              <Button variant="outline" className="w-full h-11 border-primary/40">
-                Continue as Organization <ArrowRight className="ml-2 h-4 w-4" />
+            <Link to="/plant/organization" className="mt-5">
+              <Button variant="outline" className="w-full h-10 text-xs border-primary/40">
+                Continue as NGO/CSR <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Button>
             </Link>
           </motion.div>

@@ -31,6 +31,7 @@ import TreeStory from "./pages/TreeStory";
 import Challenges from "./pages/Challenges";
 import Intelligence from "./pages/Intelligence";
 import FieldScoutingPage from "./pages/FieldScoutingPage";
+import BulkOnboardPage from "./pages/BulkOnboardPage";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,8 @@ const App = () => (
           <Route path="/plant" element={<PlantChooser />} />
           <Route path="/plant/individual" element={<PlantTree />} />
           <Route path="/plant/organization" element={<OrganizationPlantation />} />
+          <Route path="/plant/bulk" element={<BulkOnboardPage />} />
+          <Route path="/bulk-onboard" element={<BulkOnboardPage />} />
           <Route path="/dashboard" element={<CommunityDashboard />} />
           <Route path="/tree-map" element={<TreeMap />} />
           <Route path="/scouting" element={<FieldScoutingPage />} />
