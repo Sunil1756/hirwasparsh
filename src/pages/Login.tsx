@@ -54,11 +54,15 @@ const Login = () => {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (accountType !== "individual" && !orgName.trim()) {
-      toast({ title: "Organization name required", description: "Please enter your NGO or school/college name.", variant: "destructive" });
+      toast({
+        title: "Organization name required",
+        description: "Please enter your NGO or school/college name.",
+        variant: "destructive",
+      });
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: signupEmail,
       password: signupPassword,
       options: {
@@ -70,13 +74,35 @@ const Login = () => {
         emailRedirectTo: `${window.location.origin}/login`,
       },
     });
-    setLoading(false);
+
     if (error) {
+      setLoading(false);
       toast({ title: "Signup failed", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    // 1. If instant session is returned
+    if (data?.session) {
+      setLoading(false);
+      toast({ title: "Welcome to Green Enlightenment! 🌱", description: "Account created and signed in." });
+      navigate("/");
+      return;
+    }
+
+    // 2. Try direct login with credentials (if unconfirmed email login is allowed)
+    const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({
+      email: signupEmail,
+      password: signupPassword,
+    });
+
+    setLoading(false);
+    if (!loginErr && loginData?.session) {
+      toast({ title: "Welcome to Green Enlightenment! 🌱", description: "Account created and signed in." });
+      navigate("/");
     } else {
       toast({
         title: "Account created! 🌱",
-        description: "Verification link sent! Please check your email inbox (and spam folder) to activate your account.",
+        description: "Please check your email to verify your account.",
       });
     }
   };
