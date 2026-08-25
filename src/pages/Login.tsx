@@ -67,14 +67,17 @@ const Login = () => {
           account_type: accountType,
           organization_name: accountType === "individual" ? null : orgName.trim(),
         },
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: `${window.location.origin}/login`,
       },
     });
     setLoading(false);
     if (error) {
       toast({ title: "Signup failed", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Account created! 🌱", description: "Please check your email to verify your account." });
+      toast({
+        title: "Account created! 🌱",
+        description: "Verification link sent! Please check your email inbox (and spam folder) to activate your account.",
+      });
     }
   };
 
