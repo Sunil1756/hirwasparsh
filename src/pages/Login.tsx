@@ -81,7 +81,27 @@ const Login = () => {
       return;
     }
 
-    // 1. If instant session is returned
+    // 1. If user already exists (Supabase returns empty identities)
+    if (data?.user && (!data.user.identities || data.user.identities.length === 0)) {
+      const { data: existingLogin, error: existingErr } = await supabase.auth.signInWithPassword({
+        email: signupEmail,
+        password: signupPassword,
+      });
+      setLoading(false);
+      if (!existingErr && existingLogin?.session) {
+        toast({ title: "Welcome back! 🌿", description: "Account already exists. You are now logged in." });
+        navigate("/");
+      } else {
+        toast({
+          title: "Account already registered",
+          description: "This email already has an account. Please switch to the Log In tab.",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+
+    // 2. If instant session is returned
     if (data?.session) {
       setLoading(false);
       toast({ title: "Welcome to Green Enlightenment! 🌱", description: "Account created and signed in." });
@@ -89,7 +109,7 @@ const Login = () => {
       return;
     }
 
-    // 2. Try direct login with credentials (if unconfirmed email login is allowed)
+    // 3. Try direct login with credentials
     const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({
       email: signupEmail,
       password: signupPassword,
@@ -102,8 +122,9 @@ const Login = () => {
     } else {
       toast({
         title: "Account created! 🌱",
-        description: "Please check your email to verify your account.",
+        description: "Welcome to Green Enlightenment! You can now log in.",
       });
+      navigate("/");
     }
   };
 
