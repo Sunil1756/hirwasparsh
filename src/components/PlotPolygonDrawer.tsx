@@ -1,51 +1,248 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
-  MapPin, Sparkles, ShieldCheck, FileText, Trees, PieChart, RefreshCw,
-  Upload, Compass, CheckCircle2, AlertTriangle, Layers, Ruler, Bot, Loader2
+  MapPin,
+  Sparkles,
+  ShieldCheck,
+  FileText,
+  Trees,
+  PieChart,
+  RefreshCw,
+  Upload,
+  Compass,
+  CheckCircle2,
+  AlertTriangle,
+  Layers,
+  Ruler,
+  Bot,
+  Loader2,
+  Pencil,
+  Trash2,
+  Download,
+  Undo2,
+  Maximize2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { calculatePlotMetrics } from "@/lib/remoteSensing";
 import { analyzeCanopyWithAI } from "@/lib/gemini";
 import { parseKmlString, parseGeoJsonString, ParcelBoundaryResult } from "@/lib/kmlParser";
-import { MapContainer, TileLayer, Polygon, Marker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Polygon, Polyline, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import * as turf from "@turf/helpers";
+import turfArea from "@turf/area";
 import { toast } from "sonner";
 
 interface Props {
   onPlotSaved?: (plotData: any) => void;
 }
 
-// Helper to auto-fit map bounds to polygon
+// Preset Cadastral Parcel Boundaries across Maharashtra Agroforestry Belts
+const PRESET_PARCELS: Record<
+  string,
+  { name: string; district: string; coords: [number, number][]; trees: number; ageMonths: number }
+> = {
+  satara: {
+    name: "Sahyadri Bio-Reserve Agroforestry Parcel",
+    district: "Satara",
+    coords: [
+      [17.6845, 74.0120],
+      [17.6880, 74.0165],
+      [17.6895, 74.0110],
+      [17.6860, 74.0075],
+      [17.6845, 74.0120],
+    ],
+    trees: 750,
+    ageMonths: 24,
+  },
+  nagpur: {
+    name: "Vidarbha Teakwood & Bamboo Carbon Plot",
+    district: "Nagpur",
+    coords: [
+      [21.1490, 79.0820],
+      [21.1540, 79.0890],
+      [21.1570, 79.0830],
+      [21.1510, 79.0760],
+      [21.1490, 79.0820],
+    ],
+    trees: 1800,
+    ageMonths: 36,
+  },
+  pune: {
+    name: "Western Ghats Native Agro-Forestry Corridor",
+    district: "Pune",
+    coords: [
+      [18.5204, 73.8567],
+      [18.5255, 73.8610],
+      [18.5270, 73.8540],
+      [18.5220, 73.8510],
+      [18.5204, 73.8567],
+    ],
+    trees: 1200,
+    ageMonths: 18,
+  },
+  solapur: {
+    name: "Solapur Dryland Horticulture & Tamarind Matrix",
+    district: "Solapur",
+    coords: [
+      [17.6620, 75.9010],
+      [17.6660, 75.9080],
+      [17.6690, 75.9030],
+      [17.6640, 75.8970],
+      [17.6620, 75.9010],
+    ],
+    trees: 950,
+    ageMonths: 14,
+  },
+};
+
+// Helper component to auto-pan and fit bounds
 function MapBoundsUpdater({ coords }: { coords: [number, number][] }) {
   const map = useMap();
-  if (coords.length > 0) {
-    const bounds = L.latLngBounds(coords);
-    map.fitBounds(bounds, { padding: [30, 30] });
-  }
+  useEffect(() => {
+    if (coords && coords.length > 2) {
+      try {
+        const bounds = L.latLngBounds(coords);
+        map.fitBounds(bounds, { padding: [30, 30], maxZoom: 16 });
+      } catch (e) {
+        console.warn("Bounds update error:", e);
+      }
+    }
+  }, [coords, map]);
   return null;
 }
+
+// Click handler component for interactive polygon drawing
+function MapDrawingHandler({
+  isDrawing,
+  onAddPoint,
+}: {
+  isDrawing: boolean;
+  onAddPoint: (lat: number, lng: number) => void;
+}) {
+  useMapEvents({
+    click(e) {
+      if (isDrawing) {
+        onAddPoint(e.latlng.lat, e.latlng.lng);
+      }
+    },
+  });
+  return null;
+}
+
+// Vertex marker icon
+const vertexIcon = L.divIcon({
+  className: "polygon-vertex-marker",
+  html: `<div style="width:10px;height:10px;border-radius:50%;background:#22c55e;border:2px solid white;box-shadow:0 0 6px rgba(0,0,0,0.6)"></div>`,
+  iconSize: [10, 10],
+  iconAnchor: [5, 5],
+});
 
 export function PlotPolygonDrawer({ onPlotSaved }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [plotName, setPlotName] = useState("Sahyadri Biodiversity Agro-Plot");
+  // Form states
+  const [plotName, setPlotName] = useState("Sahyadri Bio-Reserve Agroforestry Parcel");
   const [district, setDistrict] = useState("Satara");
-  const [areaSqM, setAreaSqM] = useState(16187); // ~4 acres
-  const [treeCount, setTreeCount] = useState(650);
-  const [avgAgeMonths, setAvgAgeMonths] = useState(18);
+  const [areaSqM, setAreaSqM] = useState(20234); // ~5 acres
+  const [treeCount, setTreeCount] = useState(750);
+  const [avgAgeMonths, setAvgAgeMonths] = useState(24);
 
+  // Drawing & GIS states
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [drawPoints, setDrawPoints] = useState<[number, number][]>([]);
+  const [polygonCoords, setPolygonCoords] = useState<[number, number][]>(PRESET_PARCELS.satara.coords);
   const [kmlData, setKmlData] = useState<ParcelBoundaryResult | null>(null);
+
+  // AI & Analytics states
   const [aiReport, setAiReport] = useState<any>(null);
   const [analyzing, setAnalyzing] = useState(false);
 
+  // Center coordinate for the map view
+  const mapCenter: [number, number] = polygonCoords[0] || [17.6845, 74.0120];
+
+  // Calculate live metrics
   const metrics = calculatePlotMetrics({
     areaSquareMeters: areaSqM,
     treeCount,
     averageAgeMonths: avgAgeMonths,
   });
 
+  // Calculate area from polygon points using Turf.js
+  const recalculateFromPoints = (points: [number, number][]) => {
+    if (points.length < 3) return;
+
+    try {
+      const turfCoords = points.map((p) => [p[1], p[0]]); // [lng, lat]
+      // Close ring
+      if (
+        turfCoords[0][0] !== turfCoords[turfCoords.length - 1][0] ||
+        turfCoords[0][1] !== turfCoords[turfCoords.length - 1][1]
+      ) {
+        turfCoords.push([...turfCoords[0]]);
+      }
+
+      const poly = turf.polygon([turfCoords]);
+      const area = Math.round(turfArea(poly));
+      if (area > 100) {
+        setAreaSqM(area);
+      }
+    } catch (e) {
+      console.warn("Area calculation error:", e);
+    }
+  };
+
+  // Add a point during drawing
+  const handleAddDrawPoint = (lat: number, lng: number) => {
+    const next = [...drawPoints, [lat, lng] as [number, number]];
+    setDrawPoints(next);
+    if (next.length >= 3) {
+      recalculateFromPoints(next);
+    }
+  };
+
+  // Finish drawing polygon
+  const handleFinishDrawing = () => {
+    if (drawPoints.length < 3) {
+      toast.error("Please click at least 3 points on the satellite map to form a parcel boundary.");
+      return;
+    }
+    const closed = [...drawPoints, drawPoints[0]];
+    setPolygonCoords(closed);
+    recalculateFromPoints(closed);
+    setIsDrawing(false);
+    setDrawPoints([]);
+    toast.success("✅ Custom Parcel Boundary Saved & Area Computed!");
+  };
+
+  // Undo last point
+  const handleUndoPoint = () => {
+    if (drawPoints.length === 0) return;
+    const next = drawPoints.slice(0, -1);
+    setDrawPoints(next);
+    if (next.length >= 3) {
+      recalculateFromPoints(next);
+    }
+  };
+
+  // Load a preset parcel
+  const handleSelectPreset = (key: string) => {
+    const preset = PRESET_PARCELS[key];
+    if (!preset) return;
+
+    setPlotName(preset.name);
+    setDistrict(preset.district);
+    setTreeCount(preset.trees);
+    setAvgAgeMonths(preset.ageMonths);
+    setPolygonCoords(preset.coords);
+    recalculateFromPoints(preset.coords);
+    setIsDrawing(false);
+    setDrawPoints([]);
+    setKmlData(null);
+    toast.success(`Loaded ${preset.name} (${preset.district})!`);
+  };
+
+  // Handle KML / GeoJSON File Upload
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -59,19 +256,71 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
       } else if (file.name.endsWith(".geojson") || file.name.endsWith(".json")) {
         res = parseGeoJsonString(text, file.name);
       } else {
-        throw new Error("Unsupported format. Please upload .KML or .GeoJSON.");
+        throw new Error("Unsupported file format. Please upload .kml or .geojson.");
       }
 
       setKmlData(res);
+      setPolygonCoords(res.polygonCoords);
       setAreaSqM(Math.round(res.areaSqMeters));
       setPlotName(file.name.replace(/\.[^/.]+$/, ""));
-      toast.success(`Parsed ${res.acres} Acres (${res.hectares} Ha) from ${file.name}!`);
+      setIsDrawing(false);
+      setDrawPoints([]);
+      toast.success(`✅ Parsed ${res.acres} Acres (${res.hectares} Ha) from ${file.name}!`);
     } catch (err: any) {
       console.error(err);
       toast.error(`Boundary upload failed: ${err.message}`);
     }
   };
 
+  // Export boundary as GeoJSON file
+  const handleExportGeoJSON = () => {
+    if (polygonCoords.length < 3) {
+      toast.error("No polygon boundary to export.");
+      return;
+    }
+
+    const turfCoords = polygonCoords.map((p) => [p[1], p[0]]); // [lng, lat]
+    if (
+      turfCoords[0][0] !== turfCoords[turfCoords.length - 1][0] ||
+      turfCoords[0][1] !== turfCoords[turfCoords.length - 1][1]
+    ) {
+      turfCoords.push([...turfCoords[0]]);
+    }
+
+    const geojson = {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: {
+            plot_name: plotName,
+            district,
+            acres: metrics.acres,
+            hectares: metrics.hectares,
+            tree_count: treeCount,
+            estimated_co2_tons: metrics.estimatedCo2Tons,
+            platform: "Green Enlightenment GIS Engine",
+            timestamp: new Date().toISOString(),
+          },
+          geometry: {
+            type: "Polygon",
+            coordinates: [turfCoords],
+          },
+        },
+      ],
+    };
+
+    const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${plotName.toLowerCase().replace(/\s+/g, "_")}_boundary.geojson`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Downloaded GeoJSON Survey Boundary!");
+  };
+
+  // Run AI Parcel Health Diagnostic with Gemini
   const handleRunAiAnalysis = async () => {
     setAnalyzing(true);
     try {
@@ -83,139 +332,241 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
         ndviScore: metrics.ndviScore,
       });
       setAiReport(res);
-      toast.success("AI Parcel Analysis Complete!");
+      toast.success("AI Parcel Health Diagnostic Complete!");
     } catch (e: any) {
-      toast.error("Failed to run analysis: " + e.message);
+      toast.error("Failed to run AI analysis: " + e.message);
     } finally {
       setAnalyzing(false);
     }
   };
 
-  const handleLoadDemoParcel = () => {
-    const demoCoords: [number, number][] = [
-      [18.5204, 73.8567],
-      [18.5230, 73.8580],
-      [18.5245, 73.8550],
-      [18.5215, 73.8535],
-      [18.5204, 73.8567],
-    ];
-    setKmlData({
-      fileName: "Demo_Sahyadri_Agro_Parcel.kml",
-      polygonCoords: demoCoords,
-      areaSqMeters: 20234,
-      acres: 5.0,
-      hectares: 2.02,
-      perimeterKm: 1.15,
-      centerCoords: [18.522, 73.856],
-    });
-    setPlotName("Sahyadri Bio-Reserve Agroforestry Parcel");
-    setAreaSqM(20234);
-    toast.success("Loaded Demo 5-Acre Parcel Boundary!");
-  };
-
   return (
     <div className="glass-card rounded-2xl p-5 sm:p-6 border border-primary/20 shadow-md space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* Module D Header & Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <PieChart className="h-5 w-5 text-primary" />
-            <h3 className="font-heading font-semibold text-lg">
-              Forest Survey Boundary & Cadastral Parcel Modeler (Module D)
-            </h3>
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+              <PieChart className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="font-heading font-bold text-lg sm:text-xl">
+                Forest Survey & Cadastral Boundary Modeler (Module D)
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Interactive parcel drawing on Sentinel-2 satellite imagery, KML/GeoJSON survey parser, and carbon yield estimation.
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Import Google Earth KML / GeoJSON survey boundaries or simulate farm acreage and carbon yield.
-          </p>
         </div>
 
+        {/* Action Controls */}
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleLoadDemoParcel}
-            className="rounded-xl gap-1.5 border-primary/30 text-xs"
-          >
-            <Compass className="h-3.5 w-3.5 text-primary" /> Load Demo Parcel
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".kml, .geojson, .json, .xml"
-            className="hidden"
-            onChange={handleFileUpload}
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fileInputRef.current?.click()}
-            className="rounded-xl gap-2 border-primary/30 text-xs font-semibold"
-          >
-            <Upload className="h-4 w-4 text-primary" /> Upload KML / GeoJSON
-          </Button>
-          <Badge variant="outline" className="text-xs bg-primary/10 border-primary/30 hidden sm:inline-flex">
-            Turf.js + GIS Engine
-          </Badge>
+          {isDrawing ? (
+            <>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleFinishDrawing}
+                className="rounded-xl gap-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" /> Save Boundary ({drawPoints.length} pts)
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleUndoPoint}
+                disabled={drawPoints.length === 0}
+                className="rounded-xl gap-1 text-xs"
+              >
+                <Undo2 className="h-3.5 w-3.5" /> Undo
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setIsDrawing(false);
+                  setDrawPoints([]);
+                }}
+                className="rounded-xl text-xs text-rose-500 hover:bg-rose-500/10"
+              >
+                Cancel
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant={isDrawing ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setIsDrawing(true);
+                  setDrawPoints([]);
+                  toast.info("🖱️ Click on the satellite map to draw your farm vertices!");
+                }}
+                className="rounded-xl gap-1.5 border-primary/30 text-xs font-semibold"
+              >
+                <Pencil className="h-3.5 w-3.5 text-primary" /> Draw Boundary
+              </Button>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".kml, .geojson, .json, .xml"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                className="rounded-xl gap-1.5 border-primary/30 text-xs font-semibold"
+              >
+                <Upload className="h-3.5 w-3.5 text-primary" /> Import KML / GeoJSON
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportGeoJSON}
+                className="rounded-xl gap-1.5 border-primary/30 text-xs font-semibold"
+              >
+                <Download className="h-3.5 w-3.5 text-primary" /> Export GeoJSON
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Uploaded File Banner */}
-      {kmlData && (
-        <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+      {/* Preset Cadastral Parcel Selector Bar */}
+      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-primary/10">
+        <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+          <Compass className="h-3.5 w-3.5 text-primary" /> Preset Plots:
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleSelectPreset("satara")}
+          className="rounded-lg h-7 text-xs border-primary/20 bg-background/60 hover:bg-primary/10"
+        >
+          Satara (5 Acres)
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleSelectPreset("nagpur")}
+          className="rounded-lg h-7 text-xs border-primary/20 bg-background/60 hover:bg-primary/10"
+        >
+          Nagpur Teak (12 Acres)
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleSelectPreset("pune")}
+          className="rounded-lg h-7 text-xs border-primary/20 bg-background/60 hover:bg-primary/10"
+        >
+          Pune Corridor (8 Acres)
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleSelectPreset("solapur")}
+          className="rounded-lg h-7 text-xs border-primary/20 bg-background/60 hover:bg-primary/10"
+        >
+          Solapur Agro (6 Acres)
+        </Button>
+      </div>
+
+      {/* Drawing Instructions Alert Banner */}
+      {isDrawing && (
+        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-xs animate-pulse">
+          <div className="flex items-center gap-2">
+            <Pencil className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
             <span>
-              Loaded <strong>{kmlData.fileName}</strong>: {kmlData.acres} Acres ({kmlData.hectares} Ha) · Perimeter: {kmlData.perimeterKm} km
+              <strong>Drawing Mode Active:</strong> Click on the satellite map to add boundary corners. Points added:{" "}
+              <strong>{drawPoints.length}</strong> (Minimum 3 required).
             </span>
           </div>
           <Button
-            variant="ghost"
             size="sm"
-            onClick={() => setKmlData(null)}
-            className="h-7 text-xs text-muted-foreground"
+            onClick={handleFinishDrawing}
+            disabled={drawPoints.length < 3}
+            className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg"
           >
-            Reset
+            Finish
           </Button>
         </div>
       )}
 
-      {/* Interactive Satellite Polygon Map (if KML loaded) */}
-      {kmlData && (
-        <div className="rounded-2xl overflow-hidden border border-primary/20 shadow-md">
-          <MapContainer
-            center={kmlData.centerCoords}
-            zoom={14}
-            scrollWheelZoom={false}
-            style={{ height: "300px", width: "100%" }}
-          >
-            <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" />
+      {/* Interactive Satellite Polygon Map (Always Visible & Active) */}
+      <div className="rounded-2xl overflow-hidden border border-primary/20 shadow-inner relative">
+        {/* Drawing Badge Indicator */}
+        {isDrawing && (
+          <div className="absolute top-3 left-3 z-[400] bg-background/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-primary/30 shadow-md text-xs font-semibold text-primary flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" /> Click on map to add vertex
+          </div>
+        )}
+
+        <MapContainer
+          center={mapCenter}
+          zoom={15}
+          scrollWheelZoom={false}
+          style={{ height: "380px", width: "100%" }}
+        >
+          <TileLayer
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+            attribution="&copy; Esri World Imagery"
+          />
+
+          {/* Click Handler for Drawing Mode */}
+          <MapDrawingHandler isDrawing={isDrawing} onAddPoint={handleAddDrawPoint} />
+
+          {/* Live Drawing Points & Polyline */}
+          {isDrawing && drawPoints.length > 0 && (
+            <>
+              <Polyline
+                positions={drawPoints}
+                pathOptions={{ color: "#f59e0b", weight: 3, dashArray: "4, 6" }}
+              />
+              {drawPoints.map((pt, idx) => (
+                <Marker key={idx} position={pt} icon={vertexIcon}>
+                  <Popup>Point #{idx + 1}</Popup>
+                </Marker>
+              ))}
+            </>
+          )}
+
+          {/* Confirmed Cadastral Polygon Layer */}
+          {!isDrawing && polygonCoords.length >= 3 && (
             <Polygon
-              positions={kmlData.polygonCoords}
+              positions={polygonCoords}
               pathOptions={{
                 color: "#22c55e",
                 fillColor: "#22c55e",
-                fillOpacity: 0.25,
+                fillOpacity: 0.28,
                 weight: 3,
-                dashArray: "4 4",
+                dashArray: "3, 6",
               }}
             >
               <Popup>
                 <div className="text-xs space-y-1">
-                  <div className="font-bold">{plotName}</div>
-                  <div>🌾 Area: {kmlData.acres} Acres</div>
-                  <div>🌲 Density: {Math.round(treeCount / (kmlData.hectares || 1))} trees/Ha</div>
+                  <div className="font-bold text-foreground">{plotName}</div>
+                  <div className="text-muted-foreground">📍 {district} District</div>
+                  <div className="text-emerald-600 font-semibold">🌾 Acreage: {metrics.acres} Acres ({metrics.hectares} Ha)</div>
+                  <div>🌲 Density: {metrics.densityPerHectare} trees / Ha</div>
+                  <div className="text-sky-600 font-semibold">✨ Est. Sequestration: {metrics.estimatedCo2Tons} MT CO₂e</div>
                 </div>
               </Popup>
             </Polygon>
-            <MapBoundsUpdater coords={kmlData.polygonCoords} />
-          </MapContainer>
-        </div>
-      )}
+          )}
+
+          <MapBoundsUpdater coords={isDrawing && drawPoints.length > 2 ? drawPoints : polygonCoords} />
+        </MapContainer>
+      </div>
 
       {/* Plot Configuration Inputs */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
-          <label className="text-xs text-muted-foreground block mb-1">Plot Name</label>
+          <label className="text-xs text-muted-foreground block mb-1">Parcel / Farm Name</label>
           <input
             type="text"
             value={plotName}
@@ -225,7 +576,7 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
         </div>
 
         <div>
-          <label className="text-xs text-muted-foreground block mb-1">District / Region</label>
+          <label className="text-xs text-muted-foreground block mb-1">District / Agro-Zone</label>
           <input
             type="text"
             value={district}
@@ -235,7 +586,7 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
         </div>
 
         <div>
-          <label className="text-xs text-muted-foreground block mb-1">Planted Tree Count</label>
+          <label className="text-xs text-muted-foreground block mb-1">Tree Inventory Count</label>
           <input
             type="number"
             value={treeCount}
@@ -245,70 +596,80 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
         </div>
       </div>
 
-      {/* Area Sliders */}
-      <div className="p-3 rounded-xl bg-background/50 border border-primary/10 space-y-3">
+      {/* Area Slider Control */}
+      <div className="p-3.5 rounded-xl bg-background/60 border border-primary/15 space-y-2.5">
         <div className="flex items-center justify-between text-xs">
-          <span className="text-muted-foreground">Adjust Area Size</span>
-          <span className="font-semibold text-primary">{metrics.acres} Acres ({metrics.hectares} Ha)</span>
+          <span className="text-muted-foreground font-medium">Fine-Tune Parcel Surface Area:</span>
+          <span className="font-bold text-primary text-sm">
+            {metrics.acres} Acres ({metrics.hectares} Hectares · {areaSqM.toLocaleString()} m²)
+          </span>
         </div>
         <input
           type="range"
           min={4047}
           max={202343}
-          step={1000}
+          step={500}
           value={areaSqM}
           onChange={(e) => setAreaSqM(Number(e.target.value))}
-          className="w-full accent-primary"
+          className="w-full accent-primary cursor-pointer"
         />
       </div>
 
-      {/* Computed Metrics Cards */}
+      {/* 4 Computed Scientific Metrics Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 text-center">
-          <div className="text-[11px] text-muted-foreground">Canopy Cover</div>
-          <div className="text-lg font-bold text-primary mt-0.5">{metrics.canopyCoverPercent}%</div>
+        <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/15 text-center">
+          <div className="text-[11px] text-muted-foreground">Canopy Coverage</div>
+          <div className="text-lg sm:text-xl font-bold text-primary mt-0.5">{metrics.canopyCoverPercent}%</div>
+          <div className="text-[10px] text-emerald-600 mt-0.5">NDVI Index: {metrics.ndviScore}</div>
         </div>
 
-        <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 text-center">
-          <div className="text-[11px] text-muted-foreground">Tree Density</div>
-          <div className="text-lg font-bold text-foreground mt-0.5">{metrics.densityPerHectare}/Ha</div>
+        <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/15 text-center">
+          <div className="text-[11px] text-muted-foreground">Stand Tree Density</div>
+          <div className="text-lg sm:text-xl font-bold text-foreground mt-0.5">{metrics.densityPerHectare} / Ha</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">Optimal: 400-600/Ha</div>
         </div>
 
-        <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 text-center">
-          <div className="text-[11px] text-muted-foreground">Annual CO₂</div>
-          <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{metrics.estimatedCo2Tons} MT</div>
+        <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/15 text-center">
+          <div className="text-[11px] text-muted-foreground">Annual Biomass CO₂</div>
+          <div className="text-lg sm:text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+            {metrics.estimatedCo2Tons} MT
+          </div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">IPCC Pantropical Tier-2</div>
         </div>
 
-        <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 text-center">
-          <div className="text-[11px] text-muted-foreground">Carbon Credits</div>
-          <div className="text-lg font-bold text-primary mt-0.5">₹{metrics.carbonCreditValuationInr.toLocaleString()}</div>
+        <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/15 text-center">
+          <div className="text-[11px] text-muted-foreground">Carbon Valuation</div>
+          <div className="text-lg sm:text-xl font-bold text-primary mt-0.5">
+            ₹{metrics.carbonCreditValuationInr.toLocaleString()}
+          </div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">@ ₹1,200 / MT CO₂e</div>
         </div>
       </div>
 
-      {/* AI Parcel Diagnosis Button */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-primary/15">
+      {/* AI Gemini Parcel Diagnostic Button & Report */}
+      <div className="pt-2 border-t border-primary/15 space-y-3">
         <Button
           onClick={handleRunAiAnalysis}
           disabled={analyzing}
-          className="rounded-xl gap-2 text-xs font-semibold shadow-md"
+          className="rounded-xl gap-2 text-xs font-semibold shadow-md w-full sm:w-auto"
         >
           {analyzing ? (
             <>
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Analyzing Satellite Geometry...
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Analyzing Multi-Spectral Parcel Geometry...
             </>
           ) : (
             <>
-              <Sparkles className="h-3.5 w-3.5" /> Run AI Parcel Health Diagnostic (Gemini)
+              <Sparkles className="h-3.5 w-3.5" /> Run AI Parcel Health Diagnostic (Gemini 2.5)
             </>
           )}
         </Button>
 
         {aiReport && (
-          <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 text-xs w-full mt-2 space-y-1">
-            <div className="font-semibold text-primary flex items-center gap-1.5">
-              <Bot className="h-4 w-4" /> AI Agroforestry Recommendation:
+          <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 text-xs space-y-2">
+            <div className="font-semibold text-primary flex items-center gap-1.5 text-sm">
+              <Bot className="h-4 w-4" /> AI Agroforestry & Biodiversity Recommendation:
             </div>
-            <p className="text-foreground/90">{aiReport.summary || aiReport.recommendation}</p>
+            <p className="text-foreground/90 leading-relaxed">{aiReport.summary || aiReport.recommendation}</p>
           </div>
         )}
       </div>
