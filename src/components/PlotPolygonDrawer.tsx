@@ -96,14 +96,27 @@ const PRESET_PARCELS: Record<
   },
 };
 
-// Helper component to auto-pan and fit bounds
+// Auto-invalidates container size on mount & tab switches
+function MapResizer() {
+  const map = useMap();
+  useEffect(() => {
+    map.invalidateSize();
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [map]);
+  return null;
+}
+
+// Auto-pan and fit bounds when polygon changes
 function MapBoundsUpdater({ coords }: { coords: [number, number][] }) {
   const map = useMap();
   useEffect(() => {
-    if (coords && coords.length > 2) {
+    if (coords && coords.length >= 3) {
       try {
         const bounds = L.latLngBounds(coords);
-        map.fitBounds(bounds, { padding: [30, 30], maxZoom: 16 });
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
       } catch (e) {
         console.warn("Bounds update error:", e);
       }
@@ -112,7 +125,7 @@ function MapBoundsUpdater({ coords }: { coords: [number, number][] }) {
   return null;
 }
 
-// Click handler component for interactive polygon drawing
+// Click handler for drawing mode
 function MapDrawingHandler({
   isDrawing,
   onAddPoint,
@@ -133,9 +146,9 @@ function MapDrawingHandler({
 // Vertex marker icon
 const vertexIcon = L.divIcon({
   className: "polygon-vertex-marker",
-  html: `<div style="width:10px;height:10px;border-radius:50%;background:#22c55e;border:2px solid white;box-shadow:0 0 6px rgba(0,0,0,0.6)"></div>`,
-  iconSize: [10, 10],
-  iconAnchor: [5, 5],
+  html: `<div style="width:12px;height:12px;border-radius:50%;background:#22c55e;border:2px solid white;box-shadow:0 0 8px rgba(0,0,0,0.8)"></div>`,
+  iconSize: [12, 12],
+  iconAnchor: [6, 6],
 });
 
 export function PlotPolygonDrawer({ onPlotSaved }: Props) {
@@ -158,9 +171,6 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
   const [aiReport, setAiReport] = useState<any>(null);
   const [analyzing, setAnalyzing] = useState(false);
 
-  // Center coordinate for the map view
-  const mapCenter: [number, number] = polygonCoords[0] || [17.6845, 74.0120];
-
   // Calculate live metrics
   const metrics = calculatePlotMetrics({
     areaSquareMeters: areaSqM,
@@ -168,13 +178,12 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
     averageAgeMonths: avgAgeMonths,
   });
 
-  // Calculate area from polygon points using Turf.js
+  // Calculate area from polygon points using Turf.js safely
   const recalculateFromPoints = (points: [number, number][]) => {
     if (points.length < 3) return;
 
     try {
       const turfCoords = points.map((p) => [p[1], p[0]]); // [lng, lat]
-      // Close ring
       if (
         turfCoords[0][0] !== turfCoords[turfCoords.length - 1][0] ||
         turfCoords[0][1] !== turfCoords[turfCoords.length - 1][1]
@@ -183,8 +192,9 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
       }
 
       const poly = turf.polygon([turfCoords]);
-      const area = Math.round(turfArea(poly));
-      if (area > 100) {
+      const areaFn = typeof turfArea === "function" ? turfArea : (turfArea as any).default;
+      const area = Math.round(areaFn(poly));
+      if (area > 50) {
         setAreaSqM(area);
       }
     } catch (e) {
@@ -192,7 +202,7 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
     }
   };
 
-  // Add a point during drawing
+  // Add point in drawing mode
   const handleAddDrawPoint = (lat: number, lng: number) => {
     const next = [...drawPoints, [lat, lng] as [number, number]];
     setDrawPoints(next);
@@ -346,8 +356,8 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-              <PieChart className="h-4 w-4" />
+            <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+              <PieChart className="h-5 w-5" />
             </div>
             <div>
               <h3 className="font-heading font-bold text-lg sm:text-xl">
@@ -396,16 +406,16 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
           ) : (
             <>
               <Button
-                variant={isDrawing ? "default" : "outline"}
+                variant="default"
                 size="sm"
                 onClick={() => {
                   setIsDrawing(true);
                   setDrawPoints([]);
-                  toast.info("🖱️ Click on the satellite map to draw your farm vertices!");
+                  toast.info("🖱️ Click on the satellite map to draw your farm boundary corners!");
                 }}
-                className="rounded-xl gap-1.5 border-primary/30 text-xs font-semibold"
+                className="rounded-xl gap-1.5 text-xs font-semibold shadow-sm"
               >
-                <Pencil className="h-3.5 w-3.5 text-primary" /> Draw Boundary
+                <Pencil className="h-3.5 w-3.5" /> ✏️ Draw Boundary
               </Button>
 
               <input
@@ -440,7 +450,7 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
       {/* Preset Cadastral Parcel Selector Bar */}
       <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-primary/10">
         <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
-          <Compass className="h-3.5 w-3.5 text-primary" /> Preset Plots:
+          <Compass className="h-3.5 w-3.5 text-primary" /> Quick Presets:
         </span>
         <Button
           variant="outline"
@@ -482,7 +492,7 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
           <div className="flex items-center gap-2">
             <Pencil className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
             <span>
-              <strong>Drawing Mode Active:</strong> Click on the satellite map to add boundary corners. Points added:{" "}
+              <strong>Drawing Mode Active:</strong> Click on the satellite map to add corners. Vertices added:{" "}
               <strong>{drawPoints.length}</strong> (Minimum 3 required).
             </span>
           </div>
@@ -492,14 +502,13 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
             disabled={drawPoints.length < 3}
             className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg"
           >
-            Finish
+            Finish & Save
           </Button>
         </div>
       )}
 
       {/* Interactive Satellite Polygon Map (Always Visible & Active) */}
       <div className="rounded-2xl overflow-hidden border border-primary/20 shadow-inner relative">
-        {/* Drawing Badge Indicator */}
         {isDrawing && (
           <div className="absolute top-3 left-3 z-[400] bg-background/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-primary/30 shadow-md text-xs font-semibold text-primary flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" /> Click on map to add vertex
@@ -507,11 +516,12 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
         )}
 
         <MapContainer
-          center={mapCenter}
+          center={[17.6845, 74.0120]}
           zoom={15}
           scrollWheelZoom={false}
           style={{ height: "380px", width: "100%" }}
         >
+          <MapResizer />
           <TileLayer
             url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
             attribution="&copy; Esri World Imagery"
@@ -559,7 +569,7 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
             </Polygon>
           )}
 
-          <MapBoundsUpdater coords={isDrawing && drawPoints.length > 2 ? drawPoints : polygonCoords} />
+          <MapBoundsUpdater coords={isDrawing && drawPoints.length >= 3 ? drawPoints : polygonCoords} />
         </MapContainer>
       </div>
 
