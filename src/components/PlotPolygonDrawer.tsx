@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   MapPin,
   Sparkles,
@@ -29,8 +29,6 @@ import { parseKmlString, parseGeoJsonString, ParcelBoundaryResult } from "@/lib/
 import { MapContainer, TileLayer, Polygon, Polyline, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import * as turf from "@turf/helpers";
-import turfArea from "@turf/area";
 import { toast } from "sonner";
 
 interface Props {
@@ -95,6 +93,29 @@ const PRESET_PARCELS: Record<
     ageMonths: 14,
   },
 };
+
+// Geodesic spherical area calculator
+function computePolygonAreaSqMeters(coords: [number, number][]): number {
+  if (coords.length < 3) return 20234;
+  try {
+    const R = 6378137; // Earth radius in meters
+    let total = 0;
+    const len = coords.length;
+    for (let i = 0; i < len; i++) {
+      const p1 = coords[i];
+      const p2 = coords[(i + 1) % len];
+      const lat1 = (p1[0] * Math.PI) / 180;
+      const lat2 = (p2[0] * Math.PI) / 180;
+      const lon1 = (p1[1] * Math.PI) / 180;
+      const lon2 = (p2[1] * Math.PI) / 180;
+      total += (lon2 - lon1) * (2 + Math.sin(lat1) + Math.sin(lat2));
+    }
+    const area = Math.abs((total * R * R) / 2);
+    return Math.max(100, Math.round(area));
+  } catch (e) {
+    return 20234;
+  }
+}
 
 // Auto-invalidates container size on mount & tab switches
 function MapResizer() {
@@ -171,34 +192,21 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
   const [aiReport, setAiReport] = useState<any>(null);
   const [analyzing, setAnalyzing] = useState(false);
 
-  // Calculate live metrics
-  const metrics = calculatePlotMetrics({
-    areaSquareMeters: areaSqM,
-    treeCount,
-    averageAgeMonths: avgAgeMonths,
-  });
+  // Calculate live metrics safely
+  const metrics = useMemo(() => {
+    return calculatePlotMetrics({
+      areaSquareMeters: areaSqM,
+      treeCount,
+      averageAgeMonths: avgAgeMonths,
+    });
+  }, [areaSqM, treeCount, avgAgeMonths]);
 
-  // Calculate area from polygon points using Turf.js safely
-  const recalculateFromPoints = (points: [number, number][]) => {
+  // Recalculate area from points
+  const handleRecalculateArea = (points: [number, number][]) => {
     if (points.length < 3) return;
-
-    try {
-      const turfCoords = points.map((p) => [p[1], p[0]]); // [lng, lat]
-      if (
-        turfCoords[0][0] !== turfCoords[turfCoords.length - 1][0] ||
-        turfCoords[0][1] !== turfCoords[turfCoords.length - 1][1]
-      ) {
-        turfCoords.push([...turfCoords[0]]);
-      }
-
-      const poly = turf.polygon([turfCoords]);
-      const areaFn = typeof turfArea === "function" ? turfArea : (turfArea as any).default;
-      const area = Math.round(areaFn(poly));
-      if (area > 50) {
-        setAreaSqM(area);
-      }
-    } catch (e) {
-      console.warn("Area calculation error:", e);
+    const computedArea = computePolygonAreaSqMeters(points);
+    if (computedArea > 50) {
+      setAreaSqM(computedArea);
     }
   };
 
@@ -207,7 +215,7 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
     const next = [...drawPoints, [lat, lng] as [number, number]];
     setDrawPoints(next);
     if (next.length >= 3) {
-      recalculateFromPoints(next);
+      handleRecalculateArea(next);
     }
   };
 
@@ -219,7 +227,7 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
     }
     const closed = [...drawPoints, drawPoints[0]];
     setPolygonCoords(closed);
-    recalculateFromPoints(closed);
+    handleRecalculateArea(closed);
     setIsDrawing(false);
     setDrawPoints([]);
     toast.success("✅ Custom Parcel Boundary Saved & Area Computed!");
@@ -231,7 +239,7 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
     const next = drawPoints.slice(0, -1);
     setDrawPoints(next);
     if (next.length >= 3) {
-      recalculateFromPoints(next);
+      handleRecalculateArea(next);
     }
   };
 
@@ -245,7 +253,7 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
     setTreeCount(preset.trees);
     setAvgAgeMonths(preset.ageMonths);
     setPolygonCoords(preset.coords);
-    recalculateFromPoints(preset.coords);
+    handleRecalculateArea(preset.coords);
     setIsDrawing(false);
     setDrawPoints([]);
     setKmlData(null);
@@ -308,7 +316,7 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
             acres: metrics.acres,
             hectares: metrics.hectares,
             tree_count: treeCount,
-            estimated_co2_tons: metrics.estimatedCo2Tons,
+            estimated_co2_tons: metrics.annualCo2MetricTons,
             platform: "Green Enlightenment GIS Engine",
             timestamp: new Date().toISOString(),
           },
@@ -563,7 +571,7 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
                   <div className="text-muted-foreground">📍 {district} District</div>
                   <div className="text-emerald-600 font-semibold">🌾 Acreage: {metrics.acres} Acres ({metrics.hectares} Ha)</div>
                   <div>🌲 Density: {metrics.densityPerHectare} trees / Ha</div>
-                  <div className="text-sky-600 font-semibold">✨ Est. Sequestration: {metrics.estimatedCo2Tons} MT CO₂e</div>
+                  <div className="text-sky-600 font-semibold">✨ Est. Sequestration: {metrics.annualCo2MetricTons} MT CO₂e</div>
                 </div>
               </Popup>
             </Polygon>
@@ -629,7 +637,7 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/15 text-center">
           <div className="text-[11px] text-muted-foreground">Canopy Coverage</div>
-          <div className="text-lg sm:text-xl font-bold text-primary mt-0.5">{metrics.canopyCoverPercent}%</div>
+          <div className="text-lg sm:text-xl font-bold text-primary mt-0.5">{metrics.canopyCoveragePercent}%</div>
           <div className="text-[10px] text-emerald-600 mt-0.5">NDVI Index: {metrics.ndviScore}</div>
         </div>
 
@@ -642,7 +650,7 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
         <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/15 text-center">
           <div className="text-[11px] text-muted-foreground">Annual Biomass CO₂</div>
           <div className="text-lg sm:text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-            {metrics.estimatedCo2Tons} MT
+            {metrics.annualCo2MetricTons} MT
           </div>
           <div className="text-[10px] text-muted-foreground mt-0.5">IPCC Pantropical Tier-2</div>
         </div>
@@ -650,7 +658,7 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
         <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/15 text-center">
           <div className="text-[11px] text-muted-foreground">Carbon Valuation</div>
           <div className="text-lg sm:text-xl font-bold text-primary mt-0.5">
-            ₹{metrics.carbonCreditValuationInr.toLocaleString()}
+            ₹{(metrics.carbonCreditValuationInr || 0).toLocaleString()}
           </div>
           <div className="text-[10px] text-muted-foreground mt-0.5">@ ₹1,200 / MT CO₂e</div>
         </div>

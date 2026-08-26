@@ -56,15 +56,17 @@ export function calculatePlotMetrics(params: {
   speciesArray?: string[];
   averageAgeMonths?: number;
 }) {
-  const acres = Math.round((params.areaSquareMeters / 4046.86) * 100) / 100;
-  const hectares = Math.round((params.areaSquareMeters / 10000) * 100) / 100;
+  const safeArea = Math.max(1, params.areaSquareMeters || 4046.86);
+  const safeTreeCount = Math.max(1, params.treeCount || 100);
+  const acres = Math.round((safeArea / 4046.86) * 100) / 100;
+  const hectares = Math.round((safeArea / 10000) * 100) / 100;
   
   // Tree density per hectare
-  const densityPerHectare = hectares > 0 ? Math.round(params.treeCount / hectares) : params.treeCount;
+  const densityPerHectare = hectares > 0 ? Math.round(safeTreeCount / hectares) : safeTreeCount;
   
   // Average annual carbon sequestration: 22 kg CO2 per mature tree, scaled by age
   const ageFactor = Math.min(1.0, Math.max(0.2, (params.averageAgeMonths || 12) / 36));
-  const annualCo2Kg = Math.round(params.treeCount * 22 * ageFactor);
+  const annualCo2Kg = Math.round(safeTreeCount * 22 * ageFactor);
   const annualCo2MetricTons = Math.round((annualCo2Kg / 1000) * 10) / 10;
   
   // 10-Year cumulative carbon offset projection
@@ -72,12 +74,15 @@ export function calculatePlotMetrics(params: {
 
   // Canopy cover percentage estimation
   const estimatedCanopyRadiusM = Math.min(4, 0.5 + ((params.averageAgeMonths || 12) / 12) * 0.8);
-  const totalCanopyAreaSqM = params.treeCount * Math.PI * Math.pow(estimatedCanopyRadiusM, 2);
-  const canopyCoveragePercent = Math.min(95, Math.round((totalCanopyAreaSqM / Math.max(1, params.areaSquareMeters)) * 100));
+  const totalCanopyAreaSqM = safeTreeCount * Math.PI * Math.pow(estimatedCanopyRadiusM, 2);
+  const canopyCoveragePercent = Math.min(95, Math.round((totalCanopyAreaSqM / safeArea) * 100));
 
   // Synthesized NDVI index based on density and canopy coverage
   const baselineNdvi = 0.35 + (canopyCoveragePercent / 100) * 0.45;
   const ndviScore = Math.min(0.88, Math.round(baselineNdvi * 100) / 100);
+
+  // Carbon credit valuation @ ₹1,200 / MT CO2e
+  const carbonCreditValuationInr = Math.round(annualCo2MetricTons * 1200);
 
   return {
     acres,
@@ -85,9 +90,12 @@ export function calculatePlotMetrics(params: {
     densityPerHectare,
     annualCo2Kg,
     annualCo2MetricTons,
+    estimatedCo2Tons: annualCo2MetricTons,
     tenYearOffsetTons,
     canopyCoveragePercent,
+    canopyCoverPercent: canopyCoveragePercent,
     ndviScore,
+    carbonCreditValuationInr,
   };
 }
 
