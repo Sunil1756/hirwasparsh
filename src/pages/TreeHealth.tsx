@@ -33,35 +33,53 @@ const TreeHealth = () => {
     queryKey: ["user-trees-health", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("trees")
-        .select("id, tree_name, species")
-        .eq("user_id", user!.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase
+          .from("trees")
+          .select("id, tree_name, species")
+          .eq("user_id", user!.id)
+          .order("created_at", { ascending: false });
+        if (error) {
+          console.warn("user-trees-health error:", error.message);
+          return [];
+        }
+        return data || [];
+      } catch {
+        return [];
+      }
     },
   });
 
   const { data: allTrees = [] } = useQuery({
     queryKey: ["all-trees-health"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("trees").select("id, verification_status");
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase.from("trees").select("id, verification_status");
+        if (error) return [];
+        return data || [];
+      } catch {
+        return [];
+      }
     },
   });
 
   const { data: allUpdates = [] } = useQuery({
     queryKey: ["all-health-updates"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tree_health_updates")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase
+          .from("tree_health_updates")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(50);
+        if (error) {
+          console.warn("all-health-updates error:", error.message);
+          return [];
+        }
+        return data || [];
+      } catch {
+        return [];
+      }
     },
   });
 

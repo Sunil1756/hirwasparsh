@@ -35,8 +35,12 @@ const TreeProfile = () => {
     queryKey: ["planter", tree?.user_id],
     enabled: !!tree?.user_id,
     queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("full_name").eq("id", tree!.user_id!).single();
-      return data;
+      try {
+        const { data } = await supabase.from("profiles").select("full_name").eq("id", tree!.user_id!).single();
+        return data || null;
+      } catch {
+        return null;
+      }
     },
   });
 
@@ -44,13 +48,20 @@ const TreeProfile = () => {
     queryKey: ["health-updates", id],
     enabled: !!id,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tree_health_updates")
-        .select("*")
-        .eq("tree_id", id!)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase
+          .from("tree_health_updates")
+          .select("*")
+          .eq("tree_id", id!)
+          .order("created_at", { ascending: false });
+        if (error) {
+          console.warn("health-updates error:", error.message);
+          return [];
+        }
+        return data || [];
+      } catch {
+        return [];
+      }
     },
   });
 
@@ -58,13 +69,20 @@ const TreeProfile = () => {
     queryKey: ["growth-updates", id],
     enabled: !!id,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("growth_updates")
-        .select("id, photo_url, update_day, created_at")
-        .eq("tree_id", id!)
-        .order("created_at", { ascending: true });
-      if (error) throw error;
-      return data || [];
+      try {
+        const { data, error } = await supabase
+          .from("growth_updates")
+          .select("id, photo_url, update_day, created_at")
+          .eq("tree_id", id!)
+          .order("created_at", { ascending: true });
+        if (error) {
+          console.warn("growth-updates error:", error.message);
+          return [];
+        }
+        return data || [];
+      } catch {
+        return [];
+      }
     },
   });
 

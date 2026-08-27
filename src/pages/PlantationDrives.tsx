@@ -31,30 +31,49 @@ const PlantationDrives = () => {
   const { data: drives = [], isLoading } = useQuery({
     queryKey: ["drives"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("plantation_drives")
-        .select("*")
-        .order("event_date", { ascending: true });
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase
+          .from("plantation_drives")
+          .select("*")
+          .order("event_date", { ascending: true });
+        if (error) {
+          console.warn("plantation_drives query:", error.message);
+          return [];
+        }
+        return data || [];
+      } catch (err) {
+        console.warn("plantation_drives query error:", err);
+        return [];
+      }
     },
   });
 
   const { data: participants = [] } = useQuery({
     queryKey: ["drive-participants"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("drive_participants").select("*");
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase.from("drive_participants").select("*");
+        if (error) {
+          console.warn("drive_participants query:", error.message);
+          return [];
+        }
+        return data || [];
+      } catch {
+        return [];
+      }
     },
   });
 
   const { data: treeCounts = [] } = useQuery({
     queryKey: ["drive-tree-counts"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("trees").select("drive_id");
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase.from("trees").select("drive_id");
+        if (error) return [];
+        return data || [];
+      } catch {
+        return [];
+      }
     },
   });
 

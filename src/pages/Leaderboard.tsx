@@ -41,14 +41,21 @@ const Leaderboard = () => {
   const { data: planters = [], isLoading } = useQuery({
     queryKey: ["leaderboard"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, full_name, trees_planted, green_points")
-        .gt("trees_planted", 0)
-        .order("green_points", { ascending: false })
-        .limit(20);
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id, full_name, trees_planted, green_points")
+          .gt("trees_planted", 0)
+          .order("green_points", { ascending: false })
+          .limit(20);
+        if (error) {
+          console.warn("leaderboard error:", error.message);
+          return [];
+        }
+        return data || [];
+      } catch {
+        return [];
+      }
     },
   });
 
@@ -56,21 +63,32 @@ const Leaderboard = () => {
   const { data: teams = [] } = useQuery({
     queryKey: ["teams-leaderboard"],
     queryFn: async () => {
-      const { data: teamsData, error } = await supabase.from("teams").select("*").order("created_at", { ascending: false });
-      if (error) throw error;
-      // Get member counts and total trees per team
-      const enriched = await Promise.all((teamsData || []).map(async (team) => {
-        const { data: members } = await supabase.from("team_members").select("user_id").eq("team_id", team.id);
-        const memberIds = (members || []).map(m => m.user_id);
-        let totalTrees = 0;
-        let totalPoints = 0;
-        if (memberIds.length > 0) {
-          const { data: profiles } = await supabase.from("profiles").select("trees_planted, green_points").in("id", memberIds);
-          (profiles || []).forEach(p => { totalTrees += p.trees_planted; totalPoints += p.green_points; });
+      try {
+        const { data: teamsData, error } = await supabase.from("teams").select("*").order("created_at", { ascending: false });
+        if (error) {
+          console.warn("teams query error:", error.message);
+          return [];
         }
-        return { ...team, memberCount: memberIds.length, totalTrees, totalPoints };
-      }));
-      return enriched.sort((a, b) => b.totalTrees - a.totalTrees);
+        // Get member counts and total trees per team
+        const enriched = await Promise.all((teamsData || []).map(async (team) => {
+          try {
+            const { data: members } = await supabase.from("team_members").select("user_id").eq("team_id", team.id);
+            const memberIds = (members || []).map(m => m.user_id);
+            let totalTrees = 0;
+            let totalPoints = 0;
+            if (memberIds.length > 0) {
+              const { data: profiles } = await supabase.from("profiles").select("trees_planted, green_points").in("id", memberIds);
+              (profiles || []).forEach(p => { totalTrees += p.trees_planted; totalPoints += p.green_points; });
+            }
+            return { ...team, memberCount: memberIds.length, totalTrees, totalPoints };
+          } catch {
+            return { ...team, memberCount: 0, totalTrees: 0, totalPoints: 0 };
+          }
+        }));
+        return enriched.sort((a, b) => b.totalTrees - a.totalTrees);
+      } catch {
+        return [];
+      }
     },
   });
 
@@ -79,9 +97,13 @@ const Leaderboard = () => {
     queryKey: ["user-memberships", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase.from("team_members").select("team_id").eq("user_id", user!.id);
-      if (error) throw error;
-      return data.map(m => m.team_id);
+      try {
+        const { data, error } = await supabase.from("team_members").select("team_id").eq("user_id", user!.id);
+        if (error) return [];
+        return (data || []).map(m => m.team_id);
+      } catch {
+        return [];
+      }
     },
   });
 

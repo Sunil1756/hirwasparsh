@@ -21,36 +21,58 @@ const Challenges = () => {
   const { data: challenges = [], isLoading } = useQuery({
     queryKey: ["challenges"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("challenges")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase
+          .from("challenges")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (error) {
+          console.warn("challenges query:", error.message);
+          return [];
+        }
+        return data || [];
+      } catch {
+        return [];
+      }
     },
   });
 
   const { data: allParticipants = [] } = useQuery({
     queryKey: ["challenge-participants"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("challenge_participants").select("*");
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase.from("challenge_participants").select("*");
+        if (error) {
+          console.warn("challenge_participants query:", error.message);
+          return [];
+        }
+        return data || [];
+      } catch {
+        return [];
+      }
     },
   });
 
   const { data: stats } = useQuery({
     queryKey: ["challenge-stats"],
     queryFn: async () => {
-      const [treesRes, participantsCount] = await Promise.all([
-        supabase.from("trees").select("id", { count: "exact", head: true }).eq("admin_status", "approved"),
-        supabase.from("challenge_participants").select("id", { count: "exact", head: true }),
-      ]);
-      return {
-        totalTrees: treesRes.count || 0,
-        totalParticipants: participantsCount.count || 0,
-        activeChallenges: challenges.filter(c => new Date(c.ends_at) > new Date()).length,
-      };
+      try {
+        const [treesRes, participantsCount] = await Promise.all([
+          supabase.from("trees").select("id", { count: "exact", head: true }).eq("admin_status", "approved"),
+          supabase.from("challenge_participants").select("id", { count: "exact", head: true }),
+        ]);
+        return {
+          totalTrees: treesRes.count || 0,
+          totalParticipants: participantsCount.count || 0,
+          activeChallenges: challenges.filter(c => new Date(c.ends_at) > new Date()).length,
+        };
+      } catch {
+        return {
+          totalTrees: 0,
+          totalParticipants: 0,
+          activeChallenges: 0,
+        };
+      }
     },
     enabled: challenges.length >= 0,
   });
