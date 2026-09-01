@@ -6,6 +6,7 @@ import BoundaryDrawMap, { computeAreas } from "@/components/BoundaryDrawMap";
 import { ProjectVerificationCard } from "@/components/ProjectVerificationCard";
 import { SatelliteProjectTelemetrySuite } from "@/components/SatelliteProjectTelemetrySuite";
 import { FieldSpotAuditConsole } from "@/components/FieldSpotAuditConsole";
+import { QuarterlySurvivalFeed } from "@/components/QuarterlySurvivalFeed";
 import { evaluateProjectVerification, ProjectAuditReport } from "@/lib/projectVerification";
 import {
   Building2, MapPin, Target, Leaf, Upload, Camera, Satellite, Bot, ShieldCheck,
@@ -1360,6 +1361,16 @@ const OrganizationPlantation = () => {
               plantationDate={activeProject.plantation_date}
               baselineNdvi={activeAuditReport?.baselineNdvi || 0.22}
               bulkTrees={Array.isArray(activeProject.bulk_data) ? activeProject.bulk_data : []}
+            />
+
+            {/* STEP 4: CONTINUOUS TREE SURVIVAL TRACKING & 36-MONTH QUARTERLY FEED */}
+            <QuarterlySurvivalFeed
+              projectName={activeProject.project_name}
+              organizationName={activeProject.organization_name}
+              targetTrees={activeProject.target_trees}
+              plantationDate={activeProject.plantation_date}
+              baselineNdvi={activeAuditReport?.baselineNdvi || 0.22}
+              speciesList={activeProject.species || []}
             />
 
             {/* STEP 1: AUTOMATED AI VERIFICATION & ANTI-FRAUD SCORECARD */}
