@@ -5,12 +5,13 @@ import { MapContainer, TileLayer, Polygon, Marker } from "react-leaflet";
 import BoundaryDrawMap, { computeAreas } from "@/components/BoundaryDrawMap";
 import { ProjectVerificationCard } from "@/components/ProjectVerificationCard";
 import { SatelliteProjectTelemetrySuite } from "@/components/SatelliteProjectTelemetrySuite";
+import { FieldSpotAuditConsole } from "@/components/FieldSpotAuditConsole";
 import { evaluateProjectVerification, ProjectAuditReport } from "@/lib/projectVerification";
 import {
   Building2, MapPin, Target, Leaf, Upload, Camera, Satellite, Bot, ShieldCheck,
   FileText, Activity, Loader2, Plus, ArrowLeft, ArrowRight, Trash2, CheckCircle2,
   AlertCircle, Download, Sparkles, Navigation, Layers, Grid, Image as ImageIcon,
-  Check, ArrowUpRight, Award, QrCode, TrendingUp, SlidersHorizontal
+  Check, ArrowUpRight, Award, QrCode, TrendingUp, SlidersHorizontal, UserCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -180,7 +181,6 @@ const OrganizationPlantation = () => {
   const [evFile, setEvFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const [sample, setSample] = useState<Record<string, string>[]>([]);
 
   const computedBoundaryArea = useMemo(() => computeAreas(boundary), [boundary]);
 
@@ -740,21 +740,6 @@ const OrganizationPlantation = () => {
     } finally {
       setVerifying(false);
     }
-  };
-
-  const drawSample = () => {
-    if (!activeProject?.bulk_data || !Array.isArray(activeProject.bulk_data) || activeProject.bulk_data.length === 0) {
-      toast({
-        title: "No Bulk Data",
-        description: "Upload a CSV spreadsheet or use the Auto-Grid feature to draw audit samples.",
-        variant: "destructive",
-      });
-      return;
-    }
-    const n = Math.max(1, Math.ceil(activeProject.bulk_data.length * 0.05));
-    const shuffled = [...activeProject.bulk_data].sort(() => 0.5 - Math.random());
-    setSample(shuffled.slice(0, n));
-    toast({ title: "Sample Generated 🎯", description: `Selected ${n} trees for on-ground physical audit.` });
   };
 
   // Convert active project boundary
@@ -1386,13 +1371,37 @@ const OrganizationPlantation = () => {
               />
             )}
 
-            {/* Evidence upload */}
+            {/* STEP 3: FIELD RANGER SCOUTING & 5% STRATIFIED RANDOM SPOT AUDIT CONSOLE */}
+            <FieldSpotAuditConsole
+              projectId={activeProject.id}
+              projectName={activeProject.project_name}
+              organizationName={activeProject.organization_name}
+              totalTrees={activeProject.target_trees}
+              boundary={activeBoundaryPoints}
+              bulkData={Array.isArray(activeProject.bulk_data) ? activeProject.bulk_data : []}
+              onAuditCompleted={async (results) => {
+                toast({
+                  title: "Ground-Truth Audit Complete! 🎖️",
+                  description: `Audited ${results.auditedCount} sample plots. Calibrated survival rate: ${results.survivalRatePercent}%.`,
+                });
+                await supabase
+                  .from("plantation_projects")
+                  .update({
+                    status: "verified_active",
+                    verified_trees: Math.round((activeProject.target_trees * results.survivalRatePercent) / 100),
+                  })
+                  .eq("id", activeProject.id);
+                loadProjects();
+              }}
+            />
+
+            {/* Evidence Upload (Field / Drone / Satellite) */}
             <div className="glass-card rounded-2xl p-6 border border-border/40 space-y-4">
               <h3 className="font-heading font-semibold flex items-center gap-2">
-                <Upload className="h-4 w-4 text-primary" /> Upload Field / Drone / Satellite Evidence
+                <Upload className="h-4 w-4 text-primary" /> Upload Additional Drone Orthomosaics & Field Imagery
               </h3>
               <p className="text-xs text-muted-foreground">
-                Attaching geotagged camera photos or drone orthomosaics upgrades project status from <em>Evidence Required</em> to <em>Verified Active</em>.
+                Attaching geotagged camera photos or drone captures upgrades project credibility and maintains active carbon certification.
               </p>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -1445,28 +1454,6 @@ const OrganizationPlantation = () => {
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
-
-            {/* Random Sampling Audit */}
-            <div className="glass-card rounded-2xl p-6 border border-border/40 space-y-3">
-              <h3 className="font-heading font-semibold flex items-center gap-2">
-                <Activity className="h-4 w-4 text-primary" /> Random Sample Field Spot Check
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Draws a random 5% sample from your plantation records for physical field verification by forest rangers.
-              </p>
-              <Button variant="outline" onClick={drawSample} className="rounded-xl">
-                Draw Random Sample
-              </Button>
-              {sample.length > 0 && (
-                <ul className="text-xs space-y-1 pt-2">
-                  {sample.map((r, i) => (
-                    <li key={i} className="rounded-md bg-muted/50 px-2 py-1">
-                      {Object.entries(r).slice(0, 4).map(([k, v]) => `${k}: ${v}`).join(" · ")}
-                    </li>
-                  ))}
-                </ul>
               )}
             </div>
 
