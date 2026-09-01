@@ -4,12 +4,13 @@ import { motion } from "framer-motion";
 import { MapContainer, TileLayer, Polygon, Marker } from "react-leaflet";
 import BoundaryDrawMap, { computeAreas } from "@/components/BoundaryDrawMap";
 import { ProjectVerificationCard } from "@/components/ProjectVerificationCard";
+import { SatelliteProjectTelemetrySuite } from "@/components/SatelliteProjectTelemetrySuite";
 import { evaluateProjectVerification, ProjectAuditReport } from "@/lib/projectVerification";
 import {
   Building2, MapPin, Target, Leaf, Upload, Camera, Satellite, Bot, ShieldCheck,
   FileText, Activity, Loader2, Plus, ArrowLeft, ArrowRight, Trash2, CheckCircle2,
   AlertCircle, Download, Sparkles, Navigation, Layers, Grid, Image as ImageIcon,
-  Check, ArrowUpRight, Award, QrCode
+  Check, ArrowUpRight, Award, QrCode, TrendingUp, SlidersHorizontal
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -756,6 +757,15 @@ const OrganizationPlantation = () => {
     toast({ title: "Sample Generated 🎯", description: `Selected ${n} trees for on-ground physical audit.` });
   };
 
+  // Convert active project boundary
+  const activeBoundaryPoints: [number, number][] = useMemo(() => {
+    if (!activeProject) return [];
+    if (Array.isArray(activeProject.boundary)) {
+      return activeProject.boundary.map((pt: any) => (Array.isArray(pt) ? pt : [pt.lat, pt.lng]));
+    }
+    return [];
+  }, [activeProject]);
+
   return (
     <main className="min-h-screen pt-20 pb-16 bg-background">
       <div className="container mx-auto px-4 max-w-5xl space-y-6">
@@ -1354,6 +1364,18 @@ const OrganizationPlantation = () => {
                 </div>
               </div>
             </div>
+
+            {/* STEP 2: SATELLITE MULTI-SPECTRAL TELEMETRY & TIME-SERIES SUITE */}
+            <SatelliteProjectTelemetrySuite
+              projectName={activeProject.project_name}
+              locationName={activeProject.location}
+              boundary={activeBoundaryPoints}
+              targetTrees={activeProject.target_trees}
+              speciesList={activeProject.species || []}
+              plantationDate={activeProject.plantation_date}
+              baselineNdvi={activeAuditReport?.baselineNdvi || 0.22}
+              bulkTrees={Array.isArray(activeProject.bulk_data) ? activeProject.bulk_data : []}
+            />
 
             {/* STEP 1: AUTOMATED AI VERIFICATION & ANTI-FRAUD SCORECARD */}
             {activeAuditReport && (
