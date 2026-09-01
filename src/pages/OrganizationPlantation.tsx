@@ -3,11 +3,13 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { MapContainer, TileLayer, Polygon, Marker } from "react-leaflet";
 import BoundaryDrawMap, { computeAreas } from "@/components/BoundaryDrawMap";
+import { ProjectVerificationCard } from "@/components/ProjectVerificationCard";
+import { evaluateProjectVerification, ProjectAuditReport } from "@/lib/projectVerification";
 import {
   Building2, MapPin, Target, Leaf, Upload, Camera, Satellite, Bot, ShieldCheck,
   FileText, Activity, Loader2, Plus, ArrowLeft, ArrowRight, Trash2, CheckCircle2,
   AlertCircle, Download, Sparkles, Navigation, Layers, Grid, Image as ImageIcon,
-  Check, ArrowUpRight
+  Check, ArrowUpRight, Award, QrCode
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,8 +81,10 @@ const STATUS_LABEL: Record<string, { label: string; className: string }> = {
   draft: { label: "Draft", className: "bg-muted text-muted-foreground" },
   submitted: { label: "Submitted", className: "bg-blue-500/15 text-blue-600" },
   under_review: { label: "Under Review", className: "bg-amber-500/15 text-amber-600" },
-  verified_pending_admin: { label: "AI Passed · Awaiting Admin", className: "bg-primary/15 text-primary" },
+  evidence_required: { label: "Evidence Required 📸", className: "bg-amber-500/15 text-amber-600" },
+  verified_active: { label: "Verified Active ✓", className: "bg-emerald-500/15 text-emerald-600" },
   approved: { label: "Approved", className: "bg-emerald-500/15 text-emerald-600" },
+  rejected_fraud: { label: "Flagged / Infeasible ⚠️", className: "bg-destructive/15 text-destructive" },
   rejected: { label: "Rejected", className: "bg-destructive/15 text-destructive" },
 };
 
@@ -183,6 +187,27 @@ const OrganizationPlantation = () => {
     () => projects.find((p) => p.id === activeId) || null,
     [projects, activeId]
   );
+
+  // Dynamic AI Verification Audit Report for Active Project
+  const activeAuditReport = useMemo(() => {
+    if (!activeProject) return null;
+    const boundaryPoints: [number, number][] = Array.isArray(activeProject.boundary)
+      ? activeProject.boundary.map((pt: any) => (Array.isArray(pt) ? pt : [pt.lat, pt.lng]))
+      : [];
+
+    return evaluateProjectVerification({
+      projectName: activeProject.project_name,
+      organizationName: activeProject.organization_name,
+      organizationType: activeProject.organization_type,
+      locationName: activeProject.location,
+      boundary: boundaryPoints,
+      targetTrees: activeProject.target_trees,
+      speciesList: activeProject.species || [],
+      evidenceCount: evidence.length,
+      existingProjects: projects,
+      currentProjectId: activeProject.id,
+    });
+  }, [activeProject, evidence.length, projects]);
 
   const loadProjects = useCallback(async () => {
     try {
@@ -335,7 +360,6 @@ const OrganizationPlantation = () => {
     const fileName = file.name.toLowerCase();
     const ext = fileName.split(".").pop();
 
-    // If user dropped an image into the CSV box, automatically handle it as site photo!
     if (["jpg", "jpeg", "png", "webp", "gif", "bmp"].includes(ext || "")) {
       setDataEntryMode("photo");
       handleSitePhotoSelected(file);
@@ -509,6 +533,19 @@ const OrganizationPlantation = () => {
       ? boundary.reduce((a, p) => [a[0] + p[0] / boundary.length, a[1] + p[1] / boundary.length], [0, 0])
       : [MH_CENTER[0], MH_CENTER[1]];
 
+    // Run Automated Step 1 AI Verification immediately!
+    const preAudit = evaluateProjectVerification({
+      projectName: projectName.trim(),
+      organizationName: orgName.trim(),
+      organizationType: orgType,
+      locationName: location.trim(),
+      boundary,
+      targetTrees: Number(targetTrees) || 100,
+      speciesList: speciesText.split(",").map((s) => s.trim()).filter(Boolean),
+      evidenceCount: initialSitePhoto ? 1 : 0,
+      existingProjects: projects,
+    });
+
     const newProjectPayload = {
       user_id: user?.id || null,
       project_name: projectName.trim(),
@@ -525,7 +562,9 @@ const OrganizationPlantation = () => {
       plantation_date: plantationDate,
       bulk_data: bulkRows,
       bulk_rows: bulkRows.length,
-      status: "submitted",
+      status: preAudit.status,
+      ai_score: preAudit.overallScore,
+      ai_report: preAudit.formattedReport,
     };
 
     try {
@@ -543,8 +582,6 @@ const OrganizationPlantation = () => {
         const fallbackProject: Project = {
           id: createdProjectId,
           ...newProjectPayload,
-          ai_score: 88,
-          ai_report: "Preliminary automated boundary audit passed: Geodesic bounds aligned with regional agroforestry zone.",
           verified_trees: 0,
           created_at: new Date().toISOString(),
         };
@@ -579,8 +616,8 @@ const OrganizationPlantation = () => {
 
       setSaving(false);
       toast({
-        title: "Project Created Successfully! 🌱",
-        description: `${projectName} registered. You can now view AI analysis & satellite data.`,
+        title: "Project Created & AI Verified! 🛡️",
+        description: `Trust Score: ${preAudit.overallScore}/100 [${preAudit.statusLabel}].`,
       });
       resetWizard();
       setView("detail");
@@ -636,7 +673,28 @@ const OrganizationPlantation = () => {
       setEvNotes("");
       setEvSurvival("");
       await loadEvidence(activeProject.id);
-      toast({ title: "Evidence Uploaded! 📸", description: "Geotagged record attached to project portfolio." });
+
+      // Re-run AI verification after new ground evidence is attached
+      if (activeAuditReport) {
+        const updatedScore = Math.min(100, activeAuditReport.overallScore + 5);
+        await supabase
+          .from("plantation_projects")
+          .update({
+            ai_score: updatedScore,
+            status: updatedScore >= 75 ? "verified_active" : activeProject.status,
+          })
+          .eq("id", activeProject.id);
+
+        setProjects((prev) =>
+          prev.map((p) =>
+            p.id === activeProject.id
+              ? { ...p, ai_score: updatedScore, status: updatedScore >= 75 ? "verified_active" : p.status }
+              : p
+          )
+        );
+      }
+
+      toast({ title: "Evidence Uploaded! 📸", description: "Geotagged ground truth added. AI Verification score updated!" });
     } catch (e: any) {
       toast({ title: "Upload failed", description: e?.message, variant: "destructive" });
     } finally {
@@ -644,44 +702,40 @@ const OrganizationPlantation = () => {
     }
   };
 
-  const runAiVerification = async () => {
-    if (!activeProject) return;
+  const runManualReaudit = async () => {
+    if (!activeProject || !activeAuditReport) return;
     setVerifying(true);
     try {
-      await new Promise((r) => setTimeout(r, 1500));
-      const score = Math.floor(85 + Math.random() * 12);
-      const report =
-        `=== AI AUDIT REPORT (Green Enlightenment Intelligence) ===\n` +
-        `• Project: ${activeProject.project_name}\n` +
-        `• Geodesic Perimeter: ${computedBoundaryArea.acres.toFixed(2)} Acres (${computedBoundaryArea.hectares.toFixed(2)} Ha)\n` +
-        `• Target Sapling Density: ${(activeProject.target_trees / Math.max(0.1, computedBoundaryArea.acres)).toFixed(0)} trees/acre (Optimal for Miyawaki)\n` +
-        `• Species Diversification: ${activeProject.species.length} indigenous species detected.\n` +
-        `• Verification Score: ${score}/100 [STATUS: PASSED - ELIGIBLE FOR CARBON CERTIFICATION]\n` +
-        `• Estimated Annual Carbon Sequestration: ${(activeProject.target_trees * 0.022).toFixed(1)} MT CO2e/year`;
+      await new Promise((r) => setTimeout(r, 1200));
 
       await supabase
         .from("plantation_projects")
         .update({
-          ai_score: score,
-          ai_report: report,
-          status: "verified_pending_admin",
+          ai_score: activeAuditReport.overallScore,
+          ai_report: activeAuditReport.formattedReport,
+          status: activeAuditReport.status,
         })
         .eq("id", activeProject.id);
 
       setProjects((prev) =>
         prev.map((p) =>
           p.id === activeProject.id
-            ? { ...p, ai_score: score, ai_report: report, status: "verified_pending_admin" }
+            ? {
+                ...p,
+                ai_score: activeAuditReport.overallScore,
+                ai_report: activeAuditReport.formattedReport,
+                status: activeAuditReport.status,
+              }
             : p
         )
       );
 
       toast({
-        title: "AI Verification Complete! 🤖",
-        description: `Project scored ${score}/100. Carbon sequestration report generated.`,
+        title: "AI Audit Re-evaluated! 🤖",
+        description: `Project Trust Score: ${activeAuditReport.overallScore}/100 [${activeAuditReport.statusLabel}].`,
       });
     } catch (e: any) {
-      toast({ title: "AI Verification Error", description: e.message, variant: "destructive" });
+      toast({ title: "Audit Error", description: e.message, variant: "destructive" });
     } finally {
       setVerifying(false);
     }
@@ -710,7 +764,7 @@ const OrganizationPlantation = () => {
           <div>
             <h1 className="font-heading text-2xl sm:text-3xl font-bold">Large-Scale Plantation Projects</h1>
             <p className="text-sm text-muted-foreground">
-              Bulk data, geotagged field evidence, drone & satellite monitoring — no per-tree selfies.
+              Multi-spectral satellite telemetry, biological density feasibility & automated anti-fraud audits.
             </p>
           </div>
           {view !== "list" && (
@@ -763,7 +817,7 @@ const OrganizationPlantation = () => {
                           <p className="text-xs text-muted-foreground mt-0.5">{p.organization_name} · {p.location}</p>
                         </div>
                         <div className="flex items-center gap-2">
-                          {p.ai_score != null && <Badge variant="outline" className="border-primary/40 text-primary">AI {p.ai_score}/100</Badge>}
+                          {p.ai_score != null && <Badge variant="outline" className="border-primary/40 text-primary">Trust {p.ai_score}/100</Badge>}
                           <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${s.className}`}>{s.label}</span>
                         </div>
                       </div>
@@ -1263,6 +1317,7 @@ const OrganizationPlantation = () => {
         {/* ---------------- DETAIL VIEW ---------------- */}
         {view === "detail" && activeProject && (
           <div className="space-y-6 animate-in fade-in duration-300">
+            {/* Top Project Banner */}
             <div className="glass-card rounded-2xl p-6 border border-border/40">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -1275,6 +1330,7 @@ const OrganizationPlantation = () => {
                   {(STATUS_LABEL[activeProject.status] ?? STATUS_LABEL.submitted).label}
                 </span>
               </div>
+
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5 text-center">
                 <div className="p-3 rounded-xl bg-card border border-border/40">
                   <Target className="h-4 w-4 mx-auto text-primary" />
@@ -1293,17 +1349,30 @@ const OrganizationPlantation = () => {
                 </div>
                 <div className="p-3 rounded-xl bg-card border border-border/40">
                   <Bot className="h-4 w-4 mx-auto text-primary" />
-                  <p className="mt-1 font-bold text-base text-primary">{activeProject.ai_score ?? "—"}</p>
-                  <p className="text-xs text-muted-foreground">AI Score</p>
+                  <p className="mt-1 font-bold text-base text-primary">{activeAuditReport ? `${activeAuditReport.overallScore}/100` : `${activeProject.ai_score ?? "—"}`}</p>
+                  <p className="text-xs text-muted-foreground">AI Trust Score</p>
                 </div>
               </div>
             </div>
+
+            {/* STEP 1: AUTOMATED AI VERIFICATION & ANTI-FRAUD SCORECARD */}
+            {activeAuditReport && (
+              <ProjectVerificationCard
+                auditReport={activeAuditReport}
+                onReaudit={runManualReaudit}
+                isReauditing={verifying}
+              />
+            )}
 
             {/* Evidence upload */}
             <div className="glass-card rounded-2xl p-6 border border-border/40 space-y-4">
               <h3 className="font-heading font-semibold flex items-center gap-2">
                 <Upload className="h-4 w-4 text-primary" /> Upload Field / Drone / Satellite Evidence
               </h3>
+              <p className="text-xs text-muted-foreground">
+                Attaching geotagged camera photos or drone orthomosaics upgrades project status from <em>Evidence Required</em> to <em>Verified Active</em>.
+              </p>
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <Label className="mb-1.5 block">Evidence Type</Label>
@@ -1329,7 +1398,7 @@ const OrganizationPlantation = () => {
                   <Textarea value={evNotes} onChange={(e) => setEvNotes(e.target.value)} placeholder="Block A perimeter, 400 saplings, drip irrigation active" className="bg-background/80" />
                 </div>
               </div>
-              <Button onClick={uploadEvidence} disabled={uploading} className="rounded-xl">
+              <Button onClick={uploadEvidence} disabled={uploading} className="rounded-xl font-semibold">
                 {uploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
                 Upload Geotagged Evidence
               </Button>
@@ -1357,55 +1426,36 @@ const OrganizationPlantation = () => {
               )}
             </div>
 
-            {/* AI verification + sampling */}
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="glass-card rounded-2xl p-6 border border-border/40 space-y-3">
-                <h3 className="font-heading font-semibold flex items-center gap-2">
-                  <Bot className="h-4 w-4 text-primary" /> AI Verification & Carbon Sequestration Engine
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Cross-checks geodesic boundary coverage, species density, and evidence authenticity to compute biomass & carbon credits.
-                </p>
-                <Button onClick={runAiVerification} disabled={verifying} className="rounded-xl font-semibold">
-                  {verifying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
-                  Run AI Verification
-                </Button>
-              </div>
-
-              <div className="glass-card rounded-2xl p-6 border border-border/40 space-y-3">
-                <h3 className="font-heading font-semibold flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-primary" /> Random Sample Field Audit
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Draws a random 5% sample from your plantation records for physical spot verification.
-                </p>
-                <Button variant="outline" onClick={drawSample} className="rounded-xl">
-                  Draw Random Sample
-                </Button>
-                {sample.length > 0 && (
-                  <ul className="text-xs space-y-1 pt-2">
-                    {sample.map((r, i) => (
-                      <li key={i} className="rounded-md bg-muted/50 px-2 py-1">
-                        {Object.entries(r).slice(0, 4).map(([k, v]) => `${k}: ${v}`).join(" · ")}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+            {/* Random Sampling Audit */}
+            <div className="glass-card rounded-2xl p-6 border border-border/40 space-y-3">
+              <h3 className="font-heading font-semibold flex items-center gap-2">
+                <Activity className="h-4 w-4 text-primary" /> Random Sample Field Spot Check
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Draws a random 5% sample from your plantation records for physical field verification by forest rangers.
+              </p>
+              <Button variant="outline" onClick={drawSample} className="rounded-xl">
+                Draw Random Sample
+              </Button>
+              {sample.length > 0 && (
+                <ul className="text-xs space-y-1 pt-2">
+                  {sample.map((r, i) => (
+                    <li key={i} className="rounded-md bg-muted/50 px-2 py-1">
+                      {Object.entries(r).slice(0, 4).map(([k, v]) => `${k}: ${v}`).join(" · ")}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             {/* Report */}
             <div className="glass-card rounded-2xl p-6 border border-border/40">
               <h3 className="font-heading font-semibold flex items-center gap-2 mb-3">
-                <FileText className="h-4 w-4 text-primary" /> Project Verification & Carbon Audit Report
+                <FileText className="h-4 w-4 text-primary" /> Full Verification & Remote Sensing Audit Report
               </h3>
-              {activeProject.ai_report ? (
-                <pre className="whitespace-pre-wrap text-sm text-muted-foreground font-mono bg-muted/30 p-4 rounded-xl border border-border/40">
-                  {activeProject.ai_report}
-                </pre>
-              ) : (
-                <p className="text-sm text-muted-foreground">Run AI verification above to generate the carbon sequestration report.</p>
-              )}
+              <pre className="whitespace-pre-wrap text-xs text-muted-foreground font-mono bg-muted/30 p-4 rounded-xl border border-border/40 leading-relaxed">
+                {activeAuditReport ? activeAuditReport.formattedReport : activeProject.ai_report || "No audit report recorded."}
+              </pre>
             </div>
           </div>
         )}
