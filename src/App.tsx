@@ -32,6 +32,7 @@ import Challenges from "./pages/Challenges";
 import Intelligence from "./pages/Intelligence";
 import FieldScoutingPage from "./pages/FieldScoutingPage";
 import BulkOnboardPage from "./pages/BulkOnboardPage";
+import CertificateVerify from "./pages/CertificateVerify";
 import { LanguageProvider } from "./contexts/LanguageContext";
 
 const queryClient = new QueryClient();
@@ -73,6 +74,8 @@ const App = () => (
           <Route path="/satellite" element={<Navigate to="/tree-map" replace />} />
           <Route path="/green-impact" element={<Navigate to="/dashboard" replace />} />
           <Route path="/intelligence" element={<Intelligence />} />
+          <Route path="/verify/cert/:serialNo" element={<CertificateVerify />} />
+          <Route path="/verify/cert" element={<CertificateVerify />} />
            <Route path="*" element={<NotFound />} />
         </Routes>
         <Footer />
