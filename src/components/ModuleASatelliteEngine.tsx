@@ -31,6 +31,9 @@ import {
   ExternalLink,
   MapPin,
   Eye,
+  Info,
+  Sliders,
+  Crosshair
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -86,7 +89,7 @@ interface Props {
 function MapFlyController({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useMap();
   useMemo(() => {
-    map.setView(center, zoom);
+    map.setView(center, zoom, { animate: true });
   }, [center, zoom, map]);
   return null;
 }
@@ -94,7 +97,11 @@ function MapFlyController({ center, zoom }: { center: [number, number]; zoom: nu
 export function ModuleASatelliteEngine({ trees = [], projects = [] }: Props) {
   const [activeSpectral, setActiveSpectral] = useState<"rgb" | "ndvi" | "ndre" | "ndwi">("ndvi");
   const [activeSubTab, setActiveSubTab] = useState<"map" | "timeseries" | "carbon" | "parcel">("map");
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
+  
+  // Default to first registered project if available so the map starts zoomed-in on high-res plots
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(() => {
+    return projects.length > 0 ? projects[0].id : "all";
+  });
 
   const verifiedTrees = useMemo(
     () => trees.filter((t) => t.verification_status === "verified"),
@@ -129,10 +136,10 @@ export function ModuleASatelliteEngine({ trees = [], projects = [] }: Props) {
     if (projects.length > 0 && projects[0].latitude && projects[0].longitude) {
       return [projects[0].latitude, projects[0].longitude];
     }
-    return [19.7515, 75.7139]; // Maharashtra Central
+    return [17.6572, 75.3678]; // Default Solapur/Maharashtra Agroforestry Centroid
   }, [selectedProject, projects]);
 
-  const mapZoom = selectedProject ? 16 : 7;
+  const mapZoom = selectedProject ? 16 : projects.length > 0 ? 15 : 12;
 
   // Mean NDVI score
   const meanNdviScore = useMemo(() => {
@@ -172,39 +179,79 @@ export function ModuleASatelliteEngine({ trees = [], projects = [] }: Props) {
           </div>
         </div>
 
-        {/* Project / Regional Plot Filter Dropdown */}
-        <div className="mt-5 p-3.5 rounded-xl bg-primary/5 border border-primary/15 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-primary" />
-            <span className="font-semibold text-foreground">Select Agroforestry Plot / Observatory Focus:</span>
+        {/* What this Map Does Guide Box */}
+        <div className="mt-4 p-3.5 rounded-xl bg-primary/5 border border-primary/15 text-xs text-muted-foreground space-y-1">
+          <span className="font-bold text-foreground flex items-center gap-1.5">
+            <Info className="h-4 w-4 text-primary" /> What is the Role of Module A's Map?
+          </span>
+          <p>
+            This map provides <strong>State-Wide & Regional Multispectral Remote Sensing</strong>. While your project dashboard focuses on your single plot, Module A allows auditors, government agencies, and CSR donors to scan whole districts across Maharashtra, verify chlorophyll photosynthetic activity (NDVI/NDRE), assess drought stress (NDWI), and cross-verify land boundaries.
+          </p>
+        </div>
+
+        {/* Project / Regional Plot Filter & Quick Focus Buttons */}
+        <div className="mt-4 p-3.5 rounded-xl bg-card border border-border/40 space-y-2.5 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-primary" />
+              <span className="font-semibold text-foreground">Observatory Plot Focus:</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                <SelectTrigger className="w-[240px] h-8 text-xs bg-background">
+                  <SelectValue placeholder="Choose Plot" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">🌐 All Regional Plots (Maharashtra)</SelectItem>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      📍 {p.project_name} ({p.location.split(",")[0]})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {selectedProject && (
+                <Link to={`/plant/organization`}>
+                  <Button size="sm" variant="outline" className="h-8 text-xs gap-1 rounded-lg">
+                    <Eye className="h-3 w-3" /> Open Project Dashboard ↗
+                  </Button>
+                </Link>
+              )}
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-              <SelectTrigger className="w-[260px] h-8 text-xs bg-background">
-                <SelectValue placeholder="All Regional Plots" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">🌐 All Regional Plots (Statewide Aggregate)</SelectItem>
-                {projects.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    📍 {p.project_name} ({p.location.split(",")[0]})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {selectedProject && (
-              <Link to={`/plant/organization`}>
-                <Button size="sm" variant="outline" className="h-8 text-xs gap-1 rounded-lg">
-                  <Eye className="h-3 w-3" /> Open Project Full Suite ↗
-                </Button>
-              </Link>
-            )}
+          {/* Quick Focus Pills */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border/30">
+            <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1 mr-1">
+              <Crosshair className="h-3 w-3 text-primary" /> Quick Focus:
+            </span>
+            {projects.map((p) => (
+              <Button
+                key={p.id}
+                type="button"
+                variant={selectedProjectId === p.id ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedProjectId(p.id)}
+                className="h-6 text-[11px] px-2.5 rounded-full"
+              >
+                📍 {p.project_name}
+              </Button>
+            ))}
+            <Button
+              type="button"
+              variant={selectedProjectId === "all" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedProjectId("all")}
+              className="h-6 text-[11px] px-2.5 rounded-full"
+            >
+              🌐 Statewide View
+            </Button>
           </div>
         </div>
 
-        {/* 4 Core Summary Metric Cards (Connected with 100% Real Live Project & Tree Data) */}
+        {/* 4 Core Summary Metric Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
           <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/15 text-center">
             <div className="text-[11px] text-muted-foreground">
@@ -333,7 +380,7 @@ export function ModuleASatelliteEngine({ trees = [], projects = [] }: Props) {
               </Badge>
             </div>
 
-            <div className="rounded-2xl overflow-hidden border border-primary/20 shadow-inner relative h-[450px]">
+            <div className="rounded-2xl overflow-hidden border border-primary/20 shadow-inner relative h-[500px]">
               <MapContainer
                 center={mapCenter}
                 zoom={mapZoom}
@@ -372,15 +419,15 @@ export function ModuleASatelliteEngine({ trees = [], projects = [] }: Props) {
                         color: isSelected ? "#10b981" : "#3b82f6",
                         weight: isSelected ? 3.5 : 2,
                         fillColor: activeSpectral === "ndvi" ? "#10b981" : activeSpectral === "ndre" ? "#8b5cf6" : "#06b6d4",
-                        fillOpacity: isSelected ? 0.5 : 0.35,
+                        fillOpacity: isSelected ? 0.55 : 0.35,
                       }}
                     >
                       <Popup>
-                        <div className="p-1 space-y-1 text-xs">
+                        <div className="p-1.5 space-y-1 text-xs">
                           <strong className="text-sm font-heading block">{p.project_name}</strong>
                           <p className="text-muted-foreground">{p.organization_name} · {p.location}</p>
                           <p className="font-semibold text-emerald-600">
-                            {p.verified_trees || p.target_trees} Trees · NDVI 0.68
+                            {p.verified_trees || p.target_trees} Trees · NDVI {meanNdviScore.toFixed(2)}
                           </p>
                           <Link to="/plant/organization" className="text-primary underline font-bold block pt-1">
                             Inspect Project Telemetry ↗
