@@ -283,12 +283,20 @@ const Index = () => {
 
       {/* Impact Counter */}
       <section className="py-24">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 text-center">
           <h2 className="font-heading text-4xl font-bold text-center mb-16">Live Impact</h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
             <AnimatedCounter end={treesPlanted} label="Trees Planted" icon={<TreePine className="h-10 w-10" />} />
             <AnimatedCounter end={co2Absorbed} suffix=" kg" label="CO₂ Offset/Year" icon={<Leaf className="h-10 w-10" />} />
             <AnimatedCounter end={volunteers} label="Active Volunteers" icon={<Users className="h-10 w-10" />} />
+          </div>
+
+          <div className="mt-10 flex justify-center">
+            <Link to="/plant/organization">
+              <Button size="lg" className="rounded-xl px-7 py-3 text-sm font-semibold gap-2 shadow-md hover:shadow-lg transition-all">
+                <TrendingUp className="h-4 w-4" /> Track Tree Survival Feed <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
