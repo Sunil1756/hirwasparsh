@@ -2,10 +2,9 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   TreePine, Leaf, MapPin, Users, BarChart3, Shield, Globe, Award, ArrowRight,
-  AlertTriangle, Lightbulb, Sprout, ShieldCheck, TrendingUp, Bot, HeartPulse, Activity
+  AlertTriangle, Lightbulb, Sprout, ShieldCheck, TrendingUp, Bot
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import AnimatedCounter from "@/components/AnimatedCounter";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -112,49 +111,17 @@ const FeatureCard = ({ f, i }: { f: typeof features[0]; i: number }) => {
 
 const Index = () => {
   const { data: stats } = useQuery({
-    queryKey: ["home-live-stats"],
+    queryKey: ["home-stats"],
     queryFn: async () => {
-      const [treesRes, projectsRes, profilesRes] = await Promise.all([
-        supabase.from("trees").select("id, verification_status, admin_status"),
-        supabase.from("plantation_projects").select("id, target_trees, verified_trees, status"),
-        supabase.from("profiles").select("id", { count: "exact", head: true }),
-      ]);
-
-      const trees = treesRes.data || [];
-      const projects = projectsRes.data || [];
-      const volunteers = profilesRes.count || 0;
-
-      const individualTotal = trees.length;
-      const individualVerified = trees.filter(
-        (t) => t.verification_status === "verified" || t.admin_status === "approved"
-      ).length;
-
-      const projectTotal = projects.reduce((acc, p) => acc + (p.target_trees || 0), 0);
-      const projectVerified = projects.reduce(
-        (acc, p) => acc + (p.verified_trees || Math.round((p.target_trees || 0) * 0.95)),
-        0
-      );
-
-      const totalRegistered = Math.max(12, individualTotal + projectTotal);
-      const totalSurviving = Math.max(11, individualVerified + projectVerified);
-      const survivalRate = totalRegistered > 0 ? ((totalSurviving / totalRegistered) * 100).toFixed(1) : "91.7";
-      const co2Kg = Math.round(totalSurviving * 22);
-
-      return {
-        totalRegistered,
-        totalSurviving,
-        survivalRate,
-        co2Kg,
-        volunteers: Math.max(volunteers, 13),
-      };
+      const { data } = await supabase.rpc("get_platform_stats");
+      const row = Array.isArray(data) ? data[0] : data;
+      return { trees: Number(row?.trees ?? 0), volunteers: Number(row?.volunteers ?? 0) };
     },
   });
 
-  const survivingCount = stats?.totalSurviving || 11;
-  const totalSaplings = stats?.totalRegistered || 12;
-  const survivalRate = stats?.survivalRate || "91.7";
-  const co2Kg = stats?.co2Kg || 242;
-  const volunteers = stats?.volunteers || 13;
+  const treesPlanted = stats?.trees || 0;
+  const co2Absorbed = Math.round(treesPlanted * 22);
+  const volunteers = stats?.volunteers || 0;
 
   return (
     <div className="min-h-screen">
@@ -314,140 +281,14 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Live Impact & Tree Survival Section */}
+      {/* Impact Counter */}
       <section className="py-24">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="font-heading text-3xl sm:text-4xl font-bold text-foreground">Live Environmental Impact</h2>
-            <p className="text-muted-foreground text-sm sm:text-base mt-2 max-w-xl mx-auto">
-              Real-time ecological telemetry verified with ESA Sentinel-2 satellite multi-spectral NDVI.
-            </p>
-          </div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Card 1: Trees Surviving Right Now */}
-            <div className="glass-card rounded-2xl p-6 border border-emerald-500/20 shadow-sm flex flex-col justify-between relative overflow-hidden bg-card/80">
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="h-11 w-11 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                    <HeartPulse className="h-6 w-6" />
-                  </div>
-                  <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-600 border-emerald-500/30 font-semibold">
-                    Live {survivalRate}%
-                  </Badge>
-                </div>
-                <div className="font-heading font-extrabold text-3xl sm:text-4xl text-foreground">
-                  {survivingCount}
-                </div>
-                <h3 className="font-heading font-semibold text-sm text-foreground mt-1.5">
-                  Trees Surviving Right Now
-                </h3>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Cross-referenced with Sentinel-2 NDVI & 5% ranger spot audits.
-                </p>
-              </div>
-
-              <div className="mt-5 pt-3 border-t border-border/40">
-                <Link to="/plant/organization">
-                  <Button className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold gap-1.5 shadow-sm">
-                    <TrendingUp className="h-3.5 w-3.5" /> Track Tree Survival Feed →
-                  </Button>
-                </Link>
-              </div>
-            </div>
-
-            {/* Card 2: Total Registered Saplings */}
-            <div className="glass-card rounded-2xl p-6 border border-border/40 shadow-sm flex flex-col justify-between bg-card/80">
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="h-11 w-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                    <TreePine className="h-6 w-6" />
-                  </div>
-                  <Badge variant="secondary" className="text-[10px]">
-                    100% Geotagged
-                  </Badge>
-                </div>
-                <div className="font-heading font-extrabold text-3xl sm:text-4xl text-foreground">
-                  {totalSaplings}
-                </div>
-                <h3 className="font-heading font-semibold text-sm text-foreground mt-1.5">
-                  Total Registered Saplings
-                </h3>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Planted across all verified community & agroforestry tracts.
-                </p>
-              </div>
-
-              <div className="mt-5 pt-3 border-t border-border/40">
-                <Link to="/plant/organization">
-                  <Button variant="outline" className="w-full rounded-xl text-xs font-semibold gap-1.5">
-                    <TreePine className="h-3.5 w-3.5 text-primary" /> View Plantation Projects ↗
-                  </Button>
-                </Link>
-              </div>
-            </div>
-
-            {/* Card 3: CO2 Sequestered */}
-            <div className="glass-card rounded-2xl p-6 border border-border/40 shadow-sm flex flex-col justify-between bg-card/80">
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="h-11 w-11 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                    <Leaf className="h-6 w-6" />
-                  </div>
-                  <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-600 font-mono">
-                    IPCC Tier-2
-                  </Badge>
-                </div>
-                <div className="font-heading font-extrabold text-3xl sm:text-4xl text-foreground">
-                  {(co2Kg / 1000).toFixed(2)} <span className="text-lg font-normal text-muted-foreground">MT</span>
-                </div>
-                <h3 className="font-heading font-semibold text-sm text-foreground mt-1.5">
-                  CO₂e Sequestered (To Date)
-                </h3>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Calculated with Chave et al. allometric pantropical biomass formulas.
-                </p>
-              </div>
-
-              <div className="mt-5 pt-3 border-t border-border/40">
-                <Link to="/tree-map">
-                  <Button variant="outline" className="w-full rounded-xl text-xs font-semibold gap-1.5">
-                    <BarChart3 className="h-3.5 w-3.5 text-emerald-600" /> Carbon Credit Ledger ↗
-                  </Button>
-                </Link>
-              </div>
-            </div>
-
-            {/* Card 4: Active Volunteers & Tree Guardians */}
-            <div className="glass-card rounded-2xl p-6 border border-border/40 shadow-sm flex flex-col justify-between bg-card/80">
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="h-11 w-11 rounded-xl bg-sky-500/10 text-sky-600 flex items-center justify-center">
-                    <Users className="h-6 w-6" />
-                  </div>
-                  <Badge variant="secondary" className="text-[10px]">
-                    Community
-                  </Badge>
-                </div>
-                <div className="font-heading font-extrabold text-3xl sm:text-4xl text-foreground">
-                  {volunteers}
-                </div>
-                <h3 className="font-heading font-semibold text-sm text-foreground mt-1.5">
-                  Active Tree Guardians
-                </h3>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Volunteers, students, and citizens actively protecting saplings.
-                </p>
-              </div>
-
-              <div className="mt-5 pt-3 border-t border-border/40">
-                <Link to="/challenges">
-                  <Button variant="outline" className="w-full rounded-xl text-xs font-semibold gap-1.5">
-                    <Users className="h-3.5 w-3.5 text-sky-600" /> Join Community Quests ↗
-                  </Button>
-                </Link>
-              </div>
-            </div>
+          <h2 className="font-heading text-4xl font-bold text-center mb-16">Live Impact</h2>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <AnimatedCounter end={treesPlanted} label="Trees Planted" icon={<TreePine className="h-10 w-10" />} />
+            <AnimatedCounter end={co2Absorbed} suffix=" kg" label="CO₂ Offset/Year" icon={<Leaf className="h-10 w-10" />} />
+            <AnimatedCounter end={volunteers} label="Active Volunteers" icon={<Users className="h-10 w-10" />} />
           </div>
         </div>
       </section>
