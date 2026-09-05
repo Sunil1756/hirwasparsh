@@ -6,6 +6,7 @@ import AnimatedCounter from "@/components/AnimatedCounter";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import ViralImpactCounter from "@/components/ViralImpactCounter";
+import { fetchLivePlatformMetrics } from "@/lib/platformStats";
 import heroBg from "@/assets/hero-bg.jpg";
 import { useState } from "react";
 
@@ -108,18 +109,13 @@ const FeatureCard = ({ f, i }: { f: typeof features[0]; i: number }) => {
 
 const Index = () => {
   const { data: stats } = useQuery({
-    queryKey: ["home-stats"],
-    queryFn: async () => {
-      const { data } = await supabase.rpc("get_platform_stats");
-      const row = Array.isArray(data) ? data[0] : data;
-      return { trees: Number(row?.trees ?? 0), volunteers: Number(row?.volunteers ?? 0) };
-    },
+    queryKey: ["home-stats-live"],
+    queryFn: fetchLivePlatformMetrics,
   });
 
-
-  const treesPlanted = stats?.trees || 0;
-  const co2Absorbed = Math.round(treesPlanted * 22);
-  const volunteers = stats?.volunteers || 0;
+  const treesPlanted = stats?.totalTreesPlanted || 0;
+  const co2Absorbed = stats?.co2OffsetKgPerYear || 0;
+  const volunteers = stats?.activeVolunteers || 0;
 
   return (
     <div className="min-h-screen">

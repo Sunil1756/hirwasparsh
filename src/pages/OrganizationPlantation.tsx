@@ -949,11 +949,26 @@ const OrganizationPlantation = () => {
                             </div>
                           </div>
                           <div className="mt-4 pt-3 border-t border-border/40">
-                            <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
-                              <span>{p.bulk_rows} records / {p.target_trees} target trees</span>
+                            <div className="flex justify-between text-xs text-muted-foreground mb-1.5 font-medium">
+                              <span className="text-foreground">
+                                {p.verified_trees > 0
+                                  ? `🌿 ${p.verified_trees} Verified Living Trees`
+                                  : p.bulk_rows > 0
+                                  ? `📍 ${p.bulk_rows} GPS Tagged / ${p.target_trees} Target`
+                                  : `🌱 ${p.target_trees} Target Saplings Registered`}
+                              </span>
                               <span>{new Date(p.plantation_date).toLocaleDateString()}</span>
                             </div>
-                            <Progress value={Math.min(100, (p.bulk_rows / Math.max(1, p.target_trees)) * 100)} className="h-2" />
+                            <Progress
+                              value={
+                                p.verified_trees > 0
+                                  ? Math.min(100, (p.verified_trees / Math.max(1, p.target_trees)) * 100)
+                                  : p.bulk_rows > 0
+                                  ? Math.min(100, (p.bulk_rows / Math.max(1, p.target_trees)) * 100)
+                                  : 100
+                              }
+                              className="h-2"
+                            />
                           </div>
                         </motion.button>
                       );
@@ -1011,7 +1026,11 @@ const OrganizationPlantation = () => {
                           </div>
                         </div>
                         <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{p.target_trees} Target Trees</span>
+                          <span className="font-semibold text-foreground">
+                            {p.verified_trees > 0
+                              ? `🌿 ${p.verified_trees} Verified Trees`
+                              : `🌱 ${p.target_trees} Target Trees`}
+                          </span>
                           <span className="text-primary font-semibold flex items-center gap-1">
                             Inspect Telemetry <ArrowUpRight className="h-3.5 w-3.5" />
                           </span>
