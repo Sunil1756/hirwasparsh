@@ -115,14 +115,22 @@ const CommunityDashboard = () => {
     );
   }
 
-  let projectTreesCount = 0;
+  let verifiedProjectTrees = 0;
+  let targetTreesCount = 0;
   userProjects.forEach((p) => {
-    projectTreesCount += p.verified_trees > 0 ? p.verified_trees : (p.target_trees || p.bulk_rows || 0);
+    targetTreesCount += (p.target_trees || p.bulk_rows || 0);
+    verifiedProjectTrees += (p.verified_trees || 0);
   });
 
-  const totalUserTrees = userTrees.length + projectTreesCount;
-  const treesPlanted = Math.max(profile?.trees_planted ?? 0, totalUserTrees);
-  const greenPoints = Math.max(profile?.green_points ?? 0, totalUserTrees * 10);
+  const verifiedIndividualTrees = userTrees.filter((t) => t.admin_status === "approved").length;
+  const treesPlanted = (profile?.trees_planted != null && profile.trees_planted > 0)
+    ? profile.trees_planted
+    : (verifiedIndividualTrees + verifiedProjectTrees);
+
+  const greenPoints = (profile?.green_points != null && profile.green_points > 0)
+    ? profile.green_points
+    : (treesPlanted * 10);
+
   const co2Kg = treesPlanted * 22;
   const o2Kg = treesPlanted * 100;
   const carsRemoved = (co2Kg / 4600).toFixed(2);
@@ -149,9 +157,9 @@ const CommunityDashboard = () => {
           {/* Stats — Verified Live Data */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {[
-              { label: "Total Trees Planted", value: String(treesPlanted), icon: <TreePine className="h-6 w-6" /> },
+              { label: "Verified Living Trees", value: String(treesPlanted), icon: <TreePine className="h-6 w-6" /> },
               { label: "Green Impact Points", value: String(greenPoints), icon: <Star className="h-6 w-6" /> },
-              { label: "CO₂ Absorbed (kg/yr)", value: String(co2Kg), icon: <Leaf className="h-6 w-6" /> },
+              { label: "Planned Target Saplings", value: String(targetTreesCount), icon: <Target className="h-6 w-6" /> },
               { label: "Afforestation Drives", value: String(userProjects.length), icon: <TrendingUp className="h-6 w-6" /> },
             ].map((s, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} className="glass-card rounded-xl p-6">

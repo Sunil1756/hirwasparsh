@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface PlatformMetrics {
   totalTreesPlanted: number;
+  totalTargetTrees: number;
   individualTrees: number;
   plantationProjectTrees: number;
   activeProjectsCount: number;
@@ -20,25 +21,25 @@ export interface PlatformMetrics {
 export async function fetchLivePlatformMetrics(): Promise<PlatformMetrics> {
   try {
     // 1. Fetch individual trees from 'trees'
-    const { data: treesData, error: treesErr } = await supabase
+    const { data: treesData } = await supabase
       .from("trees")
       .select("id, admin_status, verification_status");
 
-    const individualTrees = (treesData || []).length;
+    const individualTrees = (treesData || []).filter(t => t.admin_status === "approved").length;
 
     // 2. Fetch large-scale plantation projects from 'plantation_projects'
-    const { data: projData, error: projErr } = await supabase
+    const { data: projData } = await supabase
       .from("plantation_projects")
       .select("id, target_trees, verified_trees, bulk_rows, status");
 
-    let plantationProjectTrees = 0;
+    let verifiedProjectTrees = 0;
+    let totalTargetTrees = 0;
     let activeProjectsCount = 0;
 
     (projData || []).forEach((p) => {
       activeProjectsCount++;
-      // Count verified trees if available, otherwise target/bulk count
-      const count = p.verified_trees > 0 ? p.verified_trees : (p.target_trees || p.bulk_rows || 0);
-      plantationProjectTrees += count;
+      totalTargetTrees += (p.target_trees || p.bulk_rows || 0);
+      verifiedProjectTrees += (p.verified_trees || 0);
     });
 
     // 3. Fetch profiles / volunteers
@@ -56,14 +57,16 @@ export async function fetchLivePlatformMetrics(): Promise<PlatformMetrics> {
       .from("challenge_participants")
       .select("id", { count: "exact", head: true });
 
-    const totalTreesPlanted = individualTrees + plantationProjectTrees;
+    // Verified living trees on ground
+    const totalTreesPlanted = individualTrees + verifiedProjectTrees;
     const co2OffsetKgPerYear = Math.round(totalTreesPlanted * 22);
     const o2GeneratedKgPerYear = Math.round(totalTreesPlanted * 100);
 
     return {
       totalTreesPlanted,
+      totalTargetTrees: totalTargetTrees + individualTrees,
       individualTrees,
-      plantationProjectTrees,
+      plantationProjectTrees: verifiedProjectTrees,
       activeProjectsCount,
       activeVolunteers: profilesCount || 1,
       totalStories: storiesCount || 0,
@@ -75,6 +78,7 @@ export async function fetchLivePlatformMetrics(): Promise<PlatformMetrics> {
     console.warn("Could not calculate live platform metrics:", err);
     return {
       totalTreesPlanted: 0,
+      totalTargetTrees: 0,
       individualTrees: 0,
       plantationProjectTrees: 0,
       activeProjectsCount: 0,
@@ -86,3 +90,4 @@ export async function fetchLivePlatformMetrics(): Promise<PlatformMetrics> {
     };
   }
 }
+

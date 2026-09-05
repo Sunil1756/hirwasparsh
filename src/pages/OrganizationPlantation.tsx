@@ -31,6 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { compressImage } from "@/lib/imageProcessing";
+import { syncUserProfileImpact } from "@/lib/syncUserImpact";
 import "leaflet/dist/leaflet.css";
 
 type Project = {
@@ -825,6 +826,62 @@ const OrganizationPlantation = () => {
     }
   };
 
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDeleteProject = async (projectId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!window.confirm("Are you sure you want to permanently delete this plantation project? All linked evidence, telemetry, and calculations will be removed.")) {
+      return;
+    }
+    setDeletingId(projectId);
+    try {
+      // 1. Delete evidence rows
+      await supabase.from("project_evidence").delete().eq("project_id", projectId);
+
+      // 2. Delete project row
+      const { error } = await supabase.from("plantation_projects").delete().eq("id", projectId);
+      if (error) {
+        console.warn("Delete note:", error.message);
+      }
+
+      toast({
+        title: "Project Deleted 🗑️",
+        description: "The plantation project has been successfully removed.",
+      });
+
+      // Update state
+      setProjects((prev) => prev.filter((p) => p.id !== projectId));
+
+      // Clean local storage if saved
+      try {
+        const saved = JSON.parse(localStorage.getItem("my_created_project_ids") || "[]");
+        const filtered = saved.filter((id: string) => id !== projectId);
+        localStorage.setItem("my_created_project_ids", JSON.stringify(filtered));
+        setLocalProjectIds(filtered);
+      } catch (err) {
+        console.warn("Storage update error:", err);
+      }
+
+      // Re-sync user profile impact
+      if (user?.id) {
+        await syncUserProfileImpact(user.id);
+      }
+
+      if (view === "detail") {
+        setActiveId(null);
+        setView("list");
+      }
+    } catch (err: any) {
+      toast({
+        title: "Delete Failed",
+        description: err.message || "Failed to delete project.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <main className="min-h-screen pt-20 pb-16 bg-background">
       <div className="container mx-auto px-4 max-w-5xl space-y-6">
@@ -943,9 +1000,20 @@ const OrganizationPlantation = () => {
                                   Trust {p.ai_score}/100
                                 </Badge>
                               )}
-                              <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${s.className}`}>
-                                {s.label}
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleDeleteProject(p.id, e)}
+                                  disabled={deletingId === p.id}
+                                  title="Delete Project"
+                                  className="p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors cursor-pointer"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                                <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${s.className}`}>
+                                  {s.label}
+                                </span>
+                              </div>
                             </div>
                           </div>
                           <div className="mt-4 pt-3 border-t border-border/40">
@@ -1560,6 +1628,18 @@ const OrganizationPlantation = () => {
                 <div className="flex items-center gap-2">
                   {activeCarbonLedger && (
                     <CarbonCertificateModal cert={activeCarbonLedger} />
+                  )}
+                  {isOwner && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => handleDeleteProject(activeProject.id, e)}
+                      disabled={deletingId === activeProject.id}
+                      className="border-destructive/40 text-destructive hover:bg-destructive/10 text-xs rounded-xl h-8 px-2.5 gap-1.5"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      {deletingId === activeProject.id ? "Deleting..." : "Delete Project"}
+                    </Button>
                   )}
                   <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${(STATUS_LABEL[activeProject.status] ?? STATUS_LABEL.submitted).className}`}>
                     {(STATUS_LABEL[activeProject.status] ?? STATUS_LABEL.submitted).label}
