@@ -879,10 +879,6 @@ const OrganizationPlantation = () => {
                   Explore Public Registry ({publicProjects.length})
                 </button>
               </div>
-
-              <Button onClick={() => { resetWizard(); setView("wizard"); }} className="rounded-xl font-bold shadow-md">
-                <Plus className="h-4 w-4 mr-1.5" /> + Launch New Project
-              </Button>
             </div>
 
             {loading ? (
