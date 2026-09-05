@@ -961,7 +961,15 @@ const OrganizationPlantation = () => {
                     }
                   }}
                   center={MH_CENTER as [number, number]}
+                  bulkData={bulkRows}
                   onUseGps={useMyLocation}
+                  onDetectedTreeCount={(detectedCount) => {
+                    setTargetTrees(String(detectedCount));
+                    toast({
+                      title: "Detected Trees Synced! 🌳",
+                      description: `Set target trees to ${detectedCount} based on boundary detection.`,
+                    });
+                  }}
                   onNext={handleNextStep}
                 />
 
