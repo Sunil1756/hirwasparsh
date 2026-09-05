@@ -32,7 +32,6 @@ interface Props {
   projectName: string;
   organizationName: string;
   targetTrees: number;
-  existingTrees?: number;
   plantationDate: string;
   baselineNdvi?: number;
   groundAuditRate?: number;
@@ -43,7 +42,6 @@ export const QuarterlySurvivalFeed = ({
   projectName,
   organizationName,
   targetTrees,
-  existingTrees = 0,
   plantationDate,
   baselineNdvi = 0.22,
   groundAuditRate = 95,
@@ -56,13 +54,12 @@ export const QuarterlySurvivalFeed = ({
   const survivalModel: ProjectSurvivalModel = useMemo(() => {
     return computeProjectSurvivalModel({
       targetTrees,
-      existingTrees,
       plantationDate,
       baselineNdvi,
       groundAuditRate,
       speciesList,
     });
-  }, [targetTrees, existingTrees, plantationDate, baselineNdvi, groundAuditRate, speciesList]);
+  }, [targetTrees, plantationDate, baselineNdvi, groundAuditRate, speciesList]);
 
   const copyDonorUpdate = () => {
     navigator.clipboard.writeText(survivalModel.donorUpdateSnippet);
@@ -108,11 +105,11 @@ export const QuarterlySurvivalFeed = ({
       {/* Top 4 Real-time Survival Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="p-4 rounded-2xl bg-card border border-border/40 space-y-1">
-          <span className="text-[11px] text-muted-foreground block">Project Tree Survival Rate</span>
+          <span className="text-[11px] text-muted-foreground block">Calibrated Survival Rate</span>
           <strong className="text-xl font-bold font-heading text-emerald-600">
             {survivalModel.currentSurvivalPercent}%
           </strong>
-          <span className="text-[10px] text-muted-foreground block mt-0.5">Applied to {targetTrees.toLocaleString()} Planted</span>
+          <span className="text-[10px] text-muted-foreground block mt-0.5">Ground + Spectral Indexed</span>
         </div>
 
         <div className="p-4 rounded-2xl bg-card border border-border/40 space-y-1">
@@ -120,11 +117,7 @@ export const QuarterlySurvivalFeed = ({
           <strong className="text-xl font-bold font-heading text-foreground">
             {survivalModel.estimatedLivingTrees.toLocaleString()}
           </strong>
-          <span className="text-[10px] text-muted-foreground block mt-0.5">
-            {existingTrees > 0
-              ? `+ ${existingTrees.toLocaleString()} Pre-Existing (${survivalModel.totalLivingCanopyTrees.toLocaleString()} Total)`
-              : `of ${targetTrees.toLocaleString()} target`}
-          </span>
+          <span className="text-[10px] text-muted-foreground block mt-0.5">of {targetTrees.toLocaleString()} target</span>
         </div>
 
         <div className="p-4 rounded-2xl bg-card border border-border/40 space-y-1">

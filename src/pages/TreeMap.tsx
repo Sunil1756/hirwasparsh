@@ -115,15 +115,6 @@ const TreeMap = () => {
     queryFn: fetchTrees,
   });
 
-  const { data: projects = [] } = useQuery({
-    queryKey: ["plantation-projects-treemap"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("plantation_projects").select("*");
-      if (error) return [];
-      return data || [];
-    },
-  });
-
   const speciesOptions = useMemo(
     () => Array.from(new Set(trees.map((t) => t.species).filter(Boolean))).sort(),
     [trees]
@@ -239,7 +230,7 @@ const TreeMap = () => {
 
         {activeTab === "satellite_ndvi" ? (
           <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
-            <ModuleASatelliteEngine trees={trees} projects={projects} />
+            <ModuleASatelliteEngine trees={trees} />
           </motion.div>
         ) : activeTab === "field_scouting" ? (
           <div className="space-y-6">

@@ -20,23 +20,18 @@ import {
   Download,
   Undo2,
   Maximize2,
-  Scan,
-  TreePine,
-  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { calculatePlotMetrics } from "@/lib/remoteSensing";
 import { analyzeCanopyWithAI } from "@/lib/gemini";
 import { parseKmlString, parseGeoJsonString, ParcelBoundaryResult } from "@/lib/kmlParser";
-import { detectTreesInBoundary, BoundaryDetectionResult, LatLng } from "@/lib/boundaryTreeDetection";
 import { MapContainer, TileLayer, Polygon, Polyline, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { toast } from "sonner";
 
 interface Props {
-  trees?: Array<{ id: string; tree_name?: string; species?: string; latitude?: number | null; longitude?: number | null; verification_status?: string }>;
   onPlotSaved?: (plotData: any) => void;
 }
 
@@ -177,15 +172,7 @@ const vertexIcon = L.divIcon({
   iconAnchor: [6, 6],
 });
 
-// Detected tree marker pin
-const detectedTreePinIcon = L.divIcon({
-  className: "detected-tree-pin",
-  html: `<div style="width:12px;height:12px;border-radius:50%;background:#10b981;border:2px solid white;box-shadow:0 0 8px #10b981"></div>`,
-  iconSize: [12, 12],
-  iconAnchor: [6, 6],
-});
-
-export function PlotPolygonDrawer({ trees = [], onPlotSaved }: Props) {
+export function PlotPolygonDrawer({ onPlotSaved }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form states
@@ -204,18 +191,6 @@ export function PlotPolygonDrawer({ trees = [], onPlotSaved }: Props) {
   // AI & Analytics states
   const [aiReport, setAiReport] = useState<any>(null);
   const [analyzing, setAnalyzing] = useState(false);
-
-  // Automated Tree Detection in Active Boundary
-  const activeBoundary = isDrawing && drawPoints.length >= 3 ? drawPoints : polygonCoords;
-  const detectionResult: BoundaryDetectionResult | null = useMemo(() => {
-    if (activeBoundary.length < 3) return null;
-    return detectTreesInBoundary({
-      boundary: activeBoundary,
-      trees,
-      baselineNdvi: 0.68,
-      canopyCoverage: 50,
-    });
-  }, [activeBoundary, trees]);
 
   // Calculate live metrics safely
   const metrics = useMemo(() => {
@@ -255,10 +230,7 @@ export function PlotPolygonDrawer({ trees = [], onPlotSaved }: Props) {
     handleRecalculateArea(closed);
     setIsDrawing(false);
     setDrawPoints([]);
-
-    const detect = detectTreesInBoundary({ boundary: closed, trees });
-    setTreeCount(detect.totalDetectedCount);
-    toast.success(`✅ Parcel Saved! Detected ${detect.totalDetectedCount} Trees within boundary.`);
+    toast.success("✅ Custom Parcel Boundary Saved & Area Computed!");
   };
 
   // Undo last point
@@ -278,18 +250,17 @@ export function PlotPolygonDrawer({ trees = [], onPlotSaved }: Props) {
 
     setPlotName(preset.name);
     setDistrict(preset.district);
+    setTreeCount(preset.trees);
+    setAvgAgeMonths(preset.ageMonths);
     setPolygonCoords(preset.coords);
     handleRecalculateArea(preset.coords);
-    setAvgAgeMonths(preset.ageMonths);
     setIsDrawing(false);
     setDrawPoints([]);
-
-    const detect = detectTreesInBoundary({ boundary: preset.coords, trees });
-    setTreeCount(preset.trees || detect.totalDetectedCount);
-    toast.success(`📍 Loaded ${preset.name} (${preset.district}) — ${detect.totalDetectedCount} Trees Detected!`);
+    setKmlData(null);
+    toast.success(`Loaded ${preset.name} (${preset.district})!`);
   };
 
-  // Upload survey boundary
+  // Handle KML / GeoJSON File Upload
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -312,10 +283,7 @@ export function PlotPolygonDrawer({ trees = [], onPlotSaved }: Props) {
       setPlotName(file.name.replace(/\.[^/.]+$/, ""));
       setIsDrawing(false);
       setDrawPoints([]);
-
-      const detect = detectTreesInBoundary({ boundary: res.polygonCoords, trees });
-      setTreeCount(detect.totalDetectedCount);
-      toast.success(`✅ Parsed ${res.acres} Acres from ${file.name}! Detected ${detect.totalDetectedCount} Trees.`);
+      toast.success(`✅ Parsed ${res.acres} Acres (${res.hectares} Ha) from ${file.name}!`);
     } catch (err: any) {
       console.error(err);
       toast.error(`Boundary upload failed: ${err.message}`);
@@ -329,7 +297,7 @@ export function PlotPolygonDrawer({ trees = [], onPlotSaved }: Props) {
       return;
     }
 
-    const turfCoords = polygonCoords.map((p) => [p[1], p[0]]);
+    const turfCoords = polygonCoords.map((p) => [p[1], p[0]]); // [lng, lat]
     if (
       turfCoords[0][0] !== turfCoords[turfCoords.length - 1][0] ||
       turfCoords[0][1] !== turfCoords[turfCoords.length - 1][1]
@@ -400,66 +368,36 @@ export function PlotPolygonDrawer({ trees = [], onPlotSaved }: Props) {
               <PieChart className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="font-heading font-bold text-lg sm:text-xl text-foreground">
+              <h3 className="font-heading font-bold text-lg sm:text-xl">
                 Forest Survey & Cadastral Boundary Modeler (Module D)
               </h3>
               <p className="text-xs text-muted-foreground">
-                Interactive parcel drawing on Sentinel-2 satellite imagery, automated in-boundary tree detection, and KML/GeoJSON survey parser.
+                Interactive parcel drawing on Sentinel-2 satellite imagery, KML/GeoJSON survey parser, and carbon yield estimation.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Action Buttons */}
+        {/* Action Controls */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* File Upload Trigger */}
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            accept=".kml,.geojson,.json,.xml"
-            className="hidden"
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fileInputRef.current?.click()}
-            className="rounded-xl text-xs gap-1.5 border-primary/20 hover:bg-primary/10"
-          >
-            <Upload className="h-3.5 w-3.5 text-primary" /> Import KML / GeoJSON
-          </Button>
-
-          {/* Draw Boundary Toggle */}
-          {!isDrawing ? (
-            <Button
-              size="sm"
-              onClick={() => {
-                setIsDrawing(true);
-                setDrawPoints([]);
-                toast.info("🗺️ Drawing mode active: Click anywhere on the map to add boundary corners.");
-              }}
-              className="rounded-xl text-xs gap-1.5 bg-primary text-primary-foreground font-semibold shadow-sm"
-            >
-              <Pencil className="h-3.5 w-3.5" /> Draw Custom Boundary
-            </Button>
-          ) : (
+          {isDrawing ? (
             <>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleFinishDrawing}
+                className="rounded-xl gap-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" /> Save Boundary ({drawPoints.length} pts)
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleUndoPoint}
                 disabled={drawPoints.length === 0}
-                className="rounded-xl text-xs gap-1.5 border-amber-500/30 text-amber-600"
+                className="rounded-xl gap-1 text-xs"
               >
-                <Undo2 className="h-3.5 w-3.5" /> Undo Point
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleFinishDrawing}
-                disabled={drawPoints.length < 3}
-                className="rounded-xl text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
-              >
-                <CheckCircle2 className="h-3.5 w-3.5" /> Finish Boundary ({drawPoints.length} pts)
+                <Undo2 className="h-3.5 w-3.5" /> Undo
               </Button>
               <Button
                 variant="ghost"
@@ -468,22 +406,51 @@ export function PlotPolygonDrawer({ trees = [], onPlotSaved }: Props) {
                   setIsDrawing(false);
                   setDrawPoints([]);
                 }}
-                className="rounded-xl text-xs text-muted-foreground"
+                className="rounded-xl text-xs text-rose-500 hover:bg-rose-500/10"
               >
                 Cancel
               </Button>
             </>
-          )}
+          ) : (
+            <>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => {
+                  setIsDrawing(true);
+                  setDrawPoints([]);
+                  toast.info("🖱️ Click on the satellite map to draw your farm boundary corners!");
+                }}
+                className="rounded-xl gap-1.5 text-xs font-semibold shadow-sm"
+              >
+                <Pencil className="h-3.5 w-3.5" /> ✏️ Draw Boundary
+              </Button>
 
-          {polygonCoords.length >= 3 && !isDrawing && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportGeoJSON}
-              className="rounded-xl text-xs gap-1.5 border-primary/20 hover:bg-primary/10"
-            >
-              <Download className="h-3.5 w-3.5 text-primary" /> Export GeoJSON
-            </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".kml, .geojson, .json, .xml"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                className="rounded-xl gap-1.5 border-primary/30 text-xs font-semibold"
+              >
+                <Upload className="h-3.5 w-3.5 text-primary" /> Import KML / GeoJSON
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportGeoJSON}
+                className="rounded-xl gap-1.5 border-primary/30 text-xs font-semibold"
+              >
+                <Download className="h-3.5 w-3.5 text-primary" /> Export GeoJSON
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -527,56 +494,40 @@ export function PlotPolygonDrawer({ trees = [], onPlotSaved }: Props) {
         </Button>
       </div>
 
-      {/* Tree Detection Live Scorecard Banner */}
-      {detectionResult && (
-        <div className="p-4 rounded-2xl bg-emerald-500/10 border-2 border-emerald-500/30 flex flex-wrap items-center justify-between gap-4 animate-in fade-in duration-300">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0">
-              <Scan className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h4 className="font-heading font-bold text-sm text-foreground">
-                  Detected {detectionResult.totalDetectedCount} Trees within Selected Boundary
-                </h4>
-                <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-600 font-bold">
-                  {detectionResult.confidencePercent}% Match
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Density: <strong>{detectionResult.densityPerAcre} trees/acre</strong> · Area: <strong>{metrics.acres} Acres</strong> ({metrics.hectares} Ha) · {detectionResult.densityLabel}
-              </p>
-            </div>
-          </div>
-
+      {/* Drawing Instructions Alert Banner */}
+      {isDrawing && (
+        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-xs animate-pulse">
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              onClick={() => {
-                setTreeCount(detectionResult.totalDetectedCount);
-                toast.success(`Synced ${detectionResult.totalDetectedCount} detected trees to plot configuration!`);
-              }}
-              className="h-8 text-xs rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5 shadow-sm"
-            >
-              <Check className="h-3.5 w-3.5" /> Sync Count ({detectionResult.totalDetectedCount})
-            </Button>
+            <Pencil className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <span>
+              <strong>Drawing Mode Active:</strong> Click on the satellite map to add corners. Vertices added:{" "}
+              <strong>{drawPoints.length}</strong> (Minimum 3 required).
+            </span>
           </div>
+          <Button
+            size="sm"
+            onClick={handleFinishDrawing}
+            disabled={drawPoints.length < 3}
+            className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg"
+          >
+            Finish & Save
+          </Button>
         </div>
       )}
 
-      {/* Interactive Satellite Polygon Map */}
-      <div className="rounded-2xl overflow-hidden border border-primary/20 shadow-inner relative h-[420px]">
+      {/* Interactive Satellite Polygon Map (Always Visible & Active) */}
+      <div className="rounded-2xl overflow-hidden border border-primary/20 shadow-inner relative">
         {isDrawing && (
           <div className="absolute top-3 left-3 z-[400] bg-background/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-primary/30 shadow-md text-xs font-semibold text-primary flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" /> Click on map to add vertex ({drawPoints.length} added)
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" /> Click on map to add vertex
           </div>
         )}
 
         <MapContainer
           center={[17.6845, 74.0120]}
           zoom={15}
-          scrollWheelZoom={true}
-          style={{ height: "100%", width: "100%" }}
+          scrollWheelZoom={false}
+          style={{ height: "380px", width: "100%" }}
         >
           <MapResizer />
           <TileLayer
@@ -607,80 +558,138 @@ export function PlotPolygonDrawer({ trees = [], onPlotSaved }: Props) {
             <Polygon
               positions={polygonCoords}
               pathOptions={{
-                color: "#10b981",
-                fillColor: "#10b981",
-                fillOpacity: 0.32,
-                weight: 3.5,
+                color: "#22c55e",
+                fillColor: "#22c55e",
+                fillOpacity: 0.28,
+                weight: 3,
+                dashArray: "3, 6",
               }}
             >
               <Popup>
-                <div className="text-xs space-y-1 p-1">
+                <div className="text-xs space-y-1">
                   <div className="font-bold text-foreground">{plotName}</div>
                   <div className="text-muted-foreground">📍 {district} District</div>
-                  <div className="text-emerald-600 font-semibold">
-                    🌾 Acreage: {metrics.acres} Acres ({metrics.hectares} Ha)
-                  </div>
-                  <div className="text-primary font-semibold">
-                    🌳 Detected Trees: {detectionResult?.totalDetectedCount ?? treeCount}
-                  </div>
-                  <div className="text-sky-600 font-semibold">
-                    ✨ Est. Sequestration: {metrics.annualCo2MetricTons} MT CO₂e
-                  </div>
+                  <div className="text-emerald-600 font-semibold">🌾 Acreage: {metrics.acres} Acres ({metrics.hectares} Ha)</div>
+                  <div>🌲 Density: {metrics.densityPerHectare} trees / Ha</div>
+                  <div className="text-sky-600 font-semibold">✨ Est. Sequestration: {metrics.annualCo2MetricTons} MT CO₂e</div>
                 </div>
               </Popup>
             </Polygon>
           )}
 
-          {/* Detected Tree Markers inside Polygon */}
-          {detectionResult &&
-            detectionResult.insideTrees.map((t) => (
-              <Marker key={t.id} position={[t.latitude, t.longitude]} icon={detectedTreePinIcon}>
-                <Popup>
-                  <div className="p-1 text-xs">
-                    <strong className="text-emerald-600 block">🌳 {t.name}</strong>
-                    <span className="text-muted-foreground">{t.species}</span>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
-
           <MapBoundsUpdater coords={isDrawing && drawPoints.length >= 3 ? drawPoints : polygonCoords} />
         </MapContainer>
       </div>
 
-      {/* Live Ecological & Biomass Metrics Grid */}
+      {/* Plot Configuration Inputs */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <label className="text-xs text-muted-foreground block mb-1">Parcel / Farm Name</label>
+          <input
+            type="text"
+            value={plotName}
+            onChange={(e) => setPlotName(e.target.value)}
+            className="w-full rounded-xl border border-primary/20 bg-background/60 px-3 py-2 text-xs focus:outline-none focus:border-primary"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs text-muted-foreground block mb-1">District / Agro-Zone</label>
+          <input
+            type="text"
+            value={district}
+            onChange={(e) => setDistrict(e.target.value)}
+            className="w-full rounded-xl border border-primary/20 bg-background/60 px-3 py-2 text-xs focus:outline-none focus:border-primary"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs text-muted-foreground block mb-1">Tree Inventory Count</label>
+          <input
+            type="number"
+            value={treeCount}
+            onChange={(e) => setTreeCount(Math.max(1, Number(e.target.value)))}
+            className="w-full rounded-xl border border-primary/20 bg-background/60 px-3 py-2 text-xs focus:outline-none focus:border-primary"
+          />
+        </div>
+      </div>
+
+      {/* Area Slider Control */}
+      <div className="p-3.5 rounded-xl bg-background/60 border border-primary/15 space-y-2.5">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-muted-foreground font-medium">Fine-Tune Parcel Surface Area:</span>
+          <span className="font-bold text-primary text-sm">
+            {metrics.acres} Acres ({metrics.hectares} Hectares · {areaSqM.toLocaleString()} m²)
+          </span>
+        </div>
+        <input
+          type="range"
+          min={4047}
+          max={202343}
+          step={500}
+          value={areaSqM}
+          onChange={(e) => setAreaSqM(Number(e.target.value))}
+          className="w-full accent-primary cursor-pointer"
+        />
+      </div>
+
+      {/* 4 Computed Scientific Metrics Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-3.5 rounded-xl bg-card border border-border/40 text-center">
-          <div className="text-[11px] text-muted-foreground">Plot Area (Calculated)</div>
-          <div className="font-heading font-bold text-lg sm:text-xl text-primary mt-0.5">
-            {metrics.acres} <span className="text-xs font-normal">Acres</span>
-          </div>
-          <div className="text-[10px] text-muted-foreground mt-0.5">{metrics.hectares} Hectares ({Math.round(areaSqM).toLocaleString()} m²)</div>
+        <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/15 text-center">
+          <div className="text-[11px] text-muted-foreground">Canopy Coverage</div>
+          <div className="text-lg sm:text-xl font-bold text-primary mt-0.5">{metrics.canopyCoveragePercent}%</div>
+          <div className="text-[10px] text-emerald-600 mt-0.5">NDVI Index: {metrics.ndviScore}</div>
         </div>
 
-        <div className="p-3.5 rounded-xl bg-card border border-border/40 text-center">
-          <div className="text-[11px] text-muted-foreground">Trees in Boundary</div>
-          <div className="font-heading font-bold text-lg sm:text-xl text-emerald-600 mt-0.5">
-            {detectionResult?.totalDetectedCount ?? treeCount}
-          </div>
-          <div className="text-[10px] text-muted-foreground mt-0.5">Density: {metrics.densityPerHectare} trees/Ha</div>
+        <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/15 text-center">
+          <div className="text-[11px] text-muted-foreground">Stand Tree Density</div>
+          <div className="text-lg sm:text-xl font-bold text-foreground mt-0.5">{metrics.densityPerHectare} / Ha</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">Optimal: 400-600/Ha</div>
         </div>
 
-        <div className="p-3.5 rounded-xl bg-card border border-border/40 text-center">
-          <div className="text-[11px] text-muted-foreground">Est. Carbon Sequestered</div>
-          <div className="font-heading font-bold text-lg sm:text-xl text-sky-600 mt-0.5">
-            {metrics.annualCo2MetricTons} <span className="text-xs font-normal">MT/yr</span>
+        <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/15 text-center">
+          <div className="text-[11px] text-muted-foreground">Annual Biomass CO₂</div>
+          <div className="text-lg sm:text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+            {metrics.annualCo2MetricTons} MT
           </div>
-          <div className="text-[10px] text-muted-foreground mt-0.5">IPCC Allometric Model</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">IPCC Pantropical Tier-2</div>
         </div>
 
-        <div className="p-3.5 rounded-xl bg-card border border-border/40 text-center">
-          <div className="text-[11px] text-muted-foreground">Sentinel-2 NDVI Vigor</div>
-          <div className="font-heading font-bold text-lg sm:text-xl text-foreground mt-0.5">
-            {metrics.ndviScore}
+        <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/15 text-center">
+          <div className="text-[11px] text-muted-foreground">Carbon Valuation</div>
+          <div className="text-lg sm:text-xl font-bold text-primary mt-0.5">
+            ₹{(metrics.carbonCreditValuationInr || 0).toLocaleString()}
           </div>
-          <div className="text-[10px] text-emerald-600 mt-0.5">Dense Thriving Canopy</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">@ ₹1,200 / MT CO₂e</div>
         </div>
+      </div>
+
+      {/* AI Gemini Parcel Diagnostic Button & Report */}
+      <div className="pt-2 border-t border-primary/15 space-y-3">
+        <Button
+          onClick={handleRunAiAnalysis}
+          disabled={analyzing}
+          className="rounded-xl gap-2 text-xs font-semibold shadow-md w-full sm:w-auto"
+        >
+          {analyzing ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Analyzing Multi-Spectral Parcel Geometry...
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-3.5 w-3.5" /> Run AI Parcel Health Diagnostic (Gemini 2.5)
+            </>
+          )}
+        </Button>
+
+        {aiReport && (
+          <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 text-xs space-y-2">
+            <div className="font-semibold text-primary flex items-center gap-1.5 text-sm">
+              <Bot className="h-4 w-4" /> AI Agroforestry & Biodiversity Recommendation:
+            </div>
+            <p className="text-foreground/90 leading-relaxed">{aiReport.summary || aiReport.recommendation}</p>
+          </div>
+        )}
       </div>
     </div>
   );

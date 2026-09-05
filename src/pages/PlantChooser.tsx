@@ -106,8 +106,8 @@ const PlantChooser = () => {
               <li className="flex gap-2"><Satellite className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> Drone & satellite telemetry</li>
               <li className="flex gap-2"><ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> Multi-year survival audits</li>
             </ul>
-            <Link to="/plant/organization" className="mt-5">
-              <Button variant="outline" className="w-full h-10 text-xs border-primary/40">
+            <Link to="/plant/organization?create=true" className="mt-5">
+              <Button variant="outline" className="w-full h-10 text-xs border-primary/40 hover:bg-primary/10">
                 Continue as NGO/CSR <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Button>
             </Link>

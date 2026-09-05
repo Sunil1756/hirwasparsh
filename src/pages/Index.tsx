@@ -1,9 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import {
-  TreePine, Leaf, MapPin, Users, BarChart3, Shield, Globe, Award, ArrowRight,
-  AlertTriangle, Lightbulb, Sprout, ShieldCheck, TrendingUp, Bot, HeartPulse, Activity
-} from "lucide-react";
+import { TreePine, Leaf, MapPin, Users, BarChart3, Shield, Globe, Award, ArrowRight, AlertTriangle, Lightbulb, Sprout, ShieldCheck, TrendingUp, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AnimatedCounter from "@/components/AnimatedCounter";
 import { supabase } from "@/integrations/supabase/client";
@@ -111,73 +108,18 @@ const FeatureCard = ({ f, i }: { f: typeof features[0]; i: number }) => {
 
 const Index = () => {
   const { data: stats } = useQuery({
-    queryKey: ["home-stats-v2"],
+    queryKey: ["home-stats"],
     queryFn: async () => {
-      try {
-        // 1. Query individual trees
-        const { data: individualTrees } = await supabase
-          .from("trees")
-          .select("id, verification_status, admin_status");
-
-        // 2. Query large-scale plantation projects
-        const { data: projects } = await supabase
-          .from("plantation_projects")
-          .select("target_trees, verified_trees, bulk_rows, status");
-
-        // 3. Query community profiles count
-        const { count: profilesCount } = await supabase
-          .from("profiles")
-          .select("id", { count: "exact", head: true });
-
-        let individualTotal = individualTrees?.length || 0;
-        let individualSurviving = individualTrees
-          ? individualTrees.filter(
-              (t) => t.verification_status !== "rejected" && t.admin_status !== "rejected"
-            ).length
-          : 0;
-
-        let projectsTotal = 0;
-        let projectsSurviving = 0;
-
-        if (projects && projects.length > 0) {
-          for (const p of projects) {
-            const target = Number(p.target_trees || p.bulk_rows || 0);
-            const verified = Number(p.verified_trees ?? target);
-            projectsTotal += target;
-            projectsSurviving += p.status === "rejected" ? 0 : verified;
-          }
-        }
-
-        const totalPlanted = individualTotal + projectsTotal;
-        const totalSurviving = individualSurviving + projectsSurviving;
-        const totalVolunteers = profilesCount && profilesCount > 0 ? profilesCount : 13;
-
-        // Ensure realistic ground truth numbers if database is freshly seeded
-        const finalPlanted = totalPlanted > 0 ? totalPlanted : 12;
-        const finalSurviving = totalSurviving > 0 ? totalSurviving : Math.min(finalPlanted, 11);
-        const finalVolunteers = totalVolunteers;
-
-        return {
-          treesPlanted: finalPlanted,
-          survivingTrees: finalSurviving,
-          volunteers: finalVolunteers,
-        };
-      } catch (err) {
-        console.error("Error loading home stats:", err);
-        return {
-          treesPlanted: 12,
-          survivingTrees: 11,
-          volunteers: 13,
-        };
-      }
+      const { data } = await supabase.rpc("get_platform_stats");
+      const row = Array.isArray(data) ? data[0] : data;
+      return { trees: Number(row?.trees ?? 0), volunteers: Number(row?.volunteers ?? 0) };
     },
   });
 
-  const treesPlanted = stats?.treesPlanted ?? 12;
-  const survivingTrees = stats?.survivingTrees ?? 11;
-  const co2Absorbed = Math.round(survivingTrees * 22);
-  const volunteers = stats?.volunteers ?? 13;
-  const survivalRate = treesPlanted > 0 ? Math.round((survivingTrees / treesPlanted) * 100) : 100;
+
+  const treesPlanted = stats?.trees || 0;
+  const co2Absorbed = Math.round(treesPlanted * 22);
+  const volunteers = stats?.volunteers || 0;
 
   return (
     <div className="min-h-screen">
@@ -340,65 +282,11 @@ const Index = () => {
       {/* Impact Counter */}
       <section className="py-24">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="font-heading text-4xl font-bold mb-3">Live Impact</h2>
-            <p className="text-muted-foreground max-w-xl mx-auto text-sm sm:text-base">
-              Real-time ecological metrics backed by satellite telemetry and geotagged field proof.
-            </p>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <AnimatedCounter
-              end={treesPlanted}
-              label="Trees Planted"
-              icon={<TreePine className="h-10 w-10 text-primary" />}
-            />
-
-            <div className="relative flex flex-col">
-              <AnimatedCounter
-                end={survivingTrees}
-                label="Trees Surviving Right Now"
-                icon={
-                  <div className="relative inline-flex items-center justify-center">
-                    <HeartPulse className="h-10 w-10 text-emerald-500" />
-                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                    </span>
-                  </div>
-                }
-              />
-              <div className="mt-2 text-center">
-                <Link
-                  to="/tree-map"
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
-                >
-                  <span>{survivalRate}% Survival Rate &bull; Live Feed</span>
-                  <ArrowRight className="h-3 w-3" />
-                </Link>
-              </div>
-            </div>
-
-            <AnimatedCounter
-              end={co2Absorbed}
-              suffix=" kg"
-              label="CO₂ Offset/Year"
-              icon={<Leaf className="h-10 w-10 text-primary" />}
-            />
-            <AnimatedCounter
-              end={volunteers}
-              label="Active Volunteers"
-              icon={<Users className="h-10 w-10 text-primary" />}
-            />
-          </div>
-
-          <div className="mt-12 flex justify-center">
-            <Link to="/tree-map">
-              <Button variant="outline" className="gap-2 rounded-xl shadow-sm border-primary/20 hover:bg-primary/5">
-                <Activity className="h-4 w-4 text-emerald-500" />
-                Inspect Live Tree Survival &amp; GIS Map
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
+          <h2 className="font-heading text-4xl font-bold text-center mb-16">Live Impact</h2>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <AnimatedCounter end={treesPlanted} label="Trees Planted" icon={<TreePine className="h-10 w-10" />} />
+            <AnimatedCounter end={co2Absorbed} suffix=" kg" label="CO₂ Offset/Year" icon={<Leaf className="h-10 w-10" />} />
+            <AnimatedCounter end={volunteers} label="Active Volunteers" icon={<Users className="h-10 w-10" />} />
           </div>
         </div>
       </section>

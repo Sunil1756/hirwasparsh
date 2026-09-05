@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { MapContainer, TileLayer, Polygon, Marker } from "react-leaflet";
 import BoundaryDrawMap, { computeAreas } from "@/components/BoundaryDrawMap";
@@ -15,7 +15,7 @@ import {
   FileText, Activity, Loader2, Plus, ArrowLeft, ArrowRight, Trash2, CheckCircle2,
   AlertCircle, Download, Sparkles, Navigation, Layers, Grid, Image as ImageIcon,
   Check, ArrowUpRight, Award, QrCode, TrendingUp, SlidersHorizontal, UserCheck,
-  Coins
+  Coins, Globe, Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,7 @@ import "leaflet/dist/leaflet.css";
 
 type Project = {
   id: string;
+  user_id?: string | null;
   project_name: string;
   organization_name: string;
   organization_type: string;
@@ -145,11 +146,24 @@ const POPULAR_SPECIES = [
 const OrganizationPlantation = () => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"list" | "wizard" | "detail">("list");
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Tabs for the project list view: My Workspace vs Public Explorer
+  const [listTab, setListTab] = useState<"my_projects" | "public_registry">("my_projects");
+
+  // Local storage project tracking for device session
+  const [localProjectIds, setLocalProjectIds] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("my_created_project_ids") || "[]");
+    } catch {
+      return [];
+    }
+  });
 
   // wizard state
   const [step, setStep] = useState(1);
@@ -161,9 +175,7 @@ const OrganizationPlantation = () => {
   const [contactPhone, setContactPhone] = useState("");
   const [location, setLocation] = useState("");
   const [boundary, setBoundary] = useState<[number, number][]>([]);
-  const [existingTrees, setExistingTrees] = useState("0");
-  const [aiDetectedBaseline, setAiDetectedBaseline] = useState<number | null>(null);
-  const [targetTrees, setTargetTrees] = useState("1000");
+  const [targetTrees, setTargetTrees] = useState("100");
   const [speciesText, setSpeciesText] = useState("Neem, Banyan, Peepal, Jamun");
   const [plantationDate, setPlantationDate] = useState(() => {
     const d = new Date();
@@ -188,12 +200,44 @@ const OrganizationPlantation = () => {
   const [uploading, setUploading] = useState(false);
   const [verifying, setVerifying] = useState(false);
 
+  // Handle URL query parameters (e.g. ?create=true)
+  useEffect(() => {
+    const shouldCreate = searchParams.get("create") === "true";
+    const projId = searchParams.get("project");
+    if (shouldCreate) {
+      setView("wizard");
+    } else if (projId) {
+      setActiveId(projId);
+      setView("detail");
+    }
+  }, [searchParams]);
+
   const computedBoundaryArea = useMemo(() => computeAreas(boundary), [boundary]);
+
+  // Filter projects owned by current user / device
+  const myProjects = useMemo(() => {
+    return projects.filter((p) => {
+      if (user?.id && p.user_id === user.id) return true;
+      if (localProjectIds.includes(p.id)) return true;
+      return false;
+    });
+  }, [projects, user, localProjectIds]);
+
+  const publicProjects = useMemo(() => {
+    return projects;
+  }, [projects]);
 
   const activeProject = useMemo(
     () => projects.find((p) => p.id === activeId) || null,
     [projects, activeId]
   );
+
+  const isOwner = useMemo(() => {
+    if (!activeProject) return false;
+    if (user?.id && activeProject.user_id === user.id) return true;
+    if (localProjectIds.includes(activeProject.id)) return true;
+    return false;
+  }, [activeProject, user, localProjectIds]);
 
   // Convert active project boundary
   const activeBoundaryPoints: [number, number][] = useMemo(() => {
@@ -545,9 +589,7 @@ const OrganizationPlantation = () => {
     setContactPhone("");
     setLocation("");
     setBoundary([]);
-    setExistingTrees("0");
-    setAiDetectedBaseline(null);
-    setTargetTrees("1000");
+    setTargetTrees("100");
     setSpeciesText("Neem, Banyan, Peepal, Jamun");
     setPlantationDate(new Date().toISOString().split("T")[0]);
     setBulkRows([]);
@@ -565,10 +607,6 @@ const OrganizationPlantation = () => {
       ? boundary.reduce((a, p) => [a[0] + p[0] / boundary.length, a[1] + p[1] / boundary.length], [0, 0])
       : [MH_CENTER[0], MH_CENTER[1]];
 
-    const parsedExisting = Number(existingTrees) || 0;
-    const parsedPlanted = Number(targetTrees) || 1000;
-    const totalCombined = parsedExisting + parsedPlanted;
-
     // Run Automated Step 1 AI Verification immediately!
     const preAudit = evaluateProjectVerification({
       projectName: projectName.trim(),
@@ -576,7 +614,7 @@ const OrganizationPlantation = () => {
       organizationType: orgType,
       locationName: location.trim(),
       boundary,
-      targetTrees: parsedPlanted, // Planted project trees subject to survival monitoring
+      targetTrees: Number(targetTrees) || 100,
       speciesList: speciesText.split(",").map((s) => s.trim()).filter(Boolean),
       evidenceCount: initialSitePhoto ? 1 : 0,
       existingProjects: projects,
@@ -593,16 +631,10 @@ const OrganizationPlantation = () => {
       latitude: centroid[0] as number,
       longitude: centroid[1] as number,
       boundary: boundary.map(([lat, lng]) => ({ lat, lng })),
-      target_trees: parsedPlanted, // Planted project trees
+      target_trees: Number(targetTrees) || 100,
       species: speciesText.split(",").map((s) => s.trim()).filter(Boolean),
       plantation_date: plantationDate,
-      bulk_data: {
-        rows: bulkRows,
-        existing_trees: parsedExisting,
-        planted_trees: parsedPlanted,
-        total_trees: totalCombined,
-        ai_baseline_count: aiDetectedBaseline,
-      },
+      bulk_data: bulkRows,
       bulk_rows: bulkRows.length,
       status: preAudit.status,
       ai_score: preAudit.overallScore,
@@ -633,6 +665,16 @@ const OrganizationPlantation = () => {
         setProjects((p) => [data as Project, ...p]);
         setActiveId((data as Project).id);
       }
+
+      // Pin created project to my workspace
+      try {
+        const existingMyIds = JSON.parse(localStorage.getItem("my_created_project_ids") || "[]");
+        if (createdProjectId && !existingMyIds.includes(createdProjectId)) {
+          const updated = [createdProjectId, ...existingMyIds];
+          localStorage.setItem("my_created_project_ids", JSON.stringify(updated));
+          setLocalProjectIds(updated);
+        }
+      } catch (e) {}
 
       // If initial photo was uploaded in Step 4, attach it to evidence
       if (initialSitePhoto && createdProjectId) {
@@ -806,58 +848,182 @@ const OrganizationPlantation = () => {
           )}
         </div>
 
-        {/* ---------------- PROJECT LIST ---------------- */}
+        {/* ---------------- PROJECT LIST VIEW ---------------- */}
         {view === "list" && (
-          <div className="space-y-4">
+          <div className="space-y-6">
+            {/* Top Workspace vs Public Registry Tab Switcher */}
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/40 pb-4">
+              <div className="flex items-center gap-2 p-1 rounded-2xl bg-muted/50 border border-border/40">
+                <button
+                  type="button"
+                  onClick={() => setListTab("my_projects")}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    listTab === "my_projects"
+                      ? "bg-background text-primary shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Building2 className="h-4 w-4" />
+                  My Workspace Projects ({myProjects.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setListTab("public_registry")}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    listTab === "public_registry"
+                      ? "bg-background text-primary shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Satellite className="h-4 w-4" />
+                  Explore Public Registry ({publicProjects.length})
+                </button>
+              </div>
+
+              <Button onClick={() => { resetWizard(); setView("wizard"); }} className="rounded-xl font-bold shadow-md">
+                <Plus className="h-4 w-4 mr-1.5" /> + Launch New Project
+              </Button>
+            </div>
+
             {loading ? (
               <div className="glass-card rounded-2xl p-12 text-center text-muted-foreground flex flex-col items-center justify-center gap-2">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                <p>Loading plantation projects...</p>
+                <p>Loading plantation workspace...</p>
               </div>
-            ) : projects.length === 0 ? (
-              <div className="glass-card rounded-2xl p-12 text-center space-y-4 border border-primary/20">
-                <Building2 className="h-12 w-12 text-primary mx-auto opacity-70" />
-                <div>
-                  <h3 className="font-heading text-lg font-semibold">No Projects Registered Yet</h3>
-                  <p className="text-sm text-muted-foreground max-w-md mx-auto mt-1">
-                    Register institutional plantations, CSR forest drives, or government afforestation tracts with GIS polygon mapping.
-                  </p>
+            ) : listTab === "my_projects" ? (
+              /* TAB 1: MY WORKSPACE PROJECTS */
+              myProjects.length === 0 ? (
+                <div className="glass-card rounded-3xl p-10 sm:p-14 text-center space-y-4 border border-primary/25 bg-gradient-to-b from-primary/5 to-transparent">
+                  <div className="h-16 w-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto shadow-inner">
+                    <Building2 className="h-8 w-8" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <h3 className="font-heading text-xl font-bold text-foreground">Your Organization Workspace is Ready</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground max-w-lg mx-auto">
+                      You haven't created any plantation projects in your workspace yet. When you register an afforestation drive, it will appear here with private telemetry, field scouting, and carbon accounting tools.
+                    </p>
+                  </div>
+                  <div className="pt-2 flex flex-wrap justify-center gap-3">
+                    <Button onClick={() => { resetWizard(); setView("wizard"); }} className="rounded-xl font-bold shadow-md">
+                      <Plus className="h-4 w-4 mr-1.5" /> + Create Your First Project
+                    </Button>
+                    <Button variant="outline" onClick={() => setListTab("public_registry")} className="rounded-xl text-xs font-semibold">
+                      Explore Public Registry
+                    </Button>
+                  </div>
                 </div>
-                <Button onClick={() => { resetWizard(); setView("wizard"); }}>
-                  <Plus className="h-4 w-4 mr-1.5" /> Create First Project
-                </Button>
-              </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Showing your organization's active projects ({myProjects.length})</span>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {myProjects.map((p) => {
+                      const s = STATUS_LABEL[p.status] ?? STATUS_LABEL.submitted;
+                      return (
+                        <motion.button
+                          key={p.id}
+                          type="button"
+                          onClick={() => { setActiveId(p.id); setView("detail"); }}
+                          className="glass-card rounded-2xl p-5 text-left border-2 border-primary/30 hover:border-primary transition-all cursor-pointer relative overflow-hidden group shadow-sm hover:shadow-md"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <Badge className="bg-primary/15 text-primary border-primary/30 text-[10px] font-bold">
+                                  Your Workspace 🌿
+                                </Badge>
+                              </div>
+                              <h3 className="font-heading font-bold text-base text-foreground group-hover:text-primary transition-colors">
+                                {p.project_name}
+                              </h3>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {p.organization_name} · {p.location}
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1.5">
+                              {p.ai_score != null && (
+                                <Badge variant="outline" className="border-primary/40 text-primary font-mono text-[11px]">
+                                  Trust {p.ai_score}/100
+                                </Badge>
+                              )}
+                              <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${s.className}`}>
+                                {s.label}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="mt-4 pt-3 border-t border-border/40">
+                            <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
+                              <span>{p.bulk_rows} records / {p.target_trees} target trees</span>
+                              <span>{new Date(p.plantation_date).toLocaleDateString()}</span>
+                            </div>
+                            <Progress value={Math.min(100, (p.bulk_rows / Math.max(1, p.target_trees)) * 100)} className="h-2" />
+                          </div>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2">
-                {projects.map((p) => {
-                  const s = STATUS_LABEL[p.status] ?? STATUS_LABEL.submitted;
-                  return (
-                    <motion.button
-                      key={p.id}
-                      type="button"
-                      onClick={() => { setActiveId(p.id); setView("detail"); }}
-                      className="glass-card rounded-2xl p-5 text-left border border-border/40 hover:border-primary/50 transition-all cursor-pointer"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h3 className="font-heading font-semibold text-base">{p.project_name}</h3>
-                          <p className="text-xs text-muted-foreground mt-0.5">{p.organization_name} · {p.location}</p>
+              /* TAB 2: EXPLORE PUBLIC REGISTRY */
+              <div className="space-y-4">
+                <div className="p-4 rounded-2xl bg-muted/40 border border-border/40 flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>
+                      <strong>Public Afforestation Registry:</strong> Verified institutional & CSR projects across India with Sentinel-2 telemetry.
+                    </span>
+                  </div>
+                  <Badge variant="outline" className="text-[10px]">Read-Only Public Explorer</Badge>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {publicProjects.map((p) => {
+                    const s = STATUS_LABEL[p.status] ?? STATUS_LABEL.submitted;
+                    const isMine = myProjects.some((m) => m.id === p.id);
+                    return (
+                      <motion.button
+                        key={p.id}
+                        type="button"
+                        onClick={() => { setActiveId(p.id); setView("detail"); }}
+                        className="glass-card rounded-2xl p-5 text-left border border-border/50 hover:border-primary/50 transition-all cursor-pointer group bg-card"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            {isMine && (
+                              <Badge className="bg-primary/15 text-primary border-primary/30 text-[10px] font-bold mb-1">
+                                Your Project
+                              </Badge>
+                            )}
+                            <h3 className="font-heading font-semibold text-base text-foreground group-hover:text-primary transition-colors">
+                              {p.project_name}
+                            </h3>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {p.organization_name} · {p.location}
+                            </p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1.5">
+                            {p.ai_score != null && (
+                              <Badge variant="outline" className="border-primary/40 text-primary text-[11px]">
+                                Trust {p.ai_score}/100
+                              </Badge>
+                            )}
+                            <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${s.className}`}>
+                              {s.label}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {p.ai_score != null && <Badge variant="outline" className="border-primary/40 text-primary">Trust {p.ai_score}/100</Badge>}
-                          <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${s.className}`}>{s.label}</span>
+                        <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{p.target_trees} Target Trees</span>
+                          <span className="text-primary font-semibold flex items-center gap-1">
+                            Inspect Telemetry <ArrowUpRight className="h-3.5 w-3.5" />
+                          </span>
                         </div>
-                      </div>
-                      <div className="mt-4 pt-3 border-t border-border/40">
-                        <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
-                          <span>{p.bulk_rows} recorded / {p.target_trees} target trees</span>
-                          <span>{new Date(p.plantation_date).toLocaleDateString()}</span>
-                        </div>
-                        <Progress value={Math.min(100, (p.bulk_rows / Math.max(1, p.target_trees)) * 100)} className="h-2" />
-                      </div>
-                    </motion.button>
-                  );
-                })}
+                      </motion.button>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -975,16 +1141,7 @@ const OrganizationPlantation = () => {
                     }
                   }}
                   center={MH_CENTER as [number, number]}
-                  bulkData={bulkRows}
                   onUseGps={useMyLocation}
-                  onDetectedTreeCount={(detectedCount) => {
-                    setExistingTrees(String(detectedCount));
-                    setAiDetectedBaseline(detectedCount);
-                    toast({
-                      title: "AI Baseline Trees Detected! 🌳",
-                      description: `Found ${detectedCount} pre-existing standing trees inside boundary prior to planting.`,
-                    });
-                  }}
                   onNext={handleNextStep}
                 />
 
@@ -1002,96 +1159,18 @@ const OrganizationPlantation = () => {
             {/* STEP 3: TARGET & SPECIES */}
             {step === 3 && (
               <div className="space-y-4 animate-in fade-in duration-300">
-                {/* AI Baseline + Planted Trees Calculation Breakdown */}
-                <div className="p-4 rounded-2xl bg-card border-2 border-emerald-500/20 space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="h-7 w-7 rounded-lg bg-emerald-500/15 text-emerald-600 flex items-center justify-center">
-                        <Bot className="h-4 w-4" />
-                      </span>
-                      <div>
-                        <h4 className="font-heading font-bold text-xs">AI Baseline &amp; Project Tree Equation</h4>
-                        <p className="text-[10px] text-muted-foreground">Separates pre-existing standing trees from new plantation survival monitoring</p>
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-600 font-semibold">
-                      Survival Isolation Mode
-                    </Badge>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center items-center">
-                    <div className="p-2.5 rounded-xl bg-muted/50 border border-border/40">
-                      <span className="text-[10px] text-muted-foreground block">Pre-Existing Baseline</span>
-                      <strong className="text-lg font-bold text-foreground">
-                        {(Number(existingTrees) || 0).toLocaleString()}
-                      </strong>
-                      <span className="text-[9px] text-muted-foreground block">Standing Trees Detected</span>
-                    </div>
-
-                    <div className="text-center font-bold text-muted-foreground text-sm flex items-center justify-center gap-1">
-                      <span>+</span>
-                      <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20 flex-1">
-                        <span className="text-[10px] text-primary block">Project Planted Trees</span>
-                        <strong className="text-lg font-bold text-primary">
-                          {(Number(targetTrees) || 0).toLocaleString()}
-                        </strong>
-                        <span className="text-[9px] text-primary/80 block">Subject to Survival Tracking</span>
-                      </div>
-                      <span>=</span>
-                    </div>
-
-                    <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                      <span className="text-[10px] text-emerald-700 dark:text-emerald-300 block">Total Boundary Trees</span>
-                      <strong className="text-lg font-bold text-emerald-600">
-                        {((Number(existingTrees) || 0) + (Number(targetTrees) || 0)).toLocaleString()}
-                      </strong>
-                      <span className="text-[9px] text-emerald-600/80 block">Total Living Canopy</span>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl bg-primary/5 p-2.5 text-[11px] text-muted-foreground leading-relaxed">
-                    💡 <strong>Survival Monitoring Rule:</strong> The <strong>{(Number(existingTrees) || 0).toLocaleString()} pre-existing trees</strong> are excluded from plantation mortality calculations. Survival rate ($S(t)$) is calculated exclusively on the <strong>{(Number(targetTrees) || 0).toLocaleString()} newly planted project trees</strong>.
-                  </div>
-                </div>
-
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <Label className="flex items-center gap-1.5 font-semibold">Pre-Existing Trees (AI Baseline)</Label>
-                      {aiDetectedBaseline !== null && (
-                        <span className="text-[10px] text-emerald-600 font-medium">AI Detected: {aiDetectedBaseline}</span>
-                      )}
-                    </div>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={existingTrees}
-                      onChange={(e) => setExistingTrees(e.target.value)}
-                      placeholder="e.g. 754"
-                      className="bg-background/80"
-                    />
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      Pre-existing trees inside boundary before planting (editable for ground correction).
-                    </p>
-                  </div>
-
-                  <div>
-                    <Label className="flex items-center gap-1.5 mb-1.5 font-semibold">Project / Planted Trees *</Label>
+                    <Label className="flex items-center gap-1.5 mb-1.5 font-semibold">Target Number of Trees *</Label>
                     <Input
                       type="number"
                       min={1}
                       value={targetTrees}
                       onChange={(e) => setTargetTrees(e.target.value)}
-                      placeholder="e.g. 1000"
+                      placeholder="500"
                       className="bg-background/80"
                     />
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      Number of new trees planted in this project (used for survival monitoring).
-                    </p>
                   </div>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <Label className="flex items-center gap-1.5 mb-1.5 font-semibold">Plantation Drive Date *</Label>
                     <Input
@@ -1099,15 +1178,6 @@ const OrganizationPlantation = () => {
                       value={plantationDate}
                       onChange={(e) => setPlantationDate(e.target.value)}
                       className="bg-background/80"
-                    />
-                  </div>
-                  <div>
-                    <Label className="flex items-center gap-1.5 mb-1.5 font-semibold">Total Combined Tree Census</Label>
-                    <Input
-                      type="text"
-                      disabled
-                      value={`${((Number(existingTrees) || 0) + (Number(targetTrees) || 0)).toLocaleString()} Total Trees (${(Number(existingTrees) || 0).toLocaleString()} Existing + ${(Number(targetTrees) || 0).toLocaleString()} Planted)`}
-                      className="bg-muted text-muted-foreground font-semibold"
                     />
                   </div>
                 </div>
@@ -1440,10 +1510,33 @@ const OrganizationPlantation = () => {
         {/* ---------------- DETAIL VIEW ---------------- */}
         {view === "detail" && activeProject && (
           <div className="space-y-6 animate-in fade-in duration-300">
+            {/* Context Badge if Viewing Other Org's Public Project */}
+            {!isOwner && (
+              <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-600 flex items-center justify-between">
+                <span className="flex items-center gap-2 font-medium">
+                  <Globe className="h-4 w-4" /> Viewing Public Project Registry Record ({activeProject.organization_name})
+                </span>
+                <Badge variant="outline" className="text-[10px] border-blue-500/30 text-blue-600 bg-background">
+                  Public Explorer (Read-Only)
+                </Badge>
+              </div>
+            )}
+
             {/* Top Project Banner with Certificate Action Button */}
             <div className="glass-card rounded-2xl p-6 border border-border/40 space-y-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    {isOwner ? (
+                      <Badge className="bg-primary/15 text-primary border-primary/30 text-[10px] font-bold">
+                        Your Project 🌿
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px]">
+                        Public Verified Record
+                      </Badge>
+                    )}
+                  </div>
                   <h2 className="font-heading text-xl font-semibold">{activeProject.project_name}</h2>
                   <p className="text-sm text-muted-foreground">
                     {activeProject.organization_name} · {activeProject.location}
@@ -1459,33 +1552,16 @@ const OrganizationPlantation = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-2 text-center">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-2 text-center">
                 <div className="p-3 rounded-xl bg-card border border-border/40">
                   <Target className="h-4 w-4 mx-auto text-primary" />
-                  <p className="mt-1 font-bold text-base">{activeProject.target_trees.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">Planted Trees</p>
+                  <p className="mt-1 font-bold text-base">{activeProject.target_trees}</p>
+                  <p className="text-xs text-muted-foreground">Target Trees</p>
                 </div>
                 <div className="p-3 rounded-xl bg-card border border-border/40">
-                  <TreePine className="h-4 w-4 mx-auto text-emerald-600" />
-                  <p className="mt-1 font-bold text-base">
-                    {(typeof activeProject.bulk_data === "object" && !Array.isArray(activeProject.bulk_data)
-                      ? (activeProject.bulk_data?.existing_trees ?? 0)
-                      : 0
-                    ).toLocaleString()}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Pre-Existing Baseline</p>
-                </div>
-                <div className="p-3 rounded-xl bg-card border border-border/40">
-                  <Layers className="h-4 w-4 mx-auto text-primary" />
-                  <p className="mt-1 font-bold text-base">
-                    {(
-                      activeProject.target_trees +
-                      (typeof activeProject.bulk_data === "object" && !Array.isArray(activeProject.bulk_data)
-                        ? (activeProject.bulk_data?.existing_trees ?? 0)
-                        : 0)
-                    ).toLocaleString()}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Total Combined Trees</p>
+                  <Leaf className="h-4 w-4 mx-auto text-primary" />
+                  <p className="mt-1 font-bold text-base">{activeProject.bulk_rows}</p>
+                  <p className="text-xs text-muted-foreground">Data Rows</p>
                 </div>
                 <div className="p-3 rounded-xl bg-card border border-border/40">
                   <Camera className="h-4 w-4 mx-auto text-primary" />
@@ -1561,11 +1637,7 @@ const OrganizationPlantation = () => {
               speciesList={activeProject.species || []}
               plantationDate={activeProject.plantation_date}
               baselineNdvi={activeAuditReport?.baselineNdvi || 0.22}
-              bulkTrees={
-                Array.isArray(activeProject.bulk_data)
-                  ? activeProject.bulk_data
-                  : activeProject.bulk_data?.rows || []
-              }
+              bulkTrees={Array.isArray(activeProject.bulk_data) ? activeProject.bulk_data : []}
             />
 
             {/* STEP 4: CONTINUOUS TREE SURVIVAL TRACKING & 36-MONTH QUARTERLY FEED */}
@@ -1573,11 +1645,6 @@ const OrganizationPlantation = () => {
               projectName={activeProject.project_name}
               organizationName={activeProject.organization_name}
               targetTrees={activeProject.target_trees}
-              existingTrees={
-                typeof activeProject.bulk_data === "object" && !Array.isArray(activeProject.bulk_data)
-                  ? activeProject.bulk_data?.existing_trees ?? 0
-                  : 0
-              }
               plantationDate={activeProject.plantation_date}
               baselineNdvi={activeAuditReport?.baselineNdvi || 0.22}
               speciesList={activeProject.species || []}
