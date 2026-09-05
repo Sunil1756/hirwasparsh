@@ -161,7 +161,9 @@ const OrganizationPlantation = () => {
   const [contactPhone, setContactPhone] = useState("");
   const [location, setLocation] = useState("");
   const [boundary, setBoundary] = useState<[number, number][]>([]);
-  const [targetTrees, setTargetTrees] = useState("100");
+  const [existingTrees, setExistingTrees] = useState("0");
+  const [aiDetectedBaseline, setAiDetectedBaseline] = useState<number | null>(null);
+  const [targetTrees, setTargetTrees] = useState("1000");
   const [speciesText, setSpeciesText] = useState("Neem, Banyan, Peepal, Jamun");
   const [plantationDate, setPlantationDate] = useState(() => {
     const d = new Date();
@@ -543,7 +545,9 @@ const OrganizationPlantation = () => {
     setContactPhone("");
     setLocation("");
     setBoundary([]);
-    setTargetTrees("100");
+    setExistingTrees("0");
+    setAiDetectedBaseline(null);
+    setTargetTrees("1000");
     setSpeciesText("Neem, Banyan, Peepal, Jamun");
     setPlantationDate(new Date().toISOString().split("T")[0]);
     setBulkRows([]);
@@ -561,6 +565,10 @@ const OrganizationPlantation = () => {
       ? boundary.reduce((a, p) => [a[0] + p[0] / boundary.length, a[1] + p[1] / boundary.length], [0, 0])
       : [MH_CENTER[0], MH_CENTER[1]];
 
+    const parsedExisting = Number(existingTrees) || 0;
+    const parsedPlanted = Number(targetTrees) || 1000;
+    const totalCombined = parsedExisting + parsedPlanted;
+
     // Run Automated Step 1 AI Verification immediately!
     const preAudit = evaluateProjectVerification({
       projectName: projectName.trim(),
@@ -568,7 +576,7 @@ const OrganizationPlantation = () => {
       organizationType: orgType,
       locationName: location.trim(),
       boundary,
-      targetTrees: Number(targetTrees) || 100,
+      targetTrees: parsedPlanted, // Planted project trees subject to survival monitoring
       speciesList: speciesText.split(",").map((s) => s.trim()).filter(Boolean),
       evidenceCount: initialSitePhoto ? 1 : 0,
       existingProjects: projects,
@@ -585,10 +593,16 @@ const OrganizationPlantation = () => {
       latitude: centroid[0] as number,
       longitude: centroid[1] as number,
       boundary: boundary.map(([lat, lng]) => ({ lat, lng })),
-      target_trees: Number(targetTrees) || 100,
+      target_trees: parsedPlanted, // Planted project trees
       species: speciesText.split(",").map((s) => s.trim()).filter(Boolean),
       plantation_date: plantationDate,
-      bulk_data: bulkRows,
+      bulk_data: {
+        rows: bulkRows,
+        existing_trees: parsedExisting,
+        planted_trees: parsedPlanted,
+        total_trees: totalCombined,
+        ai_baseline_count: aiDetectedBaseline,
+      },
       bulk_rows: bulkRows.length,
       status: preAudit.status,
       ai_score: preAudit.overallScore,
@@ -964,10 +978,11 @@ const OrganizationPlantation = () => {
                   bulkData={bulkRows}
                   onUseGps={useMyLocation}
                   onDetectedTreeCount={(detectedCount) => {
-                    setTargetTrees(String(detectedCount));
+                    setExistingTrees(String(detectedCount));
+                    setAiDetectedBaseline(detectedCount);
                     toast({
-                      title: "Detected Trees Synced! 🌳",
-                      description: `Set target trees to ${detectedCount} based on boundary detection.`,
+                      title: "AI Baseline Trees Detected! 🌳",
+                      description: `Found ${detectedCount} pre-existing standing trees inside boundary prior to planting.`,
                     });
                   }}
                   onNext={handleNextStep}
@@ -987,18 +1002,96 @@ const OrganizationPlantation = () => {
             {/* STEP 3: TARGET & SPECIES */}
             {step === 3 && (
               <div className="space-y-4 animate-in fade-in duration-300">
+                {/* AI Baseline + Planted Trees Calculation Breakdown */}
+                <div className="p-4 rounded-2xl bg-card border-2 border-emerald-500/20 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="h-7 w-7 rounded-lg bg-emerald-500/15 text-emerald-600 flex items-center justify-center">
+                        <Bot className="h-4 w-4" />
+                      </span>
+                      <div>
+                        <h4 className="font-heading font-bold text-xs">AI Baseline &amp; Project Tree Equation</h4>
+                        <p className="text-[10px] text-muted-foreground">Separates pre-existing standing trees from new plantation survival monitoring</p>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-600 font-semibold">
+                      Survival Isolation Mode
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center items-center">
+                    <div className="p-2.5 rounded-xl bg-muted/50 border border-border/40">
+                      <span className="text-[10px] text-muted-foreground block">Pre-Existing Baseline</span>
+                      <strong className="text-lg font-bold text-foreground">
+                        {(Number(existingTrees) || 0).toLocaleString()}
+                      </strong>
+                      <span className="text-[9px] text-muted-foreground block">Standing Trees Detected</span>
+                    </div>
+
+                    <div className="text-center font-bold text-muted-foreground text-sm flex items-center justify-center gap-1">
+                      <span>+</span>
+                      <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20 flex-1">
+                        <span className="text-[10px] text-primary block">Project Planted Trees</span>
+                        <strong className="text-lg font-bold text-primary">
+                          {(Number(targetTrees) || 0).toLocaleString()}
+                        </strong>
+                        <span className="text-[9px] text-primary/80 block">Subject to Survival Tracking</span>
+                      </div>
+                      <span>=</span>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                      <span className="text-[10px] text-emerald-700 dark:text-emerald-300 block">Total Boundary Trees</span>
+                      <strong className="text-lg font-bold text-emerald-600">
+                        {((Number(existingTrees) || 0) + (Number(targetTrees) || 0)).toLocaleString()}
+                      </strong>
+                      <span className="text-[9px] text-emerald-600/80 block">Total Living Canopy</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl bg-primary/5 p-2.5 text-[11px] text-muted-foreground leading-relaxed">
+                    💡 <strong>Survival Monitoring Rule:</strong> The <strong>{(Number(existingTrees) || 0).toLocaleString()} pre-existing trees</strong> are excluded from plantation mortality calculations. Survival rate ($S(t)$) is calculated exclusively on the <strong>{(Number(targetTrees) || 0).toLocaleString()} newly planted project trees</strong>.
+                  </div>
+                </div>
+
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <Label className="flex items-center gap-1.5 mb-1.5 font-semibold">Target Number of Trees *</Label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <Label className="flex items-center gap-1.5 font-semibold">Pre-Existing Trees (AI Baseline)</Label>
+                      {aiDetectedBaseline !== null && (
+                        <span className="text-[10px] text-emerald-600 font-medium">AI Detected: {aiDetectedBaseline}</span>
+                      )}
+                    </div>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={existingTrees}
+                      onChange={(e) => setExistingTrees(e.target.value)}
+                      placeholder="e.g. 754"
+                      className="bg-background/80"
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      Pre-existing trees inside boundary before planting (editable for ground correction).
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label className="flex items-center gap-1.5 mb-1.5 font-semibold">Project / Planted Trees *</Label>
                     <Input
                       type="number"
                       min={1}
                       value={targetTrees}
                       onChange={(e) => setTargetTrees(e.target.value)}
-                      placeholder="500"
+                      placeholder="e.g. 1000"
                       className="bg-background/80"
                     />
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      Number of new trees planted in this project (used for survival monitoring).
+                    </p>
                   </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <Label className="flex items-center gap-1.5 mb-1.5 font-semibold">Plantation Drive Date *</Label>
                     <Input
@@ -1006,6 +1099,15 @@ const OrganizationPlantation = () => {
                       value={plantationDate}
                       onChange={(e) => setPlantationDate(e.target.value)}
                       className="bg-background/80"
+                    />
+                  </div>
+                  <div>
+                    <Label className="flex items-center gap-1.5 mb-1.5 font-semibold">Total Combined Tree Census</Label>
+                    <Input
+                      type="text"
+                      disabled
+                      value={`${((Number(existingTrees) || 0) + (Number(targetTrees) || 0)).toLocaleString()} Total Trees (${(Number(existingTrees) || 0).toLocaleString()} Existing + ${(Number(targetTrees) || 0).toLocaleString()} Planted)`}
+                      className="bg-muted text-muted-foreground font-semibold"
                     />
                   </div>
                 </div>
@@ -1357,16 +1459,33 @@ const OrganizationPlantation = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-2 text-center">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-2 text-center">
                 <div className="p-3 rounded-xl bg-card border border-border/40">
                   <Target className="h-4 w-4 mx-auto text-primary" />
-                  <p className="mt-1 font-bold text-base">{activeProject.target_trees}</p>
-                  <p className="text-xs text-muted-foreground">Target Trees</p>
+                  <p className="mt-1 font-bold text-base">{activeProject.target_trees.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Planted Trees</p>
                 </div>
                 <div className="p-3 rounded-xl bg-card border border-border/40">
-                  <Leaf className="h-4 w-4 mx-auto text-primary" />
-                  <p className="mt-1 font-bold text-base">{activeProject.bulk_rows}</p>
-                  <p className="text-xs text-muted-foreground">Data Rows</p>
+                  <TreePine className="h-4 w-4 mx-auto text-emerald-600" />
+                  <p className="mt-1 font-bold text-base">
+                    {(typeof activeProject.bulk_data === "object" && !Array.isArray(activeProject.bulk_data)
+                      ? (activeProject.bulk_data?.existing_trees ?? 0)
+                      : 0
+                    ).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Pre-Existing Baseline</p>
+                </div>
+                <div className="p-3 rounded-xl bg-card border border-border/40">
+                  <Layers className="h-4 w-4 mx-auto text-primary" />
+                  <p className="mt-1 font-bold text-base">
+                    {(
+                      activeProject.target_trees +
+                      (typeof activeProject.bulk_data === "object" && !Array.isArray(activeProject.bulk_data)
+                        ? (activeProject.bulk_data?.existing_trees ?? 0)
+                        : 0)
+                    ).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Total Combined Trees</p>
                 </div>
                 <div className="p-3 rounded-xl bg-card border border-border/40">
                   <Camera className="h-4 w-4 mx-auto text-primary" />
@@ -1442,7 +1561,11 @@ const OrganizationPlantation = () => {
               speciesList={activeProject.species || []}
               plantationDate={activeProject.plantation_date}
               baselineNdvi={activeAuditReport?.baselineNdvi || 0.22}
-              bulkTrees={Array.isArray(activeProject.bulk_data) ? activeProject.bulk_data : []}
+              bulkTrees={
+                Array.isArray(activeProject.bulk_data)
+                  ? activeProject.bulk_data
+                  : activeProject.bulk_data?.rows || []
+              }
             />
 
             {/* STEP 4: CONTINUOUS TREE SURVIVAL TRACKING & 36-MONTH QUARTERLY FEED */}
@@ -1450,6 +1573,11 @@ const OrganizationPlantation = () => {
               projectName={activeProject.project_name}
               organizationName={activeProject.organization_name}
               targetTrees={activeProject.target_trees}
+              existingTrees={
+                typeof activeProject.bulk_data === "object" && !Array.isArray(activeProject.bulk_data)
+                  ? activeProject.bulk_data?.existing_trees ?? 0
+                  : 0
+              }
               plantationDate={activeProject.plantation_date}
               baselineNdvi={activeAuditReport?.baselineNdvi || 0.22}
               speciesList={activeProject.species || []}

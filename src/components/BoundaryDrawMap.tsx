@@ -224,8 +224,8 @@ const BoundaryDrawMap = ({
                 <Scan className="h-4 w-4" />
               </span>
               <div>
-                <h4 className="font-heading font-bold text-xs text-foreground">Boundary Tree Detection</h4>
-                <p className="text-[10px] text-muted-foreground">{areas.acres.toFixed(2)} Acres · Sentinel-2 Spatial Match</p>
+                <h4 className="font-heading font-bold text-xs text-foreground">AI Baseline Tree Detection</h4>
+                <p className="text-[10px] text-muted-foreground">{areas.acres.toFixed(2)} Acres · Pre-Existing Trees Census</p>
               </div>
             </div>
             <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-600 font-bold">
@@ -235,7 +235,7 @@ const BoundaryDrawMap = ({
 
           <div className="grid grid-cols-2 gap-2 text-center">
             <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-              <div className="text-[10px] text-muted-foreground">Trees in Boundary</div>
+              <div className="text-[10px] text-muted-foreground">Pre-Existing Trees</div>
               <div className="font-heading font-extrabold text-xl text-emerald-600">
                 {detectionResult.totalDetectedCount}
               </div>
@@ -245,7 +245,7 @@ const BoundaryDrawMap = ({
             </div>
 
             <div className="p-2 rounded-xl bg-primary/5 border border-primary/15">
-              <div className="text-[10px] text-muted-foreground">Canopy Density</div>
+              <div className="text-[10px] text-muted-foreground">Baseline Density</div>
               <div className="font-heading font-extrabold text-xl text-primary">
                 {detectionResult.densityPerAcre}
               </div>
@@ -264,7 +264,7 @@ const BoundaryDrawMap = ({
               onClick={handleApplyDetectedCount}
               className="w-full h-7 text-xs rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5"
             >
-              <CheckCircle2 className="h-3.5 w-3.5" /> Sync Count ({detectionResult.totalDetectedCount} Trees) to Target
+              <CheckCircle2 className="h-3.5 w-3.5" /> Save as Pre-Existing Baseline ({detectionResult.totalDetectedCount} Trees)
             </Button>
           )}
         </div>

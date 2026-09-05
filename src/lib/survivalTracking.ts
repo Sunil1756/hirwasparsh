@@ -20,10 +20,13 @@ export interface QuarterlyScanRecord {
 }
 
 export interface ProjectSurvivalModel {
-  totalTargetTrees: number;
+  totalTargetTrees: number; // Newly planted project trees (used for survival rate calculation)
+  existingBaselineTrees: number; // Pre-existing standing trees inside boundary before planting
+  totalCombinedTrees: number; // existingBaselineTrees + totalTargetTrees
   baselineDate: string;
-  currentSurvivalPercent: number;
-  estimatedLivingTrees: number;
+  currentSurvivalPercent: number; // Calculated strictly on planted project trees
+  estimatedLivingTrees: number; // Surviving planted trees
+  totalLivingCanopyTrees: number; // Surviving planted trees + existing baseline trees
   accumulatedCo2MT: number;
   mortalityRiskLevel: "Low (Stable)" | "Moderate (Watch)" | "Elevated Risk" | "Critical";
   riskDescription: string;
@@ -36,6 +39,7 @@ export interface ProjectSurvivalModel {
  */
 export function computeProjectSurvivalModel(params: {
   targetTrees: number;
+  existingTrees?: number;
   plantationDate: string;
   baselineNdvi?: number;
   groundAuditRate?: number; // 0 - 100 from Step 3
@@ -43,6 +47,7 @@ export function computeProjectSurvivalModel(params: {
 }): ProjectSurvivalModel {
   const {
     targetTrees,
+    existingTrees = 0,
     plantationDate,
     baselineNdvi = 0.22,
     groundAuditRate = 95,
@@ -83,7 +88,7 @@ export function computeProjectSurvivalModel(params: {
 
     // Mathematical Calibrated Survival Rate
     // S(t) = S0 * (1 - penalty) * (ground_rate / 100)^0.65
-    // Natural Weibull sapling mortality stabilizes after month 12
+    // Applied ONLY to newly planted project trees (targetTrees)
     const naturalMortality = Math.min(8, q * 0.65); // 0% -> ~7.8% over 3 years
     const spectralPenalty = Math.max(0, (expectedNdvi - observedNdvi) / Math.max(0.1, expectedNdvi)) * 12;
     const groundCalibrationMultiplier = Math.pow(groundAuditRate / 100, 0.65);
@@ -94,6 +99,7 @@ export function computeProjectSurvivalModel(params: {
     );
     const calibratedSurvivalRate = Number(calculatedSurvival.toFixed(1));
 
+    // Living planted trees
     const estimatedLivingTrees = Math.round((targetTrees * calibratedSurvivalRate) / 100);
 
     // Cumulative IPCC Biomass CO2 sequestration (MT)
@@ -139,6 +145,8 @@ export function computeProjectSurvivalModel(params: {
   const activeQuarter = quarters[2];
   const currentSurvivalPercent = activeQuarter.calibratedSurvivalRate;
   const estimatedLivingTrees = activeQuarter.estimatedLivingTrees;
+  const totalLivingCanopyTrees = estimatedLivingTrees + existingTrees;
+  const totalCombinedTrees = targetTrees + existingTrees;
   const accumulatedCo2MT = activeQuarter.co2SequesteredMT;
 
   let mortalityRiskLevel: "Low (Stable)" | "Moderate (Watch)" | "Elevated Risk" | "Critical" = "Low (Stable)";
@@ -159,9 +167,12 @@ export function computeProjectSurvivalModel(params: {
   const donorUpdateSnippet =
     `🌱 GREEN ENLIGHTENMENT — QUARTERLY PLANTATION UPDATE\n` +
     `-----------------------------------------------------\n` +
-    `• Target Saplings Planted: ${targetTrees.toLocaleString()}\n` +
-    `• Calibrated Tree Survival Rate: ${currentSurvivalPercent}%\n` +
-    `• Verified Living Trees: ${estimatedLivingTrees.toLocaleString()}\n` +
+    `• Pre-Existing Baseline Trees: ${existingTrees.toLocaleString()}\n` +
+    `• Planted Project Trees: ${targetTrees.toLocaleString()}\n` +
+    `• Total Census: ${totalCombinedTrees.toLocaleString()} Trees\n` +
+    `• Plantation Survival Rate (Project Trees Only): ${currentSurvivalPercent}%\n` +
+    `• Living Planted Trees: ${estimatedLivingTrees.toLocaleString()}\n` +
+    `• Total Standing Living Trees (Canopy): ${totalLivingCanopyTrees.toLocaleString()}\n` +
     `• Plot Canopy Coverage: ${activeQuarter.canopyCoverPercent}%\n` +
     `• Mean Sentinel-2 NDVI: ${activeQuarter.observedNdvi} (Δ +${activeQuarter.deltaNdvi} vs Baseline)\n` +
     `• Carbon Sequestered to Date: ${accumulatedCo2MT} MT CO₂e\n` +
@@ -171,9 +182,12 @@ export function computeProjectSurvivalModel(params: {
 
   return {
     totalTargetTrees: targetTrees,
+    existingBaselineTrees: existingTrees,
+    totalCombinedTrees,
     baselineDate: plantationDate,
     currentSurvivalPercent,
     estimatedLivingTrees,
+    totalLivingCanopyTrees,
     accumulatedCo2MT,
     mortalityRiskLevel,
     riskDescription,
