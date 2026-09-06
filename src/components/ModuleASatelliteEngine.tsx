@@ -997,8 +997,11 @@ Please provide:
         {activeSubTab === "slider" && (
           <div className="animate-in fade-in duration-300">
             <SatelliteTimeSliderCompare
+              selectedZone={selectedZone}
+              zoneTrees={zoneTrees}
+              zoneSurvival={zoneSurvival}
               zoneName={`${selectedZone.name} (${selectedZone.district})`}
-              baselineYear="2023 Baseline"
+              baselineYear="2023 Baseline (Pre-Planting)"
               currentYear="2026 Multi-Spectral Canopy"
             />
           </div>
