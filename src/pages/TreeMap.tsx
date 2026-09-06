@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, Fragment } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MapPin,
@@ -92,7 +92,7 @@ const fetchTrees = async () => {
 // Component to handle auto-panning map when filtered trees change
 function MapCenterController({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useMap();
-  useMemo(() => {
+  useEffect(() => {
     map.setView(center, zoom);
   }, [center, zoom, map]);
   return null;
@@ -477,7 +477,7 @@ const TreeMap = () => {
                         const isRejected = t.verification_status === "rejected";
 
                         return (
-                          <div key={t.id}>
+                          <Fragment key={t.id}>
                             {showProximityRings && (
                               <Circle
                                 center={[t.latitude!, t.longitude!]}
@@ -569,7 +569,7 @@ const TreeMap = () => {
                                 </div>
                               </Popup>
                             </Marker>
-                          </div>
+                          </Fragment>
                         );
                       })}
                     </MapContainer>
