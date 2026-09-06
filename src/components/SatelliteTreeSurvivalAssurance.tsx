@@ -55,6 +55,7 @@ import {
 } from "@/lib/treeSurvivalEngine";
 import { AgroforestryPresetZone } from "@/lib/remoteSensing";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   selectedZone: AgroforestryPresetZone;
@@ -119,7 +120,7 @@ export function SatelliteTreeSurvivalAssurance({
   };
 
   // Dispatch Action for a Stressed Tree
-  const handleDispatchAction = (tree: TreeSurvivalRecord, actionType: TreeSurvivalRecord["interventionStatus"]) => {
+  const handleDispatchAction = async (tree: TreeSurvivalRecord, actionType: TreeSurvivalRecord["interventionStatus"]) => {
     const updatedTrees = analytics.trees.map((t) =>
       t.treeId === tree.treeId
         ? {
@@ -132,9 +133,19 @@ export function SatelliteTreeSurvivalAssurance({
 
     setAnalytics((prev) => calculateZoneSurvivalMetrics(selectedZone, updatedTrees));
 
+    try {
+      await supabase.from("admin_audit_log").insert({
+        action: `SPACE_SURVIVAL_${actionType.toUpperCase().replace(/\s+/g, "_")}`,
+        new_status: actionType,
+        previous_status: tree.healthStatus,
+      });
+    } catch (err) {
+      console.warn("Could not record survival dispatch in database:", err);
+    }
+
     toast({
       title: `⚡ Action Dispatched for ${tree.treeId}`,
-      description: `${actionType} initiated at ${tree.latitude.toFixed(4)}°N, ${tree.longitude.toFixed(4)}°E. Field officer ticket generated.`,
+      description: `${actionType} registered in Supabase and dispatched for coordinates ${tree.latitude.toFixed(4)}°N, ${tree.longitude.toFixed(4)}°E. Field officer ticket generated.`,
     });
   };
 

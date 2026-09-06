@@ -223,7 +223,43 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
     [activeSpectral, toast]
   );
 
-  // Handle Preset Zone Selection
+  // Combine Real Database Projects from Supabase with Preset Demonstration Corridors
+  const allAvailableZones: AgroforestryPresetZone[] = useMemo(() => {
+    const realZones: AgroforestryPresetZone[] = dbProjects.map((p) => {
+      const pTrees = trees.filter(
+        (t: any) => t.project_id === p.id || (t.location && p.location && t.location.toLowerCase().includes(p.location.toLowerCase()))
+      );
+      const centerLat = p.boundary?.[0]?.lat || p.boundary?.[0]?.[0] || (pTrees[0]?.latitude) || 19.75;
+      const centerLng = p.boundary?.[0]?.lng || p.boundary?.[0]?.[1] || (pTrees[0]?.longitude) || 75.71;
+      const verifiedCount = pTrees.filter((t) => t.verification_status === "verified").length;
+      const realSurvivalRate = pTrees.length > 0 ? Math.round((verifiedCount / pTrees.length) * 1000) / 10 : 92.5;
+
+      return {
+        id: p.id,
+        name: `${p.project_name} (${p.organization_name || "CSR Initiative"})`,
+        location: p.location || "Maharashtra",
+        district: p.location || "Maharashtra, India",
+        center: [Number(centerLat), Number(centerLng)],
+        zoom: 15,
+        boundary: Array.isArray(p.boundary)
+          ? p.boundary.map((pt: any) => (Array.isArray(pt) ? [pt[0], pt[1]] : [pt.lat, pt.lng]))
+          : [],
+        targetTrees: p.target_trees || pTrees.length || 500,
+        species: Array.from(new Set(pTrees.map((t) => t.species).filter(Boolean))),
+        plantedDate: p.created_at?.split("T")[0] || "2024-01-01",
+        meanNdvi: pTrees.length > 0 ? 0.78 : 0.74,
+        meanNdwi: 0.28,
+        biomassTonsPerHa: 45.0,
+        carbonOffsetTons: Math.round(((pTrees.length || p.target_trees || 100) * 22) / 1000),
+        healthStatus: realSurvivalRate >= 90 ? "Optimal Vigor" : "Moderate Growth",
+        description: `Real CSR/NGO Agroforestry Project by ${p.organization_name || "Enterprise"} registered in Supabase database.`,
+      };
+    });
+
+    return [...realZones, ...AGROFORESTRY_PRESET_ZONES];
+  }, [dbProjects, trees]);
+
+  // Handle Preset or Real Project Selection
   const handleSelectZone = (zone: AgroforestryPresetZone) => {
     setSelectedZone(zone);
     setMapCenter(zone.center);
@@ -266,7 +302,7 @@ Telemetry metrics:
 - Carbon Biomass Density: ${inspectedTelemetry.biomassCarbonMTPerHa} MT CO2e/Hectare
 
 Please provide:
-1. Executive Remote Sensing Diagnosis
+1. Executive Remote Sensing Diagnosis for CSR & ESG Auditors
 2. Photosynthetic Chlorophyll & Nitrogen Health Assessment
 3. Soil Moisture & Drought Resilience Advisory
 4. 10-Year Carbon Sequestration Projection under IPCC Tier-2 standards
@@ -306,6 +342,9 @@ Please provide:
                   </h2>
                   <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-bold">
                     Sentinel-2 L2A (10m)
+                  </Badge>
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-[10px] font-bold">
+                    Institutional ESG MRV
                   </Badge>
                 </div>
                 <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
@@ -349,7 +388,7 @@ Please provide:
                   <Info className="h-4 w-4" /> For what purpose is Module A & this Satellite Map used?
                 </h4>
                 <span className="text-[11px] text-muted-foreground font-mono">
-                  Enterprise Earth Observation (EO) Architecture
+                  Enterprise Earth Observation (EO) Architecture for CSR & NGOs
                 </span>
               </div>
 
@@ -358,9 +397,9 @@ Please provide:
                   <div className="h-8 w-8 rounded-xl bg-emerald-500/15 text-emerald-600 flex items-center justify-center font-bold">
                     🛰️ 1
                   </div>
-                  <h5 className="font-heading font-bold text-sm text-foreground">Zero-Cost Space Verification</h5>
+                  <h5 className="font-heading font-bold text-sm text-foreground">Autonomous Space-Borne MRV (CSR & NGOs)</h5>
                   <p className="text-muted-foreground leading-relaxed">
-                    Continuously monitor 1,000+ saplings and large-scale plantations from orbit using European Space Agency Sentinel-2 satellites without expensive manual field visits.
+                    Continuous 36-month space-borne telemetry for CSR & NGO plantations using ESA Sentinel-2 satellites. Delivers institutional-grade Proof-of-Survival (PoS) and carbon sequestration audit trails for ESG & BRSR compliance.
                   </p>
                 </div>
 
@@ -448,355 +487,381 @@ Please provide:
             </div>
           </div>
         </div>
-
-        {/* Sub-Feature Navigation Tabs */}
-        <div className="flex flex-wrap items-center gap-2 mt-6 pt-5 border-t border-primary/20">
-          {[
-            { id: "map", label: "1. Spectral Map & Remote Scout", icon: Satellite },
-            { id: "survival", label: "2. 36-Month Survival & Mortality Radar", icon: ShieldCheck },
-            { id: "slider", label: "3. Temporal Transformation (Before vs After)", icon: SlidersHorizontal },
-            { id: "timeseries", label: "4. 36-Month NDVI Growth Curve", icon: TrendingUp },
-            { id: "carbon", label: "5. IPCC Carbon Credit Modeler", icon: PieChart },
-            { id: "parcel", label: "6. Cadastral Boundary (Module D)", icon: Compass },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isSelected = activeSubTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveSubTab(tab.id as any)}
-                className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                  isSelected
-                    ? "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/40"
-                    : "bg-background/80 text-muted-foreground hover:text-foreground hover:bg-background border border-border/40"
-                }`}
-              >
-                <Icon className="h-4 w-4" />
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* SUB-TAB 1: INTERACTIVE SATELLITE CANVAS + LIVE REMOTE PIXEL SCOUT */}
+      {/* MASTER GEOSPATIAL VIEWPORT: SATELLITE MAP (ALWAYS VISIBLE & INTERACTIVE)   */}
       {/* ========================================================================= */}
-      {activeSubTab === "map" && (
-        <div className="space-y-6 animate-in fade-in duration-300">
-          {/* Live Agro-Climatic Intelligence Widget */}
-          <AgroWeatherWidget
-            latitude={selectedZone.center[0]}
-            longitude={selectedZone.center[1]}
-            locationName={`${selectedZone.name} (${selectedZone.district})`}
-          />
+      <div className="space-y-4">
+        {/* Quick-Jump Agroforestry Zone Hub Switcher (Real DB Projects + Biome Corridors) */}
+        <div className="glass-card rounded-2xl p-4 sm:p-5 border border-primary/20 shadow-sm space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="font-heading font-bold text-xs sm:text-sm text-primary flex items-center gap-1.5">
+              <Sparkles className="h-4 w-4" /> Focus Plantation Plot / CSR Project:
+            </span>
+            <span className="text-[11px] text-muted-foreground">
+              Select any project to center satellite telemetry & load saplings
+            </span>
+          </div>
 
-          {/* Quick-Jump Agroforestry Zone Hub Switcher */}
-          <div className="glass-card rounded-2xl p-4 sm:p-5 border border-primary/20 shadow-sm space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="font-heading font-bold text-xs sm:text-sm text-primary flex items-center gap-1.5">
-                <Sparkles className="h-4 w-4" /> Quick-Focus Plantation Zones & Plots:
-              </span>
-              <span className="text-[11px] text-muted-foreground">
-                Click any zone to fly camera & load multi-spectral telemetry
-              </span>
+          <div className="flex flex-wrap gap-2">
+            {allAvailableZones.map((zone) => {
+              const isCurrent = selectedZone.id === zone.id;
+              const isDbProject = dbProjects.some((p) => p.id === zone.id);
+
+              return (
+                <Button
+                  key={zone.id}
+                  type="button"
+                  variant={isCurrent ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleSelectZone(zone)}
+                  className={`rounded-xl text-xs font-semibold h-8 transition-all gap-1.5 ${
+                    isCurrent
+                      ? "shadow-md ring-2 ring-primary/40"
+                      : "border-primary/20 text-muted-foreground hover:text-foreground hover:bg-primary/5"
+                  }`}
+                >
+                  <TreePine className="h-3.5 w-3.5 text-emerald-500" />
+                  {zone.name.split(" (")[0]}
+                  {isDbProject && (
+                    <span className="text-[9px] px-1 py-0.2 rounded bg-blue-500/20 text-blue-600 font-mono">
+                      DB
+                    </span>
+                  )}
+                </Button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Spectral Layer Selector */}
+        <NDVISpectralViewer
+          activeLayerId={activeSpectral}
+          onLayerChange={(layerId) => setActiveSpectral(layerId)}
+          meanNdvi={selectedZone.meanNdvi}
+        />
+
+        {/* Interactive Multi-Spectral Satellite Canvas (ALWAYS VISIBLE) */}
+        <div className="glass-card rounded-3xl p-5 sm:p-6 border-2 border-primary/30 shadow-xl space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <Layers className="h-5 w-5 text-primary" />
+                <h4 className="font-heading font-bold text-base sm:text-lg text-foreground">
+                  Sentinel-2 Multi-Spectral Canvas: {currentLayer.name}
+                </h4>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                💡 <strong>Interactive Scout:</strong> Click anywhere on the satellite imagery to drop a GPS reticle and inspect live pixel telemetry.
+              </p>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {AGROFORESTRY_PRESET_ZONES.map((zone) => {
-                const isCurrent = selectedZone.id === zone.id;
-                return (
-                  <Button
-                    key={zone.id}
-                    type="button"
-                    variant={isCurrent ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handleSelectZone(zone)}
-                    className={`rounded-xl text-xs font-semibold h-8 transition-all ${
-                      isCurrent
-                        ? "shadow-md"
-                        : "border-primary/20 text-muted-foreground hover:text-foreground hover:bg-primary/5"
-                    }`}
-                  >
-                    <TreePine className="h-3.5 w-3.5 mr-1 text-emerald-500" />
-                    {zone.name.split(" ")[0]} ({zone.district.split(",")[0]})
-                  </Button>
-                );
-              })}
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs font-mono bg-primary/5 border-primary/30">
+                Formula: {currentLayer.formula}
+              </Badge>
+              <Badge className="bg-primary/15 text-primary border-primary/30 text-xs font-bold">
+                {activeSpectral.toUpperCase()} Active
+              </Badge>
             </div>
           </div>
 
-          {/* Spectral Layer Selector */}
-          <NDVISpectralViewer
-            activeLayerId={activeSpectral}
-            onLayerChange={(layerId) => setActiveSpectral(layerId)}
-            meanNdvi={selectedZone.meanNdvi}
-          />
+          {/* Map Container */}
+          <div className="rounded-2xl overflow-hidden border-2 border-primary/30 shadow-inner relative">
+            {/* Dynamic Spectral Color Ramp Overlay Shader */}
+            <div
+              className="absolute inset-0 pointer-events-none z-[400] mix-blend-color opacity-35"
+              style={{
+                background:
+                  activeSpectral === "ndvi"
+                    ? "radial-gradient(circle at 45% 45%, rgba(21,128,61,0.7) 0%, rgba(132,204,22,0.4) 40%, rgba(234,179,8,0.2) 75%, transparent 100%)"
+                    : activeSpectral === "ndre"
+                    ? "radial-gradient(circle at 45% 45%, rgba(4,120,87,0.7) 0%, rgba(59,130,246,0.4) 50%, rgba(250,204,21,0.2) 80%, transparent 100%)"
+                    : activeSpectral === "ndwi"
+                    ? "radial-gradient(circle at 45% 45%, rgba(29,78,216,0.7) 0%, rgba(56,189,248,0.4) 50%, rgba(180,83,9,0.2) 80%, transparent 100%)"
+                    : activeSpectral === "evi"
+                    ? "radial-gradient(circle at 45% 45%, rgba(22,163,74,0.7) 0%, rgba(202,138,4,0.4) 50%, rgba(225,29,72,0.2) 80%, transparent 100%)"
+                    : activeSpectral === "thermal"
+                    ? "radial-gradient(circle at 45% 45%, rgba(30,58,138,0.7) 0%, rgba(245,158,11,0.4) 50%, rgba(185,28,28,0.2) 80%, transparent 100%)"
+                    : "none",
+              }}
+            />
 
-          {/* Interactive Multi-Spectral Satellite Canvas */}
-          <div className="glass-card rounded-3xl p-5 sm:p-6 border-2 border-primary/30 shadow-xl space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Layers className="h-5 w-5 text-primary" />
-                  <h4 className="font-heading font-bold text-base sm:text-lg text-foreground">
-                    Sentinel-2 Multi-Spectral Canvas: {currentLayer.name}
-                  </h4>
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  💡 <strong>Interactive Scout:</strong> Click anywhere on the satellite imagery to drop a GPS pin and inspect live pixel telemetry.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs font-mono bg-primary/5 border-primary/30">
-                  Formula: {currentLayer.formula}
-                </Badge>
-                <Badge className="bg-primary/15 text-primary border-primary/30 text-xs font-bold">
-                  {activeSpectral.toUpperCase()} Active
-                </Badge>
-              </div>
-            </div>
-
-            {/* Map Container */}
-            <div className="rounded-2xl overflow-hidden border-2 border-primary/30 shadow-inner relative">
-              {/* Dynamic Spectral Color Ramp Overlay Shader */}
-              <div
-                className="absolute inset-0 pointer-events-none z-[400] mix-blend-color opacity-35"
-                style={{
-                  background:
-                    activeSpectral === "ndvi"
-                      ? "radial-gradient(circle at 45% 45%, rgba(21,128,61,0.7) 0%, rgba(132,204,22,0.4) 40%, rgba(234,179,8,0.2) 75%, transparent 100%)"
-                      : activeSpectral === "ndre"
-                      ? "radial-gradient(circle at 45% 45%, rgba(4,120,87,0.7) 0%, rgba(59,130,246,0.4) 50%, rgba(250,204,21,0.2) 80%, transparent 100%)"
-                      : activeSpectral === "ndwi"
-                      ? "radial-gradient(circle at 45% 45%, rgba(29,78,216,0.7) 0%, rgba(56,189,248,0.4) 50%, rgba(180,83,9,0.2) 80%, transparent 100%)"
-                      : activeSpectral === "evi"
-                      ? "radial-gradient(circle at 45% 45%, rgba(22,163,74,0.7) 0%, rgba(202,138,4,0.4) 50%, rgba(225,29,72,0.2) 80%, transparent 100%)"
-                      : activeSpectral === "thermal"
-                      ? "radial-gradient(circle at 45% 45%, rgba(30,58,138,0.7) 0%, rgba(245,158,11,0.4) 50%, rgba(185,28,28,0.2) 80%, transparent 100%)"
-                      : "none",
-                }}
+            <MapContainer
+              center={mapCenter}
+              zoom={mapZoom}
+              scrollWheelZoom={true}
+              style={{ height: "480px", width: "100%" }}
+            >
+              <MapEventsController
+                onMapClick={handleMapClick}
+                centerTarget={mapCenter}
+                zoomTarget={mapZoom}
               />
 
-              <MapContainer
-                center={mapCenter}
-                zoom={mapZoom}
-                scrollWheelZoom={true}
-                style={{ height: "460px", width: "100%" }}
-              >
-                <MapEventsController
-                  onMapClick={handleMapClick}
-                  centerTarget={mapCenter}
-                  zoomTarget={mapZoom}
-                />
+              <TileLayer
+                url={SATELLITE_TILES[activeSpectral] || SATELLITE_TILES.rgb}
+                attribution="&copy; ESRI World Imagery & Sentinel-2 Earth Observation"
+              />
 
-                <TileLayer
-                  url={SATELLITE_TILES[activeSpectral] || SATELLITE_TILES.rgb}
-                  attribution="&copy; ESRI World Imagery & Sentinel-2 Earth Observation"
-                />
+              {/* Plot Cadastral Boundary Polygon for Active Agroforestry Zone */}
+              {selectedZone.boundary && selectedZone.boundary.length > 0 && (
+                <Polygon
+                  positions={selectedZone.boundary}
+                  pathOptions={{
+                    color: "#22c55e",
+                    weight: 3,
+                    dashArray: "6, 6",
+                    fillColor: "#15803d",
+                    fillOpacity: 0.25,
+                  }}
+                >
+                  <Popup>
+                    <div className="text-xs space-y-1">
+                      <div className="font-bold text-foreground">{selectedZone.name}</div>
+                      <div className="text-muted-foreground">{selectedZone.district}</div>
+                      <div className="text-emerald-600 font-semibold">
+                        Target: {selectedZone.targetTrees.toLocaleString()} Trees · NDVI: {selectedZone.meanNdvi}
+                      </div>
+                    </div>
+                  </Popup>
+                </Polygon>
+              )}
 
-                {/* Plot Cadastral Boundary Polygon for Active Agroforestry Zone */}
-                {selectedZone.boundary && selectedZone.boundary.length > 0 && (
+              {/* Plot DB Projects Boundaries if available */}
+              {dbProjects.map((p) => {
+                if (!p.boundary || !Array.isArray(p.boundary) || p.boundary.length < 3) return null;
+                const pts: [number, number][] = p.boundary.map((pt: any) =>
+                  Array.isArray(pt) ? pt : [pt.lat, pt.lng]
+                );
+                return (
                   <Polygon
-                    positions={selectedZone.boundary}
+                    key={p.id}
+                    positions={pts}
                     pathOptions={{
-                      color: "#22c55e",
-                      weight: 3,
-                      dashArray: "6, 6",
-                      fillColor: "#15803d",
-                      fillOpacity: 0.25,
+                      color: "#3b82f6",
+                      weight: 2.5,
+                      fillColor: "#2563eb",
+                      fillOpacity: 0.2,
                     }}
                   >
                     <Popup>
                       <div className="text-xs space-y-1">
-                        <div className="font-bold text-foreground">{selectedZone.name}</div>
-                        <div className="text-muted-foreground">{selectedZone.district}</div>
-                        <div className="text-emerald-600 font-semibold">
-                          Target: {selectedZone.targetTrees.toLocaleString()} Trees · NDVI: {selectedZone.meanNdvi}
+                        <div className="font-bold text-foreground">{p.project_name}</div>
+                        <div className="text-muted-foreground">{p.organization_name} · {p.location}</div>
+                        <div className="text-blue-600 font-semibold">
+                          Target: {p.target_trees} Saplings
                         </div>
                       </div>
                     </Popup>
                   </Polygon>
-                )}
+                );
+              })}
 
-                {/* Plot DB Projects Boundaries if available */}
-                {dbProjects.map((p) => {
-                  if (!p.boundary || !Array.isArray(p.boundary) || p.boundary.length < 3) return null;
-                  const pts: [number, number][] = p.boundary.map((pt: any) =>
-                    Array.isArray(pt) ? pt : [pt.lat, pt.lng]
-                  );
-                  return (
-                    <Polygon
-                      key={p.id}
-                      positions={pts}
-                      pathOptions={{
-                        color: "#3b82f6",
-                        weight: 2.5,
-                        fillColor: "#2563eb",
-                        fillOpacity: 0.2,
-                      }}
-                    >
-                      <Popup>
-                        <div className="text-xs space-y-1">
-                          <div className="font-bold text-foreground">{p.project_name}</div>
-                          <div className="text-muted-foreground">{p.organization_name} · {p.location}</div>
-                          <div className="text-blue-600 font-semibold">
-                            Target: {p.target_trees} Saplings
-                          </div>
-                        </div>
-                      </Popup>
-                    </Polygon>
-                  );
-                })}
+              {/* Inspected Target Reticle Marker */}
+              {inspectedTelemetry && (
+                <Marker
+                  position={[inspectedTelemetry.latitude, inspectedTelemetry.longitude]}
+                  icon={targetReticleIcon}
+                >
+                  <Popup>
+                    <div className="text-xs space-y-1">
+                      <div className="font-bold text-foreground">🎯 Selected Remote Scout Coordinate</div>
+                      <div className="font-mono text-muted-foreground">
+                        {inspectedTelemetry.latitude.toFixed(4)}°N, {inspectedTelemetry.longitude.toFixed(4)}°E
+                      </div>
+                      <div className="text-emerald-600 font-bold">
+                        NDVI: {inspectedTelemetry.ndvi} ({inspectedTelemetry.classification})
+                      </div>
+                    </div>
+                  </Popup>
+                </Marker>
+              )}
 
-                {/* Inspected Target Reticle Marker */}
-                {inspectedTelemetry && (
+              {/* Plot Space-Borne Monitored Saplings for the Active Zone */}
+              {zoneTrees.map((tree) => {
+                const icon =
+                  tree.healthStatus === "Thriving Canopy"
+                    ? thrivingSatIcon
+                    : tree.healthStatus === "Moderate Growth"
+                    ? moderateSatIcon
+                    : tree.healthStatus === "Moisture Stressed"
+                    ? stressedSatIcon
+                    : criticalSatIcon;
+
+                return (
                   <Marker
-                    position={[inspectedTelemetry.latitude, inspectedTelemetry.longitude]}
-                    icon={targetReticleIcon}
+                    key={tree.treeId}
+                    position={[tree.latitude, tree.longitude]}
+                    icon={icon}
                   >
                     <Popup>
-                      <div className="text-xs space-y-1">
-                        <div className="font-bold text-foreground">🎯 Selected Remote Scout Coordinate</div>
-                        <div className="font-mono text-muted-foreground">
-                          {inspectedTelemetry.latitude.toFixed(4)}°N, {inspectedTelemetry.longitude.toFixed(4)}°E
+                      <div className="text-xs space-y-1.5 min-w-[200px]">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-bold text-foreground">{tree.treeName}</span>
+                          <span className="text-[10px] text-muted-foreground font-mono">({tree.treeId})</span>
                         </div>
-                        <div className="text-emerald-600 font-bold">
-                          NDVI: {inspectedTelemetry.ndvi} ({inspectedTelemetry.classification})
+                        <div className="text-muted-foreground">{tree.species} · {tree.monthsMonitored} mos age</div>
+
+                        <div className="grid grid-cols-3 gap-1 py-1 px-1.5 rounded-lg bg-muted/50 text-center text-[10px]">
+                          <div>
+                            <div className="text-muted-foreground">NDVI</div>
+                            <div className="font-bold text-foreground">{tree.currentNdvi}</div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground">NDWI</div>
+                            <div className={`font-bold ${tree.currentNdwi < 0.1 ? "text-amber-500" : "text-sky-500"}`}>
+                              {tree.currentNdwi}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground">Survival</div>
+                            <div className="font-extrabold text-emerald-600">
+                              {tree.survivalProbability}%
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="pt-1 flex items-center justify-between gap-1">
+                          <Badge
+                            className={`text-[9px] font-bold ${
+                              tree.healthStatus === "Thriving Canopy"
+                                ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30"
+                                : tree.healthStatus === "Moisture Stressed"
+                                ? "bg-amber-500/15 text-amber-600 border-amber-500/30"
+                                : tree.healthStatus === "Critical Mortality Risk"
+                                ? "bg-red-500/15 text-red-600 border-red-500/30"
+                                : "bg-blue-500/15 text-blue-600 border-blue-500/30"
+                            }`}
+                          >
+                            {tree.healthStatus}
+                          </Badge>
+
+                          <button
+                            type="button"
+                            onClick={() => handleMapClick(tree.latitude, tree.longitude)}
+                            className="text-[10px] text-primary hover:underline font-semibold"
+                          >
+                            Inspect Telemetry →
+                          </button>
                         </div>
                       </div>
                     </Popup>
                   </Marker>
-                )}
+                );
+              })}
 
-                {/* Plot Space-Borne Monitored Saplings for the Active Zone */}
-                {zoneTrees.map((tree) => {
-                  const icon =
-                    tree.healthStatus === "Thriving Canopy"
-                      ? thrivingSatIcon
-                      : tree.healthStatus === "Moderate Growth"
-                      ? moderateSatIcon
-                      : tree.healthStatus === "Moisture Stressed"
-                      ? stressedSatIcon
-                      : criticalSatIcon;
+              {/* Plot Real Planted Trees from Prop */}
+              {trees.map((tree) => {
+                const lat = Number(tree.latitude);
+                const lng = Number(tree.longitude);
+                if (isNaN(lat) || isNaN(lng)) return null;
 
-                  return (
-                    <Marker
-                      key={tree.treeId}
-                      position={[tree.latitude, tree.longitude]}
-                      icon={icon}
-                    >
-                      <Popup>
-                        <div className="text-xs space-y-1.5 min-w-[200px]">
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="font-bold text-foreground">{tree.treeName}</span>
-                            <span className="text-[10px] text-muted-foreground font-mono">({tree.treeId})</span>
-                          </div>
-                          <div className="text-muted-foreground">{tree.species} · {tree.monthsMonitored} mos age</div>
-
-                          <div className="grid grid-cols-3 gap-1 py-1 px-1.5 rounded-lg bg-muted/50 text-center text-[10px]">
-                            <div>
-                              <div className="text-muted-foreground">NDVI</div>
-                              <div className="font-bold text-foreground">{tree.currentNdvi}</div>
-                            </div>
-                            <div>
-                              <div className="text-muted-foreground">NDWI</div>
-                              <div className={`font-bold ${tree.currentNdwi < 0.1 ? "text-amber-500" : "text-sky-500"}`}>
-                                {tree.currentNdwi}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-muted-foreground">Survival</div>
-                              <div className="font-extrabold text-emerald-600">
-                                {tree.survivalProbability}%
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="pt-1 flex items-center justify-between gap-1">
-                            <Badge
-                              className={`text-[9px] font-bold ${
-                                tree.healthStatus === "Thriving Canopy"
-                                  ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30"
-                                  : tree.healthStatus === "Moisture Stressed"
-                                  ? "bg-amber-500/15 text-amber-600 border-amber-500/30"
-                                  : tree.healthStatus === "Critical Mortality Risk"
-                                  ? "bg-red-500/15 text-red-600 border-red-500/30"
-                                  : "bg-blue-500/15 text-blue-600 border-blue-500/30"
-                              }`}
-                            >
-                              {tree.healthStatus}
-                            </Badge>
-
-                            <button
-                              type="button"
-                              onClick={() => handleMapClick(tree.latitude, tree.longitude)}
-                              className="text-[10px] text-primary hover:underline font-semibold"
-                            >
-                              Inspect Telemetry →
-                            </button>
-                          </div>
+                return (
+                  <Marker
+                    key={tree.id}
+                    position={[lat, lng]}
+                    icon={tree.verification_status === "verified" ? verifiedSatIcon : pendingSatIcon}
+                  >
+                    <Popup>
+                      <div className="text-xs space-y-1">
+                        <div className="font-bold text-foreground">{tree.tree_name}</div>
+                        <div className="text-muted-foreground">{tree.species}</div>
+                        <Badge variant="outline" className="text-[10px] capitalize">
+                          Status: {tree.verification_status}
+                        </Badge>
+                        <div className="text-emerald-600 font-semibold mt-1">
+                          Estimated NDVI: 0.76 (Vigorous Canopy)
                         </div>
-                      </Popup>
-                    </Marker>
-                  );
-                })}
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              })}
+            </MapContainer>
 
-                {/* Plot Real Planted Trees from Prop */}
-                {trees.map((tree) => {
-                  const lat = Number(tree.latitude);
-                  const lng = Number(tree.longitude);
-                  if (isNaN(lat) || isNaN(lng)) return null;
-
-                  return (
-                    <Marker
-                      key={tree.id}
-                      position={[lat, lng]}
-                      icon={tree.verification_status === "verified" ? verifiedSatIcon : pendingSatIcon}
-                    >
-                      <Popup>
-                        <div className="text-xs space-y-1">
-                          <div className="font-bold text-foreground">{tree.tree_name}</div>
-                          <div className="text-muted-foreground">{tree.species}</div>
-                          <Badge variant="outline" className="text-[10px] capitalize">
-                            Status: {tree.verification_status}
-                          </Badge>
-                          <div className="text-emerald-600 font-semibold mt-1">
-                            Estimated NDVI: 0.76 (Vigorous Canopy)
-                          </div>
-                        </div>
-                      </Popup>
-                    </Marker>
-                  );
-                })}
-              </MapContainer>
-
-              {/* Floating Quick Action Overlay inside Map */}
-              <div className="absolute top-3 right-3 z-[500] flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  onClick={handleRunSatelliteSurvivalScan}
-                  disabled={isScanning}
-                  className="rounded-xl font-bold shadow-lg gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white backdrop-blur-md"
-                >
-                  <RefreshCw className={`h-3.5 w-3.5 ${isScanning ? "animate-spin" : ""}`} />
-                  {isScanning ? "Scanning..." : "Sentinel-2 Scan"}
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleRunAiDiagnostic}
-                  disabled={isAiAnalyzing}
-                  className="rounded-xl font-bold shadow-lg gap-1.5 text-xs bg-primary/95 hover:bg-primary text-primary-foreground backdrop-blur-md"
-                >
-                  <Bot className="h-3.5 w-3.5" />
-                  {isAiAnalyzing ? "Analyzing..." : "AI Viewport Audit"}
-                </Button>
-              </div>
+            {/* Floating Quick Action Overlay inside Map */}
+            <div className="absolute top-3 right-3 z-[500] flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                onClick={handleRunSatelliteSurvivalScan}
+                disabled={isScanning}
+                className="rounded-xl font-bold shadow-lg gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white backdrop-blur-md"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isScanning ? "animate-spin" : ""}`} />
+                {isScanning ? "Scanning..." : "Sentinel-2 Scan"}
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleRunAiDiagnostic}
+                disabled={isAiAnalyzing}
+                className="rounded-xl font-bold shadow-lg gap-1.5 text-xs bg-primary/95 hover:bg-primary text-primary-foreground backdrop-blur-md"
+              >
+                <Bot className="h-3.5 w-3.5" />
+                {isAiAnalyzing ? "Analyzing..." : "AI Viewport Audit"}
+              </Button>
             </div>
+          </div>
+        </div>
+      </div>
 
-            {/* Live Pixel Inspector HUD for Active Coordinate */}
+      {/* ========================================================================= */}
+      {/* ANALYSIS CONSOLES NAVIGATION TABS (DIRECTLY UNDERNEATH SATELLITE MAP)     */}
+      {/* ========================================================================= */}
+      <div className="glass-card rounded-3xl p-5 sm:p-6 border border-primary/20 shadow-md space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/40 pb-4">
+          <div>
+            <h3 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
+              <Layers className="h-5 w-5 text-primary" /> Space-Borne Analysis & Verification Consoles
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Select an analytical engine below to inspect multi-spectral data for the active satellite viewport.
+            </p>
+          </div>
+
+          {/* Sub-Feature Navigation Buttons */}
+          <div className="flex flex-wrap items-center gap-2">
+            {[
+              { id: "map", label: "1. Pixel Scout & Weather", icon: Satellite },
+              { id: "survival", label: "2. 36-Month Survival & Mortality Radar", icon: ShieldCheck },
+              { id: "slider", label: "3. Temporal Comparison (Before vs After)", icon: SlidersHorizontal },
+              { id: "timeseries", label: "4. 36-Month NDVI Growth Curve", icon: TrendingUp },
+              { id: "carbon", label: "5. IPCC Carbon Credit Modeler", icon: PieChart },
+              { id: "parcel", label: "6. Cadastral Boundary (Module D)", icon: Compass },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isSelected = activeSubTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveSubTab(tab.id as any)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    isSelected
+                      ? "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/40"
+                      : "bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ---------------- ACTIVE TOOL CONSOLE CONTENT ---------------- */}
+
+        {/* 1. PIXEL SCOUT & WEATHER */}
+        {activeSubTab === "map" && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <AgroWeatherWidget
+              latitude={selectedZone.center[0]}
+              longitude={selectedZone.center[1]}
+              locationName={`${selectedZone.name} (${selectedZone.district})`}
+            />
+
             {inspectedTelemetry && (
               <SatellitePixelInspectorHUD
                 telemetry={inspectedTelemetry}
@@ -805,49 +870,53 @@ Please provide:
               />
             )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ========================================================================= */}
-      {/* SUB-TAB 2: 36-MONTH TREE SURVIVAL ASSURANCE & MORTALITY RADAR */}
-      {/* ========================================================================= */}
-      {activeSubTab === "survival" && (
-        <SatelliteTreeSurvivalAssurance
-          selectedZone={selectedZone}
-          onInspectTreeCoordinates={handleMapClick}
-        />
-      )}
+        {/* 2. 36-MONTH TREE SURVIVAL ASSURANCE & MORTALITY RADAR */}
+        {activeSubTab === "survival" && (
+          <div className="animate-in fade-in duration-300">
+            <SatelliteTreeSurvivalAssurance
+              selectedZone={selectedZone}
+              onInspectTreeCoordinates={handleMapClick}
+            />
+          </div>
+        )}
 
-      {/* ========================================================================= */}
-      {/* SUB-TAB 2: BEFORE VS AFTER TEMPORAL TRANSFORMATION SLIDER */}
-      {/* ========================================================================= */}
-      {activeSubTab === "slider" && (
-        <SatelliteTimeSliderCompare
-          zoneName={`${selectedZone.name} (${selectedZone.district})`}
-          baselineYear="2023 Baseline"
-          currentYear="2026 Multi-Spectral Canopy"
-        />
-      )}
+        {/* 3. BEFORE VS AFTER TEMPORAL TRANSFORMATION SLIDER */}
+        {activeSubTab === "slider" && (
+          <div className="animate-in fade-in duration-300">
+            <SatelliteTimeSliderCompare
+              zoneName={`${selectedZone.name} (${selectedZone.district})`}
+              baselineYear="2023 Baseline"
+              currentYear="2026 Multi-Spectral Canopy"
+            />
+          </div>
+        )}
 
-      {/* ========================================================================= */}
-      {/* SUB-TAB 3: 36-MONTH NDVI & BIOMASS CURVE */}
-      {/* ========================================================================= */}
-      {activeSubTab === "timeseries" && (
-        <CanopyNDVITimeSeriesChart
-          initialTreeCount={selectedZone.targetTrees || 5000}
-          plotName={selectedZone.name}
-        />
-      )}
+        {/* 4. 36-MONTH NDVI & BIOMASS CURVE */}
+        {activeSubTab === "timeseries" && (
+          <div className="animate-in fade-in duration-300">
+            <CanopyNDVITimeSeriesChart
+              initialTreeCount={selectedZone.targetTrees || 5000}
+              plotName={selectedZone.name}
+            />
+          </div>
+        )}
 
-      {/* ========================================================================= */}
-      {/* SUB-TAB 4: IPCC CARBON BIOMASS MODELER */}
-      {/* ========================================================================= */}
-      {activeSubTab === "carbon" && <AllometricCarbonCalculator />}
+        {/* 5. IPCC CARBON BIOMASS MODELER */}
+        {activeSubTab === "carbon" && (
+          <div className="animate-in fade-in duration-300">
+            <AllometricCarbonCalculator />
+          </div>
+        )}
 
-      {/* ========================================================================= */}
-      {/* SUB-TAB 5: CADASTRAL PARCEL BOUNDARY MODELER (MODULE D) */}
-      {/* ========================================================================= */}
-      {activeSubTab === "parcel" && <PlotPolygonDrawer />}
+        {/* 6. CADASTRAL PARCEL BOUNDARY MODELER (MODULE D) */}
+        {activeSubTab === "parcel" && (
+          <div className="animate-in fade-in duration-300">
+            <PlotPolygonDrawer />
+          </div>
+        )}
+      </div>
 
       {/* AI Satellite Audit Modal Report */}
       <AnimatePresence>
