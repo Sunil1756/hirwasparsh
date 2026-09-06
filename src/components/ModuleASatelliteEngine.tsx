@@ -53,6 +53,14 @@ import { ESGReportModal } from "./ESGReportModal";
 import { GeminiApiKeyModal } from "./GeminiApiKeyModal";
 import { SatellitePixelInspectorHUD } from "./SatellitePixelInspectorHUD";
 import { SatelliteTimeSliderCompare } from "./SatelliteTimeSliderCompare";
+import { SatelliteTreeSurvivalAssurance } from "./SatelliteTreeSurvivalAssurance";
+import {
+  generateZoneTreeSurvivalRecords,
+  calculateZoneSurvivalMetrics,
+  runSatelliteSurvivalScan,
+  TreeSurvivalRecord,
+  ZoneSurvivalAnalytics,
+} from "@/lib/treeSurvivalEngine";
 import {
   SPECTRAL_LAYERS,
   AGROFORESTRY_PRESET_ZONES,
@@ -102,17 +110,26 @@ const targetReticleIcon = L.divIcon({
   popupAnchor: [0, -16],
 });
 
-// Glowing pin for planted trees
-const makeSatelliteIcon = (color: string) =>
+// Distinct tree markers for survival states
+const makeTreeMarkerIcon = (color: string, ring: string = "rgba(34,197,94,0.3)", ping: boolean = false) =>
   L.divIcon({
-    className: "satellite-glow-marker",
-    html: `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 0 8px ${color}"></span>`,
-    iconSize: [12, 12],
-    iconAnchor: [6, 6],
+    className: "satellite-tree-marker",
+    html: `<div style="position:relative;width:20px;height:20px;display:flex;align-items:center;justify-content:center;">
+      ${ping ? `<span style="position:absolute;inset:0;border-radius:50%;background:${ring};animation:ping 1.5s cubic-bezier(0,0,0.2,1) infinite;"></span>` : ""}
+      <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 0 10px ${color};position:relative;z-index:2;"></span>
+    </div>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+    popupAnchor: [0, -10],
   });
 
-const verifiedSatIcon = makeSatelliteIcon("#22c55e");
-const pendingSatIcon = makeSatelliteIcon("#f59e0b");
+const thrivingSatIcon = makeTreeMarkerIcon("#22c55e", "rgba(34,197,94,0.4)", true);
+const moderateSatIcon = makeTreeMarkerIcon("#3b82f6", "rgba(59,130,246,0.3)");
+const stressedSatIcon = makeTreeMarkerIcon("#f59e0b", "rgba(245,158,11,0.5)", true);
+const criticalSatIcon = makeTreeMarkerIcon("#ef4444", "rgba(239,68,68,0.6)", true);
+
+const verifiedSatIcon = makeTreeMarkerIcon("#22c55e");
+const pendingSatIcon = makeTreeMarkerIcon("#f59e0b");
 
 // Component to handle map clicks and fly-to animations
 function MapEventsController({
@@ -142,9 +159,26 @@ function MapEventsController({
 export function ModuleASatelliteEngine({ trees = [] }: Props) {
   const { toast } = useToast();
   const [activeSpectral, setActiveSpectral] = useState<"rgb" | "ndvi" | "ndre" | "ndwi" | "evi" | "thermal">("ndvi");
-  const [activeSubTab, setActiveSubTab] = useState<"map" | "slider" | "timeseries" | "carbon" | "parcel">("map");
+  const [activeSubTab, setActiveSubTab] = useState<"map" | "survival" | "slider" | "timeseries" | "carbon" | "parcel">("map");
   const [showPurposeGuide, setShowPurposeGuide] = useState(true);
   const [selectedZone, setSelectedZone] = useState<AgroforestryPresetZone>(AGROFORESTRY_PRESET_ZONES[0]);
+
+  // Space-Borne Tree Survival Records for Active Zone
+  const [zoneTrees, setZoneTrees] = useState<TreeSurvivalRecord[]>(() =>
+    generateZoneTreeSurvivalRecords(
+      AGROFORESTRY_PRESET_ZONES[0].id,
+      AGROFORESTRY_PRESET_ZONES[0].center[0],
+      AGROFORESTRY_PRESET_ZONES[0].center[1],
+      AGROFORESTRY_PRESET_ZONES[0].species,
+      24
+    )
+  );
+
+  const [zoneSurvival, setZoneSurvival] = useState<ZoneSurvivalAnalytics>(() =>
+    calculateZoneSurvivalMetrics(AGROFORESTRY_PRESET_ZONES[0], zoneTrees)
+  );
+
+  const [isScanning, setIsScanning] = useState(false);
 
   // Clicked Coordinate Telemetry State
   const [inspectedTelemetry, setInspectedTelemetry] = useState<CoordinateTelemetryResult>(() =>
@@ -196,6 +230,24 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
     setMapZoom(zone.zoom);
     const telemetry = inspectCoordinateTelemetry(zone.center[0], zone.center[1], activeSpectral);
     setInspectedTelemetry(telemetry);
+    const newTrees = generateZoneTreeSurvivalRecords(zone.id, zone.center[0], zone.center[1], zone.species, 24);
+    setZoneTrees(newTrees);
+    setZoneSurvival(calculateZoneSurvivalMetrics(zone, newTrees));
+  };
+
+  // Run On-Demand Satellite Survival Batch Scan
+  const handleRunSatelliteSurvivalScan = () => {
+    setIsScanning(true);
+    setTimeout(() => {
+      const scanResult = runSatelliteSurvivalScan(selectedZone.id, zoneTrees);
+      setZoneTrees(scanResult.updatedTrees);
+      setZoneSurvival(calculateZoneSurvivalMetrics(selectedZone, scanResult.updatedTrees));
+      setIsScanning(false);
+      toast({
+        title: "🛰️ Sentinel-2 Constellation Scan Complete",
+        description: `Scanned ${scanResult.scannedPixelsCount} pixels across ${selectedZone.name}. ${scanResult.newAlertsCount} moisture/vigor alerts refreshed.`,
+      });
+    }, 1000);
   };
 
   // Run AI Vision Diagnostic on the Active Viewport / Coordinate
@@ -346,15 +398,25 @@ Please provide:
           )}
         </AnimatePresence>
 
-        {/* 4 Core Summary Metric Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 mt-6">
+        {/* 5 Core Space-Borne Summary Metric Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5 mt-6">
           <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20 text-center">
             <div className="text-xs text-muted-foreground">Monitored Plot</div>
-            <div className="font-heading font-extrabold text-lg sm:text-xl text-foreground mt-0.5 truncate">
+            <div className="font-heading font-extrabold text-base sm:text-lg text-foreground mt-0.5 truncate">
               {selectedZone.name}
             </div>
             <div className="text-[10px] text-primary mt-0.5 font-semibold">
-              {selectedZone.targetTrees.toLocaleString()} Trees ({selectedZone.district})
+              {selectedZone.targetTrees.toLocaleString()} Trees ({selectedZone.district.split(",")[0]})
+            </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center">
+            <div className="text-xs text-muted-foreground">Audited Survival Rate</div>
+            <div className="font-heading font-extrabold text-2xl text-emerald-600 dark:text-emerald-400 mt-0.5">
+              {zoneSurvival.satelliteAuditedSurvivalRate}%
+            </div>
+            <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">
+              +{zoneSurvival.survivalGainOverBaseline}% vs Unmonitored
             </div>
           </div>
 
@@ -391,10 +453,11 @@ Please provide:
         <div className="flex flex-wrap items-center gap-2 mt-6 pt-5 border-t border-primary/20">
           {[
             { id: "map", label: "1. Spectral Map & Remote Scout", icon: Satellite },
-            { id: "slider", label: "2. Temporal Transformation (Before vs After)", icon: SlidersHorizontal },
-            { id: "timeseries", label: "3. 36-Month NDVI Growth Curve", icon: TrendingUp },
-            { id: "carbon", label: "4. IPCC Carbon Credit Modeler", icon: PieChart },
-            { id: "parcel", label: "5. Cadastral Boundary (Module D)", icon: Compass },
+            { id: "survival", label: "2. 36-Month Survival & Mortality Radar", icon: ShieldCheck },
+            { id: "slider", label: "3. Temporal Transformation (Before vs After)", icon: SlidersHorizontal },
+            { id: "timeseries", label: "4. 36-Month NDVI Growth Curve", icon: TrendingUp },
+            { id: "carbon", label: "5. IPCC Carbon Credit Modeler", icon: PieChart },
+            { id: "parcel", label: "6. Cadastral Boundary (Module D)", icon: Compass },
           ].map((tab) => {
             const Icon = tab.icon;
             const isSelected = activeSubTab === tab.id;
@@ -608,7 +671,80 @@ Please provide:
                   </Marker>
                 )}
 
-                {/* Plot Individual Real Trees */}
+                {/* Plot Space-Borne Monitored Saplings for the Active Zone */}
+                {zoneTrees.map((tree) => {
+                  const icon =
+                    tree.healthStatus === "Thriving Canopy"
+                      ? thrivingSatIcon
+                      : tree.healthStatus === "Moderate Growth"
+                      ? moderateSatIcon
+                      : tree.healthStatus === "Moisture Stressed"
+                      ? stressedSatIcon
+                      : criticalSatIcon;
+
+                  return (
+                    <Marker
+                      key={tree.treeId}
+                      position={[tree.latitude, tree.longitude]}
+                      icon={icon}
+                    >
+                      <Popup>
+                        <div className="text-xs space-y-1.5 min-w-[200px]">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-bold text-foreground">{tree.treeName}</span>
+                            <span className="text-[10px] text-muted-foreground font-mono">({tree.treeId})</span>
+                          </div>
+                          <div className="text-muted-foreground">{tree.species} · {tree.monthsMonitored} mos age</div>
+
+                          <div className="grid grid-cols-3 gap-1 py-1 px-1.5 rounded-lg bg-muted/50 text-center text-[10px]">
+                            <div>
+                              <div className="text-muted-foreground">NDVI</div>
+                              <div className="font-bold text-foreground">{tree.currentNdvi}</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">NDWI</div>
+                              <div className={`font-bold ${tree.currentNdwi < 0.1 ? "text-amber-500" : "text-sky-500"}`}>
+                                {tree.currentNdwi}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Survival</div>
+                              <div className="font-extrabold text-emerald-600">
+                                {tree.survivalProbability}%
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="pt-1 flex items-center justify-between gap-1">
+                            <Badge
+                              className={`text-[9px] font-bold ${
+                                tree.healthStatus === "Thriving Canopy"
+                                  ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30"
+                                  : tree.healthStatus === "Moisture Stressed"
+                                  ? "bg-amber-500/15 text-amber-600 border-amber-500/30"
+                                  : tree.healthStatus === "Critical Mortality Risk"
+                                  ? "bg-red-500/15 text-red-600 border-red-500/30"
+                                  : "bg-blue-500/15 text-blue-600 border-blue-500/30"
+                              }`}
+                            >
+                              {tree.healthStatus}
+                            </Badge>
+
+                            <button
+                              type="button"
+                              onClick={() => handleMapClick(tree.latitude, tree.longitude)}
+                              className="text-[10px] text-primary hover:underline font-semibold"
+                            >
+                              Inspect Telemetry →
+                            </button>
+                          </div>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  );
+                })}
+
+                {/* Plot Real Planted Trees from Prop */}
                 {trees.map((tree) => {
                   const lat = Number(tree.latitude);
                   const lng = Number(tree.longitude);
@@ -638,7 +774,16 @@ Please provide:
               </MapContainer>
 
               {/* Floating Quick Action Overlay inside Map */}
-              <div className="absolute top-3 right-3 z-[500] flex flex-col gap-2">
+              <div className="absolute top-3 right-3 z-[500] flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleRunSatelliteSurvivalScan}
+                  disabled={isScanning}
+                  className="rounded-xl font-bold shadow-lg gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white backdrop-blur-md"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${isScanning ? "animate-spin" : ""}`} />
+                  {isScanning ? "Scanning..." : "Sentinel-2 Scan"}
+                </Button>
                 <Button
                   size="sm"
                   onClick={handleRunAiDiagnostic}
@@ -661,6 +806,16 @@ Please provide:
             )}
           </div>
         </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SUB-TAB 2: 36-MONTH TREE SURVIVAL ASSURANCE & MORTALITY RADAR */}
+      {/* ========================================================================= */}
+      {activeSubTab === "survival" && (
+        <SatelliteTreeSurvivalAssurance
+          selectedZone={selectedZone}
+          onInspectTreeCoordinates={handleMapClick}
+        />
       )}
 
       {/* ========================================================================= */}

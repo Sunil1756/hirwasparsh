@@ -64,4 +64,36 @@ describe("Module A & TreeMap Component Integrity", () => {
 
     expect(container).toBeDefined();
   });
+
+  it("calculates 36-month survival assurance metrics and runs satellite scan", async () => {
+    const {
+      generateZoneTreeSurvivalRecords,
+      calculateZoneSurvivalMetrics,
+      runSatelliteSurvivalScan,
+      simulateSurvivalIntervention,
+    } = await import("@/lib/treeSurvivalEngine");
+    const { AGROFORESTRY_PRESET_ZONES } = await import("@/lib/remoteSensing");
+
+    const zone = AGROFORESTRY_PRESET_ZONES[0];
+    const trees = generateZoneTreeSurvivalRecords(zone.id, zone.center[0], zone.center[1], zone.species, 12);
+    expect(trees.length).toBe(12);
+
+    const metrics = calculateZoneSurvivalMetrics(zone, trees);
+    expect(metrics.satelliteAuditedSurvivalRate).toBeGreaterThan(80);
+    expect(metrics.unmonitoredBaselineSurvivalRate).toBe(52);
+    expect(metrics.survivalGainOverBaseline).toBeGreaterThan(20);
+    expect(metrics.monthlyTrajectory.length).toBe(8);
+
+    const scanResult = runSatelliteSurvivalScan(zone.id, trees);
+    expect(scanResult.updatedTrees.length).toBe(12);
+    expect(scanResult.scannedPixelsCount).toBeGreaterThan(0);
+
+    const sim = simulateSurvivalIntervention(94.0, {
+      wateringFrequencyPerWeek: 3,
+      mulchCoveragePct: 80,
+      satelliteScanIntervalDays: 3,
+      bioFertilizerBoost: true,
+    });
+    expect(sim.projectedSurvivalRate).toBeGreaterThan(94.0);
+  });
 });
