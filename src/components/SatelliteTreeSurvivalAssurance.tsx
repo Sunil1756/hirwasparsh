@@ -60,17 +60,19 @@ import { supabase } from "@/integrations/supabase/client";
 interface Props {
   selectedZone: AgroforestryPresetZone;
   onInspectTreeCoordinates?: (lat: number, lng: number) => void;
+  trees?: TreeSurvivalRecord[];
 }
 
 export function SatelliteTreeSurvivalAssurance({
   selectedZone,
   onInspectTreeCoordinates,
+  trees,
 }: Props) {
   const { toast } = useToast();
 
   // Zone Survival Analytics State
   const [analytics, setAnalytics] = useState<ZoneSurvivalAnalytics>(() =>
-    calculateZoneSurvivalMetrics(selectedZone)
+    calculateZoneSurvivalMetrics(selectedZone, trees)
   );
 
   // Filter & Search State
@@ -88,10 +90,10 @@ export function SatelliteTreeSurvivalAssurance({
   const [showCertModal, setShowCertModal] = useState(false);
   const [selectedTreeModal, setSelectedTreeModal] = useState<TreeSurvivalRecord | null>(null);
 
-  // Recalculate when zone changes
-  useMemo(() => {
-    setAnalytics(calculateZoneSurvivalMetrics(selectedZone));
-  }, [selectedZone]);
+  // Recalculate when zone or trees change
+  useEffect(() => {
+    setAnalytics(calculateZoneSurvivalMetrics(selectedZone, trees));
+  }, [selectedZone, trees]);
 
   // Simulation calculations
   const simulationResult = useMemo(() => {
@@ -677,6 +679,138 @@ export function SatelliteTreeSurvivalAssurance({
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL: INDIVIDUAL SAPLING SPACE-BORNE INSPECTION HUD          */}
+      {/* ------------------------------------------------------------- */}
+      <Dialog open={!!selectedTreeModal} onOpenChange={(open) => !open && setSelectedTreeModal(null)}>
+        <DialogContent className="max-w-lg bg-card border border-primary/30 rounded-3xl p-6">
+          {selectedTreeModal && (
+            <div className="space-y-4">
+              <DialogHeader>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <DialogTitle className="font-heading text-xl font-bold text-foreground">
+                      {selectedTreeModal.treeName}
+                    </DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground font-mono mt-0.5">
+                      {selectedTreeModal.treeId} • {selectedTreeModal.species}
+                    </DialogDescription>
+                  </div>
+                  <Badge
+                    className={`text-xs font-bold ${
+                      selectedTreeModal.healthStatus === "Thriving Canopy"
+                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                        : selectedTreeModal.healthStatus === "Moisture Stressed"
+                        ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                        : selectedTreeModal.healthStatus === "Critical Mortality Risk"
+                        ? "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30"
+                        : "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30"
+                    }`}
+                  >
+                    {selectedTreeModal.healthStatus}
+                  </Badge>
+                </div>
+              </DialogHeader>
+
+              {/* Photo Preview if available */}
+              {selectedTreeModal.photoUrl ? (
+                <div className="rounded-2xl overflow-hidden border border-border/60 max-h-48 bg-muted">
+                  <img
+                    src={selectedTreeModal.photoUrl}
+                    alt={selectedTreeModal.treeName}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20 flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-lg">
+                    🌳
+                  </div>
+                  <div className="text-xs">
+                    <div className="font-semibold text-foreground">Continuous Space Telemetry Active</div>
+                    <div className="text-muted-foreground">Sentinel-2 multi-spectral spectral signature registered.</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Multi-Spectral Telemetry Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center text-xs">
+                <div className="p-2.5 rounded-xl bg-muted/50 border border-border/50">
+                  <div className="text-[10px] text-muted-foreground">NDVI (Vigor)</div>
+                  <div className="font-heading font-bold text-sm text-emerald-600 mt-0.5">
+                    {selectedTreeModal.currentNdvi}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-muted/50 border border-border/50">
+                  <div className="text-[10px] text-muted-foreground">NDWI (Water)</div>
+                  <div className="font-heading font-bold text-sm text-sky-600 mt-0.5">
+                    {selectedTreeModal.currentNdwi}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-muted/50 border border-border/50">
+                  <div className="text-[10px] text-muted-foreground">NDRE (Chlorophyll)</div>
+                  <div className="font-heading font-bold text-sm text-foreground mt-0.5">
+                    {selectedTreeModal.ndre}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-muted/50 border border-border/50">
+                  <div className="text-[10px] text-muted-foreground">Survival Prob</div>
+                  <div className="font-heading font-extrabold text-sm text-emerald-600 mt-0.5">
+                    {selectedTreeModal.survivalProbability}%
+                  </div>
+                </div>
+              </div>
+
+              {/* Coordinates & Metadata */}
+              <div className="p-3 rounded-xl bg-muted/30 border border-border/40 text-[11px] space-y-1 font-mono text-muted-foreground">
+                <div className="flex justify-between">
+                  <span>GPS Location:</span>
+                  <span className="font-semibold text-foreground">
+                    {selectedTreeModal.latitude.toFixed(5)}°N, {selectedTreeModal.longitude.toFixed(5)}°E
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Planted Date:</span>
+                  <span className="text-foreground">{selectedTreeModal.plantedDate} ({selectedTreeModal.monthsMonitored} mos age)</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Sentinel-2 Tile:</span>
+                  <span className="text-foreground">{selectedTreeModal.tileId}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Intervention Status:</span>
+                  <span className="font-semibold text-primary">{selectedTreeModal.interventionStatus}</span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-border/50">
+                {onInspectTreeCoordinates && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      onInspectTreeCoordinates(selectedTreeModal.latitude, selectedTreeModal.longitude);
+                      setSelectedTreeModal(null);
+                    }}
+                    className="text-xs rounded-xl gap-1.5"
+                  >
+                    <Satellite className="h-3.5 w-3.5" /> Center on Map
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  onClick={() => setSelectedTreeModal(null)}
+                  className="text-xs rounded-xl"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

@@ -96,4 +96,82 @@ describe("Module A & TreeMap Component Integrity", () => {
     });
     expect(sim.projectedSurvivalRate).toBeGreaterThan(94.0);
   });
+
+  it("converts real Supabase database trees into space-borne multi-spectral records accurately", async () => {
+    const { convertDatabaseTreesToSurvivalRecords, calculateZoneSurvivalMetrics } = await import(
+      "@/lib/treeSurvivalEngine"
+    );
+
+    const mockDbTrees = [
+      {
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        tree_name: "Mahogany #101",
+        species: "Mahogany",
+        latitude: 19.8762,
+        longitude: 75.3433,
+        verification_status: "verified",
+        height_cm: 140,
+        photo_url: "https://example.com/tree1.jpg",
+        created_at: "2024-03-01T00:00:00Z",
+      },
+      {
+        id: "550e8400-e29b-41d4-a716-446655440001",
+        tree_name: "Neem #202",
+        species: "Neem",
+        latitude: 19.877,
+        longitude: 75.344,
+        verification_status: "pending",
+        height_cm: 70,
+        photo_url: "https://example.com/tree2.jpg",
+        created_at: "2025-01-10T00:00:00Z",
+      },
+      {
+        id: "550e8400-e29b-41d4-a716-446655440002",
+        tree_name: "Teak #303",
+        species: "Teak",
+        latitude: 19.878,
+        longitude: 75.345,
+        verification_status: "rejected",
+        height_cm: 45,
+        created_at: "2025-02-01T00:00:00Z",
+      },
+    ];
+
+    const records = convertDatabaseTreesToSurvivalRecords(mockDbTrees, [19.87, 75.34], "Aurangabad Agro-Plot");
+    expect(records.length).toBe(3);
+
+    // Verified tree should have thriving status & high survival
+    expect(records[0].treeName).toBe("Mahogany #101");
+    expect(records[0].healthStatus).toBe("Thriving Canopy");
+    expect(records[0].survivalProbability).toBeGreaterThanOrEqual(90);
+    expect(records[0].currentNdvi).toBeGreaterThanOrEqual(0.74);
+    expect(records[0].photoUrl).toBe("https://example.com/tree1.jpg");
+
+    // Pending tree should have moderate growth
+    expect(records[1].healthStatus).toBe("Moderate Growth");
+    expect(records[1].survivalProbability).toBeGreaterThanOrEqual(75);
+
+    // Rejected tree should have critical mortality risk
+    expect(records[2].healthStatus).toBe("Critical Mortality Risk");
+    expect(records[2].survivalProbability).toBeLessThanOrEqual(65);
+
+    // Calculate zone metrics directly from database converted trees
+    const zoneMock = {
+      id: "proj-aurangabad",
+      name: "Aurangabad CSR Project",
+      district: "Chhatrapati Sambhajinagar",
+      targetTrees: 3,
+      center: [19.87, 75.34] as [number, number],
+      species: ["Mahogany", "Neem", "Teak"],
+      meanNdvi: 0.76,
+      meanNdwi: 0.25,
+    };
+
+    const zoneAnalytics = calculateZoneSurvivalMetrics(zoneMock, records);
+    expect(zoneAnalytics.totalMonitoredTrees).toBe(3);
+    expect(zoneAnalytics.thrivingTreesCount).toBe(1);
+    expect(zoneAnalytics.moderateGrowthCount).toBe(1);
+    expect(zoneAnalytics.criticalRiskCount).toBe(1);
+    expect(zoneAnalytics.satelliteAuditedSurvivalRate).toBeGreaterThan(60);
+  });
 });

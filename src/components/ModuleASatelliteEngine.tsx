@@ -56,6 +56,7 @@ import { SatelliteTimeSliderCompare } from "./SatelliteTimeSliderCompare";
 import { SatelliteTreeSurvivalAssurance } from "./SatelliteTreeSurvivalAssurance";
 import {
   generateZoneTreeSurvivalRecords,
+  convertDatabaseTreesToSurvivalRecords,
   calculateZoneSurvivalMetrics,
   runSatelliteSurvivalScan,
   TreeSurvivalRecord,
@@ -75,12 +76,18 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface TreeRecord {
   id: string;
-  tree_name: string;
-  species: string;
-  latitude: number;
-  longitude: number;
-  verification_status: string;
+  tree_name?: string;
+  species?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  verification_status?: string;
+  location?: string | null;
+  height_cm?: number | null;
   created_at?: string;
+  plantation_date?: string | null;
+  photo_url?: string | null;
+  ai_confidence?: number | null;
+  project_id?: string | null;
 }
 
 interface Props {
@@ -156,39 +163,60 @@ function MapEventsController({
   return null;
 }
 
+function getZoneSurvivalRecords(
+  zone: AgroforestryPresetZone,
+  treesList: TreeRecord[],
+  dbProjectsList: any[]
+): TreeSurvivalRecord[] {
+  if (zone.id === "all-network-live" && treesList.length > 0) {
+    return convertDatabaseTreesToSurvivalRecords(treesList, zone.center, zone.name);
+  }
+
+  const isDbProject = dbProjectsList.some((p) => p.id === zone.id);
+  if (isDbProject) {
+    const matching = treesList.filter(
+      (t: any) =>
+        t.project_id === zone.id ||
+        (t.location && zone.district && t.location.toLowerCase().includes(zone.district.toLowerCase())) ||
+        (t.location && zone.name.toLowerCase().includes(t.location.toLowerCase()))
+    );
+    if (matching.length > 0) {
+      return convertDatabaseTreesToSurvivalRecords(matching, zone.center, zone.name);
+    }
+    if (treesList.length > 0) {
+      return convertDatabaseTreesToSurvivalRecords(treesList.slice(0, 24), zone.center, zone.name);
+    }
+  }
+
+  // Check if any database trees match location of preset zone
+  const geoMatching = treesList.filter(
+    (t) =>
+      t.location &&
+      (zone.district.toLowerCase().includes(t.location.toLowerCase()) ||
+        zone.name.toLowerCase().includes(t.location.toLowerCase()))
+  );
+  if (geoMatching.length > 0) {
+    return convertDatabaseTreesToSurvivalRecords(geoMatching, zone.center, zone.name);
+  }
+
+  if (treesList.length > 0) {
+    return convertDatabaseTreesToSurvivalRecords(treesList.slice(0, 24), zone.center, zone.name);
+  }
+
+  return generateZoneTreeSurvivalRecords(
+    zone.id,
+    zone.center[0],
+    zone.center[1],
+    zone.species,
+    24
+  );
+}
+
 export function ModuleASatelliteEngine({ trees = [] }: Props) {
   const { toast } = useToast();
   const [activeSpectral, setActiveSpectral] = useState<"rgb" | "ndvi" | "ndre" | "ndwi" | "evi" | "thermal">("ndvi");
   const [activeSubTab, setActiveSubTab] = useState<"map" | "survival" | "slider" | "timeseries" | "carbon" | "parcel">("map");
   const [showPurposeGuide, setShowPurposeGuide] = useState(true);
-  const [selectedZone, setSelectedZone] = useState<AgroforestryPresetZone>(AGROFORESTRY_PRESET_ZONES[0]);
-
-  // Space-Borne Tree Survival Records for Active Zone
-  const [zoneTrees, setZoneTrees] = useState<TreeSurvivalRecord[]>(() =>
-    generateZoneTreeSurvivalRecords(
-      AGROFORESTRY_PRESET_ZONES[0].id,
-      AGROFORESTRY_PRESET_ZONES[0].center[0],
-      AGROFORESTRY_PRESET_ZONES[0].center[1],
-      AGROFORESTRY_PRESET_ZONES[0].species,
-      24
-    )
-  );
-
-  const [zoneSurvival, setZoneSurvival] = useState<ZoneSurvivalAnalytics>(() =>
-    calculateZoneSurvivalMetrics(AGROFORESTRY_PRESET_ZONES[0], zoneTrees)
-  );
-
-  const [isScanning, setIsScanning] = useState(false);
-
-  // Clicked Coordinate Telemetry State
-  const [inspectedTelemetry, setInspectedTelemetry] = useState<CoordinateTelemetryResult>(() =>
-    inspectCoordinateTelemetry(AGROFORESTRY_PRESET_ZONES[0].center[0], AGROFORESTRY_PRESET_ZONES[0].center[1], "ndvi")
-  );
-
-  const [mapCenter, setMapCenter] = useState<[number, number]>(AGROFORESTRY_PRESET_ZONES[0].center);
-  const [mapZoom, setMapZoom] = useState<number>(AGROFORESTRY_PRESET_ZONES[0].zoom);
-  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
-  const [aiReportModalContent, setAiReportModalContent] = useState<string | null>(null);
 
   // User project boundaries from Supabase
   const [dbProjects, setDbProjects] = useState<any[]>([]);
@@ -205,9 +233,118 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
     loadDbProjects();
   }, []);
 
+  // Combine Real Database Projects from Supabase with Preset Demonstration Corridors
+  const allAvailableZones: AgroforestryPresetZone[] = useMemo(() => {
+    const list: AgroforestryPresetZone[] = [];
+
+    if (trees.length > 0) {
+      const validLats = trees.map((t) => Number(t.latitude)).filter((n) => !isNaN(n) && n !== 0);
+      const validLngs = trees.map((t) => Number(t.longitude)).filter((n) => !isNaN(n) && n !== 0);
+      const meanLat = validLats.length > 0 ? validLats.reduce((a, b) => a + b, 0) / validLats.length : 19.75;
+      const meanLng = validLngs.length > 0 ? validLngs.reduce((a, b) => a + b, 0) / validLngs.length : 75.71;
+      const verifiedCount = trees.filter((t) => t.verification_status === "verified").length;
+      const rate = Math.round((verifiedCount / trees.length) * 1000) / 10;
+
+      list.push({
+        id: "all-network-live",
+        name: "🌐 All Planted Trees (Live Supabase DB)",
+        location: "Statewide Network",
+        district: "Maharashtra, India",
+        center: [meanLat, meanLng],
+        zoom: 12,
+        targetTrees: trees.length,
+        species: Array.from(new Set(trees.map((t) => t.species).filter(Boolean) as string[])),
+        plantedDate: trees[0]?.created_at?.split("T")[0] || "2024-01-01",
+        meanNdvi: rate >= 80 ? 0.81 : 0.74,
+        meanNdwi: 0.28,
+        biomassTonsPerHa: 48.0,
+        carbonOffsetTons: Math.round((verifiedCount * 22) / 1000),
+        healthStatus: rate >= 80 ? "Optimal Vigor" : "Moderate Growth",
+        description: "100% live database aggregation of all planted trees registered on the platform.",
+      });
+    }
+
+    const realZones: AgroforestryPresetZone[] = dbProjects.map((p) => {
+      const pTrees = trees.filter(
+        (t: any) =>
+          t.project_id === p.id ||
+          (t.location && p.location && t.location.toLowerCase().includes(p.location.toLowerCase()))
+      );
+      const centerLat = p.boundary?.[0]?.lat || p.boundary?.[0]?.[0] || pTrees[0]?.latitude || 19.75;
+      const centerLng = p.boundary?.[0]?.lng || p.boundary?.[0]?.[1] || pTrees[0]?.longitude || 75.71;
+      const verifiedCount = pTrees.filter((t) => t.verification_status === "verified").length;
+      const realSurvivalRate = pTrees.length > 0 ? Math.round((verifiedCount / pTrees.length) * 1000) / 10 : 92.5;
+
+      return {
+        id: p.id,
+        name: `${p.project_name} (${p.organization_name || "CSR Initiative"})`,
+        location: p.location || "Maharashtra",
+        district: p.location || "Maharashtra, India",
+        center: [Number(centerLat), Number(centerLng)],
+        zoom: 15,
+        boundary: Array.isArray(p.boundary)
+          ? p.boundary.map((pt: any) => (Array.isArray(pt) ? [pt[0], pt[1]] : [pt.lat, pt.lng]))
+          : [],
+        targetTrees: p.target_trees || pTrees.length || 500,
+        species: Array.from(new Set(pTrees.map((t) => t.species).filter(Boolean) as string[])),
+        plantedDate: p.created_at?.split("T")[0] || "2024-01-01",
+        meanNdvi: pTrees.length > 0 ? (realSurvivalRate >= 80 ? 0.79 : 0.68) : 0.74,
+        meanNdwi: 0.28,
+        biomassTonsPerHa: 45.0,
+        carbonOffsetTons: Math.round(((pTrees.length || p.target_trees || 100) * 22) / 1000),
+        healthStatus: realSurvivalRate >= 90 ? "Optimal Vigor" : "Moderate Growth",
+        description: `Real CSR/NGO Agroforestry Project by ${p.organization_name || "Enterprise"} registered in Supabase database.`,
+      };
+    });
+
+    return [...list, ...realZones, ...AGROFORESTRY_PRESET_ZONES];
+  }, [dbProjects, trees]);
+
+  const [selectedZone, setSelectedZone] = useState<AgroforestryPresetZone>(
+    () => allAvailableZones[0] || AGROFORESTRY_PRESET_ZONES[0]
+  );
+
+  // Space-Borne Tree Survival Records for Active Zone
+  const [zoneTrees, setZoneTrees] = useState<TreeSurvivalRecord[]>(() =>
+    getZoneSurvivalRecords(allAvailableZones[0] || AGROFORESTRY_PRESET_ZONES[0], trees, [])
+  );
+
+  const [zoneSurvival, setZoneSurvival] = useState<ZoneSurvivalAnalytics>(() =>
+    calculateZoneSurvivalMetrics(allAvailableZones[0] || AGROFORESTRY_PRESET_ZONES[0], zoneTrees)
+  );
+
+  const [isScanning, setIsScanning] = useState(false);
+
+  // Clicked Coordinate Telemetry State
+  const [inspectedTelemetry, setInspectedTelemetry] = useState<CoordinateTelemetryResult>(() =>
+    inspectCoordinateTelemetry(
+      (allAvailableZones[0] || AGROFORESTRY_PRESET_ZONES[0]).center[0],
+      (allAvailableZones[0] || AGROFORESTRY_PRESET_ZONES[0]).center[1],
+      "ndvi"
+    )
+  );
+
+  const [mapCenter, setMapCenter] = useState<[number, number]>(
+    () => (allAvailableZones[0] || AGROFORESTRY_PRESET_ZONES[0]).center
+  );
+  const [mapZoom, setMapZoom] = useState<number>(
+    () => (allAvailableZones[0] || AGROFORESTRY_PRESET_ZONES[0]).zoom
+  );
+  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
+  const [aiReportModalContent, setAiReportModalContent] = useState<string | null>(null);
+
+  // Synchronize zone records whenever selectedZone, trees, or projects change
+  useEffect(() => {
+    const current = allAvailableZones.find((z) => z.id === selectedZone.id) || allAvailableZones[0];
+    if (current) {
+      const records = getZoneSurvivalRecords(current, trees, dbProjects);
+      setZoneTrees(records);
+      setZoneSurvival(calculateZoneSurvivalMetrics(current, records));
+    }
+  }, [selectedZone.id, trees, dbProjects, allAvailableZones]);
+
   const verifiedTrees = useMemo(() => trees.filter((t) => t.verification_status === "verified"), [trees]);
   const totalCo2Kg = verifiedTrees.length * 22;
-  const meanNdviScore = selectedZone ? selectedZone.meanNdvi : verifiedTrees.length > 0 ? 0.74 : 0.0;
   const currentLayer = SPECTRAL_LAYERS.find((l) => l.id === activeSpectral) || SPECTRAL_LAYERS[1];
 
   // Handle Map Click for Remote Pixel Scouting
@@ -223,42 +360,6 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
     [activeSpectral, toast]
   );
 
-  // Combine Real Database Projects from Supabase with Preset Demonstration Corridors
-  const allAvailableZones: AgroforestryPresetZone[] = useMemo(() => {
-    const realZones: AgroforestryPresetZone[] = dbProjects.map((p) => {
-      const pTrees = trees.filter(
-        (t: any) => t.project_id === p.id || (t.location && p.location && t.location.toLowerCase().includes(p.location.toLowerCase()))
-      );
-      const centerLat = p.boundary?.[0]?.lat || p.boundary?.[0]?.[0] || (pTrees[0]?.latitude) || 19.75;
-      const centerLng = p.boundary?.[0]?.lng || p.boundary?.[0]?.[1] || (pTrees[0]?.longitude) || 75.71;
-      const verifiedCount = pTrees.filter((t) => t.verification_status === "verified").length;
-      const realSurvivalRate = pTrees.length > 0 ? Math.round((verifiedCount / pTrees.length) * 1000) / 10 : 92.5;
-
-      return {
-        id: p.id,
-        name: `${p.project_name} (${p.organization_name || "CSR Initiative"})`,
-        location: p.location || "Maharashtra",
-        district: p.location || "Maharashtra, India",
-        center: [Number(centerLat), Number(centerLng)],
-        zoom: 15,
-        boundary: Array.isArray(p.boundary)
-          ? p.boundary.map((pt: any) => (Array.isArray(pt) ? [pt[0], pt[1]] : [pt.lat, pt.lng]))
-          : [],
-        targetTrees: p.target_trees || pTrees.length || 500,
-        species: Array.from(new Set(pTrees.map((t) => t.species).filter(Boolean))),
-        plantedDate: p.created_at?.split("T")[0] || "2024-01-01",
-        meanNdvi: pTrees.length > 0 ? 0.78 : 0.74,
-        meanNdwi: 0.28,
-        biomassTonsPerHa: 45.0,
-        carbonOffsetTons: Math.round(((pTrees.length || p.target_trees || 100) * 22) / 1000),
-        healthStatus: realSurvivalRate >= 90 ? "Optimal Vigor" : "Moderate Growth",
-        description: `Real CSR/NGO Agroforestry Project by ${p.organization_name || "Enterprise"} registered in Supabase database.`,
-      };
-    });
-
-    return [...realZones, ...AGROFORESTRY_PRESET_ZONES];
-  }, [dbProjects, trees]);
-
   // Handle Preset or Real Project Selection
   const handleSelectZone = (zone: AgroforestryPresetZone) => {
     setSelectedZone(zone);
@@ -266,7 +367,7 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
     setMapZoom(zone.zoom);
     const telemetry = inspectCoordinateTelemetry(zone.center[0], zone.center[1], activeSpectral);
     setInspectedTelemetry(telemetry);
-    const newTrees = generateZoneTreeSurvivalRecords(zone.id, zone.center[0], zone.center[1], zone.species, 24);
+    const newTrees = getZoneSurvivalRecords(zone, trees, dbProjects);
     setZoneTrees(newTrees);
     setZoneSurvival(calculateZoneSurvivalMetrics(zone, newTrees));
   };
@@ -752,33 +853,42 @@ Please provide:
                 );
               })}
 
-              {/* Plot Real Planted Trees from Prop */}
-              {trees.map((tree) => {
-                const lat = Number(tree.latitude);
-                const lng = Number(tree.longitude);
-                if (isNaN(lat) || isNaN(lng)) return null;
+              {/* Plot Any Remaining Real Planted Trees from Prop if not already in zoneTrees */}
+              {trees
+                .filter(
+                  (tree) =>
+                    !zoneTrees.some(
+                      (zt) =>
+                        zt.treeId === tree.id ||
+                        zt.treeId === `TR-${tree.id.substring(0, 8).toUpperCase()}`
+                    )
+                )
+                .map((tree) => {
+                  const lat = Number(tree.latitude);
+                  const lng = Number(tree.longitude);
+                  if (isNaN(lat) || isNaN(lng)) return null;
 
-                return (
-                  <Marker
-                    key={tree.id}
-                    position={[lat, lng]}
-                    icon={tree.verification_status === "verified" ? verifiedSatIcon : pendingSatIcon}
-                  >
-                    <Popup>
-                      <div className="text-xs space-y-1">
-                        <div className="font-bold text-foreground">{tree.tree_name}</div>
-                        <div className="text-muted-foreground">{tree.species}</div>
-                        <Badge variant="outline" className="text-[10px] capitalize">
-                          Status: {tree.verification_status}
-                        </Badge>
-                        <div className="text-emerald-600 font-semibold mt-1">
-                          Estimated NDVI: 0.76 (Vigorous Canopy)
+                  return (
+                    <Marker
+                      key={tree.id}
+                      position={[lat, lng]}
+                      icon={tree.verification_status === "verified" ? verifiedSatIcon : pendingSatIcon}
+                    >
+                      <Popup>
+                        <div className="text-xs space-y-1">
+                          <div className="font-bold text-foreground">{tree.tree_name}</div>
+                          <div className="text-muted-foreground">{tree.species}</div>
+                          <Badge variant="outline" className="text-[10px] capitalize">
+                            Status: {tree.verification_status}
+                          </Badge>
+                          <div className="text-emerald-600 font-semibold mt-1">
+                            Audited GPS Coordinate
+                          </div>
                         </div>
-                      </div>
-                    </Popup>
-                  </Marker>
-                );
-              })}
+                      </Popup>
+                    </Marker>
+                  );
+                })}
             </MapContainer>
 
             {/* Floating Quick Action Overlay inside Map */}
@@ -877,6 +987,7 @@ Please provide:
           <div className="animate-in fade-in duration-300">
             <SatelliteTreeSurvivalAssurance
               selectedZone={selectedZone}
+              trees={zoneTrees}
               onInspectTreeCoordinates={handleMapClick}
             />
           </div>
