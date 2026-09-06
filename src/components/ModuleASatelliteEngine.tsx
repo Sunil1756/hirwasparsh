@@ -318,7 +318,7 @@ Please provide:
                   </div>
                   <h5 className="font-heading font-bold text-sm text-foreground">Chlorophyll & Vigor (NDVI/NDRE)</h5>
                   <p className="text-muted-foreground leading-relaxed">
-                    Quantify photosynthetic green biomass ($(\text{NIR}-\text{Red})/(\text{NIR}+\text{Red})$) and leaf nitrogen health to detect tree mortality or stunted growth months before visual symptoms appear.
+                    Quantify photosynthetic green biomass ((NIR - Red) / (NIR + Red)) and leaf nitrogen health to detect tree mortality or stunted growth months before visual symptoms appear.
                   </p>
                 </div>
 

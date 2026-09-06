@@ -86,16 +86,29 @@ export interface VerificationResult {
  * Retrieves the Gemini API Key from environment or local storage
  */
 export function getGeminiApiKey(): string | null {
-  const envKey = import.meta.env.VITE_GEMINI_API_KEY;
-  if (envKey && envKey.length > 5) return envKey;
-  return localStorage.getItem("green_gemini_api_key") || null;
+  try {
+    const envKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (envKey && envKey.length > 5) return envKey;
+    if (typeof window !== "undefined" && window.localStorage) {
+      return window.localStorage.getItem("green_gemini_api_key") || null;
+    }
+  } catch {
+    // Ignore storage errors in restricted contexts
+  }
+  return null;
 }
 
 export function setGeminiApiKey(key: string) {
-  if (!key) {
-    localStorage.removeItem("green_gemini_api_key");
-  } else {
-    localStorage.setItem("green_gemini_api_key", key.trim());
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      if (!key) {
+        window.localStorage.removeItem("green_gemini_api_key");
+      } else {
+        window.localStorage.setItem("green_gemini_api_key", key.trim());
+      }
+    }
+  } catch {
+    // Ignore storage errors in restricted contexts
   }
 }
 
