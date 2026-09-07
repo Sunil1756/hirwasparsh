@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { calculatePlotMetrics } from "@/lib/remoteSensing";
+import { calculatePlotMetrics, saveNewPlot, fetchRealSentinel2Telemetry, Sentinel2TelemetryData } from "@/lib/remoteSensing";
 import { analyzeCanopyWithAI } from "@/lib/gemini";
 import { parseKmlString, parseGeoJsonString, ParcelBoundaryResult } from "@/lib/kmlParser";
 import { MapContainer, TileLayer, Polygon, Polyline, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
@@ -188,9 +188,12 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
   const [polygonCoords, setPolygonCoords] = useState<[number, number][]>(PRESET_PARCELS.satara.coords);
   const [kmlData, setKmlData] = useState<ParcelBoundaryResult | null>(null);
 
-  // AI & Analytics states
+  // AI, Satellite & Database states
   const [aiReport, setAiReport] = useState<any>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isFetchingSatellite, setIsFetchingSatellite] = useState(false);
+  const [liveSatelliteTelemetry, setLiveSatelliteTelemetry] = useState<Sentinel2TelemetryData | null>(null);
 
   // Calculate live metrics safely
   const metrics = useMemo(() => {
@@ -219,18 +222,18 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
     }
   };
 
-  // Finish drawing polygon
+  // Finish drawing boundary
   const handleFinishDrawing = () => {
     if (drawPoints.length < 3) {
-      toast.error("Please click at least 3 points on the satellite map to form a parcel boundary.");
+      toast.error("Please plot at least 3 points to form a polygon boundary.");
       return;
     }
     const closed = [...drawPoints, drawPoints[0]];
     setPolygonCoords(closed);
-    handleRecalculateArea(closed);
+    handleRecalculateArea(drawPoints);
     setIsDrawing(false);
     setDrawPoints([]);
-    toast.success("✅ Custom Parcel Boundary Saved & Area Computed!");
+    toast.success(`Boundary drawn with ${drawPoints.length} vertices!`);
   };
 
   // Undo last point
@@ -243,7 +246,7 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
     }
   };
 
-  // Load a preset parcel
+  // Handle Preset Parcel Selection
   const handleSelectPreset = (key: string) => {
     const preset = PRESET_PARCELS[key];
     if (!preset) return;
@@ -338,6 +341,56 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
     toast.success("Downloaded GeoJSON Survey Boundary!");
   };
 
+  // Save new plot boundary directly to Supabase Database
+  const handleSaveToDatabase = async () => {
+    if (polygonCoords.length < 3) {
+      toast.error("Please draw or import a valid polygon boundary first.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const centerLat = polygonCoords[0][0];
+      const centerLng = polygonCoords[0][1];
+      const saved = await saveNewPlot({
+        name: plotName,
+        district,
+        areaAcres: metrics.acres,
+        targetTrees: treeCount,
+        polygonGeoJson: polygonCoords,
+        centerLat,
+        centerLng,
+        ndviScore: liveSatelliteTelemetry?.ndvi || metrics.ndviScore,
+        biomassTons: liveSatelliteTelemetry?.totalCarbonStockCo2eMT || metrics.tenYearOffsetTons,
+      });
+
+      toast.success(`🎉 Plot "${saved.name}" registered in Supabase Data Spine!`);
+      if (onPlotSaved) onPlotSaved(saved);
+    } catch (err: any) {
+      toast.error(`Failed to save plot to database: ${err.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Fetch real Copernicus / STAC Sentinel-2 L2A telemetry for this plot
+  const handleFetchLiveSatelliteTelemetry = async () => {
+    if (polygonCoords.length === 0) return;
+
+    setIsFetchingSatellite(true);
+    try {
+      const centerLat = polygonCoords[0][0];
+      const centerLng = polygonCoords[0][1];
+      const sat = await fetchRealSentinel2Telemetry(centerLat, centerLng, polygonCoords, undefined, plotName);
+      setLiveSatelliteTelemetry(sat);
+      toast.success(`🛰️ Real Sentinel-2 L2A loaded: Tile ${sat.tileId}, NDVI ${sat.ndvi}, NDRE ${sat.ndre}`);
+    } catch (err: any) {
+      toast.error(`Satellite telemetry query error: ${err.message}`);
+    } finally {
+      setIsFetchingSatellite(false);
+    }
+  };
+
   // Run AI Parcel Health Diagnostic with Gemini
   const handleRunAiAnalysis = async () => {
     setAnalyzing(true);
@@ -347,7 +400,7 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
         areaAcres: metrics.acres,
         district,
         treeCount,
-        ndviScore: metrics.ndviScore,
+        ndviScore: liveSatelliteTelemetry?.ndvi || metrics.ndviScore,
       });
       setAiReport(res);
       toast.success("AI Parcel Health Diagnostic Complete!");
@@ -449,6 +502,32 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
                 className="rounded-xl gap-1.5 border-primary/30 text-xs font-semibold"
               >
                 <Download className="h-3.5 w-3.5 text-primary" /> Export GeoJSON
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleFetchLiveSatelliteTelemetry}
+                disabled={isFetchingSatellite}
+                className="rounded-xl gap-1.5 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 text-xs font-semibold"
+              >
+                {isFetchingSatellite ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5 text-emerald-500" />
+                )}
+                🛰️ Real Sentinel-2 STAC
+              </Button>
+
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleSaveToDatabase}
+                disabled={isSaving}
+                className="rounded-xl gap-1.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+              >
+                {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+                Save to Supabase DB
               </Button>
             </>
           )}
@@ -664,6 +743,51 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
         </div>
       </div>
 
+      {/* Live Sentinel-2 L2A Multi-Spectral STAC Telemetry Box */}
+      {liveSatelliteTelemetry && (
+        <div className="p-4 rounded-2xl bg-emerald-500/10 border-2 border-emerald-500/30 text-xs space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Badge className="bg-emerald-600 text-white font-mono text-[10px]">
+                🛰️ Live Sentinel-2 L2A ({liveSatelliteTelemetry.tileId})
+              </Badge>
+              <span className="text-muted-foreground text-[11px]">
+                Acquisition Date: <strong>{liveSatelliteTelemetry.acquisitionDate}</strong> · Cloud Cover: <strong>{liveSatelliteTelemetry.cloudCoverPct}%</strong>
+              </span>
+            </div>
+            <Badge variant="outline" className="border-emerald-500/40 text-emerald-700 dark:text-emerald-300 text-[10px]">
+              {liveSatelliteTelemetry.classification}
+            </Badge>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+            <div className="p-2.5 rounded-xl bg-background/80 border border-emerald-500/20 text-center">
+              <span className="text-[10px] text-muted-foreground block">Real Surface NDVI</span>
+              <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400">{liveSatelliteTelemetry.ndvi}</span>
+              <span className="text-[9px] text-muted-foreground block">(B08 - B04)/(B08 + B04)</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-background/80 border border-emerald-500/20 text-center">
+              <span className="text-[10px] text-muted-foreground block">Chlorophyll RedEdge</span>
+              <span className="text-base font-extrabold text-primary">{liveSatelliteTelemetry.ndre}</span>
+              <span className="text-[9px] text-muted-foreground block">(B08 - B05)/(B08 + B05)</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-background/80 border border-emerald-500/20 text-center">
+              <span className="text-[10px] text-muted-foreground block">Foliar Water Stress</span>
+              <span className="text-base font-extrabold text-sky-600">{liveSatelliteTelemetry.ndwi}</span>
+              <span className="text-[9px] text-muted-foreground block">(B03 - B08)/(B03 + B08)</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-background/80 border border-emerald-500/20 text-center">
+              <span className="text-[10px] text-muted-foreground block">Standing Carbon Stock</span>
+              <span className="text-base font-extrabold text-amber-600">{liveSatelliteTelemetry.totalCarbonStockCo2eMT} MT</span>
+              <span className="text-[9px] text-muted-foreground block">IPCC Tier-2 Allometric</span>
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground italic">
+            🔬 {liveSatelliteTelemetry.healthDiagnosis}
+          </p>
+        </div>
+      )}
+
       {/* AI Gemini Parcel Diagnostic Button & Report */}
       <div className="pt-2 border-t border-primary/15 space-y-3">
         <Button
@@ -677,7 +801,7 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
             </>
           ) : (
             <>
-              <Sparkles className="h-3.5 w-3.5" /> Run AI Parcel Health Diagnostic (Gemini 2.5)
+              <Sparkles className="h-3.5 w-3.5" /> Run AI Parcel Health Diagnostic
             </>
           )}
         </Button>
@@ -687,7 +811,21 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
             <div className="font-semibold text-primary flex items-center gap-1.5 text-sm">
               <Bot className="h-4 w-4" /> AI Agroforestry & Biodiversity Recommendation:
             </div>
-            <p className="text-foreground/90 leading-relaxed">{aiReport.summary || aiReport.recommendation}</p>
+            <p className="text-foreground/90 leading-relaxed">
+              {aiReport.canopy_health_summary || aiReport.summary || aiReport.recommendation}
+            </p>
+            {aiReport.biomass_assessment && (
+              <p className="text-muted-foreground text-[11px]">
+                🌿 <strong>Biomass Assessment:</strong> {aiReport.biomass_assessment}
+              </p>
+            )}
+            {aiReport.recommendations && Array.isArray(aiReport.recommendations) && (
+              <ul className="list-disc pl-4 space-y-1 text-muted-foreground text-[11px]">
+                {aiReport.recommendations.map((rec: string, i: number) => (
+                  <li key={i}>{rec}</li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
       </div>

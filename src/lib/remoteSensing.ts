@@ -1,7 +1,10 @@
 /**
- * Remote Sensing & Spectral Vegetation Index Simulator
+ * Remote Sensing & Multi-Spectral Sentinel-2 L2A Vegetation Engine
  * Enterprise Sentinel-2 MSI Multi-Spectral & Carbon Biomass Modeling Engine
  */
+
+export * from "./sentinel2RealService";
+export * from "./databaseAuditService";
 
 export interface SpectralIndexLayer {
   id: "rgb" | "ndvi" | "ndre" | "ndwi" | "evi" | "savi" | "thermal";

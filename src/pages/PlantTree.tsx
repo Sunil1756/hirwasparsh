@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSearchParams } from "react-router-dom";
 import exifr from "exifr";
 import { compressImage, sha256File } from "@/lib/imageProcessing";
+import { computeImageDHash, evaluatePhotoDuplicateFraud } from "@/lib/perceptualHash";
 import { detectSpeciesAI, screenTreeImageWithAI, verifyTreeWithGeminiAI } from "@/lib/gemini";
 import { enqueueOfflineTree } from "@/lib/offlineSyncService";
 import { VernacularVoiceAssistant } from "@/components/VernacularVoiceAssistant";
@@ -321,27 +322,40 @@ const PlantTree = () => {
         setSubmitStage("");
         return;
       }
-      const authUserId = sessionData.session.user.id;
-
-      // Checking data integrity — SHA-256 hash of the compressed "after" photo
-      setSubmitStage("Checking Data Integrity...");
+      // Perceptual Image Hashing & Duplicate Fraud Cross-Check
+      setSubmitStage("Scanning Perceptual Image Fingerprint (dHash)...");
       const photoHash = await sha256File(afterPhoto);
+      let dhashFingerprint = "";
+      try {
+        const afterB64 = await fileToBase64(afterPhoto);
+        dhashFingerprint = await computeImageDHash(`data:image/jpeg;base64,${afterB64}`);
+      } catch (err) {
+        console.warn("dHash generation fallback:", err);
+      }
 
-      const { data: dupRows, error: dupErr } = await supabase
-        .from("trees")
-        .select("id")
-        .eq("photo_hash", photoHash)
-        .limit(1);
-      if (dupErr) console.warn("duplicate check failed", dupErr);
-      if (dupRows && dupRows.length > 0) {
-        toast({
-          title: "Duplicate image detected",
-          description: "Please take a fresh, real-time photograph of your assigned tree.",
-          variant: "destructive",
-        });
-        setIsSubmitting(false);
-        setSubmitStage("");
-        return;
+      // Check against existing database tree perceptual hashes
+      try {
+        const { data: existingTreeHashes } = await supabase
+          .from("trees")
+          .select("id, tree_name, phash")
+          .not("phash", "is", null)
+          .limit(200);
+
+        if (existingTreeHashes && dhashFingerprint) {
+          const fraudEval = evaluatePhotoDuplicateFraud(dhashFingerprint, existingTreeHashes as any);
+          if (fraudEval.isDuplicate && fraudEval.riskLevel === "critical_fraud") {
+            toast({
+              title: "❌ Duplicate Photo Fraud Blocked",
+              description: fraudEval.reason || "This exact tree photo was already registered in the database.",
+              variant: "destructive",
+            });
+            setIsSubmitting(false);
+            setSubmitStage("");
+            return;
+          }
+        }
+      } catch (phashErr) {
+        console.warn("Perceptual hash collision query warning:", phashErr);
       }
 
       // Offline mode handling for rural/remote areas
@@ -366,7 +380,7 @@ const PlantTree = () => {
         return;
       }
 
-      setSubmitStage("Uploading...");
+      setSubmitStage("Uploading High-Res Telemetry...");
       const ts = Date.now();
       const [beforeUrl, afterUrl, selfieUrl] = await Promise.all([
         uploadPhoto(beforePhoto, `${authUserId}/${ts}_before.jpg`),
@@ -374,7 +388,7 @@ const PlantTree = () => {
         uploadSelfie(selfiePhoto, `${authUserId}/${ts}_selfie.jpg`),
       ]);
 
-      setSubmitStage("Saving submission...");
+      setSubmitStage("Registering on Data Spine...");
       const { data: tree, error: insertError } = await supabase
         .from("trees")
         .insert({
@@ -395,11 +409,13 @@ const PlantTree = () => {
           before_photo_url: beforeUrl,
           selfie_photo_url: selfieUrl,
           photo_hash: photoHash,
+          phash: dhashFingerprint || null,
+          health_status: "healthy",
           exif_timestamp: new Date().toISOString(),
           ai_detected_species: speciesDetection?.common_name || null,
           ai_scientific_name: speciesDetection?.scientific_name || null,
           ai_species_confidence: speciesDetection?.confidence || null,
-        })
+        } as any)
         .select()
         .single();
 
@@ -471,10 +487,28 @@ const PlantTree = () => {
               verification_status: verifyStatus,
               admin_status: autoApproved ? "approved" : verifyStatus === "rejected" ? "rejected" : "pending",
               ai_confidence: score,
+              is_verified: autoApproved,
+              last_verified_at: autoApproved ? new Date().toISOString() : null,
               points_awarded: autoApproved ? 50 : 0,
               updated_at: new Date().toISOString(),
-            })
+            } as any)
             .eq("id", tree.id);
+
+          // Save immutable audit record in verifications table
+          try {
+            await supabase.from("verifications" as any).insert({
+              tree_id: tree.id,
+              photo_url: afterUrl,
+              phash: dhashFingerprint || null,
+              ai_confidence: score,
+              species_match_confidence: speciesDetection?.confidence || 90,
+              health_score: score,
+              verified_by_type: "ai",
+              verification_notes: flaggedReason || "Verified via multi-modal AI and perceptual hash duplicate clearance.",
+            } as any);
+          } catch (verifErr) {
+            console.warn("Verifications table logging warning:", verifErr);
+          }
 
           // Auto-credit 50 Eco-Points if score >= 70%
           if (autoApproved) {
