@@ -1,13 +1,43 @@
 import { useState } from "react";
-import { SPECTRAL_LAYERS, SpectralIndexLayer } from "@/lib/remoteSensing";
-import { Activity, Layers, Eye, Sparkles, CheckCircle2, ShieldCheck, Info } from "lucide-react";
+import { SPECTRAL_LAYERS } from "@/lib/remoteSensing";
+import {
+  Layers,
+  Eye,
+  Activity,
+  Leaf,
+  Droplets,
+  Sparkles,
+  Thermometer,
+  ChevronDown,
+  ChevronUp,
+  Info,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   activeLayerId?: "rgb" | "ndvi" | "ndre" | "ndwi" | "evi" | "thermal";
   onLayerChange?: (layerId: "rgb" | "ndvi" | "ndre" | "ndwi" | "evi" | "thermal") => void;
   meanNdvi?: number;
 }
+
+const LAYER_ICONS: Record<string, any> = {
+  rgb: Eye,
+  ndvi: Activity,
+  ndre: Leaf,
+  ndwi: Droplets,
+  evi: Sparkles,
+  thermal: Thermometer,
+};
+
+const LAYER_SHORT_NAMES: Record<string, string> = {
+  rgb: "RGB Optical",
+  ndvi: "NDVI Biomass",
+  ndre: "NDRE Nitrogen",
+  ndwi: "NDWI Hydration",
+  evi: "EVI High-Biomass",
+  thermal: "Thermal LST",
+};
 
 export function NDVISpectralViewer({
   activeLayerId = "ndvi",
@@ -17,6 +47,7 @@ export function NDVISpectralViewer({
   const [selectedLayer, setSelectedLayer] = useState<"rgb" | "ndvi" | "ndre" | "ndwi" | "evi" | "thermal">(
     activeLayerId || "ndvi"
   );
+  const [showDetails, setShowDetails] = useState(false);
 
   const currentLayerId = onLayerChange ? activeLayerId || selectedLayer : selectedLayer;
   const activeLayer = SPECTRAL_LAYERS.find((l) => l.id === currentLayerId) || SPECTRAL_LAYERS[1];
@@ -29,97 +60,105 @@ export function NDVISpectralViewer({
   };
 
   return (
-    <div className="glass-card rounded-3xl p-5 sm:p-6 border-2 border-primary/25 shadow-md space-y-4">
-      {/* Header */}
+    <div className="glass-card rounded-2xl p-3 sm:p-4 border border-primary/20 shadow-sm space-y-3">
+      {/* Header & Status Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Activity className="h-5 w-5 text-primary" />
-          <h3 className="font-heading font-bold text-base sm:text-lg text-foreground">
-            Multi-Spectral Sentinel-2 Reflectance Indices
-          </h3>
+          <Layers className="h-4 w-4 text-primary" />
+          <span className="font-heading font-bold text-sm text-foreground">
+            Multi-Spectral Sentinel-2 Bands
+          </span>
+          <Badge variant="outline" className="text-[10px] hidden sm:inline-flex bg-primary/5 text-primary border-primary/20">
+            10m Ground Resolution
+          </Badge>
         </div>
+
         <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="text-xs bg-primary/10 border-primary/25 text-primary font-semibold">
+          <Badge variant="secondary" className="text-xs bg-primary/10 border-primary/20 text-primary font-medium">
             Mean Plot NDVI: <strong className="ml-1 text-primary">{meanNdvi.toFixed(2)}</strong>
           </Badge>
-          <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-xs font-bold">
-            {meanNdvi >= 0.7 ? "Dense Vigorous Canopy" : meanNdvi >= 0.5 ? "Moderate Growth" : "Sapling Stage"}
+          <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[11px] font-semibold">
+            {meanNdvi >= 0.7 ? "Vigorous Canopy" : meanNdvi >= 0.5 ? "Moderate Growth" : "Sapling Stage"}
           </Badge>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowDetails(!showDetails)}
+            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+          >
+            <Info className="h-3.5 w-3.5" />
+            <span className="hidden md:inline">{showDetails ? "Hide Scale" : "Scale & Formula"}</span>
+            {showDetails ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </Button>
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        Select multi-spectral satellite reflectance bands to analyze chlorophyll absorption, leaf nitrogen, foliar hydration, and thermal micro-climates.
-      </p>
-
-      {/* Layer selector tabs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+      {/* Sleek Pill Button Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5">
         {SPECTRAL_LAYERS.map((layer) => {
           const isSelected = layer.id === currentLayerId;
+          const Icon = LAYER_ICONS[layer.id] || Activity;
+          const shortName = LAYER_SHORT_NAMES[layer.id] || layer.name;
+
           return (
             <button
               type="button"
               key={layer.id}
               onClick={() => handleSelect(layer.id as any)}
-              className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+              className={`px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 border ${
                 isSelected
-                  ? "border-primary bg-primary/10 shadow-md ring-2 ring-primary/40"
-                  : "border-border/50 bg-background/60 hover:border-primary/30 hover:bg-background"
+                  ? "bg-primary text-primary-foreground border-primary shadow-sm ring-2 ring-primary/30"
+                  : "bg-background/60 text-muted-foreground border-border/50 hover:text-foreground hover:bg-background hover:border-primary/30"
               }`}
             >
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-heading font-extrabold text-xs text-primary">{layer.id.toUpperCase()}</span>
-                  {isSelected && <span className="h-2 w-2 rounded-full bg-primary" />}
-                </div>
-                <div className="text-[11px] font-bold text-foreground truncate">{layer.name.split("(")[0]}</div>
-                <div className="text-[9px] text-muted-foreground mt-0.5 line-clamp-2">{layer.shortDescription}</div>
-              </div>
-              <span className="text-[9px] font-mono text-primary font-semibold mt-2 block">
-                {layer.bandsUsed.split("(")[0]}
-              </span>
+              <Icon className={`h-3.5 w-3.5 shrink-0 ${isSelected ? "text-primary-foreground" : "text-primary"}`} />
+              <span className="truncate">{shortName}</span>
             </button>
           );
         })}
       </div>
 
-      {/* Active Layer Details */}
-      <div className="p-4 rounded-2xl bg-background/80 border border-primary/15 text-xs space-y-3 shadow-inner">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <div className="font-bold text-sm text-foreground flex items-center gap-1.5">
-              {activeLayer.name}
-              <Badge variant="outline" className="text-[10px] font-normal border-primary/30 text-primary">
-                {activeLayer.bandsUsed}
-              </Badge>
+      {/* Collapsible Scientific Details & Color Ramp */}
+      {showDetails && (
+        <div className="p-3.5 rounded-xl bg-background/90 border border-primary/20 text-xs space-y-2.5 animate-in fade-in-50 duration-200">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <span className="font-bold text-foreground text-xs">{activeLayer.name}</span>
+              <span className="text-muted-foreground text-[11px] ml-2">({activeLayer.bandsUsed})</span>
             </div>
-            <div className="text-muted-foreground text-xs mt-0.5">{activeLayer.shortDescription}</div>
+            <Badge variant="outline" className="text-[10px] font-mono bg-primary/5 border-primary/25 text-primary">
+              Formula: {activeLayer.formula}
+            </Badge>
           </div>
-          <Badge variant="outline" className="text-xs shrink-0 font-mono bg-primary/5 border-primary/30 text-primary">
-            Formula: {activeLayer.formula}
-          </Badge>
-        </div>
 
-        {/* Color Legend Bar */}
-        <div className="pt-2">
-          <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1.5 font-medium">
-            <span className="text-rose-500">Low / Stressed ({activeLayer.minVal})</span>
-            <span className="text-amber-500">Moderate Index</span>
-            <span className="text-emerald-500 font-bold">Optimal: {activeLayer.optimalRange}</span>
-          </div>
-          <div
-            className="h-3.5 w-full rounded-full shadow-inner border border-border/40"
-            style={{
-              background: `linear-gradient(to right, ${activeLayer.palette.min}, ${activeLayer.palette.mid}, ${activeLayer.palette.max})`,
-            }}
-          />
-          <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-1.5 font-mono">
-            <span>Scale Min: {activeLayer.minVal}</span>
-            <span>Reflectance Range: {activeLayer.scaleLabel}</span>
-            <span>Scale Max: {activeLayer.maxVal}</span>
+          <p className="text-[11px] text-muted-foreground">
+            {activeLayer.shortDescription}
+          </p>
+
+          {/* Color Gradient Scale */}
+          <div>
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1 font-medium">
+              <span className="text-rose-500 font-semibold">Low / Stressed ({activeLayer.minVal})</span>
+              <span className="text-amber-500">Moderate</span>
+              <span className="text-emerald-500 font-bold">Optimal: {activeLayer.optimalRange}</span>
+            </div>
+            <div
+              className="h-2.5 w-full rounded-full border border-border/40 shadow-inner"
+              style={{
+                background: `linear-gradient(to right, ${activeLayer.palette.min}, ${activeLayer.palette.mid}, ${activeLayer.palette.max})`,
+              }}
+            />
+            <div className="flex items-center justify-between text-[9px] text-muted-foreground mt-1 font-mono">
+              <span>Min: {activeLayer.minVal}</span>
+              <span>{activeLayer.scaleLabel}</span>
+              <span>Max: {activeLayer.maxVal}</span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
+
