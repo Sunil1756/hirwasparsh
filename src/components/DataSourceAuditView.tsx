@@ -288,7 +288,7 @@ export function DataSourceAuditView({ isDemoMode = false }: Props) {
                       <div className="font-bold text-foreground">{item.name}</div>
                       <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
                         <span className="font-mono text-[10px] text-muted-foreground/80">
-                          {item.id.substring(0, 12)}...
+                          {typeof item.id === "string" ? item.id.substring(0, 12) : String(item.id || "")}...
                         </span>
                         <span>·</span>
                         <span>{item.location}</span>
@@ -338,7 +338,7 @@ export function DataSourceAuditView({ isDemoMode = false }: Props) {
                       {item.meanNdvi !== null ? (
                         <div>
                           <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                            {item.meanNdvi.toFixed(2)}
+                            {Number(item.meanNdvi).toFixed(2)}
                           </span>
                           <span className="text-[10px] text-muted-foreground ml-1">
                             ({item.satellitePassesCount} passes)
@@ -356,7 +356,7 @@ export function DataSourceAuditView({ isDemoMode = false }: Props) {
                         {item.creatorInfo}
                       </div>
                       <div className="text-[10px] text-muted-foreground font-mono">
-                        {item.createdAt.split("T")[0]}
+                        {(item.createdAt || "").split("T")[0] || "—"}
                       </div>
                     </td>
 

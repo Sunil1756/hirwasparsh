@@ -58,6 +58,7 @@ import { SatelliteTreeSurvivalAssurance } from "./SatelliteTreeSurvivalAssurance
 import { DataSourceAuditView } from "./DataSourceAuditView";
 import { PlotSurvivalRateView } from "./PlotSurvivalRateView";
 import { BulkPlotNdviTrendMonitor } from "./BulkPlotNdviTrendMonitor";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { Database } from "lucide-react";
 import {
   generateZoneTreeSurvivalRecords,
@@ -546,6 +547,20 @@ Please provide:
                 checked={isDemoMode}
                 onCheckedChange={(val) => {
                   setIsDemoMode(val);
+                  if (val) {
+                    const firstDemo = AGROFORESTRY_PRESET_ZONES[0];
+                    if (firstDemo) {
+                      const demoZone: AgroforestryPresetZone = {
+                        ...firstDemo,
+                        id: `demo_${firstDemo.id}`,
+                        name: `🧪 [DEMO] ${firstDemo.name}`,
+                        description: `[SIMULATED DEMO PRESET] ${firstDemo.description}`,
+                      };
+                      setSelectedZone(demoZone);
+                      setMapCenter(demoZone.center);
+                      setMapZoom(demoZone.zoom || 14);
+                    }
+                  }
                   toast({
                     title: val ? "🧪 Demo Simulation Mode Enabled" : "🛡️ Real Database Mode Enabled",
                     description: val
@@ -662,11 +677,11 @@ Please provide:
           <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20 text-center">
             <div className="text-xs text-muted-foreground">Monitored Parcel</div>
             <div className="font-heading font-extrabold text-base sm:text-lg text-foreground mt-0.5 truncate">
-              {selectedZone.name}
+              {selectedZone.name || "Agroforestry Zone"}
             </div>
             <div className="text-[10px] text-primary mt-0.5 font-semibold">
               {selectedZone.targetTrees > 0
-                ? `${selectedZone.targetTrees.toLocaleString()} Trees (${selectedZone.district.split(",")[0]})`
+                ? `${selectedZone.targetTrees.toLocaleString()} Trees (${(selectedZone.district || "Maharashtra").split(",")[0]})`
                 : "Awaiting Tree Planting"}
             </div>
           </div>
@@ -757,7 +772,7 @@ Please provide:
                   }`}
                 >
                   <TreePine className="h-3.5 w-3.5 text-emerald-500" />
-                  {zone.name.split(" (")[0]}
+                  {(zone.name || "Agroforestry Zone").split(" (")[0]}
                   {isDbProject && (
                     <span className="text-[9px] px-1 py-0.2 rounded bg-blue-500/20 text-blue-600 font-mono">
                       DB
@@ -840,7 +855,7 @@ Please provide:
               />
 
               {/* Plot Cadastral Boundary Polygon for Active Agroforestry Zone */}
-              {selectedZone.boundary && selectedZone.boundary.length > 0 && (
+              {selectedZone.boundary && Array.isArray(selectedZone.boundary) && selectedZone.boundary.length >= 3 && (
                 <Polygon
                   positions={selectedZone.boundary}
                   pathOptions={{
@@ -993,7 +1008,7 @@ Please provide:
                     !zoneTrees.some(
                       (zt) =>
                         zt.treeId === tree.id ||
-                        zt.treeId === `TR-${tree.id.substring(0, 8).toUpperCase()}`
+                        zt.treeId === (typeof tree.id === "string" && tree.id.length > 12 ? `TR-${tree.id.substring(0, 8).toUpperCase()}` : tree.id)
                     )
                 )
                 .map((tree) => {
@@ -1097,101 +1112,102 @@ Please provide:
         </div>
 
         {/* ---------------- ACTIVE TOOL CONSOLE CONTENT ---------------- */}
-
-        {/* 1. PIXEL SCOUT & WEATHER */}
-        {activeSubTab === "map" && (
-          <div className="space-y-6 animate-in fade-in duration-300">
-            <AgroWeatherWidget
-              latitude={selectedZone.center[0]}
-              longitude={selectedZone.center[1]}
-              locationName={`${selectedZone.name} (${selectedZone.district})`}
-            />
-
-            {inspectedTelemetry && (
-              <SatellitePixelInspectorHUD
-                telemetry={inspectedTelemetry}
-                onRunAiDiagnostic={handleRunAiDiagnostic}
-                isAiAnalyzing={isAiAnalyzing}
+        <ErrorBoundary fallbackTitle="Console Render Alert" fallbackMessage="Could not load the requested analytical console. Click below to retry.">
+          {/* 1. PIXEL SCOUT & WEATHER */}
+          {activeSubTab === "map" && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <AgroWeatherWidget
+                latitude={selectedZone.center[0]}
+                longitude={selectedZone.center[1]}
+                locationName={`${selectedZone.name} (${selectedZone.district})`}
               />
-            )}
-          </div>
-        )}
 
-        {/* 2. 36-MONTH TREE SURVIVAL ASSURANCE & MORTALITY RADAR */}
-        {activeSubTab === "survival" && (
-          <div className="animate-in fade-in duration-300">
-            <SatelliteTreeSurvivalAssurance
-              selectedZone={selectedZone}
-              trees={zoneTrees}
-              onInspectTreeCoordinates={handleMapClick}
-            />
-          </div>
-        )}
+              {inspectedTelemetry && (
+                <SatellitePixelInspectorHUD
+                  telemetry={inspectedTelemetry}
+                  onRunAiDiagnostic={handleRunAiDiagnostic}
+                  isAiAnalyzing={isAiAnalyzing}
+                />
+              )}
+            </div>
+          )}
 
-        {/* 3. BEFORE VS AFTER TEMPORAL TRANSFORMATION SLIDER */}
-        {activeSubTab === "slider" && (
-          <div className="animate-in fade-in duration-300">
-            <SatelliteTimeSliderCompare
-              selectedZone={selectedZone}
-              zoneTrees={zoneTrees}
-              zoneSurvival={zoneSurvival}
-              zoneName={`${selectedZone.name} (${selectedZone.district})`}
-              baselineYear="2023 Baseline (Pre-Planting)"
-              currentYear="2026 Multi-Spectral Canopy"
-            />
-          </div>
-        )}
+          {/* 2. 36-MONTH TREE SURVIVAL ASSURANCE & MORTALITY RADAR */}
+          {activeSubTab === "survival" && (
+            <div className="animate-in fade-in duration-300">
+              <SatelliteTreeSurvivalAssurance
+                selectedZone={selectedZone}
+                trees={zoneTrees}
+                onInspectTreeCoordinates={handleMapClick}
+              />
+            </div>
+          )}
 
-        {/* 4. 36-MONTH NDVI & BIOMASS CURVE */}
-        {activeSubTab === "timeseries" && (
-          <div className="animate-in fade-in duration-300">
-            <CanopyNDVITimeSeriesChart
-              plotId={selectedZone.id}
-              initialTreeCount={selectedZone.targetTrees || 5000}
-              plotName={selectedZone.name}
-            />
-          </div>
-        )}
+          {/* 3. BEFORE VS AFTER TEMPORAL TRANSFORMATION SLIDER */}
+          {activeSubTab === "slider" && (
+            <div className="animate-in fade-in duration-300">
+              <SatelliteTimeSliderCompare
+                selectedZone={selectedZone}
+                zoneTrees={zoneTrees}
+                zoneSurvival={zoneSurvival}
+                zoneName={`${selectedZone.name} (${selectedZone.district})`}
+                baselineYear="2023 Baseline (Pre-Planting)"
+                currentYear="2026 Multi-Spectral Canopy"
+              />
+            </div>
+          )}
 
-        {/* 5. IPCC CARBON BIOMASS MODELER */}
-        {activeSubTab === "carbon" && (
-          <div className="animate-in fade-in duration-300">
-            <AllometricCarbonCalculator />
-          </div>
-        )}
+          {/* 4. 36-MONTH NDVI & BIOMASS CURVE */}
+          {activeSubTab === "timeseries" && (
+            <div className="animate-in fade-in duration-300">
+              <CanopyNDVITimeSeriesChart
+                plotId={selectedZone.id}
+                initialTreeCount={selectedZone.targetTrees || 5000}
+                plotName={selectedZone.name}
+              />
+            </div>
+          )}
 
-        {/* 6. CADASTRAL PARCEL BOUNDARY MODELER (MODULE D) */}
-        {activeSubTab === "parcel" && (
-          <div className="animate-in fade-in duration-300">
-            <PlotPolygonDrawer />
-          </div>
-        )}
+          {/* 5. IPCC CARBON BIOMASS MODELER */}
+          {activeSubTab === "carbon" && (
+            <div className="animate-in fade-in duration-300">
+              <AllometricCarbonCalculator />
+            </div>
+          )}
 
-        {/* 7. DATA SOURCE & GROUND TRUTH AUDIT */}
-        {activeSubTab === "audit" && (
-          <div className="animate-in fade-in duration-300">
-            <DataSourceAuditView isDemoMode={isDemoMode} />
-          </div>
-        )}
+          {/* 6. CADASTRAL PARCEL BOUNDARY MODELER (MODULE D) */}
+          {activeSubTab === "parcel" && (
+            <div className="animate-in fade-in duration-300">
+              <PlotPolygonDrawer />
+            </div>
+          )}
 
-        {/* 8. PER-PLOT SURVIVAL RATES & BULK NDVI ANOMALY RADAR */}
-        {activeSubTab === "rates" && (
-          <div className="space-y-6 animate-in fade-in duration-300">
-            <BulkPlotNdviTrendMonitor
-              plotId={selectedZone.id}
-              plotName={selectedZone.name}
-              district={selectedZone.district}
-              centerCoordinates={selectedZone.center}
-              isBulkPlot={true}
-            />
-            <PlotSurvivalRateView
-              onSelectPlot={(plotId) => {
-                const found = allAvailableZones.find((z) => z.id === plotId);
-                if (found) setSelectedZone(found);
-              }}
-            />
-          </div>
-        )}
+          {/* 7. DATA SOURCE & GROUND TRUTH AUDIT */}
+          {activeSubTab === "audit" && (
+            <div className="animate-in fade-in duration-300">
+              <DataSourceAuditView isDemoMode={isDemoMode} />
+            </div>
+          )}
+
+          {/* 8. PER-PLOT SURVIVAL RATES & BULK NDVI ANOMALY RADAR */}
+          {activeSubTab === "rates" && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <BulkPlotNdviTrendMonitor
+                plotId={selectedZone.id}
+                plotName={selectedZone.name}
+                district={selectedZone.district}
+                centerCoordinates={selectedZone.center}
+                isBulkPlot={true}
+              />
+              <PlotSurvivalRateView
+                onSelectPlot={(plotId) => {
+                  const found = allAvailableZones.find((z) => z.id === plotId);
+                  if (found) setSelectedZone(found);
+                }}
+              />
+            </div>
+          )}
+        </ErrorBoundary>
       </div>
 
       {/* AI Satellite Audit Modal Report */}

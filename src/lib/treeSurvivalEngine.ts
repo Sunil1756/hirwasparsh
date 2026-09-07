@@ -235,7 +235,8 @@ export function generateZoneTreeSurvivalRecords(
     const longitude = Math.round((centerLng + lngOffset) * 10000) / 10000;
 
     const species = speciesList[i % speciesList.length];
-    const treeId = `GE-${zoneId.replace(/[^a-zA-Z0-9]/g, "").substring(0, 3).toUpperCase()}-${String(1000 + i + 1)}`;
+    const cleanZoneCode = (typeof zoneId === "string" ? zoneId : "ZON").replace(/[^a-zA-Z0-9]/g, "").substring(0, 3).toUpperCase() || "ZON";
+    const treeId = `GE-${cleanZoneCode}-${String(1000 + i + 1)}`;
     const treeName = `${species} #${i + 1}`;
 
     // Tree age between 6 and 24 months
@@ -404,7 +405,7 @@ export function calculateZoneSurvivalMetrics(
     hashNum = (hashNum << 5) - hashNum + hashSeed.charCodeAt(j);
     hashNum |= 0;
   }
-  const cleanId = zone.id.replace(/[^a-zA-Z0-9]/g, "").substring(0, 8).toUpperCase() || "ZONE";
+  const cleanId = (typeof zone?.id === "string" ? zone.id : "ZONE").replace(/[^a-zA-Z0-9]/g, "").substring(0, 8).toUpperCase() || "ZONE";
   const proofOfSurvivalHash = `0x${Math.abs(hashNum).toString(16).toUpperCase().padStart(8, "0")}7F89B2E4_${cleanId}`;
 
   // 36-Month Milestone Trajectory Curve

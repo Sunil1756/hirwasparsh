@@ -41,6 +41,7 @@ import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from "react-le
 import L from "leaflet";
 import { FieldScoutingModule } from "@/components/FieldScoutingModule";
 import { ModuleASatelliteEngine } from "@/components/ModuleASatelliteEngine";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Glowing pulse marker via DivIcon
 const makeGlowIcon = (color: string) =>
@@ -228,22 +229,23 @@ const TreeMap = () => {
           </button>
         </div>
 
-        {activeTab === "satellite_ndvi" ? (
-          <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
-            <ModuleASatelliteEngine trees={trees} />
-          </motion.div>
-        ) : activeTab === "field_scouting" ? (
-          <div className="space-y-6">
-            <div className="text-center mb-6">
-              <h2 className="font-heading text-3xl font-bold">Field Scouting & Anomaly Matrix</h2>
-              <p className="text-sm text-muted-foreground">
-                Geotag ground truth observations, pest & disease detection, and assign remediation tasks.
-              </p>
+        <ErrorBoundary fallbackTitle="Map Viewport Error" fallbackMessage="An error occurred while loading this GIS viewport. You can retry or switch tabs.">
+          {activeTab === "satellite_ndvi" ? (
+            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
+              <ModuleASatelliteEngine trees={trees} />
+            </motion.div>
+          ) : activeTab === "field_scouting" ? (
+            <div className="space-y-6">
+              <div className="text-center mb-6">
+                <h2 className="font-heading text-3xl font-bold">Field Scouting & Anomaly Matrix</h2>
+                <p className="text-sm text-muted-foreground">
+                  Geotag ground truth observations, pest & disease detection, and assign remediation tasks.
+                </p>
+              </div>
+              <FieldScoutingModule />
             </div>
-            <FieldScoutingModule />
-          </div>
-        ) : (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          ) : (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             {/* Top KPI Metrics Bar (100% Real Data) */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
               <div className="glass-card rounded-2xl p-4 border border-primary/20 text-center">
@@ -659,6 +661,7 @@ const TreeMap = () => {
             </div>
           </motion.div>
         )}
+        </ErrorBoundary>
       </div>
     </div>
   );

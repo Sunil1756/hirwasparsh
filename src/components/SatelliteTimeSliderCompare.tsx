@@ -468,7 +468,7 @@ export function SatelliteTimeSliderCompare({
           </div>
 
           <div className="text-[11px] text-muted-foreground font-mono hidden md:block">
-            GPS: {centerCoords[0].toFixed(4)}°N, {centerCoords[1].toFixed(4)}°E ({districtName.split(",")[0]})
+            GPS: {centerCoords[0].toFixed(4)}°N, {centerCoords[1].toFixed(4)}°E ({(districtName || "Maharashtra").split(",")[0]})
           </div>
         </div>
       </div>

@@ -174,4 +174,35 @@ describe("Module A & TreeMap Component Integrity", () => {
     expect(zoneAnalytics.criticalRiskCount).toBe(1);
     expect(zoneAnalytics.satelliteAuditedSurvivalRate).toBeGreaterThan(60);
   });
+
+  it("handles fetchDataSourceAuditList with demo mode and null values safely", async () => {
+    const { fetchDataSourceAuditList } = await import("@/lib/databaseAuditService");
+    const demoItems = await fetchDataSourceAuditList(true);
+    expect(demoItems.length).toBeGreaterThan(0);
+    const demoPreset = demoItems.find((i) => i.sourceType === "demo_preset");
+    expect(demoPreset).toBeDefined();
+    expect(demoPreset?.name).toContain("[DEMO]");
+    expect(demoPreset?.creatorInfo).toContain("Synthetic Demo Simulator");
+  });
+
+  it("ErrorBoundary gracefully renders fallback on error without blank screen", async () => {
+    const { ErrorBoundary } = await import("@/components/ErrorBoundary");
+    const ThrowingComponent = () => {
+      throw new Error("Synthetic Test Rendering Crash");
+    };
+
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const { getByText } = render(
+      <ErrorBoundary fallbackTitle="Custom Test Error Title">
+        <ThrowingComponent />
+      </ErrorBoundary>
+    );
+
+    expect(getByText("Custom Test Error Title")).toBeDefined();
+    expect(getByText(/Synthetic Test Rendering Crash/)).toBeDefined();
+    expect(getByText("Retry Viewport")).toBeDefined();
+
+    spy.mockRestore();
+  });
 });

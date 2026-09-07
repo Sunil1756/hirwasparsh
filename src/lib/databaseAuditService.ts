@@ -7,6 +7,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { computeImageDHash } from "./perceptualHash";
+import { AGROFORESTRY_PRESET_ZONES } from "./remoteSensing";
 
 export interface OrganizationRecord {
   id: string;
@@ -482,7 +483,7 @@ export async function fetchDataSourceAuditList(includeDemoPresets = false): Prom
           lastSatelliteDate: latestSat?.reading_date || null,
           meanNdvi: latestSat ? Number(latestSat.ndvi) : (p.current_mean_ndvi ? Number(p.current_mean_ndvi) : null),
           createdAt: p.created_at || new Date().toISOString(),
-          creatorInfo: p.org_id ? `Org ID: ${p.org_id.substring(0, 8)}` : "Platform User / Field Officer",
+          creatorInfo: p.org_id && typeof p.org_id === "string" ? `Org ID: ${p.org_id.substring(0, 8)}` : "Platform User / Field Officer",
           integrityStatus,
           photoEvidenceSample: samplePhoto,
         });
@@ -499,6 +500,8 @@ export async function fetchDataSourceAuditList(includeDemoPresets = false): Prom
         const approved = linkedTrees.filter((t: any) => t.admin_status === "approved" || t.verification_status === "verified").length;
         const pending = linkedTrees.length - approved;
         const samplePhoto = linkedTrees.find((t: any) => t.photo_url)?.photo_url || null;
+        const orgName = pr.organization_name || pr.project_name || "CSR Partner";
+        const emailOrUser = pr.contact_email || (typeof pr.user_id === "string" ? pr.user_id.substring(0, 8) : "Registered Partner");
 
         items.push({
           id: pr.id,
@@ -513,10 +516,34 @@ export async function fetchDataSourceAuditList(includeDemoPresets = false): Prom
           satellitePassesCount: 0,
           lastSatelliteDate: null,
           meanNdvi: null,
-          createdAt: pr.created_at,
-          creatorInfo: `${pr.organization_name} (${pr.contact_email || pr.user_id.substring(0, 8)})`,
+          createdAt: pr.created_at || new Date().toISOString(),
+          creatorInfo: `${orgName} (${emailOrUser})`,
           integrityStatus: (pr.verified_trees > 0 || approved > 0) ? "verified_with_evidence" : "active_monitoring",
           photoEvidenceSample: samplePhoto,
+        });
+      }
+    }
+
+    // 3. Append simulated demo presets only if explicitly requested
+    if (includeDemoPresets) {
+      for (const z of AGROFORESTRY_PRESET_ZONES) {
+        items.push({
+          id: `demo_${z.id}`,
+          name: `🧪 [DEMO] ${z.name}`,
+          sourceType: "demo_preset",
+          location: z.location || `${z.district || "Maharashtra"}, India`,
+          district: z.district || "Maharashtra",
+          totalTrees: z.targetTrees || 2500,
+          approvedTrees: Math.round((z.targetTrees || 2500) * 0.92),
+          pendingTrees: Math.round((z.targetTrees || 2500) * 0.08),
+          verificationCount: Math.round((z.targetTrees || 2500) * 0.92),
+          satellitePassesCount: 18,
+          lastSatelliteDate: new Date().toISOString().split("T")[0],
+          meanNdvi: z.meanNdvi,
+          createdAt: z.plantedDate || "2024-01-01",
+          creatorInfo: "Synthetic Demo Simulator (ESA Sentinel-2 Model)",
+          integrityStatus: "demo_simulation",
+          photoEvidenceSample: null,
         });
       }
     }

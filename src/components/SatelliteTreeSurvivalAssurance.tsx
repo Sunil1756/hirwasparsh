@@ -715,7 +715,7 @@ export function SatelliteTreeSurvivalAssurance({
                   {bulkSummary.totalTargetTrees.toLocaleString()}
                 </div>
                 <div className="text-[11px] text-muted-foreground">
-                  {selectedZone.name.split(" ")[0]} Agro-Zone
+                  {(selectedZone?.name || "Agroforestry").split(" ")[0]} Agro-Zone
                 </div>
               </div>
 
