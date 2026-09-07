@@ -179,23 +179,6 @@ function getZoneSurvivalRecords(
   treesList: TreeRecord[],
   dbProjectsList: any[]
 ): TreeSurvivalRecord[] {
-  if (zone.id === "all-network-live" && treesList.length > 0) {
-    return convertDatabaseTreesToSurvivalRecords(treesList, zone.center, zone.name);
-  }
-
-  // Check plot_id match or project_id match in database
-  const matching = treesList.filter(
-    (t: any) =>
-      t.plot_id === zone.id ||
-      t.project_id === zone.id ||
-      (t.location && zone.district && t.location.toLowerCase().includes(zone.district.toLowerCase())) ||
-      (t.location && zone.name.toLowerCase().includes(t.location.toLowerCase()))
-  );
-
-  if (matching.length > 0) {
-    return convertDatabaseTreesToSurvivalRecords(matching, zone.center, zone.name);
-  }
-
   // If this is an explicit demo simulation preset, generate demo sample trees
   if (zone.id.startsWith("demo_")) {
     return generateZoneTreeSurvivalRecords(
@@ -205,6 +188,17 @@ function getZoneSurvivalRecords(
       zone.species,
       24
     );
+  }
+
+  // Strictly check plot_id or project_id match in database for bulk parcels only
+  const matching = treesList.filter(
+    (t: any) =>
+      Boolean(t.plot_id && t.plot_id === zone.id) ||
+      Boolean(t.project_id && t.project_id === zone.id)
+  );
+
+  if (matching.length > 0) {
+    return convertDatabaseTreesToSurvivalRecords(matching, zone.center, zone.name);
   }
 
   // Real parcel with 0 trees returns empty array (honest empty state)
@@ -287,42 +281,9 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
       };
     });
 
-    // 2. All Live Planted Trees
-    if (trees.length > 0) {
-      const validLats = trees.map((t) => Number(t.latitude)).filter((n) => !isNaN(n) && n !== 0);
-      const validLngs = trees.map((t) => Number(t.longitude)).filter((n) => !isNaN(n) && n !== 0);
-      const meanLat = validLats.length > 0 ? validLats.reduce((a, b) => a + b, 0) / validLats.length : 19.75;
-      const meanLng = validLngs.length > 0 ? validLngs.reduce((a, b) => a + b, 0) / validLngs.length : 75.71;
-      const verifiedCount = trees.filter((t) => t.verification_status === "verified" || (t as any).admin_status === "approved").length;
-      const rate = Math.round((verifiedCount / trees.length) * 1000) / 10;
-
-      list.push({
-        id: "all-network-live",
-        name: "🌐 All Planted Trees",
-        location: "Statewide Network",
-        district: "Maharashtra, India",
-        center: [meanLat, meanLng],
-        zoom: 10,
-        boundary: [],
-        targetTrees: trees.length,
-        species: Array.from(new Set(trees.map((t) => t.species).filter(Boolean) as string[])),
-        plantedDate: trees[0]?.created_at?.split("T")[0] || "2024-01-01",
-        meanNdvi: rate >= 80 ? 0.81 : 0.74,
-        meanNdwi: 0.28,
-        biomassTonsPerHa: 48.0,
-        carbonOffsetTons: Math.round((verifiedCount * 22) / 1000),
-        healthStatus: rate >= 80 ? "Optimal Vigor" : "Moderate Growth",
-        description: "Live database aggregation of all planted trees registered on the platform.",
-      });
-    }
-
-    // 3. Real CSR/NGO projects from database (e.g. saga, VarshikVruksha Ropan 2k26)
+    // 2. Real CSR/NGO projects from database (e.g. saga, VarshikVruksha Ropan 2k26)
     const realZones: AgroforestryPresetZone[] = dbProjects.map((p) => {
-      const pTrees = trees.filter(
-        (t: any) =>
-          t.project_id === p.id ||
-          (t.location && p.location && t.location.toLowerCase().includes(p.location.toLowerCase()))
-      );
+      const pTrees = trees.filter((t: any) => t.project_id === p.id);
       const centerLat = p.boundary?.[0]?.lat || p.boundary?.[0]?.[0] || pTrees[0]?.latitude || 19.75;
       const centerLng = p.boundary?.[0]?.lng || p.boundary?.[0]?.[1] || pTrees[0]?.longitude || 75.71;
       const verifiedCount = pTrees.filter((t) => t.verification_status === "verified" || (t as any).admin_status === "approved").length;
@@ -350,7 +311,7 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
       };
     });
 
-    const combinedReal = [...realPlotZones, ...list, ...realZones];
+    const combinedReal = [...realPlotZones, ...realZones];
 
     // If Demo Mode is explicitly enabled, append synthetic demo corridors
     if (isDemoMode) {
@@ -1002,42 +963,6 @@ Please provide:
                 );
               })}
 
-              {/* Plot Any Remaining Real Planted Trees from Prop if not already in zoneTrees */}
-              {trees
-                .filter(
-                  (tree) =>
-                    !zoneTrees.some(
-                      (zt) =>
-                        zt.treeId === tree.id ||
-                        zt.treeId === (typeof tree.id === "string" && tree.id.length > 12 ? `TR-${tree.id.substring(0, 8).toUpperCase()}` : tree.id)
-                    )
-                )
-                .map((tree) => {
-                  const lat = Number(tree.latitude);
-                  const lng = Number(tree.longitude);
-                  if (isNaN(lat) || isNaN(lng)) return null;
-
-                  return (
-                    <Marker
-                      key={tree.id}
-                      position={[lat, lng]}
-                      icon={tree.verification_status === "verified" ? verifiedSatIcon : pendingSatIcon}
-                    >
-                      <Popup>
-                        <div className="text-xs space-y-1">
-                          <div className="font-bold text-foreground">{tree.tree_name}</div>
-                          <div className="text-muted-foreground">{tree.species}</div>
-                          <Badge variant="outline" className="text-[10px] capitalize">
-                            Status: {tree.verification_status}
-                          </Badge>
-                          <div className="text-emerald-600 font-semibold mt-1">
-                            Audited GPS Coordinate
-                          </div>
-                        </div>
-                      </Popup>
-                    </Marker>
-                  );
-                })}
             </MapContainer>
 
             {/* Floating Quick Action Overlay inside Map */}
