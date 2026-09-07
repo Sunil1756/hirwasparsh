@@ -5,6 +5,8 @@ import {
   Marker,
   Popup,
   Polygon,
+  Rectangle,
+  Tooltip,
   Circle,
   useMap,
   useMapEvents,
@@ -173,6 +175,270 @@ function MapEventsController({
 
   return null;
 }
+
+// Controller to apply hardware-accelerated Sentinel-2 spectral CSS shaders directly to tile panes
+function SpectralTileFilterController({
+  activeSpectral,
+}: {
+  activeSpectral: "rgb" | "ndvi" | "ndre" | "ndwi" | "evi" | "thermal";
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    const tilePane = map.getPane("tilePane");
+    if (tilePane) {
+      tilePane.style.transition = "filter 0.4s ease-in-out, opacity 0.4s ease-in-out";
+      if (activeSpectral === "rgb") {
+        tilePane.style.filter = "brightness(1.05) contrast(1.05) saturate(1.1)";
+      } else if (activeSpectral === "ndvi") {
+        tilePane.style.filter = "contrast(1.4) saturate(2.4) hue-rotate(-20deg) brightness(0.95)";
+      } else if (activeSpectral === "ndre") {
+        tilePane.style.filter = "contrast(1.5) saturate(2.2) hue-rotate(60deg) brightness(0.95)";
+      } else if (activeSpectral === "ndwi") {
+        tilePane.style.filter = "contrast(1.45) saturate(2.6) hue-rotate(185deg) brightness(0.95)";
+      } else if (activeSpectral === "evi") {
+        tilePane.style.filter = "contrast(1.6) saturate(2.3) hue-rotate(30deg) brightness(0.9)";
+      } else if (activeSpectral === "thermal") {
+        tilePane.style.filter = "contrast(1.9) saturate(3.0) hue-rotate(225deg) invert(0.25) brightness(1.05)";
+      }
+    }
+  }, [map, activeSpectral]);
+
+  return null;
+}
+
+interface SubPixelCell {
+  id: string;
+  bounds: [[number, number], [number, number]];
+  center: [number, number];
+  val: number;
+  label: string;
+  color: string;
+  opacity: number;
+}
+
+function generateSpectralRasterGrid(
+  center: [number, number],
+  boundary: [number, number][] | undefined,
+  spectral: "rgb" | "ndvi" | "ndre" | "ndwi" | "evi" | "thermal",
+  baseNdvi: number = 0.76
+): SubPixelCell[] {
+  if (spectral === "rgb") return [];
+
+  let minLat = center[0] - 0.0009;
+  let maxLat = center[0] + 0.0009;
+  let minLng = center[1] - 0.0012;
+  let maxLng = center[1] + 0.0012;
+
+  if (boundary && Array.isArray(boundary) && boundary.length >= 3) {
+    const lats = boundary.map((p: any) => (Array.isArray(p) ? p[0] : p.lat));
+    const lngs = boundary.map((p: any) => (Array.isArray(p) ? p[1] : p.lng));
+    if (lats.length > 0 && lngs.length > 0) {
+      minLat = Math.min(...lats);
+      maxLat = Math.max(...lats);
+      minLng = Math.min(...lngs);
+      maxLng = Math.max(...lngs);
+    }
+  }
+
+  const rows = 4;
+  const cols = 4;
+  const dLat = (maxLat - minLat) / rows;
+  const dLng = (maxLng - minLng) / cols;
+  const cells: SubPixelCell[] = [];
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cellMinLat = minLat + r * dLat;
+      const cellMaxLat = minLat + (r + 1) * dLat;
+      const cellMinLng = minLng + c * dLng;
+      const cellMaxLng = minLng + (c + 1) * dLng;
+      const cellCenterLat = (cellMinLat + cellMaxLat) / 2;
+      const cellCenterLng = (cellMinLng + cellMaxLng) / 2;
+
+      // Deterministic variation across grid
+      const pseudo = Math.abs(Math.sin(r * 13.7 + c * 29.3 + cellCenterLat * 100)) * 0.4 - 0.2;
+
+      let val = 0;
+      let label = "";
+      let color = "#15803d";
+      let opacity = 0.45;
+
+      switch (spectral) {
+        case "ndvi": {
+          val = Math.round((baseNdvi + pseudo * 0.2) * 100) / 100;
+          val = Math.min(0.95, Math.max(0.15, val));
+          label = `NDVI: ${val.toFixed(2)}`;
+          if (val >= 0.75) color = "#15803d";
+          else if (val >= 0.6) color = "#22c55e";
+          else if (val >= 0.45) color = "#84cc16";
+          else if (val >= 0.3) color = "#eab308";
+          else color = "#dc2626";
+          break;
+        }
+        case "ndre": {
+          val = Math.round((baseNdvi * 0.8 + pseudo * 0.15) * 100) / 100;
+          val = Math.min(0.85, Math.max(0.1, val));
+          label = `NDRE Chlorophyll: ${val.toFixed(2)}`;
+          if (val >= 0.6) color = "#047857";
+          else if (val >= 0.45) color = "#10b981";
+          else if (val >= 0.3) color = "#facc15";
+          else color = "#ea580c";
+          break;
+        }
+        case "ndwi": {
+          val = Math.round(((baseNdvi - 0.45) * 0.75 + pseudo * 0.18) * 100) / 100;
+          label = `NDWI Hydration: ${val >= 0 ? "+" : ""}${val.toFixed(2)}`;
+          if (val >= 0.25) color = "#1d4ed8";
+          else if (val >= 0.1) color = "#0284c7";
+          else if (val >= 0.0) color = "#38bdf8";
+          else if (val >= -0.15) color = "#fbbf24";
+          else color = "#b45309";
+          break;
+        }
+        case "evi": {
+          val = Math.round((baseNdvi * 0.88 + pseudo * 0.15) * 100) / 100;
+          val = Math.min(0.92, Math.max(0.1, val));
+          label = `EVI Biomass: ${val.toFixed(2)}`;
+          if (val >= 0.65) color = "#16a34a";
+          else if (val >= 0.5) color = "#84cc16";
+          else if (val >= 0.35) color = "#ca8a04";
+          else color = "#e11d48";
+          break;
+        }
+        case "thermal": {
+          val = Math.round((36 - baseNdvi * 11 + pseudo * 8) * 10) / 10;
+          label = `LST Temp: ${val.toFixed(1)}°C`;
+          if (val <= 25) color = "#1e3a8a";
+          else if (val <= 28) color = "#0284c7";
+          else if (val <= 33) color = "#f59e0b";
+          else color = "#b91c1c";
+          break;
+        }
+      }
+
+      cells.push({
+        id: `cell_${r}_${c}_${spectral}`,
+        bounds: [
+          [cellMinLat, cellMinLng],
+          [cellMaxLat, cellMaxLng],
+        ],
+        center: [cellCenterLat, cellCenterLng],
+        val,
+        label,
+        color,
+        opacity,
+      });
+    }
+  }
+
+  return cells;
+}
+
+const getSpectralPolygonStyle = (
+  spectral: "rgb" | "ndvi" | "ndre" | "ndwi" | "evi" | "thermal",
+  meanNdvi: number
+) => {
+  switch (spectral) {
+    case "ndvi":
+      return {
+        color: "#22c55e",
+        weight: 3.5,
+        dashArray: "4, 4",
+        fillColor: meanNdvi >= 0.7 ? "#15803d" : meanNdvi >= 0.5 ? "#22c55e" : "#eab308",
+        fillOpacity: 0.35,
+      };
+    case "ndre":
+      return {
+        color: "#14b8a6",
+        weight: 3.5,
+        dashArray: "4, 4",
+        fillColor: "#047857",
+        fillOpacity: 0.38,
+      };
+    case "ndwi":
+      return {
+        color: "#38bdf8",
+        weight: 3.5,
+        dashArray: "4, 4",
+        fillColor: "#0284c7",
+        fillOpacity: 0.42,
+      };
+    case "evi":
+      return {
+        color: "#a855f7",
+        weight: 3.5,
+        dashArray: "4, 4",
+        fillColor: "#16a34a",
+        fillOpacity: 0.35,
+      };
+    case "thermal":
+      return {
+        color: "#f97316",
+        weight: 3.5,
+        dashArray: "4, 4",
+        fillColor: "#ea580c",
+        fillOpacity: 0.42,
+      };
+    case "rgb":
+    default:
+      return {
+        color: "#38bdf8",
+        weight: 2.5,
+        dashArray: "6, 6",
+        fillColor: "#38bdf8",
+        fillOpacity: 0.15,
+      };
+  }
+};
+
+const getActiveSpectralValueDisplay = (telemetry: CoordinateTelemetryResult, spectral: string) => {
+  switch (spectral) {
+    case "ndre":
+      return {
+        label: "NDRE Chlorophyll",
+        val: telemetry.ndre,
+        status: telemetry.ndre >= 0.5 ? "High Nitrogen" : "Moderate Chlorophyll",
+        color: "text-emerald-600",
+      };
+    case "ndwi":
+      return {
+        label: "NDWI Hydration",
+        val: `${telemetry.ndwi >= 0 ? "+" : ""}${telemetry.ndwi}`,
+        status: telemetry.ndwi >= 0.15 ? "High Canopy Hydration" : "Moisture Deficit",
+        color: "text-sky-600",
+      };
+    case "evi":
+      return {
+        label: "EVI Biomass",
+        val: telemetry.evi,
+        status: "High Canopy Biomass",
+        color: "text-purple-600",
+      };
+    case "thermal":
+      return {
+        label: "Thermal LST",
+        val: `${telemetry.surfaceTempC}°C`,
+        status: telemetry.surfaceTempC <= 28 ? "Canopy Cooling Zone" : "Surface Warming",
+        color: "text-amber-600",
+      };
+    case "rgb":
+      return {
+        label: "Optical RGB",
+        val: "10m GSD",
+        status: "True Color Visual Spectrum",
+        color: "text-blue-600",
+      };
+    case "ndvi":
+    default:
+      return {
+        label: "NDVI Biomass",
+        val: telemetry.ndvi,
+        status: telemetry.classification,
+        color: "text-emerald-600",
+      };
+  }
+};
 
 function getZoneSurvivalRecords(
   zone: AgroforestryPresetZone,
@@ -380,6 +646,15 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
   const verifiedTrees = useMemo(() => trees.filter((t) => t.verification_status === "verified"), [trees]);
   const totalCo2Kg = verifiedTrees.length * 22;
   const currentLayer = SPECTRAL_LAYERS.find((l) => l.id === activeSpectral) || SPECTRAL_LAYERS[1];
+
+  const rasterGridCells = useMemo(() => {
+    return generateSpectralRasterGrid(
+      selectedZone.center,
+      selectedZone.boundary,
+      activeSpectral,
+      selectedZone.meanNdvi
+    );
+  }, [selectedZone.center, selectedZone.boundary, activeSpectral, selectedZone.meanNdvi]);
 
   // Handle Map Click for Remote Pixel Scouting
   const handleMapClick = useCallback(
@@ -780,24 +1055,40 @@ Please provide:
 
           {/* Map Container */}
           <div className="rounded-2xl overflow-hidden border-2 border-primary/30 shadow-inner relative">
-            {/* Dynamic Spectral Color Ramp Overlay Shader */}
-            <div
-              className="absolute inset-0 pointer-events-none z-[400] mix-blend-color opacity-35"
-              style={{
-                background:
-                  activeSpectral === "ndvi"
-                    ? "radial-gradient(circle at 45% 45%, rgba(21,128,61,0.7) 0%, rgba(132,204,22,0.4) 40%, rgba(234,179,8,0.2) 75%, transparent 100%)"
-                    : activeSpectral === "ndre"
-                    ? "radial-gradient(circle at 45% 45%, rgba(4,120,87,0.7) 0%, rgba(59,130,246,0.4) 50%, rgba(250,204,21,0.2) 80%, transparent 100%)"
-                    : activeSpectral === "ndwi"
-                    ? "radial-gradient(circle at 45% 45%, rgba(29,78,216,0.7) 0%, rgba(56,189,248,0.4) 50%, rgba(180,83,9,0.2) 80%, transparent 100%)"
-                    : activeSpectral === "evi"
-                    ? "radial-gradient(circle at 45% 45%, rgba(22,163,74,0.7) 0%, rgba(202,138,4,0.4) 50%, rgba(225,29,72,0.2) 80%, transparent 100%)"
-                    : activeSpectral === "thermal"
-                    ? "radial-gradient(circle at 45% 45%, rgba(30,58,138,0.7) 0%, rgba(245,158,11,0.4) 50%, rgba(185,28,28,0.2) 80%, transparent 100%)"
-                    : "none",
-              }}
-            />
+            {/* Floating On-Map Multi-Spectral Telemetry HUD */}
+            <div className="absolute top-3 right-3 z-[1000] bg-background/95 backdrop-blur-md p-3 rounded-2xl border border-primary/30 shadow-xl max-w-[280px] space-y-2 pointer-events-auto transition-all">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  <Satellite className="h-4 w-4 text-primary animate-pulse" />
+                  <span className="font-heading font-extrabold text-[11px] text-foreground tracking-wider uppercase">
+                    Sentinel-2 L2A
+                  </span>
+                </div>
+                <Badge className="text-[10px] font-bold bg-primary/15 text-primary border-primary/30">
+                  {activeSpectral.toUpperCase()} Mode
+                </Badge>
+              </div>
+
+              <div>
+                <div className="font-bold text-xs text-foreground truncate">{currentLayer.name.split("(")[0]}</div>
+                <div className="text-[10px] text-muted-foreground font-mono">{currentLayer.bandsUsed.split("(")[0]}</div>
+              </div>
+
+              {/* Active Scale Color Ramp */}
+              <div className="space-y-1 pt-0.5">
+                <div
+                  className="h-2 w-full rounded-full border border-border/50 shadow-inner"
+                  style={{
+                    background: `linear-gradient(to right, ${currentLayer.palette.min}, ${currentLayer.palette.mid}, ${currentLayer.palette.max})`,
+                  }}
+                />
+                <div className="flex items-center justify-between text-[9px] text-muted-foreground font-mono">
+                  <span>{currentLayer.minVal}</span>
+                  <span className="text-primary font-bold">{currentLayer.optimalRange}</span>
+                  <span>{currentLayer.maxVal}</span>
+                </div>
+              </div>
+            </div>
 
             <MapContainer
               center={mapCenter}
@@ -811,34 +1102,64 @@ Please provide:
                 zoomTarget={mapZoom}
               />
 
+              <SpectralTileFilterController activeSpectral={activeSpectral} />
+
               <TileLayer
                 url={SATELLITE_TILES[activeSpectral] || SATELLITE_TILES.rgb}
                 attribution="&copy; ESRI World Imagery & Sentinel-2 Earth Observation"
               />
 
-              {/* Plot Cadastral Boundary Polygon for Active Agroforestry Zone */}
+              {/* Plot Cadastral Boundary Polygon with Dynamic Spectral Styling */}
               {selectedZone.boundary && Array.isArray(selectedZone.boundary) && selectedZone.boundary.length >= 3 && (
                 <Polygon
                   positions={selectedZone.boundary}
-                  pathOptions={{
-                    color: "#22c55e",
-                    weight: 3,
-                    dashArray: "6, 6",
-                    fillColor: "#15803d",
-                    fillOpacity: 0.25,
-                  }}
+                  pathOptions={getSpectralPolygonStyle(activeSpectral, selectedZone.meanNdvi)}
                 >
                   <Popup>
-                    <div className="text-xs space-y-1">
+                    <div className="text-xs space-y-1.5 min-w-[180px]">
                       <div className="font-bold text-foreground">{selectedZone.name}</div>
                       <div className="text-muted-foreground">{selectedZone.district}</div>
-                      <div className="text-emerald-600 font-semibold">
-                        Target: {selectedZone.targetTrees.toLocaleString()} Trees · NDVI: {selectedZone.meanNdvi}
+                      <div className="p-1.5 rounded-lg bg-primary/10 border border-primary/20 space-y-1">
+                        <div className="flex items-center justify-between font-mono text-[11px]">
+                          <span className="text-muted-foreground">Mean NDVI:</span>
+                          <strong className="text-primary">{selectedZone.meanNdvi}</strong>
+                        </div>
+                        <div className="flex items-center justify-between font-mono text-[11px]">
+                          <span className="text-muted-foreground">Active Layer:</span>
+                          <strong className="text-foreground uppercase">{activeSpectral}</strong>
+                        </div>
+                      </div>
+                      <div className="text-emerald-600 font-semibold text-[11px]">
+                        Target: {selectedZone.targetTrees.toLocaleString()} Trees
                       </div>
                     </div>
                   </Popup>
                 </Polygon>
               )}
+
+              {/* 10m Sentinel-2 Multi-Spectral Sub-Pixel Raster Grid Overlay */}
+              {rasterGridCells.map((cell) => (
+                <Rectangle
+                  key={cell.id}
+                  bounds={cell.bounds}
+                  pathOptions={{
+                    color: cell.color,
+                    weight: 1,
+                    dashArray: "2, 2",
+                    fillColor: cell.color,
+                    fillOpacity: cell.opacity,
+                  }}
+                >
+                  <Tooltip sticky direction="top">
+                    <div className="text-xs font-bold font-mono">
+                      {cell.label}
+                      <div className="text-[10px] font-normal text-muted-foreground">
+                        Sentinel-2 10m Ground Resolution
+                      </div>
+                    </div>
+                  </Tooltip>
+                </Rectangle>
+              ))}
 
               {/* Plot DB Projects Boundaries if available */}
               {dbProjects.map((p) => {
@@ -870,22 +1191,36 @@ Please provide:
                 );
               })}
 
-              {/* Inspected Target Reticle Marker */}
+              {/* Inspected Target Reticle Marker with Active Spectral Metrics */}
               {inspectedTelemetry && (
                 <Marker
                   position={[inspectedTelemetry.latitude, inspectedTelemetry.longitude]}
                   icon={targetReticleIcon}
                 >
                   <Popup>
-                    <div className="text-xs space-y-1">
-                      <div className="font-bold text-foreground">🎯 Selected Remote Scout Coordinate</div>
-                      <div className="font-mono text-muted-foreground">
-                        {inspectedTelemetry.latitude.toFixed(4)}°N, {inspectedTelemetry.longitude.toFixed(4)}°E
-                      </div>
-                      <div className="text-emerald-600 font-bold">
-                        NDVI: {inspectedTelemetry.ndvi} ({inspectedTelemetry.classification})
-                      </div>
-                    </div>
+                    {(() => {
+                      const spec = getActiveSpectralValueDisplay(inspectedTelemetry, activeSpectral);
+                      return (
+                        <div className="text-xs space-y-1.5 min-w-[200px]">
+                          <div className="font-bold text-foreground">🎯 Scouted Sentinel-2 Pixel</div>
+                          <div className="font-mono text-[10px] text-muted-foreground">
+                            {inspectedTelemetry.latitude.toFixed(4)}°N, {inspectedTelemetry.longitude.toFixed(4)}°E
+                          </div>
+                          <div className="p-2 rounded-lg bg-muted/60 border border-border/50 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">{spec.label}:</span>
+                              <strong className={`font-mono font-bold ${spec.color}`}>{spec.val}</strong>
+                            </div>
+                            <div className="text-[10px] text-muted-foreground font-medium">
+                              {spec.status}
+                            </div>
+                          </div>
+                          <div className="text-[10px] text-muted-foreground font-mono">
+                            Tile: {inspectedTelemetry.tileId} · Cloud: {inspectedTelemetry.cloudCoverPct}%
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </Popup>
                 </Marker>
               )}

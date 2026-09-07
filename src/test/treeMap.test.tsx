@@ -15,6 +15,8 @@ vi.mock("react-leaflet", () => ({
   Marker: ({ children }: any) => <div data-testid="marker">{children}</div>,
   Popup: ({ children }: any) => <div data-testid="popup">{children}</div>,
   Polygon: ({ children }: any) => <div data-testid="polygon">{children}</div>,
+  Rectangle: ({ children }: any) => <div data-testid="rectangle">{children}</div>,
+  Tooltip: ({ children }: any) => <div data-testid="tooltip">{children}</div>,
   Circle: ({ children }: any) => <div data-testid="circle">{children}</div>,
   Polyline: ({ children }: any) => <div data-testid="polyline">{children}</div>,
   useMap: () => ({
@@ -22,6 +24,7 @@ vi.mock("react-leaflet", () => ({
     setView: vi.fn(),
     on: vi.fn(),
     off: vi.fn(),
+    getPane: vi.fn(() => ({ style: {} })),
   }),
   useMapEvents: vi.fn(),
 }));
