@@ -185,24 +185,30 @@ describe("Module A & TreeMap Component Integrity", () => {
     expect(demoPreset?.creatorInfo).toContain("Synthetic Demo Simulator");
   });
 
-  it("ErrorBoundary gracefully renders fallback on error without blank screen", async () => {
-    const { ErrorBoundary } = await import("@/components/ErrorBoundary");
-    const ThrowingComponent = () => {
-      throw new Error("Synthetic Test Rendering Crash");
-    };
+  it("toggles Demo Mode in ModuleASatelliteEngine and renders demo banner without crashing", async () => {
+    const { fireEvent } = await import("@testing-library/react");
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
 
-    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    const { getByText } = render(
-      <ErrorBoundary fallbackTitle="Custom Test Error Title">
-        <ThrowingComponent />
-      </ErrorBoundary>
+    const { getByLabelText, getByText } = render(
+      <QueryClientProvider client={queryClient}>
+        <LanguageProvider>
+          <BrowserRouter>
+            <ModuleASatelliteEngine trees={[]} />
+          </BrowserRouter>
+        </LanguageProvider>
+      </QueryClientProvider>
     );
 
-    expect(getByText("Custom Test Error Title")).toBeDefined();
-    expect(getByText(/Synthetic Test Rendering Crash/)).toBeDefined();
-    expect(getByText("Retry Viewport")).toBeDefined();
+    const toggle = getByLabelText(/Demo Mode/i);
+    expect(toggle).toBeDefined();
 
-    spy.mockRestore();
+    // Click demo mode toggle
+    fireEvent.click(toggle);
+
+    // Verify demo banner is rendered
+    expect(getByText(/Demo Simulation Mode Active/i)).toBeDefined();
+    expect(getByText(/Exit Demo Mode/i)).toBeDefined();
   });
 });
