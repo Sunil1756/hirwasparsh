@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -12,7 +12,8 @@ import {
   Area,
 } from "recharts";
 import { generateNDVITimeSeries, SPECIES_ALLOMETRY_CATALOG } from "@/lib/carbonBiomassEngine";
-import { Activity, TrendingUp, Sparkles, Layers, ShieldCheck, Download } from "lucide-react";
+import { fetchSatelliteReadings, SatelliteReadingRecord } from "@/lib/databaseAuditService";
+import { Activity, TrendingUp, Sparkles, Layers, ShieldCheck, Download, Database } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,23 +28,61 @@ interface Props {
   initialSpeciesKey?: string;
   initialTreeCount?: number;
   plotName?: string;
+  plotId?: string;
 }
 
 export function CanopyNDVITimeSeriesChart({
   initialSpeciesKey = "mixed_native",
   initialTreeCount = 2500,
   plotName = "Sahyadri Agroforestry Cluster #04",
+  plotId,
 }: Props) {
   const [speciesKey, setSpeciesKey] = useState(initialSpeciesKey);
   const [treeCount, setTreeCount] = useState(initialTreeCount);
   const [activeMetric, setActiveMetric] = useState<"ndvi" | "biomass" | "combined">("combined");
+  const [realReadings, setRealReadings] = useState<SatelliteReadingRecord[]>([]);
+  const [isReadingDb, setIsReadingDb] = useState(false);
+
+  useEffect(() => {
+    async function loadDbReadings() {
+      if (!plotId) return;
+      setIsReadingDb(true);
+      try {
+        const data = await fetchSatelliteReadings(plotId);
+        if (data && data.length > 0) {
+          setRealReadings(data);
+        }
+      } catch (err) {
+        console.warn("Could not load real satellite readings:", err);
+      } finally {
+        setIsReadingDb(false);
+      }
+    }
+    loadDbReadings();
+  }, [plotId]);
+
+  const hasRealData = realReadings.length > 0;
 
   const timeSeriesData = useMemo(() => {
+    if (hasRealData) {
+      return realReadings.map((r, idx) => ({
+        month: r.reading_date,
+        monthNumber: idx + 1,
+        ndvi: Number(r.ndvi),
+        ndre: Number(r.ndre),
+        ndwi: Number(r.ndwi),
+        biomassMT: Math.round(Number(r.ndvi) * 55 * 10) / 10,
+        co2eMT: Math.round(Number(r.ndvi) * 55 * 3.667 * 0.47 * 10) / 10,
+        canopyCoverPercent: Math.min(95, Math.round(Number(r.ndvi) * 100)),
+        isMonsoonSeason: false,
+      }));
+    }
+
     return generateNDVITimeSeries({
       speciesKey,
       treeCount,
     });
-  }, [speciesKey, treeCount]);
+  }, [speciesKey, treeCount, hasRealData, realReadings]);
 
   const latestData = timeSeriesData[timeSeriesData.length - 1];
   const baselineData = timeSeriesData[0];
@@ -56,14 +95,14 @@ export function CanopyNDVITimeSeriesChart({
     const rows = timeSeriesData
       .map(
         (d) =>
-          `${d.month},${d.ndvi},${d.ndre},${d.ndwi},${d.biomassMT},${d.co2eMT}`
+          `${d.month},${d.ndvi},${(d as any).ndre || 0},${d.ndwi},${d.biomassMT},${d.co2eMT}`
       )
       .join("\n");
     const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `NDVI_Telemetry_TimeSeries_${speciesKey}.csv`;
+    a.download = `NDVI_Telemetry_TimeSeries_${plotName.replace(/\s+/g, "_")}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -93,9 +132,15 @@ export function CanopyNDVITimeSeriesChart({
           >
             <Download className="h-3.5 w-3.5" /> Export CSV
           </Button>
-          <Badge variant="outline" className="text-xs bg-primary/10 border-primary/30 text-primary">
-            Map My Crop Telemetry Engine
-          </Badge>
+          {hasRealData ? (
+            <Badge className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/40 gap-1 text-xs">
+              <Database className="h-3 w-3" /> Live Sentinel-2 DB ({realReadings.length} Passes)
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-xs bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400">
+              Chave Allometric Model (Awaiting Overpass)
+            </Badge>
+          )}
           <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
             +{ndviGrowthRate}% Canopy Expansion
           </Badge>

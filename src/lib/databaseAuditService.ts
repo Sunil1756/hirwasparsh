@@ -355,59 +355,15 @@ export async function auditDatabaseSpine(): Promise<DatabaseAuditSummary> {
 }
 
 /**
- * Bootstraps verified pilot data into Supabase if tables are currently empty
+ * Clean real-only Supabase fetchers: No synthetic fake plots or trees are auto-injected.
  */
 export async function bootstrapPilotDataIfEmpty(): Promise<{ seeded: boolean; message: string }> {
-  try {
-    // Check if plots already exist
-    const { data: existingPlots } = await supabase.from("plots" as any).select("id, name");
-    if (existingPlots && existingPlots.length >= 3) {
-      return { seeded: false, message: `Database already populated with ${existingPlots.length} active plots.` };
-    }
-
-    // 1. Seed Organizations
-    const { data: orgData, error: orgErr } = await supabase
-      .from("organizations" as any)
-      .insert(SEED_ORGANIZATIONS as any)
-      .select("id, slug");
-
-    const defaultOrgId = orgData?.[0]?.id;
-
-    // 2. Seed Plots
-    const plotsToInsert = SEED_PLOTS.map((p) => ({
-      ...p,
-      org_id: defaultOrgId,
-    }));
-
-    const { data: insertedPlots, error: plotErr } = await supabase
-      .from("plots" as any)
-      .insert(plotsToInsert as any)
-      .select("id, name");
-
-    const plotIdMap: Record<string, string> = {};
-    if (insertedPlots) {
-      for (const p of insertedPlots as any[]) {
-        plotIdMap[p.name] = p.id;
-      }
-    }
-
-    // 3. Seed Trees
-    const treesToInsert = generateSeedTrees(plotIdMap).map((t) => ({
-      ...t,
-      org_id: defaultOrgId,
-    }));
-
-    await supabase.from("trees").insert(treesToInsert as any);
-
-    return { seeded: true, message: `Successfully seeded ${SEED_PLOTS.length} plots and ${treesToInsert.length} GPS-tagged verified trees.` };
-  } catch (err: any) {
-    console.warn("Pilot bootstrap warning:", err);
-    return { seeded: false, message: err?.message || "Failed to bootstrap pilot data" };
-  }
+  // Pure real mode: no mock seeds auto-injected.
+  return { seeded: false, message: "Real database mode active. Only user-created plots and trees are retained." };
 }
 
 /**
- * Fetch all verified plots from Supabase (with fallback to verified pilot records)
+ * Fetch all real verified plots from Supabase (returns [] if no plots exist)
  */
 export async function fetchRealPlots(): Promise<PlotRecord[]> {
   try {
@@ -423,18 +379,14 @@ export async function fetchRealPlots(): Promise<PlotRecord[]> {
       }));
     }
   } catch (err) {
-    console.warn("fetchRealPlots fallback:", err);
+    console.warn("fetchRealPlots query error:", err);
   }
 
-  // Return seed plots with synthetic IDs if Supabase table is unreachable
-  return SEED_PLOTS.map((p, idx) => ({
-    id: `plot-seed-${idx + 1}`,
-    ...p,
-  }));
+  return [];
 }
 
 /**
- * Fetch real trees from Supabase
+ * Fetch real trees from Supabase (returns [] if no trees exist)
  */
 export async function fetchRealTrees(plotId?: string): Promise<RealTreeRecord[]> {
   try {
@@ -447,18 +399,132 @@ export async function fetchRealTrees(plotId?: string): Promise<RealTreeRecord[]>
       return data as any;
     }
   } catch (err) {
-    console.warn("fetchRealTrees fallback:", err);
+    console.warn("fetchRealTrees query error:", err);
   }
 
-  const plotMap: Record<string, string> = {};
-  SEED_PLOTS.forEach((p, i) => {
-    plotMap[p.name] = `plot-seed-${i + 1}`;
-  });
+  return [];
+}
 
-  return generateSeedTrees(plotMap).map((t, idx) => ({
-    id: `tree-seed-${idx + 1}`,
-    ...t,
-  })) as any;
+export interface DataSourceAuditItem {
+  id: string;
+  name: string;
+  sourceType: "real_user_plot" | "real_csr_project" | "demo_preset";
+  location: string;
+  district: string;
+  totalTrees: number;
+  approvedTrees: number;
+  pendingTrees: number;
+  verificationCount: number;
+  satellitePassesCount: number;
+  lastSatelliteDate: string | null;
+  meanNdvi: number | null;
+  createdAt: string;
+  creatorInfo: string;
+  integrityStatus: "verified_with_evidence" | "active_monitoring" | "awaiting_trees" | "demo_simulation";
+  photoEvidenceSample?: string | null;
+}
+
+/**
+ * Comprehensive ground truth & data source audit list for Internal NGO/Admin review
+ */
+export async function fetchDataSourceAuditList(includeDemoPresets = false): Promise<DataSourceAuditItem[]> {
+  const items: DataSourceAuditItem[] = [];
+
+  try {
+    const [
+      { data: plots },
+      { data: projects },
+      { data: allTrees },
+      { data: verifications },
+      { data: satReadings },
+    ] = await Promise.all([
+      supabase.from("plots" as any).select("*").order("created_at", { ascending: false }),
+      supabase.from("plantation_projects").select("*").order("created_at", { ascending: false }),
+      supabase.from("trees").select("id, plot_id, project_id, admin_status, verification_status, photo_url, created_at, user_id, tree_name, location"),
+      supabase.from("verifications" as any).select("id, tree_id, created_at"),
+      supabase.from("satellite_readings" as any).select("id, plot_id, ndvi, reading_date").order("reading_date", { ascending: false }),
+    ]);
+
+    const treesList = allTrees || [];
+    const verifList = verifications || [];
+    const satList = satReadings || [];
+
+    // 1. Audit real user plots
+    if (plots && plots.length > 0) {
+      for (const p of plots as any[]) {
+        const linkedTrees = treesList.filter((t: any) => t.plot_id === p.id);
+        const approved = linkedTrees.filter((t: any) => t.admin_status === "approved" || t.verification_status === "verified").length;
+        const pending = linkedTrees.length - approved;
+        const linkedTreeIds = new Set(linkedTrees.map((t: any) => t.id));
+        const verifCount = verifList.filter((v: any) => linkedTreeIds.has(v.tree_id)).length;
+        const pSat = satList.filter((s: any) => s.plot_id === p.id);
+        const latestSat = pSat[0];
+        const samplePhoto = linkedTrees.find((t: any) => t.photo_url)?.photo_url || null;
+
+        let integrityStatus: DataSourceAuditItem["integrityStatus"] = "awaiting_trees";
+        if (linkedTrees.length > 0 && (approved > 0 || verifCount > 0)) {
+          integrityStatus = "verified_with_evidence";
+        } else if (linkedTrees.length > 0) {
+          integrityStatus = "active_monitoring";
+        }
+
+        items.push({
+          id: p.id,
+          name: p.name,
+          sourceType: "real_user_plot",
+          location: p.location || `${p.district || "Maharashtra"}, India`,
+          district: p.district || "Maharashtra",
+          totalTrees: linkedTrees.length || p.planted_trees || 0,
+          approvedTrees: approved,
+          pendingTrees: pending,
+          verificationCount: verifCount,
+          satellitePassesCount: pSat.length,
+          lastSatelliteDate: latestSat?.reading_date || null,
+          meanNdvi: latestSat ? Number(latestSat.ndvi) : (p.current_mean_ndvi ? Number(p.current_mean_ndvi) : null),
+          createdAt: p.created_at || new Date().toISOString(),
+          creatorInfo: p.org_id ? `Org ID: ${p.org_id.substring(0, 8)}` : "Platform User / Field Officer",
+          integrityStatus,
+          photoEvidenceSample: samplePhoto,
+        });
+      }
+    }
+
+    // 2. Audit real CSR/NGO projects (e.g. saga, VarshikVruksha Ropan 2k26)
+    if (projects && projects.length > 0) {
+      for (const pr of projects) {
+        const linkedTrees = treesList.filter((t: any) =>
+          t.project_id === pr.id ||
+          (t.location && pr.location && t.location.toLowerCase().includes(pr.location.toLowerCase()))
+        );
+        const approved = linkedTrees.filter((t: any) => t.admin_status === "approved" || t.verification_status === "verified").length;
+        const pending = linkedTrees.length - approved;
+        const samplePhoto = linkedTrees.find((t: any) => t.photo_url)?.photo_url || null;
+
+        items.push({
+          id: pr.id,
+          name: pr.project_name,
+          sourceType: "real_csr_project",
+          location: pr.location || "Maharashtra, India",
+          district: pr.location || "Maharashtra",
+          totalTrees: pr.verified_trees || linkedTrees.length || pr.target_trees || 0,
+          approvedTrees: approved || pr.verified_trees || 0,
+          pendingTrees: pending,
+          verificationCount: approved,
+          satellitePassesCount: 0,
+          lastSatelliteDate: null,
+          meanNdvi: null,
+          createdAt: pr.created_at,
+          creatorInfo: `${pr.organization_name} (${pr.contact_email || pr.user_id.substring(0, 8)})`,
+          integrityStatus: (pr.verified_trees > 0 || approved > 0) ? "verified_with_evidence" : "active_monitoring",
+          photoEvidenceSample: samplePhoto,
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("fetchDataSourceAuditList error:", err);
+  }
+
+  return items;
 }
 
 /**
@@ -514,3 +580,140 @@ export async function saveNewPlot(plot: {
     status: "active",
   };
 }
+
+export interface SatelliteReadingRecord {
+  id: string;
+  plot_id: string;
+  ndvi: number;
+  ndre: number;
+  ndwi: number;
+  reading_date: string;
+  source: string;
+  created_at?: string;
+}
+
+export interface VerificationRecord {
+  id: string;
+  tree_id: string;
+  photo_url: string;
+  ai_confidence: number;
+  verification_type: string;
+  created_at?: string;
+}
+
+/**
+ * Fetch real multi-spectral satellite readings for a plot from Supabase
+ */
+export async function fetchSatelliteReadings(plotId?: string): Promise<SatelliteReadingRecord[]> {
+  try {
+    let query = supabase
+      .from("satellite_readings" as any)
+      .select("*")
+      .order("reading_date", { ascending: true });
+
+    if (plotId) {
+      query = query.eq("plot_id", plotId);
+    }
+
+    const { data, error } = await query;
+    if (!error && data && data.length > 0) {
+      return data as SatelliteReadingRecord[];
+    }
+  } catch (err) {
+    console.warn("fetchSatelliteReadings error:", err);
+  }
+  return [];
+}
+
+/**
+ * Record a new satellite telemetry overpass reading in Supabase
+ */
+export async function recordSatelliteReading(reading: {
+  plot_id: string;
+  ndvi: number;
+  ndre: number;
+  ndwi: number;
+  reading_date?: string;
+  source?: string;
+}): Promise<SatelliteReadingRecord | null> {
+  try {
+    const payload = {
+      plot_id: reading.plot_id,
+      ndvi: reading.ndvi,
+      ndre: reading.ndre,
+      ndwi: reading.ndwi,
+      reading_date: reading.reading_date || new Date().toISOString().split("T")[0],
+      source: reading.source || "sentinel-2",
+    };
+
+    const { data, error } = await supabase
+      .from("satellite_readings" as any)
+      .insert(payload as any)
+      .select("*")
+      .single();
+
+    if (!error && data) {
+      return data as SatelliteReadingRecord;
+    }
+  } catch (err) {
+    console.warn("recordSatelliteReading error:", err);
+  }
+  return null;
+}
+
+/**
+ * Fetch verifications for trees or plot from Supabase
+ */
+export async function fetchTreeVerifications(treeId?: string): Promise<VerificationRecord[]> {
+  try {
+    let query = supabase
+      .from("verifications" as any)
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (treeId) {
+      query = query.eq("tree_id", treeId);
+    }
+
+    const { data, error } = await query;
+    if (!error && data && data.length > 0) {
+      return data as VerificationRecord[];
+    }
+  } catch (err) {
+    console.warn("fetchTreeVerifications error:", err);
+  }
+  return [];
+}
+
+/**
+ * Record ground/AI verification entry
+ */
+export async function recordVerification(verification: {
+  tree_id: string;
+  photo_url: string;
+  ai_confidence: number;
+  verification_type?: string;
+}): Promise<VerificationRecord | null> {
+  try {
+    const payload = {
+      tree_id: verification.tree_id,
+      photo_url: verification.photo_url,
+      ai_confidence: verification.ai_confidence,
+      verification_type: verification.verification_type || "ai_vision",
+    };
+
+    const { data, error } = await supabase
+      .from("verifications" as any)
+      .insert(payload as any)
+      .select("*")
+      .single();
+
+    if (!error && data) {
+      return data as VerificationRecord;
+    }
+  } catch (err) {
+    console.warn("recordVerification error:", err);
+  }
+  return null;
+}
+

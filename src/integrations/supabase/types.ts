@@ -235,6 +235,62 @@ export type Database = {
         }
         Relationships: []
       }
+      organizations: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          type?: string
+        }
+        Relationships: []
+      }
+      plots: {
+        Row: {
+          boundary_geojson: Json
+          created_at: string
+          id: string
+          location: string
+          name: string
+          org_id: string | null
+        }
+        Insert: {
+          boundary_geojson?: Json
+          created_at?: string
+          id?: string
+          location?: string
+          name: string
+          org_id?: string | null
+        }
+        Update: {
+          boundary_geojson?: Json
+          created_at?: string
+          id?: string
+          location?: string
+          name?: string
+          org_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plots_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plantation_drives: {
         Row: {
           created_at: string
@@ -671,16 +727,21 @@ export type Database = {
           flagged_reason: string | null
           height_cm: number
           id: string
+          lat: number | null
           latitude: number | null
+          lng: number | null
           location: string
           longitude: number | null
           photo_hash: string | null
           photo_url: string | null
           plantation_date: string
+          planted_date: string | null
+          plot_id: string | null
           points_awarded: number
           qr_token: string | null
           selfie_photo_url: string | null
           species: string
+          status: string | null
           tree_name: string
           updated_at: string
           user_id: string | null
@@ -703,16 +764,21 @@ export type Database = {
           flagged_reason?: string | null
           height_cm: number
           id?: string
+          lat?: number | null
           latitude?: number | null
+          lng?: number | null
           location: string
           longitude?: number | null
           photo_hash?: string | null
           photo_url?: string | null
           plantation_date: string
+          planted_date?: string | null
+          plot_id?: string | null
           points_awarded?: number
           qr_token?: string | null
           selfie_photo_url?: string | null
           species: string
+          status?: string | null
           tree_name: string
           updated_at?: string
           user_id?: string | null
@@ -735,16 +801,21 @@ export type Database = {
           flagged_reason?: string | null
           height_cm?: number
           id?: string
+          lat?: number | null
           latitude?: number | null
+          lng?: number | null
           location?: string
           longitude?: number | null
           photo_hash?: string | null
           photo_url?: string | null
           plantation_date?: string
+          planted_date?: string | null
+          plot_id?: string | null
           points_awarded?: number
           qr_token?: string | null
           selfie_photo_url?: string | null
           species?: string
+          status?: string | null
           tree_name?: string
           updated_at?: string
           user_id?: string | null
@@ -756,6 +827,89 @@ export type Database = {
             columns: ["drive_id"]
             isOneToOne: false
             referencedRelation: "plantation_drives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trees_plot_id_fkey"
+            columns: ["plot_id"]
+            isOneToOne: false
+            referencedRelation: "plots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verifications: {
+        Row: {
+          ai_confidence: number
+          created_at: string
+          id: string
+          photo_url: string
+          tree_id: string
+          verification_type: string
+        }
+        Insert: {
+          ai_confidence?: number
+          created_at?: string
+          id?: string
+          photo_url: string
+          tree_id: string
+          verification_type?: string
+        }
+        Update: {
+          ai_confidence?: number
+          created_at?: string
+          id?: string
+          photo_url?: string
+          tree_id?: string
+          verification_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verifications_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      satellite_readings: {
+        Row: {
+          created_at: string
+          id: string
+          ndre: number
+          ndvi: number
+          ndwi: number
+          plot_id: string
+          reading_date: string
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ndre: number
+          ndvi: number
+          ndwi: number
+          plot_id: string
+          reading_date?: string
+          source?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ndre?: number
+          ndvi?: number
+          ndwi?: number
+          plot_id?: string
+          reading_date?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "satellite_readings_plot_id_fkey"
+            columns: ["plot_id"]
+            isOneToOne: false
+            referencedRelation: "plots"
             referencedColumns: ["id"]
           },
         ]
@@ -778,9 +932,181 @@ export type Database = {
         }
         Relationships: []
       }
+      check_ins: {
+        Row: {
+          ai_confidence: number | null
+          checked_at: string
+          checked_by: string
+          created_at: string
+          id: string
+          notes: string | null
+          photo_url: string | null
+          status: string
+          tree_id: string
+        }
+        Insert: {
+          ai_confidence?: number | null
+          checked_at?: string
+          checked_by?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          photo_url?: string | null
+          status: string
+          tree_id: string
+        }
+        Update: {
+          ai_confidence?: number | null
+          checked_at?: string
+          checked_by?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          photo_url?: string | null
+          status?: string
+          tree_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "check_ins_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      field_tasks: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          metadata: Json | null
+          plot_id: string
+          priority: string
+          status: string
+          task_type: string
+          title: string
+          tree_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          metadata?: Json | null
+          plot_id: string
+          priority?: string
+          status?: string
+          task_type?: string
+          title: string
+          tree_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          metadata?: Json | null
+          plot_id?: string
+          priority?: string
+          status?: string
+          task_type?: string
+          title?: string
+          tree_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_tasks_plot_id_fkey"
+            columns: ["plot_id"]
+            isOneToOne: false
+            referencedRelation: "plots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "field_tasks_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          plot_id: string | null
+          title: string
+          tree_id: string | null
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          plot_id?: string | null
+          title: string
+          tree_id?: string | null
+          type?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          plot_id?: string | null
+          title?: string
+          tree_id?: string | null
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_plot_id_fkey"
+            columns: ["plot_id"]
+            isOneToOne: false
+            referencedRelation: "plots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      plot_survival_rates: {
+        Row: {
+          alive_count: number
+          dead_count: number
+          effective_survival_rate_pct: number
+          latest_audit_at: string | null
+          location: string | null
+          plot_id: string
+          plot_name: string
+          total_trees: number
+          unverified_count: number
+          verified_survival_rate_pct: number
+        }
+        Relationships: []
+      }
     }
     Functions: {
       admin_get_trees: {

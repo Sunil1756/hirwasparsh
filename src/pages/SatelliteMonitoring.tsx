@@ -17,6 +17,7 @@ import { AllometricCarbonCalculator } from "@/components/AllometricCarbonCalcula
 import { FieldScoutingModule } from "@/components/FieldScoutingModule";
 import { ESGReportModal } from "@/components/ESGReportModal";
 import { GeminiApiKeyModal } from "@/components/GeminiApiKeyModal";
+import { DataSourceAuditView } from "@/components/DataSourceAuditView";
 import { getNdviColor } from "@/lib/remoteSensing";
 
 // Maharashtra center and bounds
@@ -297,6 +298,7 @@ const SatelliteMonitoring = () => {
             />
             <AllometricCarbonCalculator />
             <FieldScoutingModule />
+            <DataSourceAuditView />
           </div>
 
           {/* District Rankings & Alerts */}

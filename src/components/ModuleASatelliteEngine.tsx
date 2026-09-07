@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { AgroWeatherWidget } from "./AgroWeatherWidget";
 import { NDVISpectralViewer } from "./NDVISpectralViewer";
 import { CanopyNDVITimeSeriesChart } from "./CanopyNDVITimeSeriesChart";
@@ -54,6 +55,10 @@ import { GeminiApiKeyModal } from "./GeminiApiKeyModal";
 import { SatellitePixelInspectorHUD } from "./SatellitePixelInspectorHUD";
 import { SatelliteTimeSliderCompare } from "./SatelliteTimeSliderCompare";
 import { SatelliteTreeSurvivalAssurance } from "./SatelliteTreeSurvivalAssurance";
+import { DataSourceAuditView } from "./DataSourceAuditView";
+import { PlotSurvivalRateView } from "./PlotSurvivalRateView";
+import { BulkPlotNdviTrendMonitor } from "./BulkPlotNdviTrendMonitor";
+import { Database } from "lucide-react";
 import {
   generateZoneTreeSurvivalRecords,
   convertDatabaseTreesToSurvivalRecords,
@@ -176,51 +181,59 @@ function getZoneSurvivalRecords(
     return convertDatabaseTreesToSurvivalRecords(treesList, zone.center, zone.name);
   }
 
-  const isDbProject = dbProjectsList.some((p) => p.id === zone.id);
-  if (isDbProject) {
-    const matching = treesList.filter(
-      (t: any) =>
-        t.project_id === zone.id ||
-        (t.location && zone.district && t.location.toLowerCase().includes(zone.district.toLowerCase())) ||
-        (t.location && zone.name.toLowerCase().includes(t.location.toLowerCase()))
+  // Check plot_id match or project_id match in database
+  const matching = treesList.filter(
+    (t: any) =>
+      t.plot_id === zone.id ||
+      t.project_id === zone.id ||
+      (t.location && zone.district && t.location.toLowerCase().includes(zone.district.toLowerCase())) ||
+      (t.location && zone.name.toLowerCase().includes(t.location.toLowerCase()))
+  );
+
+  if (matching.length > 0) {
+    return convertDatabaseTreesToSurvivalRecords(matching, zone.center, zone.name);
+  }
+
+  // If this is an explicit demo simulation preset, generate demo sample trees
+  if (zone.id.startsWith("demo_")) {
+    return generateZoneTreeSurvivalRecords(
+      zone.id,
+      zone.center[0],
+      zone.center[1],
+      zone.species,
+      24
     );
-    if (matching.length > 0) {
-      return convertDatabaseTreesToSurvivalRecords(matching, zone.center, zone.name);
-    }
-    if (treesList.length > 0) {
-      return convertDatabaseTreesToSurvivalRecords(treesList.slice(0, 24), zone.center, zone.name);
-    }
   }
 
-  // Check if any database trees match location of preset zone
-  const geoMatching = treesList.filter(
-    (t) =>
-      t.location &&
-      (zone.district.toLowerCase().includes(t.location.toLowerCase()) ||
-        zone.name.toLowerCase().includes(t.location.toLowerCase()))
-  );
-  if (geoMatching.length > 0) {
-    return convertDatabaseTreesToSurvivalRecords(geoMatching, zone.center, zone.name);
-  }
-
-  if (treesList.length > 0) {
-    return convertDatabaseTreesToSurvivalRecords(treesList.slice(0, 24), zone.center, zone.name);
-  }
-
-  return generateZoneTreeSurvivalRecords(
-    zone.id,
-    zone.center[0],
-    zone.center[1],
-    zone.species,
-    24
-  );
+  // Real parcel with 0 trees returns empty array (honest empty state)
+  return [];
 }
+
+const DEFAULT_EMPTY_ZONE: AgroforestryPresetZone = {
+  id: "statewide_overview",
+  name: "Maharashtra Agroforestry Network",
+  location: "Maharashtra, India",
+  district: "Maharashtra",
+  center: [19.75, 75.71],
+  zoom: 7,
+  boundary: [],
+  targetTrees: 0,
+  species: ["Neem", "Teak", "Banyan", "Peepal"],
+  plantedDate: new Date().toISOString().split("T")[0],
+  meanNdvi: 0.0,
+  meanNdwi: 0.0,
+  biomassTonsPerHa: 0.0,
+  carbonOffsetTons: 0,
+  healthStatus: "Moderate Growth",
+  description: "Live statewide Earth Observation telemetry monitoring verified agroforestry plantations.",
+};
 
 export function ModuleASatelliteEngine({ trees = [] }: Props) {
   const { toast } = useToast();
+  const [isDemoMode, setIsDemoMode] = useState(false);
   const [activeSpectral, setActiveSpectral] = useState<"rgb" | "ndvi" | "ndre" | "ndwi" | "evi" | "thermal">("ndvi");
-  const [activeSubTab, setActiveSubTab] = useState<"map" | "survival" | "slider" | "timeseries" | "carbon" | "parcel">("map");
-  const [showPurposeGuide, setShowPurposeGuide] = useState(true);
+  const [activeSubTab, setActiveSubTab] = useState<"map" | "survival" | "slider" | "timeseries" | "carbon" | "parcel" | "audit" | "rates">("map");
+  const [showPurposeGuide, setShowPurposeGuide] = useState(false);
 
   // User project boundaries and real Geofenced Plots from Supabase Data Spine
   const [dbProjects, setDbProjects] = useState<any[]>([]);
@@ -229,7 +242,6 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
   useEffect(() => {
     async function loadDataSpine() {
       try {
-        await bootstrapPilotDataIfEmpty();
         const [plots, { data: projects }] = await Promise.all([
           fetchRealPlots(),
           supabase.from("plantation_projects").select("*").order("created_at", { ascending: false }),
@@ -243,15 +255,15 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
     loadDataSpine();
   }, []);
 
-  // Combine Real Database Projects & Plots from Supabase with Preset Demonstration Corridors
+  // Combine Real Database Projects & Plots from Supabase (Strictly no fake plots unless Demo Mode is ON)
   const allAvailableZones: AgroforestryPresetZone[] = useMemo(() => {
     const list: AgroforestryPresetZone[] = [];
 
-    // Real Supabase Geofenced Plots (Highest Priority)
+    // 1. Real Supabase Geofenced Plots
     const realPlotZones: AgroforestryPresetZone[] = dbPlots.map((p) => {
       const pTrees = trees.filter((t: any) => t.plot_id === p.id);
-      const verifiedCount = pTrees.filter((t) => t.verification_status === "verified").length;
-      const rate = pTrees.length > 0 ? Math.round((verifiedCount / pTrees.length) * 1000) / 10 : 94.5;
+      const verifiedCount = pTrees.filter((t) => t.verification_status === "verified" || (t as any).admin_status === "approved").length;
+      const rate = pTrees.length > 0 ? Math.round((verifiedCount / pTrees.length) * 1000) / 10 : 0;
 
       return {
         id: p.id,
@@ -261,33 +273,35 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
         center: [p.center_lat, p.center_lng],
         zoom: 14,
         boundary: p.polygon_geojson && p.polygon_geojson.length >= 3 ? p.polygon_geojson : [],
-        targetTrees: p.target_trees,
+        targetTrees: p.target_trees || pTrees.length || 0,
         species: ["Neem", "Peepal", "Banyan", "Jamun", "Teak", "Karanj", "Bamboo"],
         plantedDate: p.created_at?.split("T")[0] || "2024-01-01",
-        meanNdvi: p.current_mean_ndvi || 0.78,
-        meanNdwi: 0.28,
-        biomassTonsPerHa: p.current_biomass_mt || 52.0,
-        carbonOffsetTons: Math.round(((p.planted_trees || p.target_trees) * 22) / 1000),
+        meanNdvi: pTrees.length > 0 ? (p.current_mean_ndvi || 0.72) : 0,
+        meanNdwi: pTrees.length > 0 ? 0.28 : 0,
+        biomassTonsPerHa: pTrees.length > 0 ? (p.current_biomass_mt || 45.0) : 0,
+        carbonOffsetTons: Math.round((pTrees.length * 22) / 1000),
         healthStatus: rate >= 85 ? "Optimal Vigor" : "Moderate Growth",
         description: `Verified Supabase Geofenced Agroforestry Parcel in ${p.district}, Maharashtra.`,
       };
     });
 
+    // 2. All Live Planted Trees
     if (trees.length > 0) {
       const validLats = trees.map((t) => Number(t.latitude)).filter((n) => !isNaN(n) && n !== 0);
       const validLngs = trees.map((t) => Number(t.longitude)).filter((n) => !isNaN(n) && n !== 0);
       const meanLat = validLats.length > 0 ? validLats.reduce((a, b) => a + b, 0) / validLats.length : 19.75;
       const meanLng = validLngs.length > 0 ? validLngs.reduce((a, b) => a + b, 0) / validLngs.length : 75.71;
-      const verifiedCount = trees.filter((t) => t.verification_status === "verified").length;
+      const verifiedCount = trees.filter((t) => t.verification_status === "verified" || (t as any).admin_status === "approved").length;
       const rate = Math.round((verifiedCount / trees.length) * 1000) / 10;
 
       list.push({
         id: "all-network-live",
-        name: "🌐 All Planted Trees (Live Supabase DB)",
+        name: "🌐 All Planted Trees",
         location: "Statewide Network",
         district: "Maharashtra, India",
         center: [meanLat, meanLng],
-        zoom: 12,
+        zoom: 10,
+        boundary: [],
         targetTrees: trees.length,
         species: Array.from(new Set(trees.map((t) => t.species).filter(Boolean) as string[])),
         plantedDate: trees[0]?.created_at?.split("T")[0] || "2024-01-01",
@@ -296,10 +310,11 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
         biomassTonsPerHa: 48.0,
         carbonOffsetTons: Math.round((verifiedCount * 22) / 1000),
         healthStatus: rate >= 80 ? "Optimal Vigor" : "Moderate Growth",
-        description: "100% live database aggregation of all planted trees registered on the platform.",
+        description: "Live database aggregation of all planted trees registered on the platform.",
       });
     }
 
+    // 3. Real CSR/NGO projects from database (e.g. saga, VarshikVruksha Ropan 2k26)
     const realZones: AgroforestryPresetZone[] = dbProjects.map((p) => {
       const pTrees = trees.filter(
         (t: any) =>
@@ -308,8 +323,8 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
       );
       const centerLat = p.boundary?.[0]?.lat || p.boundary?.[0]?.[0] || pTrees[0]?.latitude || 19.75;
       const centerLng = p.boundary?.[0]?.lng || p.boundary?.[0]?.[1] || pTrees[0]?.longitude || 75.71;
-      const verifiedCount = pTrees.filter((t) => t.verification_status === "verified").length;
-      const realSurvivalRate = pTrees.length > 0 ? Math.round((verifiedCount / pTrees.length) * 1000) / 10 : 92.5;
+      const verifiedCount = pTrees.filter((t) => t.verification_status === "verified" || (t as any).admin_status === "approved").length;
+      const realSurvivalRate = pTrees.length > 0 ? Math.round((verifiedCount / pTrees.length) * 1000) / 10 : 0;
 
       return {
         id: p.id,
@@ -321,32 +336,49 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
         boundary: Array.isArray(p.boundary)
           ? p.boundary.map((pt: any) => (Array.isArray(pt) ? [pt[0], pt[1]] : [pt.lat, pt.lng]))
           : [],
-        targetTrees: p.target_trees || pTrees.length || 500,
+        targetTrees: p.verified_trees || pTrees.length || p.target_trees || 0,
         species: Array.from(new Set(pTrees.map((t) => t.species).filter(Boolean) as string[])),
         plantedDate: p.created_at?.split("T")[0] || "2024-01-01",
-        meanNdvi: pTrees.length > 0 ? (realSurvivalRate >= 80 ? 0.79 : 0.68) : 0.74,
-        meanNdwi: 0.28,
-        biomassTonsPerHa: 45.0,
-        carbonOffsetTons: Math.round(((pTrees.length || p.target_trees || 100) * 22) / 1000),
+        meanNdvi: pTrees.length > 0 ? (realSurvivalRate >= 80 ? 0.79 : 0.68) : 0,
+        meanNdwi: pTrees.length > 0 ? 0.28 : 0,
+        biomassTonsPerHa: pTrees.length > 0 ? 45.0 : 0,
+        carbonOffsetTons: Math.round(((pTrees.length || p.verified_trees || 0) * 22) / 1000),
         healthStatus: realSurvivalRate >= 90 ? "Optimal Vigor" : "Moderate Growth",
         description: `Real CSR/NGO Agroforestry Project by ${p.organization_name || "Enterprise"} registered in Supabase database.`,
       };
     });
 
-    return [...realPlotZones, ...list, ...realZones, ...AGROFORESTRY_PRESET_ZONES];
-  }, [dbPlots, dbProjects, trees]);
+    const combinedReal = [...realPlotZones, ...list, ...realZones];
+
+    // If Demo Mode is explicitly enabled, append synthetic demo corridors
+    if (isDemoMode) {
+      const demoZones: AgroforestryPresetZone[] = AGROFORESTRY_PRESET_ZONES.map((z) => ({
+        ...z,
+        id: `demo_${z.id}`,
+        name: `🧪 [DEMO] ${z.name}`,
+        description: `[SIMULATED DEMO PRESET] ${z.description}`,
+      }));
+      return [...combinedReal, ...demoZones];
+    }
+
+    if (combinedReal.length === 0) {
+      return [DEFAULT_EMPTY_ZONE];
+    }
+
+    return combinedReal;
+  }, [dbPlots, dbProjects, trees, isDemoMode]);
 
   const [selectedZone, setSelectedZone] = useState<AgroforestryPresetZone>(
-    () => allAvailableZones[0] || AGROFORESTRY_PRESET_ZONES[0]
+    () => allAvailableZones[0] || DEFAULT_EMPTY_ZONE
   );
 
   // Space-Borne Tree Survival Records for Active Zone
   const [zoneTrees, setZoneTrees] = useState<TreeSurvivalRecord[]>(() =>
-    getZoneSurvivalRecords(allAvailableZones[0] || AGROFORESTRY_PRESET_ZONES[0], trees, [])
+    getZoneSurvivalRecords(allAvailableZones[0] || DEFAULT_EMPTY_ZONE, trees, [])
   );
 
   const [zoneSurvival, setZoneSurvival] = useState<ZoneSurvivalAnalytics>(() =>
-    calculateZoneSurvivalMetrics(allAvailableZones[0] || AGROFORESTRY_PRESET_ZONES[0], zoneTrees)
+    calculateZoneSurvivalMetrics(allAvailableZones[0] || DEFAULT_EMPTY_ZONE, zoneTrees)
   );
 
   const [isScanning, setIsScanning] = useState(false);
@@ -354,28 +386,31 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
   // Clicked Coordinate Telemetry State
   const [inspectedTelemetry, setInspectedTelemetry] = useState<CoordinateTelemetryResult>(() =>
     inspectCoordinateTelemetry(
-      (allAvailableZones[0] || AGROFORESTRY_PRESET_ZONES[0]).center[0],
-      (allAvailableZones[0] || AGROFORESTRY_PRESET_ZONES[0]).center[1],
+      (allAvailableZones[0] || DEFAULT_EMPTY_ZONE).center[0],
+      (allAvailableZones[0] || DEFAULT_EMPTY_ZONE).center[1],
       "ndvi"
     )
   );
 
   const [mapCenter, setMapCenter] = useState<[number, number]>(
-    () => (allAvailableZones[0] || AGROFORESTRY_PRESET_ZONES[0]).center
+    () => (allAvailableZones[0] || DEFAULT_EMPTY_ZONE).center
   );
   const [mapZoom, setMapZoom] = useState<number>(
-    () => (allAvailableZones[0] || AGROFORESTRY_PRESET_ZONES[0]).zoom
+    () => (allAvailableZones[0] || DEFAULT_EMPTY_ZONE).zoom
   );
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
   const [aiReportModalContent, setAiReportModalContent] = useState<string | null>(null);
 
-  // Synchronize zone records whenever selectedZone, trees, or projects change
+  // Synchronize zone records whenever selectedZone, trees, projects, or isDemoMode change
   useEffect(() => {
-    const current = allAvailableZones.find((z) => z.id === selectedZone.id) || allAvailableZones[0];
+    const current = allAvailableZones.find((z) => z.id === selectedZone.id) || allAvailableZones[0] || DEFAULT_EMPTY_ZONE;
     if (current) {
+      setSelectedZone(current);
       const records = getZoneSurvivalRecords(current, trees, dbProjects);
       setZoneTrees(records);
       setZoneSurvival(calculateZoneSurvivalMetrics(current, records));
+      setMapCenter(current.center);
+      setMapZoom(current.zoom || 13);
     }
   }, [selectedZone.id, trees, dbProjects, allAvailableZones]);
 
@@ -502,6 +537,24 @@ Please provide:
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-background/80 border border-primary/20 shadow-sm">
+              <label htmlFor="demo-toggle" className="text-xs font-semibold cursor-pointer select-none text-foreground flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Demo Mode
+              </label>
+              <Switch
+                id="demo-toggle"
+                checked={isDemoMode}
+                onCheckedChange={(val) => {
+                  setIsDemoMode(val);
+                  toast({
+                    title: val ? "🧪 Demo Simulation Mode Enabled" : "🛡️ Real Database Mode Enabled",
+                    description: val
+                      ? "Sample synthetic demonstration corridors loaded."
+                      : "Only verified real database plots are shown.",
+                  });
+                }}
+              />
+            </div>
             <Button
               variant="outline"
               size="sm"
@@ -520,6 +573,26 @@ Please provide:
             />
           </div>
         </div>
+
+        {/* Demo Mode Notice Banner */}
+        {isDemoMode && (
+          <div className="mt-4 p-3.5 rounded-2xl bg-amber-500/15 border-2 border-amber-500/40 text-amber-900 dark:text-amber-200 text-xs flex flex-wrap items-center justify-between gap-3 shadow-inner">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+              <span>
+                <strong>Demo Simulation Mode Active:</strong> Showing synthetic demonstration corridors alongside real database plots. Turn off to view strictly verified field uploads.
+              </span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsDemoMode(false)}
+              className="h-7 text-[11px] rounded-lg border-amber-500/40 hover:bg-amber-500/20 text-amber-800 dark:text-amber-200 font-semibold"
+            >
+              Exit Demo Mode
+            </Button>
+          </div>
+        )}
 
         {/* ---------------- PURPOSE & SCIENTIFIC VALUE ACCORDION ---------------- */}
         <AnimatePresence>
@@ -587,50 +660,64 @@ Please provide:
         {/* 5 Core Space-Borne Summary Metric Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5 mt-6">
           <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20 text-center">
-            <div className="text-xs text-muted-foreground">Monitored Plot</div>
+            <div className="text-xs text-muted-foreground">Monitored Parcel</div>
             <div className="font-heading font-extrabold text-base sm:text-lg text-foreground mt-0.5 truncate">
               {selectedZone.name}
             </div>
             <div className="text-[10px] text-primary mt-0.5 font-semibold">
-              {selectedZone.targetTrees.toLocaleString()} Trees ({selectedZone.district.split(",")[0]})
+              {selectedZone.targetTrees > 0
+                ? `${selectedZone.targetTrees.toLocaleString()} Trees (${selectedZone.district.split(",")[0]})`
+                : "Awaiting Tree Planting"}
             </div>
           </div>
 
           <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center">
             <div className="text-xs text-muted-foreground">Audited Survival Rate</div>
             <div className="font-heading font-extrabold text-2xl text-emerald-600 dark:text-emerald-400 mt-0.5">
-              {zoneSurvival.satelliteAuditedSurvivalRate}%
+              {zoneSurvival.totalMonitoredTrees > 0
+                ? `${zoneSurvival.satelliteAuditedSurvivalRate}%`
+                : "—"}
             </div>
             <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">
-              +{zoneSurvival.survivalGainOverBaseline}% vs Unmonitored
+              {zoneSurvival.totalMonitoredTrees > 0
+                ? `+${zoneSurvival.survivalGainOverBaseline}% vs Unmonitored`
+                : "No verified trees yet"}
             </div>
           </div>
 
           <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center">
-            <div className="text-xs text-muted-foreground">Mean Plot NDVI</div>
+            <div className="text-xs text-muted-foreground">Mean Parcel NDVI</div>
             <div className="font-heading font-extrabold text-2xl text-emerald-600 dark:text-emerald-400 mt-0.5">
-              {selectedZone.meanNdvi.toFixed(2)}
+              {selectedZone.meanNdvi > 0
+                ? selectedZone.meanNdvi.toFixed(2)
+                : "—"}
             </div>
             <div className="text-[10px] text-emerald-600/90 font-medium mt-0.5">
-              {selectedZone.healthStatus}
+              {selectedZone.meanNdvi > 0 ? selectedZone.healthStatus : "Awaiting Sentinel-2 Pass"}
             </div>
           </div>
 
           <div className="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/20 text-center">
             <div className="text-xs text-muted-foreground">Foliar Water (NDWI)</div>
             <div className="font-heading font-extrabold text-2xl text-sky-600 dark:text-sky-400 mt-0.5">
-              +{selectedZone.meanNdwi.toFixed(2)}
+              {selectedZone.meanNdwi > 0
+                ? `+${selectedZone.meanNdwi.toFixed(2)}`
+                : "—"}
             </div>
-            <div className="text-[10px] text-muted-foreground mt-0.5">Well-Hydrated Canopy</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">
+              {selectedZone.meanNdwi > 0 ? "Well-Hydrated Canopy" : "Awaiting Water Index"}
+            </div>
           </div>
 
           <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center">
             <div className="text-xs text-muted-foreground">Carbon Biomass</div>
             <div className="font-heading font-extrabold text-2xl text-amber-600 dark:text-amber-400 mt-0.5">
-              {selectedZone.carbonOffsetTons} MT
+              {selectedZone.carbonOffsetTons > 0 ? `${selectedZone.carbonOffsetTons} MT` : "0 MT"}
             </div>
             <div className="text-[10px] text-muted-foreground mt-0.5">
-              {selectedZone.biomassTonsPerHa} MT/Ha Density
+              {selectedZone.biomassTonsPerHa > 0
+                ? `${selectedZone.biomassTonsPerHa} MT/Ha Density`
+                : "Pending tree growth"}
             </div>
           </div>
         </div>
@@ -985,6 +1072,8 @@ Please provide:
               { id: "timeseries", label: "4. 36-Month NDVI Growth Curve", icon: TrendingUp },
               { id: "carbon", label: "5. IPCC Carbon Credit Modeler", icon: PieChart },
               { id: "parcel", label: "6. Cadastral Boundary (Module D)", icon: Compass },
+              { id: "audit", label: "7. Data Source & Ground Truth Audit", icon: Database },
+              { id: "rates", label: "8. Plot Survival & NDVI Anomaly Radar", icon: ShieldCheck },
             ].map((tab) => {
               const Icon = tab.icon;
               const isSelected = activeSubTab === tab.id;
@@ -1057,6 +1146,7 @@ Please provide:
         {activeSubTab === "timeseries" && (
           <div className="animate-in fade-in duration-300">
             <CanopyNDVITimeSeriesChart
+              plotId={selectedZone.id}
               initialTreeCount={selectedZone.targetTrees || 5000}
               plotName={selectedZone.name}
             />
@@ -1074,6 +1164,32 @@ Please provide:
         {activeSubTab === "parcel" && (
           <div className="animate-in fade-in duration-300">
             <PlotPolygonDrawer />
+          </div>
+        )}
+
+        {/* 7. DATA SOURCE & GROUND TRUTH AUDIT */}
+        {activeSubTab === "audit" && (
+          <div className="animate-in fade-in duration-300">
+            <DataSourceAuditView isDemoMode={isDemoMode} />
+          </div>
+        )}
+
+        {/* 8. PER-PLOT SURVIVAL RATES & BULK NDVI ANOMALY RADAR */}
+        {activeSubTab === "rates" && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <BulkPlotNdviTrendMonitor
+              plotId={selectedZone.id}
+              plotName={selectedZone.name}
+              district={selectedZone.district}
+              centerCoordinates={selectedZone.center}
+              isBulkPlot={true}
+            />
+            <PlotSurvivalRateView
+              onSelectPlot={(plotId) => {
+                const found = allAvailableZones.find((z) => z.id === plotId);
+                if (found) setSelectedZone(found);
+              }}
+            />
           </div>
         )}
       </div>
