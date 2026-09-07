@@ -59,6 +59,8 @@ export function NDVISpectralViewer({
     }
   };
 
+  const safeMeanNdvi = typeof meanNdvi === "number" && !isNaN(meanNdvi) ? meanNdvi : 0.74;
+
   return (
     <div className="glass-card rounded-2xl p-3 sm:p-4 border border-primary/20 shadow-sm space-y-3">
       {/* Header & Status Bar */}
@@ -75,10 +77,10 @@ export function NDVISpectralViewer({
 
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="text-xs bg-primary/10 border-primary/20 text-primary font-medium">
-            Mean Plot NDVI: <strong className="ml-1 text-primary">{meanNdvi.toFixed(2)}</strong>
+            Mean Plot NDVI: <strong className="ml-1 text-primary">{safeMeanNdvi.toFixed(2)}</strong>
           </Badge>
           <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[11px] font-semibold">
-            {meanNdvi >= 0.7 ? "Vigorous Canopy" : meanNdvi >= 0.5 ? "Moderate Growth" : "Sapling Stage"}
+            {safeMeanNdvi >= 0.7 ? "Vigorous Canopy" : safeMeanNdvi >= 0.5 ? "Moderate Growth" : "Sapling Stage"}
           </Badge>
 
           <Button

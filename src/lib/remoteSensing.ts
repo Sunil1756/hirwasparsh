@@ -257,18 +257,21 @@ export interface CoordinateTelemetryResult {
  * Precision Remote Sensing Inspector for any clicked GPS Coordinate
  */
 export function inspectCoordinateTelemetry(
-  lat: number,
-  lng: number,
+  lat: number = 19.75,
+  lng: number = 75.71,
   activeLayer: string = "ndvi"
 ): CoordinateTelemetryResult {
+  const safeLat = typeof lat === "number" && !isNaN(lat) ? lat : 19.75;
+  const safeLng = typeof lng === "number" && !isNaN(lng) ? lng : 75.71;
+
   // Deterministic high-precision seed based on coordinates
-  const latSeed = Math.abs(Math.sin(lat * 12.9898 + lng * 78.233)) * 43758.5453;
+  const latSeed = Math.abs(Math.sin(safeLat * 12.9898 + safeLng * 78.233)) * 43758.5453;
   const hash = latSeed - Math.floor(latSeed);
 
   // Geographic context for Maharashtra / India
-  const isWesternGhats = lng < 74.5 && lat > 15.5 && lat < 20.5;
-  const isCoast = lng < 73.5;
-  const isVidarbha = lng > 78.0;
+  const isWesternGhats = safeLng < 74.5 && safeLat > 15.5 && safeLat < 20.5;
+  const isCoast = safeLng < 73.5;
+  const isVidarbha = safeLng > 78.0;
 
   let baseNdvi = 0.62 + hash * 0.26;
   if (isWesternGhats) baseNdvi = Math.min(0.92, baseNdvi + 0.14);
@@ -306,12 +309,14 @@ export function inspectCoordinateTelemetry(
   }
 
   // Sentinel-2 Tile naming
-  const tileId = `T${Math.floor(lat / 6) + 40}Q${String.fromCharCode(65 + Math.floor(lng % 26))}${String.fromCharCode(65 + Math.floor(lat % 26))}`;
+  const tileId = `T${Math.floor(safeLat / 6) + 40}Q${String.fromCharCode(65 + Math.floor(safeLng % 26))}${String.fromCharCode(65 + Math.floor(safeLat % 26))}`;
   const overpassDate = new Date(Date.now() - (1 + Math.floor(hash * 4)) * 86400000).toISOString().split("T")[0];
 
   return {
-    latitude: Math.round(lat * 10000) / 10000,
-    longitude: Math.round(lng * 10000) / 10000,
+    latitude: Math.round(safeLat * 10000) / 10000,
+    longitude: Math.round(safeLng * 10000) / 10000,
+    centerLat: Math.round(safeLat * 10000) / 10000,
+    centerLng: Math.round(safeLng * 10000) / 10000,
     elevationM,
     tileId,
     overpassDate,

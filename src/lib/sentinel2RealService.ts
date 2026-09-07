@@ -16,6 +16,8 @@ export interface Sentinel2TelemetryData {
   cloudCoverPct: number;
   centerLat: number;
   centerLng: number;
+  latitude: number;
+  longitude: number;
   elevationM: number;
   // Raw Spectral Surface Reflectance Bands (BOA 0.0 - 1.0 scale)
   b02Blue: number;
@@ -243,6 +245,9 @@ export async function fetchRealSentinel2Telemetry(
     lng,
   });
 
+  const safeLat = typeof lat === "number" && !isNaN(lat) ? lat : 19.75;
+  const safeLng = typeof lng === "number" && !isNaN(lng) ? lng : 75.71;
+
   const result: Sentinel2TelemetryData = {
     plotId,
     plotName,
@@ -250,8 +255,10 @@ export async function fetchRealSentinel2Telemetry(
     satelliteSource: liveSuccess ? "copernicus_sentinel2_l2a" : "calibrated_sentinel2",
     acquisitionDate,
     cloudCoverPct: cloudCover,
-    centerLat: Math.round(lat * 10000) / 10000,
-    centerLng: Math.round(lng * 10000) / 10000,
+    centerLat: Math.round(safeLat * 10000) / 10000,
+    centerLng: Math.round(safeLng * 10000) / 10000,
+    latitude: Math.round(safeLat * 10000) / 10000,
+    longitude: Math.round(safeLng * 10000) / 10000,
     elevationM,
     isLiveSatelliteData: true,
     ...computed,
