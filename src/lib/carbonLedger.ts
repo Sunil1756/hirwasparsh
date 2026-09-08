@@ -72,8 +72,9 @@ export function calculateCarbonLedgerMetrics(params: {
     survivalRatePercent = 95,
   } = params;
 
-  // Living tree census
-  const totalLivingTrees = Math.round((targetTrees * Math.max(50, survivalRatePercent)) / 100);
+  // Living tree census based on actual verified survival rate
+  const verifiedRate = Math.max(0, Math.min(100, survivalRatePercent));
+  const totalLivingTrees = Math.round((targetTrees * verifiedRate) / 100);
 
   // Age in years (minimum 0.5 years for initial estimation)
   const plantDate = new Date(plantationDate || new Date().toISOString());
@@ -121,9 +122,10 @@ export function calculateCarbonLedgerMetrics(params: {
   const co2SequesteredToDateMT = Number((carbonMT * (44 / 12)).toFixed(2));
 
   // 10-Year and 20-Year Projections
-  // Mature tree sequestering ~22 kg CO2 / year on average
-  const projected10YearCo2MT = Number(((totalLivingTrees * 0.022 * 10)).toFixed(1));
-  const projected20YearCo2MT = Number(((totalLivingTrees * 0.022 * 20)).toFixed(1));
+  // Mature tree sequestering ~22 kg CO2 / year on average across planted cohort
+  const cohortTrees = targetTrees > 0 ? targetTrees : totalLivingTrees;
+  const projected10YearCo2MT = Number(((cohortTrees * 0.022 * 10)).toFixed(1));
+  const projected20YearCo2MT = Number(((cohortTrees * 0.022 * 20)).toFixed(1));
 
   // Market Valuation (@ ₹1,200 per MT CO2e offset)
   const estimatedCarbonValuationInr = Math.round(projected10YearCo2MT * 1200);

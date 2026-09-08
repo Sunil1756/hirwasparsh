@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -22,6 +22,7 @@ import {
   Filter,
   Search,
   Lock,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ import { CarbonCertificateModal } from "@/components/CarbonCertificateModal";
 import { B2BRoleGate, RoleBadge } from "@/components/B2BRoleGate";
 import { isAuditExportEligible, B2BRole } from "@/lib/b2bAccessControl";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CSRProjectSummary {
   id: string;
@@ -93,34 +95,70 @@ const SAMPLE_CSR_PORTFOLIO: CSRProjectSummary[] = [
     ndviTrend: "+4.2%",
     brsrEligible: true,
   },
-  {
-    id: "proj_solapur_bio",
-    projectName: "Solapur Semi-Arid Soil Moisture & Agro-Forestry Grid",
-    location: "Solapur District, Maharashtra",
-    district: "Solapur",
-    funderName: "Bajaj CSR Foundation",
-    plantedTrees: 1800,
-    verifiedTrees: 1440,
-    survivalRatePct: 80,
-    annualCo2eMT: 39.6,
-    cumulative10YrCo2eMT: 396.0,
-    confidenceScore: 62,
-    verificationTier: "Satellite Only",
-    sentinel2PassesCount: 6,
-    lastOverpassDate: "2026-08-28",
-    meanNdvi: 0.48,
-    ndviTrend: "+2.1%",
-    brsrEligible: false,
-  },
 ];
 
 export default function CSRCorporatePortal() {
   const [currentRole, setCurrentRole] = useState<B2BRole>("csr_donor");
   const [searchFilter, setSearchFilter] = useState("");
   const [tierFilter, setTierFilter] = useState<string>("all");
+  const [dbProjects, setDbProjects] = useState<CSRProjectSummary[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchCsrProjects() {
+      try {
+        const { data: projects } = await supabase
+          .from("plantation_projects")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (projects && projects.length > 0) {
+          const mapped: CSRProjectSummary[] = projects.map((p) => {
+            const target = Number(p.target_trees) || 100;
+            const verified = Number(p.verified_trees) || 0;
+            const survivalRate = target > 0 ? Math.round((verified / target) * 100) : 0;
+            const annualCo2e = Number(((verified > 0 ? verified : target) * 0.022).toFixed(1));
+            const score = verified > 0 ? Math.min(100, Math.round(40 + (verified / target) * 60)) : 28;
+            const tier = score >= 80 ? "Gold" : score >= 50 ? "Field Verified" : "Satellite Only";
+
+            return {
+              id: p.id,
+              projectName: p.project_name || "Institutional Agroforestry Drive",
+              location: p.location || "Maharashtra, India",
+              district: p.location?.split(",")[0] || "Maharashtra",
+              funderName: p.organization_name || "CSR ESG Partner",
+              plantedTrees: target,
+              verifiedTrees: verified,
+              survivalRatePct: survivalRate,
+              annualCo2eMT: annualCo2e,
+              cumulative10YrCo2eMT: Number((annualCo2e * 10).toFixed(1)),
+              confidenceScore: score,
+              verificationTier: tier,
+              sentinel2PassesCount: 3,
+              lastOverpassDate: p.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
+              meanNdvi: 0.74,
+              ndviTrend: "+4.2%",
+              brsrEligible: score >= 50,
+            };
+          });
+          setDbProjects(mapped);
+        }
+      } catch (err) {
+        console.warn("Could not load CSR projects from database:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchCsrProjects();
+  }, []);
+
+  const activePortfolio = useMemo(() => {
+    if (dbProjects.length > 0) return dbProjects;
+    return SAMPLE_CSR_PORTFOLIO;
+  }, [dbProjects]);
 
   const filteredProjects = useMemo(() => {
-    return SAMPLE_CSR_PORTFOLIO.filter((p) => {
+    return activePortfolio.filter((p) => {
       const matchSearch =
         p.projectName.toLowerCase().includes(searchFilter.toLowerCase()) ||
         p.district.toLowerCase().includes(searchFilter.toLowerCase()) ||
@@ -131,7 +169,7 @@ export default function CSRCorporatePortal() {
 
       return matchSearch && matchTier;
     });
-  }, [searchFilter, tierFilter]);
+  }, [searchFilter, tierFilter, activePortfolio]);
 
   // Aggregate Portfolio Totals
   const totalTreesPlanted = useMemo(

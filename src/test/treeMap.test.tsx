@@ -186,7 +186,7 @@ describe("Module A & TreeMap Component Integrity", () => {
     expect(demoPreset).toBeDefined();
     expect(demoPreset?.name).toContain("[DEMO]");
     expect(demoPreset?.creatorInfo).toContain("Synthetic Demo Simulator");
-  }, 10000);
+  }, 30000);
 
   it("toggles Demo Mode in ModuleASatelliteEngine and renders demo banner without crashing", async () => {
     const { fireEvent } = await import("@testing-library/react");

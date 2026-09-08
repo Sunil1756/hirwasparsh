@@ -282,7 +282,7 @@ const OrganizationPlantation = () => {
       acres: Math.max(0.5, activeBoundaryArea.acres),
       speciesList: activeProject.species || [],
       plantationDate: activeProject.plantation_date,
-      survivalRatePercent: activeProject.verified_trees > 0 ? (activeProject.verified_trees / activeProject.target_trees) * 100 : 95.4,
+      survivalRatePercent: activeProject.verified_trees > 0 ? Math.round((activeProject.verified_trees / Math.max(1, activeProject.target_trees)) * 100) : 0,
     });
   }, [activeProject, activeBoundaryArea]);
 

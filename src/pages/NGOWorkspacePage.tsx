@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -20,12 +20,14 @@ import {
   Sparkles,
   Users,
   Compass,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { RoleBadge } from "@/components/B2BRoleGate";
+import { supabase } from "@/integrations/supabase/client";
 
 interface NGOPlot {
   id: string;
@@ -74,34 +76,68 @@ const SAMPLE_NGO_PLOTS: NGOPlot[] = [
     lastSatellitePass: "2026-09-02",
     ndviCurrent: 0.65,
   },
-  {
-    id: "plot_solapur_agro",
-    name: "Solapur Dryland Horticulture & Tamarind Matrix",
-    location: "Solapur District, Maharashtra",
-    district: "Solapur",
-    acres: 6.0,
-    hectares: 2.43,
-    targetTrees: 950,
-    verifiedTrees: 320,
-    confidenceScore: 62,
-    verificationTier: "Satellite Only",
-    pendingScoutTasks: 5,
-    lastSatellitePass: "2026-08-28",
-    ndviCurrent: 0.48,
-  },
 ];
 
 export default function NGOWorkspacePage() {
   const [search, setSearch] = useState("");
+  const [dbPlots, setDbPlots] = useState<NGOPlot[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchProjects() {
+      try {
+        const { data: projects } = await supabase
+          .from("plantation_projects")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (projects && projects.length > 0) {
+          const mapped: NGOPlot[] = projects.map((p) => {
+            const target = Number(p.target_trees) || 100;
+            const verified = Number(p.verified_trees) || 0;
+            const score = verified > 0 ? Math.min(100, Math.round(40 + (verified / target) * 60)) : 28;
+            const tier = score >= 80 ? "Gold" : score >= 50 ? "Field Verified" : "Satellite Only";
+
+            return {
+              id: p.id,
+              name: p.project_name || "Agroforestry Parcel",
+              location: p.location || "Maharashtra, India",
+              district: p.location?.split(",")[0] || "Maharashtra",
+              acres: Math.max(0.5, Math.round((target / 450) * 10) / 10),
+              hectares: Math.max(0.2, Math.round((target / 1100) * 10) / 10),
+              targetTrees: target,
+              verifiedTrees: verified,
+              confidenceScore: score,
+              verificationTier: tier,
+              pendingScoutTasks: verified === 0 ? 1 : 0,
+              lastSatellitePass: p.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
+              ndviCurrent: 0.72,
+            };
+          });
+          setDbPlots(mapped);
+        }
+      } catch (err) {
+        console.warn("Could not load NGO plots from Supabase:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchProjects();
+  }, []);
+
+  const activePlotList = useMemo(() => {
+    if (dbPlots.length > 0) return dbPlots;
+    return SAMPLE_NGO_PLOTS;
+  }, [dbPlots]);
 
   const filteredPlots = useMemo(() => {
-    return SAMPLE_NGO_PLOTS.filter(
+    return activePlotList.filter(
       (p) =>
         p.name.toLowerCase().includes(search.toLowerCase()) ||
         p.district.toLowerCase().includes(search.toLowerCase()) ||
         p.location.toLowerCase().includes(search.toLowerCase())
     );
-  }, [search]);
+  }, [search, activePlotList]);
 
   const totalAcres = useMemo(() => filteredPlots.reduce((sum, p) => sum + p.acres, 0), [filteredPlots]);
   const totalTargetTrees = useMemo(() => filteredPlots.reduce((sum, p) => sum + p.targetTrees, 0), [filteredPlots]);

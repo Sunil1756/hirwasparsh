@@ -681,13 +681,14 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
     const realPlotZones: AgroforestryPresetZone[] = dbPlots.map((p) => {
       const pTrees = trees.filter((t: any) => t.plot_id === p.id);
       const verifiedCount = pTrees.filter((t) => t.verification_status === "verified" || (t as any).admin_status === "approved").length;
-      const rate = pTrees.length > 0 ? Math.round((verifiedCount / pTrees.length) * 1000) / 10 : 85.0;
+      const rate = pTrees.length > 0 ? Math.round((verifiedCount / pTrees.length) * 1000) / 10 : 0.0;
       const fallbackCenter: [number, number] = [
         typeof p.center_lat === "number" && !isNaN(p.center_lat) && p.center_lat !== 0 ? p.center_lat : 19.75,
         typeof p.center_lng === "number" && !isNaN(p.center_lng) && p.center_lng !== 0 ? p.center_lng : 75.71,
       ];
       const boundary = normalizeBoundaryPoints(p.polygon_geojson, fallbackCenter);
       const { center, zoom } = computeBoundaryCentroidAndZoom(boundary, fallbackCenter, 16);
+      const targetCount = Number(p.target_trees) > 0 ? Number(p.target_trees) : (pTrees.length || 100);
 
       return {
         id: p.id,
@@ -697,19 +698,19 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
         center,
         zoom,
         boundary,
-        targetTrees: p.target_trees || pTrees.length || 100,
+        targetTrees: targetCount,
         species: ["Neem", "Peepal", "Banyan", "Jamun", "Teak", "Karanj", "Bamboo"],
         plantedDate: p.created_at?.split("T")[0] || "2024-01-01",
         meanNdvi: typeof p.current_mean_ndvi === "number" && p.current_mean_ndvi > 0 ? p.current_mean_ndvi : (pTrees.length > 0 ? 0.72 : 0.74),
         meanNdwi: 0.28,
         biomassTonsPerHa: typeof p.current_biomass_mt === "number" && p.current_biomass_mt > 0 ? p.current_biomass_mt : 45.0,
-        carbonOffsetTons: Math.round(((pTrees.length || p.target_trees || 100) * 22) / 1000),
+        carbonOffsetTons: Math.round((targetCount * 22) / 1000),
         healthStatus: rate >= 85 ? "Optimal Vigor" : "Moderate Growth",
         description: `Verified Supabase Geofenced Agroforestry Parcel in ${p.district || "Maharashtra"}, India.`,
       };
     });
 
-    // 2. Real CSR/NGO projects from database (e.g. saga, VarshikVruksha Ropan 2k26)
+    // 2. Real CSR/NGO projects from database (e.g. any new or existing plantation project)
     const realZones: AgroforestryPresetZone[] = dbProjects.map((p) => {
       const pTrees = trees.filter((t: any) => t.project_id === p.id);
       const fallbackLat = Number(p.latitude) || Number(pTrees[0]?.latitude) || 19.75;
@@ -721,8 +722,9 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
       const boundary = normalizeBoundaryPoints(p.boundary, fallbackCenter);
       const { center, zoom } = computeBoundaryCentroidAndZoom(boundary, fallbackCenter, 16);
 
-      const verifiedCount = pTrees.filter((t) => t.verification_status === "verified" || (t as any).admin_status === "approved").length;
-      const realSurvivalRate = pTrees.length > 0 ? Math.round((verifiedCount / pTrees.length) * 1000) / 10 : 85.0;
+      const verifiedCount = Number(p.verified_trees) || pTrees.filter((t) => t.verification_status === "verified" || (t as any).admin_status === "approved").length;
+      const targetCount = Number(p.target_trees) > 0 ? Number(p.target_trees) : (pTrees.length || Number(p.verified_trees) || 100);
+      const realSurvivalRate = targetCount > 0 ? Math.round((verifiedCount / targetCount) * 1000) / 10 : 0.0;
 
       return {
         id: p.id,
@@ -732,13 +734,13 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
         center,
         zoom,
         boundary,
-        targetTrees: p.verified_trees || pTrees.length || p.target_trees || 100,
+        targetTrees: targetCount,
         species: Array.from(new Set(pTrees.map((t) => t.species).filter(Boolean) as string[])),
         plantedDate: p.created_at?.split("T")[0] || p.plantation_date || "2024-01-01",
         meanNdvi: pTrees.length > 0 ? (realSurvivalRate >= 80 ? 0.79 : 0.68) : 0.74,
         meanNdwi: 0.28,
         biomassTonsPerHa: 45.0,
-        carbonOffsetTons: Math.round(((pTrees.length || p.verified_trees || p.target_trees || 100) * 22) / 1000),
+        carbonOffsetTons: Math.round((targetCount * 22) / 1000),
         healthStatus: realSurvivalRate >= 90 ? "Optimal Vigor" : "Moderate Growth",
         description: `Real CSR/NGO Agroforestry Project by ${p.organization_name || "Enterprise"} registered in Supabase database.`,
       };
