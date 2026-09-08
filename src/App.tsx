@@ -33,6 +33,9 @@ import Intelligence from "./pages/Intelligence";
 import FieldScoutingPage from "./pages/FieldScoutingPage";
 import BulkOnboardPage from "./pages/BulkOnboardPage";
 import CertificateVerify from "./pages/CertificateVerify";
+import CSRCorporatePortal from "./pages/CSRCorporatePortal";
+import NGOWorkspacePage from "./pages/NGOWorkspacePage";
+import PricingPage from "./pages/PricingPage";
 import { LanguageProvider } from "./contexts/LanguageContext";
 
 const queryClient = new QueryClient();
@@ -74,9 +77,12 @@ const App = () => (
           <Route path="/satellite" element={<Navigate to="/tree-map" replace />} />
           <Route path="/green-impact" element={<Navigate to="/dashboard" replace />} />
           <Route path="/intelligence" element={<Intelligence />} />
+          <Route path="/csr-portal" element={<CSRCorporatePortal />} />
+          <Route path="/ngo-workspace" element={<NGOWorkspacePage />} />
+          <Route path="/pricing" element={<PricingPage />} />
           <Route path="/verify/cert/:serialNo" element={<CertificateVerify />} />
           <Route path="/verify/cert" element={<CertificateVerify />} />
-           <Route path="*" element={<NotFound />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
         <Footer />
         </AuthProvider>
