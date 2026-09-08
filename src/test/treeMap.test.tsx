@@ -214,4 +214,33 @@ describe("Module A & TreeMap Component Integrity", () => {
     expect(getByText(/Demo Simulation Mode Active/i)).toBeDefined();
     expect(getByText(/Exit Demo Mode/i)).toBeDefined();
   });
+
+  it("renders ESGReportModal with project-level planted tree count and organization name", async () => {
+    const { ESGReportModal } = await import("@/components/ESGReportModal");
+    const { fireEvent } = await import("@testing-library/react");
+    const { getByText, getAllByText } = render(
+      <ESGReportModal
+        totalTrees={12}
+        verifiedTrees={0}
+        projectName="saga"
+        organizationName="saga"
+        location="Solapur, Maharashtra"
+        co2OffsetKg={0}
+        projectedCo2OffsetKg={264}
+        confidenceScore={28}
+        verificationTier="satellite_only"
+      />
+    );
+
+    const triggerBtn = getByText(/Generate ESG & Carbon Certificate/i);
+    expect(triggerBtn).toBeDefined();
+
+    // Click trigger to open Dialog
+    fireEvent.click(triggerBtn);
+
+    expect(getByText(/12 Planted in Project/i)).toBeDefined();
+    expect(getAllByText(/saga/i).length).toBeGreaterThan(0);
+    expect(getByText(/Solapur, Maharashtra/i)).toBeDefined();
+    expect(getByText(/Awaiting Field Audit/i)).toBeDefined();
+  });
 });

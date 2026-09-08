@@ -810,31 +810,63 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
     }
   }, [selectedZone.id, trees, dbProjects, allAvailableZones]);
 
-  const verifiedTrees = useMemo(() => trees.filter((t) => t.verification_status === "verified"), [trees]);
-  const totalCo2Kg = verifiedTrees.length * 22;
   const currentLayer = SPECTRAL_LAYERS.find((l) => l.id === activeSpectral) || SPECTRAL_LAYERS[1];
 
-  const activeConfidence: MultiSourceConfidenceResult = useMemo(() => {
-    const isDemo = selectedZone.id.startsWith("demo_") || isDemoMode;
+  const activeZoneMetadata = useMemo(() => {
+    const dbProj = dbProjects.find((p) => p.id === selectedZone.id);
+    const dbPlot = dbPlots.find((p) => p.id === selectedZone.id);
 
     const zoneTreeRecords = trees.filter(
       (t) => t.project_id === selectedZone.id || (t as any).plot_id === selectedZone.id
     );
-    const verifiedCount = zoneTreeRecords.filter(
-      (t) => t.verification_status === "verified" || (t as any).admin_status === "approved"
-    ).length;
+    const verifiedCount =
+      dbProj?.verified_trees ||
+      zoneTreeRecords.filter(
+        (t) => t.verification_status === "verified" || (t as any).admin_status === "approved"
+      ).length;
+
+    const totalPlanted =
+      selectedZone.targetTrees ||
+      dbProj?.target_trees ||
+      dbPlot?.target_trees ||
+      (zoneTreeRecords.length > 0 ? zoneTreeRecords.length : 100);
+
+    const orgName =
+      dbProj?.organization_name ||
+      (selectedZone.name ? selectedZone.name.split(" (")[0] : "Institutional Plantation Project");
+    const projName = dbProj?.project_name || selectedZone.name || "Agroforestry Parcel";
+    const location = selectedZone.district || selectedZone.location || dbProj?.location || "Maharashtra, India";
+    const verifiedCo2Kg = verifiedCount * 22;
+    const projectedCo2Kg = totalPlanted * 22;
+
+    return {
+      dbProj,
+      dbPlot,
+      totalPlanted,
+      verifiedCount,
+      orgName,
+      projName,
+      location,
+      verifiedCo2Kg,
+      projectedCo2Kg,
+      zoneTreeRecords,
+    };
+  }, [selectedZone, dbProjects, dbPlots, trees]);
+
+  const activeConfidence: MultiSourceConfidenceResult = useMemo(() => {
+    const isDemo = selectedZone.id.startsWith("demo_") || isDemoMode;
 
     return computeMultiSourceConfidenceScore({
       plotId: selectedZone.id,
-      totalPlantedTrees: selectedZone.targetTrees || (zoneTreeRecords.length > 0 ? zoneTreeRecords.length : 100),
+      totalPlantedTrees: activeZoneMetadata.totalPlanted,
       manualOverrides: {
-        satellitePassesCount: isDemo ? 0 : zoneTreeRecords.length > 0 ? 3 : 1,
+        satellitePassesCount: isDemo ? 0 : activeZoneMetadata.zoneTreeRecords.length > 0 ? 3 : 1,
         meanNdvi: selectedZone.meanNdvi,
-        verifiedTreesCount: verifiedCount,
-        lastFieldDate: zoneTreeRecords[0]?.created_at || undefined,
+        verifiedTreesCount: activeZoneMetadata.verifiedCount,
+        lastFieldDate: activeZoneMetadata.zoneTreeRecords[0]?.created_at || undefined,
       },
     });
-  }, [selectedZone, trees, isDemoMode]);
+  }, [selectedZone, activeZoneMetadata, isDemoMode]);
 
   const rasterGridCells = useMemo(() => {
     return generateSpectralRasterGrid(
@@ -1011,10 +1043,15 @@ Please provide:
             </Button>
             <GeminiApiKeyModal />
             <ESGReportModal
-              totalTrees={trees.length}
-              verifiedTrees={verifiedTrees.length}
-              organizationName="Maharashtra Green Mission Network"
-              co2OffsetKg={totalCo2Kg}
+              totalTrees={activeZoneMetadata.totalPlanted}
+              verifiedTrees={activeZoneMetadata.verifiedCount}
+              projectName={activeZoneMetadata.projName}
+              organizationName={activeZoneMetadata.orgName}
+              location={activeZoneMetadata.location}
+              co2OffsetKg={activeZoneMetadata.verifiedCo2Kg}
+              projectedCo2OffsetKg={activeZoneMetadata.projectedCo2Kg}
+              confidenceScore={activeConfidence.totalScore}
+              verificationTier={activeConfidence.tier}
             />
           </div>
         </div>

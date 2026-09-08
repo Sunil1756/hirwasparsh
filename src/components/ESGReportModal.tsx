@@ -1,26 +1,39 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, Download, Award, Trees, CheckCircle2, QrCode } from "lucide-react";
+import { ShieldCheck, Download, Award, Trees, CheckCircle2, QrCode, AlertTriangle, Building2, MapPin, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface Props {
   totalTrees?: number;
   verifiedTrees?: number;
+  projectName?: string;
   organizationName?: string;
+  location?: string;
   co2OffsetKg?: number;
+  projectedCo2OffsetKg?: number;
+  confidenceScore?: number;
+  verificationTier?: string;
 }
 
 export function ESGReportModal({
-  totalTrees = 1240,
-  verifiedTrees = 1180,
-  organizationName = "Green Enlightenment CSR Initiative",
-  co2OffsetKg = 27280,
+  totalTrees = 100,
+  verifiedTrees = 0,
+  projectName = "Agroforestry Plantation",
+  organizationName = "Institutional Afforestation Initiative",
+  location = "Maharashtra, India",
+  co2OffsetKg = 0,
+  projectedCo2OffsetKg = 0,
+  confidenceScore = 0,
+  verificationTier = "unverified_demo",
 }: Props) {
   const [open, setOpen] = useState(false);
-  const survivalRate = Math.round((verifiedTrees / Math.max(1, totalTrees)) * 100);
-  const co2MT = (co2OffsetKg / 1000).toFixed(2);
+  const survivalRate = totalTrees > 0 ? Math.round((verifiedTrees / totalTrees) * 100) : 0;
+  const verifiedCo2MT = (co2OffsetKg / 1000).toFixed(2);
+  const projectedCo2MT = ((projectedCo2OffsetKg || totalTrees * 22) / 1000).toFixed(2);
   const certificateId = `ESG-GE-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+
+  const isVerified = verifiedTrees > 0 || (confidenceScore >= 50 && verificationTier !== "unverified_demo");
 
   const handlePrint = () => {
     window.print();
@@ -55,11 +68,16 @@ export function ESGReportModal({
             </Badge>
           </div>
 
-          <div className="text-center py-2 space-y-1">
+          <div className="text-center py-2 space-y-1.5">
             <div className="text-xs text-muted-foreground uppercase tracking-widest">This certifies that</div>
-            <div className="font-heading text-2xl font-bold text-foreground">{organizationName}</div>
-            <p className="text-xs text-muted-foreground max-w-md mx-auto">
-              has completed verified community tree planting & remote sensing satellite monitoring across Maharashtra, India.
+            <div className="font-heading text-2xl font-bold text-foreground">
+              {organizationName}
+            </div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary">
+              <Trees className="h-3.5 w-3.5" /> Project: {projectName} · <MapPin className="h-3 w-3" /> {location}
+            </div>
+            <p className="text-xs text-muted-foreground max-w-md mx-auto pt-1">
+              has registered a large-scale afforestation drive of <strong className="text-foreground">{totalTrees.toLocaleString()} trees</strong> under continuous Copernicus Sentinel-2 remote sensing monitoring.
             </p>
           </div>
 
@@ -68,19 +86,27 @@ export function ESGReportModal({
             <div>
               <div className="text-xs text-muted-foreground">Verified Trees</div>
               <div className="font-heading text-lg font-bold text-primary">{verifiedTrees.toLocaleString()}</div>
-              <div className="text-[10px] text-muted-foreground">{totalTrees.toLocaleString()} Planted</div>
+              <div className="text-[10px] text-muted-foreground">{totalTrees.toLocaleString()} Planted in Project</div>
             </div>
 
             <div>
               <div className="text-xs text-muted-foreground">Survival Rate</div>
-              <div className="font-heading text-lg font-bold text-emerald-600 dark:text-emerald-400">{survivalRate}%</div>
-              <div className="text-[10px] text-muted-foreground">Satellite & AI Verified</div>
+              <div className={`font-heading text-lg font-bold ${verifiedTrees > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
+                {verifiedTrees > 0 ? `${survivalRate}%` : "0%"}
+              </div>
+              <div className="text-[10px] text-muted-foreground">
+                {verifiedTrees > 0 ? "Satellite & AI Verified" : "Awaiting Field Audit"}
+              </div>
             </div>
 
             <div>
               <div className="text-xs text-muted-foreground">Annual CO₂ Offset</div>
-              <div className="font-heading text-lg font-bold text-emerald-600 dark:text-emerald-400">{co2MT} MT</div>
-              <div className="text-[10px] text-muted-foreground">Metric Tons / Year</div>
+              <div className="font-heading text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                {verifiedCo2MT} MT
+              </div>
+              <div className="text-[10px] text-muted-foreground">
+                Projected: {projectedCo2MT} MT/yr
+              </div>
             </div>
           </div>
 
@@ -88,11 +114,20 @@ export function ESGReportModal({
           <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-[11px] text-muted-foreground border-t border-primary/10">
             <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
               <CheckCircle2 className="h-3.5 w-3.5" />
-              EXIF GPS & Timestamp Hash Verified
+              ESA Sentinel-2 Space-Borne Monitoring
             </div>
-            <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              NDVI Canopy Growth Audited
+            <div className={`flex items-center gap-1 ${isVerified ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+              {isVerified ? (
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Ground Truth Sample Audits Verified
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Awaiting Ground Truth Sample Checks
+                </>
+              )}
             </div>
             <div className="text-[10px]">Date: {new Date().toLocaleDateString("en-IN")}</div>
           </div>
@@ -100,7 +135,7 @@ export function ESGReportModal({
 
         <div className="flex items-center justify-end gap-2 pt-2">
           <Button variant="outline" onClick={() => setOpen(false)}>Close</Button>
-          <Button onClick={handlePrint} className="flex items-center gap-2">
+          <Button onClick={handlePrint} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
             <Download className="h-4 w-4" /> Download / Print PDF
           </Button>
         </div>
