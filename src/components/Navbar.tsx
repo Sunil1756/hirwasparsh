@@ -34,7 +34,6 @@ const Navbar = () => {
   ];
 
   const communityLinks = [
-    { to: "/growth-updates", label: "My Trees & Growth" },
     { to: "/leaderboard", label: t.nav_leaderboard },
     { to: "/about", label: t.nav_about },
     { to: "/contact", label: t.nav_contact },
