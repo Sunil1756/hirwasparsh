@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -145,6 +146,9 @@ export function OfflineSyncModal() {
           <DialogTitle className="flex items-center gap-2 text-base font-bold">
             <CloudUpload className="h-5 w-5 text-primary" /> Rural Offline Field Sync
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Manage local offline tree registrations and sync with remote database when network is restored.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 pt-2 text-xs">

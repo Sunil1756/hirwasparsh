@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
@@ -132,6 +132,9 @@ const PlantationDrives = () => {
                 <DialogContent className="max-w-lg">
                   <DialogHeader>
                     <DialogTitle>Create Plantation Drive</DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground">
+                      Organize a public or organizational tree plantation drive with targets and locations.
+                    </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div>

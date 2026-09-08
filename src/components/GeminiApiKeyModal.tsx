@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Key, CheckCircle2, ExternalLink } from "lucide-react";
 import { getGeminiApiKey, setGeminiApiKey } from "@/lib/gemini";
@@ -38,6 +38,9 @@ export function GeminiApiKeyModal() {
             <Key className="h-5 w-5 text-primary" />
             Google Gemini API Configuration
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Configure Google Gemini API key for botanical diagnostics and satellite canopy analysis.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 text-xs">

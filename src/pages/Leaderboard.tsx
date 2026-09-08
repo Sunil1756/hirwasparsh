@@ -4,7 +4,7 @@ import { Trophy, TreePine, Star, Medal, Loader2, Users, Building, Home, Sprout, 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -266,7 +266,12 @@ const Leaderboard = () => {
                       <Button size="sm" className="gap-1"><Users className="h-4 w-4" /> Create Team</Button>
                     </DialogTrigger>
                     <DialogContent>
-                      <DialogHeader><DialogTitle>Create a Team</DialogTitle></DialogHeader>
+                      <DialogHeader>
+                        <DialogTitle>Create a Team</DialogTitle>
+                        <DialogDescription className="text-xs text-muted-foreground">
+                          Form a collaborative team for village, college, or NGO plantation campaigns.
+                        </DialogDescription>
+                      </DialogHeader>
                       <div className="space-y-4">
                         <div><Label>Team Name</Label><Input placeholder="e.g., Green Warriors" value={teamName} onChange={e => setTeamName(e.target.value)} /></div>
                         <div>

@@ -17,6 +17,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -60,6 +61,12 @@ export const CarbonCertificateModal = ({ cert, triggerButton }: Props) => {
       </DialogTrigger>
 
       <DialogContent className="max-w-4xl p-0 overflow-hidden rounded-3xl border-2 border-emerald-500/40 bg-background shadow-2xl">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Verified ESG Carbon Certificate - {cert.serialNumber}</DialogTitle>
+          <DialogDescription>
+            Institutional carbon audit certificate for {cert.projectName} with MRV verification.
+          </DialogDescription>
+        </DialogHeader>
         {/* Certificate Frame */}
         <div className="p-6 sm:p-10 space-y-6 relative bg-gradient-to-b from-emerald-500/5 via-background to-background print:p-0 print:border-none">
           {/* Top Actions (hidden in print) */}

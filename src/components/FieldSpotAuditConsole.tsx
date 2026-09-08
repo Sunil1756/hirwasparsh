@@ -28,6 +28,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -453,6 +454,9 @@ export const FieldSpotAuditConsole = ({
             <DialogTitle className="font-heading text-lg font-bold flex items-center gap-2">
               <Camera className="h-5 w-5 text-primary" /> Field Spot Audit: {activeSample?.sample_id}
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              Perform stratified random Cochran field sample audit with GPS verification and AI botanical health checks.
+            </DialogDescription>
           </DialogHeader>
 
           {activeSample && (

@@ -39,6 +39,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -208,6 +209,9 @@ export function FieldScoutingModule() {
                 <DialogTitle className="flex items-center gap-2 text-base font-bold">
                   <MapPin className="h-5 w-5 text-primary" /> Register Field Scouting Observation
                 </DialogTitle>
+                <DialogDescription className="sr-only">
+                  Register new geo-referenced ground observation pin with severity and photo evidence.
+                </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-3 pt-2 text-xs">

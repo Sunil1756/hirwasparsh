@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -173,6 +173,9 @@ const TreeHealth = () => {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Update Tree Health</DialogTitle>
+                  <DialogDescription className="text-xs text-muted-foreground">
+                    Record physiological status and moisture or canopy health observations.
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>

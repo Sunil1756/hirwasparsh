@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, Download, Award, Trees, CheckCircle2, QrCode, AlertTriangle, Building2, MapPin, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +54,9 @@ export function ESGReportModal({
             <Award className="h-6 w-6 text-primary" />
             Verified ESG Tree Plantation Certificate
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Verified ESG carbon sequestration and tree plantation certificate preview and export
+          </DialogDescription>
         </DialogHeader>
 
         {/* Certificate Printable Canvas */}
