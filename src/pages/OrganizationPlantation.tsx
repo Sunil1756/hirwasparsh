@@ -15,7 +15,7 @@ import {
   FileText, Activity, Loader2, Plus, ArrowLeft, ArrowRight, Trash2, CheckCircle2,
   AlertCircle, Download, Sparkles, Navigation, Layers, Grid, Image as ImageIcon,
   Check, ArrowUpRight, Award, QrCode, TrendingUp, SlidersHorizontal, UserCheck,
-  Coins, Globe, Lock
+  Coins, Globe, Lock, LogIn
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -578,6 +578,14 @@ const OrganizationPlantation = () => {
   };
 
   const handleNextStep = () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required 🔒",
+        description: "Please log in to your organization account to configure and register plantation projects.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (validateCurrentStep()) {
       setStep((s) => s + 1);
     }
@@ -586,9 +594,9 @@ const OrganizationPlantation = () => {
   const resetWizard = () => {
     setStep(1);
     setProjectName("");
-    setOrgName("");
+    setOrgName((user?.user_metadata?.organization_name as string) || (user?.user_metadata?.full_name as string) || "");
     setOrgType("ngo");
-    setContactEmail("");
+    setContactEmail(user?.email || "");
     setContactPhone("");
     setLocation("");
     setBoundary([]);
@@ -603,6 +611,15 @@ const OrganizationPlantation = () => {
   };
 
   const createProject = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required 🔒",
+        description: "Please log in with an authenticated organization account to save projects to the database.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!validateCurrentStep()) return;
 
     setSaving(true);
@@ -627,11 +644,11 @@ const OrganizationPlantation = () => {
     });
 
     const newProjectPayload = {
-      user_id: user?.id || null,
+      user_id: user.id,
       project_name: projectName.trim(),
       organization_name: orgName.trim(),
       organization_type: orgType,
-      contact_email: contactEmail.trim() || null,
+      contact_email: contactEmail.trim() || user.email || null,
       contact_phone: contactPhone.trim() || null,
       location: location.trim(),
       latitude: centroid[0] as number,
@@ -654,23 +671,26 @@ const OrganizationPlantation = () => {
         .select()
         .single();
 
-      let createdProjectId = data?.id;
-
       if (error) {
-        console.warn("Supabase project insert notice:", error.message);
-        createdProjectId = `proj_${Date.now()}`;
-        const fallbackProject: Project = {
-          id: createdProjectId,
-          ...newProjectPayload,
-          verified_trees: 0,
-          created_at: new Date().toISOString(),
-        };
-        setProjects((prev) => [fallbackProject, ...prev]);
-        setActiveId(fallbackProject.id);
-      } else {
-        setProjects((p) => [data as Project, ...p]);
-        setActiveId((data as Project).id);
+        console.error("Supabase project insert error:", error);
+        toast({
+          title: "Registration Failed ❌",
+          description: `Database error: ${error.message}. Please verify your connection.`,
+          variant: "destructive",
+        });
+        setSaving(false);
+        return;
       }
+
+      const createdProjectId = data?.id;
+      setProjects((p) => [data as Project, ...p]);
+      setActiveId((data as Project).id);
+      setView("detail");
+      setSearchParams({ project: data.id });
+      toast({
+        title: "🎉 Project Registered on Supabase!",
+        description: `"${data.project_name}" has been created and bound to your account.`,
+      });
 
       // Pin created project to my workspace
       try {
@@ -933,7 +953,21 @@ const OrganizationPlantation = () => {
             </Button>
           )}
           {view === "list" && (
-            <Button onClick={() => { resetWizard(); setView("wizard"); }}>
+            <Button
+              onClick={() => {
+                if (!user) {
+                  toast({
+                    title: "Authentication Required 🔒",
+                    description: "Please log in to your organization account to register and manage plantation projects.",
+                  });
+                  setSearchParams({ create: "true" });
+                  setView("wizard");
+                  return;
+                }
+                resetWizard();
+                setView("wizard");
+              }}
+            >
               <Plus className="h-4 w-4 mr-1.5" /> New Plantation Project
             </Button>
           )}
@@ -991,7 +1025,22 @@ const OrganizationPlantation = () => {
                     </p>
                   </div>
                   <div className="pt-2 flex flex-wrap justify-center gap-3">
-                    <Button onClick={() => { resetWizard(); setView("wizard"); }} className="rounded-xl font-bold shadow-md">
+                    <Button
+                      onClick={() => {
+                        if (!user) {
+                          toast({
+                            title: "Authentication Required 🔒",
+                            description: "Please log in to your organization account to register and manage plantation projects.",
+                          });
+                          setSearchParams({ create: "true" });
+                          setView("wizard");
+                          return;
+                        }
+                        resetWizard();
+                        setView("wizard");
+                      }}
+                      className="rounded-xl font-bold shadow-md"
+                    >
                       <Plus className="h-4 w-4 mr-1.5" /> + Create Your First Project
                     </Button>
                     <Button variant="outline" onClick={() => setListTab("public_registry")} className="rounded-xl text-xs font-semibold">
@@ -1146,8 +1195,58 @@ const OrganizationPlantation = () => {
           </div>
         )}
 
-        {/* ---------------- WIZARD ---------------- */}
-        {view === "wizard" && (
+        {/* ---------------- WIZARD AUTH GATE (UNAUTHENTICATED) ---------------- */}
+        {view === "wizard" && !user && (
+          <div className="glass-card rounded-3xl p-8 sm:p-12 text-center max-w-xl mx-auto space-y-6 border-2 border-primary/30 bg-gradient-to-b from-primary/5 via-background to-background shadow-2xl animate-in fade-in zoom-in-95 duration-300">
+            <div className="h-16 w-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto border border-primary/20 shadow-inner">
+              <Lock className="h-8 w-8" />
+            </div>
+
+            <div className="space-y-2">
+              <Badge variant="outline" className="text-xs font-bold text-primary border-primary/30 bg-primary/5">
+                Authentication Required 🔒
+              </Badge>
+              <h2 className="font-heading text-2xl sm:text-3xl font-bold text-foreground">
+                Log In to Register Plantation Projects
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-md mx-auto">
+                All institutional afforestation drives, geodetic boundaries, and satellite telemetry records must be securely tied to an authenticated NGO, Corporate CSR, or Government account in Supabase.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-muted/40 border border-border/40 text-left text-xs space-y-2">
+              <div className="flex items-center gap-2 font-semibold text-foreground">
+                <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
+                <span>Enterprise Data Spine & RLS Protection</span>
+              </div>
+              <p className="text-muted-foreground text-[11px]">
+                Authenticating safeguards your GPS boundaries, tree inventory, carbon credits, and MRV certificates under your organization's private cryptographic workspace.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+              <Link to="/login?redirect=/plant/organization?create=true" className="w-full sm:w-auto">
+                <Button className="w-full sm:w-auto px-6 font-bold shadow-md rounded-xl">
+                  <LogIn className="h-4 w-4 mr-2" /> Log In with Account
+                </Button>
+              </Link>
+              <Link to="/login?redirect=/plant/organization?create=true" className="w-full sm:w-auto">
+                <Button variant="outline" className="w-full sm:w-auto px-6 font-semibold rounded-xl border-primary/30">
+                  Create Organization Account
+                </Button>
+              </Link>
+            </div>
+
+            <div className="pt-2 border-t border-border/30">
+              <Button variant="ghost" size="sm" onClick={() => setView("list")} className="text-xs text-muted-foreground hover:text-foreground">
+                <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Return to Public Project Registry
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ---------------- WIZARD (AUTHENTICATED) ---------------- */}
+        {view === "wizard" && user && (
           <div className="glass-card rounded-2xl p-6 border border-border/40 space-y-6">
             {/* Step Indicator */}
             <div className="flex items-center gap-2 overflow-x-auto pb-2 text-xs font-semibold">

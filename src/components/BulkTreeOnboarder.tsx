@@ -1,8 +1,9 @@
 import { useState, useRef } from "react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Upload, FileSpreadsheet, Download, CheckCircle2, AlertTriangle, Loader2,
-  TreePine, MapPin, Database, Sparkles, RefreshCw, Layers
+  TreePine, MapPin, Database, Sparkles, RefreshCw, Layers, Lock, LogIn
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +57,11 @@ export function BulkTreeOnboarder({ onSuccess }: BulkTreeOnboarderProps) {
   };
 
   const handleCommit = async () => {
+    if (!user) {
+      toast.error("Authentication required: Please log in to your account to commit bulk trees to the database.");
+      return;
+    }
+
     if (validRows.length === 0) {
       toast.error("No valid rows to import!");
       return;
@@ -67,7 +73,7 @@ export function BulkTreeOnboarder({ onSuccess }: BulkTreeOnboarderProps) {
     try {
       const { successCount, failedCount, insertedIds } = await commitBulkTreesToSupabase(
         rows,
-        user?.id,
+        user.id,
         (current, total) => {
           setProgress(Math.round((current / total) * 100));
         }
@@ -105,6 +111,29 @@ export function BulkTreeOnboarder({ onSuccess }: BulkTreeOnboarderProps) {
 
   return (
     <div className="space-y-6">
+      {!user && (
+        <div className="glass-card rounded-2xl p-4 border border-primary/30 bg-primary/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3 text-left">
+            <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
+              <Lock className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-foreground">
+                Authentication Required for Batch Commits
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                You can parse and validate CSV templates freely, but an authenticated account is required to save tree batches to Supabase.
+              </p>
+            </div>
+          </div>
+          <Link to="/login?redirect=/plant/bulk" className="shrink-0 w-full sm:w-auto">
+            <Button size="sm" variant="outline" className="w-full sm:w-auto text-xs font-bold border-primary/40 hover:bg-primary/10 gap-1.5">
+              <LogIn className="h-3.5 w-3.5" /> Log In / Sign Up
+            </Button>
+          </Link>
+        </div>
+      )}
+
       {/* Action Header Card */}
       <div className="glass-card rounded-2xl p-6 border border-primary/20">
         <div className="flex flex-wrap items-center justify-between gap-4">

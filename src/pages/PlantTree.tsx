@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
-import { TreePine, Upload, MapPin, Calendar, Ruler, FileText, Loader2, CheckCircle, ShieldCheck, ShieldX, Clock, Bot, Camera, AlertTriangle, User, Heart, Ban, HandHeart } from "lucide-react";
+import { TreePine, Upload, MapPin, Calendar, Ruler, FileText, Loader2, CheckCircle, ShieldCheck, ShieldX, Clock, Bot, Camera, AlertTriangle, User, Heart, Ban, HandHeart, Lock, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import exifr from "exifr";
 import { compressImage, sha256File } from "@/lib/imageProcessing";
 import { computeImageDHash, evaluatePhotoDuplicateFraud } from "@/lib/perceptualHash";
@@ -292,7 +292,11 @@ const PlantTree = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
-      toast({ title: "Please log in", variant: "destructive" });
+      toast({
+        title: "Authentication Required 🔒",
+        description: "Please log in to your account before submitting a tree plantation.",
+        variant: "destructive",
+      });
       return;
     }
     if (!beforePhoto || !afterPhoto || !selfiePhoto) {
@@ -322,6 +326,7 @@ const PlantTree = () => {
         setSubmitStage("");
         return;
       }
+      const authUserId = sessionData.session.user.id;
       // Perceptual Image Hashing & Duplicate Fraud Cross-Check
       setSubmitStage("Scanning Perceptual Image Fingerprint (dHash)...");
       const photoHash = await sha256File(afterPhoto);
@@ -681,6 +686,30 @@ const PlantTree = () => {
               {driveId && <Badge variant="secondary">Registering under a Plantation Drive</Badge>}
             </div>
           </div>
+
+          {/* Unauthenticated Alert Banner */}
+          {!user && (
+            <div className="glass-card rounded-2xl p-5 mb-6 border-2 border-primary/30 bg-primary/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0 mt-0.5 sm:mt-0">
+                  <Lock className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-heading text-sm font-bold text-foreground">
+                    Log in to register and verify your tree
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    An authenticated account is required to save your plantation to the Supabase data spine, link geo-evidence to your profile, and receive AI verification badges.
+                  </p>
+                </div>
+              </div>
+              <Link to={`/login?redirect=/plant/individual${driveId ? `?drive=${driveId}` : ""}`} className="w-full sm:w-auto shrink-0">
+                <Button size="sm" className="w-full sm:w-auto font-bold rounded-xl gap-1.5 text-xs shadow-sm">
+                  <LogIn className="h-3.5 w-3.5" /> Log In / Sign Up
+                </Button>
+              </Link>
+            </div>
+          )}
 
           {/* Photo Steps */}
           <div className="glass-card rounded-2xl p-6 mb-6">

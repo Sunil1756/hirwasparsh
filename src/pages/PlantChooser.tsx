@@ -1,12 +1,14 @@
 import { useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { TreePine, Building2, ArrowRight, ShieldCheck, MapPin, Satellite } from "lucide-react";
+import { TreePine, Building2, ArrowRight, ShieldCheck, MapPin, Satellite, Lock, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 
 const PlantChooser = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const drive = searchParams.get("drive");
 
   // Drive sign-ups always belong to the individual verification flow.
@@ -21,7 +23,7 @@ const PlantChooser = () => {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="text-center mb-10"
+          className="text-center mb-8"
         >
           <h1 className="font-heading font-bold text-primary text-[clamp(1.75rem,4vw,2.75rem)] leading-tight">
             How are you planting?
@@ -31,6 +33,33 @@ const PlantChooser = () => {
             verification — only the evidence requirements differ.
           </p>
         </motion.div>
+
+        {!user && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card rounded-2xl p-4 mb-8 border border-primary/30 bg-primary/5 flex flex-col sm:flex-row items-center justify-between gap-4"
+          >
+            <div className="flex items-center gap-3 text-left">
+              <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
+                <Lock className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-foreground">
+                  Institutional Account & Session Gate
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Plantation projects, parcel boundaries, and tree telemetry must be saved under an authenticated Supabase account.
+                </p>
+              </div>
+            </div>
+            <Link to="/login?redirect=/plant" className="shrink-0 w-full sm:w-auto">
+              <Button size="sm" variant="outline" className="w-full sm:w-auto text-xs font-bold border-primary/40 hover:bg-primary/10 gap-1.5">
+                <LogIn className="h-3.5 w-3.5" /> Log In / Sign Up
+              </Button>
+            </Link>
+          </motion.div>
+        )}
 
         <div className="grid gap-6 md:grid-cols-3">
           <motion.div

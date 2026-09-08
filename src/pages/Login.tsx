@@ -274,12 +274,16 @@ const Login = () => {
   const [showRecoveryPassword, setShowRecoveryPassword] = useState(false);
   const [recoveryLoading, setRecoveryLoading] = useState(false);
 
+  // Dynamic redirect destination if arriving from a protected flow
+  const redirectParam = searchParams.get("redirect");
+  const redirectTarget = redirectParam && redirectParam.startsWith("/") ? redirectParam : "/";
+
   // Redirect if already logged in (and not in recovery mode)
   useEffect(() => {
     if (user && !isRecoveryMode) {
-      navigate("/");
+      navigate(redirectTarget);
     }
-  }, [user, navigate, isRecoveryMode]);
+  }, [user, navigate, isRecoveryMode, redirectTarget]);
 
   // Resend OTP Countdown Timer
   useEffect(() => {
@@ -346,7 +350,7 @@ const Login = () => {
       toast({ title: "Login Failed", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Welcome back! 🌿", description: "You are signed in to Green Enlightenment." });
-      navigate("/");
+      navigate(redirectTarget);
     }
   };
 
@@ -426,7 +430,7 @@ const Login = () => {
       setLoading(false);
       if (!existingErr && existingLogin?.session) {
         toast({ title: "Welcome back! 🌿", description: "Account already exists. You are now logged in." });
-        navigate("/");
+        navigate(redirectTarget);
       } else {
         toast({
           title: "Account Already Registered",
@@ -443,7 +447,7 @@ const Login = () => {
       title: "Account Created! 🌱",
       description: "Welcome to Green Enlightenment! You are signed in.",
     });
-    navigate("/");
+    navigate(redirectTarget);
   };
 
   // -------------------------------------------------------------
@@ -569,7 +573,7 @@ const Login = () => {
         setLoading(false);
         sessionStorage.removeItem(`demo_otp_${check.digits}`);
         toast({ title: "Verified & Signed In! 🌿", description: `Welcome back (${check.formatted}).` });
-        navigate("/");
+        navigate(redirectTarget);
         return;
       }
 
@@ -592,10 +596,10 @@ const Login = () => {
 
       if (!signupErr && (signupData?.session || signupData?.user)) {
         toast({ title: "Phone Verified & Account Created! 🌱", description: "Welcome to Green Enlightenment." });
-        navigate("/");
+        navigate(redirectTarget);
       } else {
         toast({ title: "Verified! 🌿", description: "Phone verification successful." });
-        navigate("/");
+        navigate(redirectTarget);
       }
       return;
     }
@@ -620,7 +624,7 @@ const Login = () => {
           });
         }
         toast({ title: "Verified & Signed In! 🌿", description: "Welcome to Green Enlightenment." });
-        navigate("/");
+        navigate(redirectTarget);
       }
     } catch (err: any) {
       setLoading(false);
@@ -660,7 +664,7 @@ const Login = () => {
         toast({ title: "Login Failed", description: "Incorrect mobile number or password.", variant: "destructive" });
       } else {
         toast({ title: "Welcome back! 🌿", description: `Signed in with ${check.formatted}.` });
-        navigate("/");
+        navigate(redirectTarget);
       }
     } else {
       // Signup with Phone + Password
@@ -697,7 +701,7 @@ const Login = () => {
         toast({ title: "Signup Failed", description: error.message, variant: "destructive" });
       } else {
         toast({ title: "Account Created! 🌱", description: "You are signed in with your mobile number." });
-        navigate("/");
+        navigate(redirectTarget);
       }
     }
   };
