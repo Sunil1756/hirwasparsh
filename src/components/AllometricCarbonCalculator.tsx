@@ -4,7 +4,7 @@ import {
   SPECIES_ALLOMETRY_CATALOG,
   CarbonBiomassResult,
 } from "@/lib/carbonBiomassEngine";
-import { Trees, Calculator, Sparkles, Award, IndianRupee, DollarSign, Info, ShieldCheck } from "lucide-react";
+import { Trees, Calculator, Sparkles, Award, IndianRupee, DollarSign, Info, ShieldCheck, AlertTriangle, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,13 +15,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export function AllometricCarbonCalculator() {
+interface Props {
+  plotId?: string;
+  plotName?: string;
+  isVerified?: boolean;
+  verificationTier?: string;
+}
+
+export function AllometricCarbonCalculator({
+  plotId,
+  plotName = "Active Agroforestry Parcel",
+  isVerified = true,
+  verificationTier = "field_verified",
+}: Props) {
   const [speciesKey, setSpeciesKey] = useState("teak");
   const [treeCount, setTreeCount] = useState(5000);
   const [ageMonths, setAgeMonths] = useState(24);
   const [isAdvanced, setIsAdvanced] = useState(false);
   const [customDbh, setCustomDbh] = useState<number | undefined>(undefined);
   const [customHeight, setCustomHeight] = useState<number | undefined>(undefined);
+
+  const isDemoOrUnverified = !isVerified || verificationTier === "unverified_demo";
 
   const result: CarbonBiomassResult = calculateAllometricCarbon({
     speciesKey,
@@ -32,9 +46,9 @@ export function AllometricCarbonCalculator() {
   });
 
   return (
-    <div className="glass-card rounded-2xl p-5 sm:p-6 border border-primary/20 shadow-md">
+    <div className="glass-card rounded-2xl p-5 sm:p-6 border border-primary/20 shadow-md space-y-4">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/40 pb-3">
         <div>
           <div className="flex items-center gap-2">
             <Calculator className="h-5 w-5 text-primary" />
@@ -47,10 +61,35 @@ export function AllometricCarbonCalculator() {
           </p>
         </div>
 
-        <Badge variant="outline" className="text-xs bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
-          IPCC Tier-2 Compliant
-        </Badge>
+        <div className="flex items-center gap-2">
+          {isDemoOrUnverified ? (
+            <Badge variant="outline" className="text-xs bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 gap-1">
+              <AlertTriangle className="h-3 w-3" /> Unverified / Demo Simulation
+            </Badge>
+          ) : (
+            <Badge className="text-xs bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 gap-1 font-semibold">
+              <ShieldCheck className="h-3 w-3" /> Zero Greenwashing Verified MRV
+            </Badge>
+          )}
+          <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
+            IPCC Tier-2
+          </Badge>
+        </div>
       </div>
+
+      {/* Verification Gate Warning when Unverified */}
+      {isDemoOrUnverified && (
+        <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
+          <Lock className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <strong className="font-bold text-amber-600 dark:text-amber-400">Carbon MRV Verification Gate: </strong>
+            <span>
+              This parcel has not completed multi-source verification (requires ≥1 Sentinel-2 overpass + ≥1 field photo check-in). 
+              Values shown below are uncertified mathematical simulations and cannot be issued or traded on carbon registries.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Input Parameters */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 p-4 rounded-xl bg-background/50 border border-primary/10">

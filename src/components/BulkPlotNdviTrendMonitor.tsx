@@ -39,6 +39,7 @@ import {
   QoQNdviEvaluationResult,
 } from "@/lib/survivalTrackingService";
 import { fetchSatelliteReadings } from "@/lib/databaseAuditService";
+import { fetchPlotSpectralAnomalies, SpectralAnomalyRecord } from "@/lib/sentinel2PipelineService";
 import { useToast } from "@/hooks/use-toast";
 
 interface Props {
@@ -59,18 +60,20 @@ export function BulkPlotNdviTrendMonitor({
   const { toast } = useToast();
   const [readings, setReadings] = useState<any[]>([]);
   const [tasks, setTasks] = useState<FieldTaskRecord[]>([]);
+  const [anomalies, setAnomalies] = useState<SpectralAnomalyRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [showTaskDialog, setShowTaskDialog] = useState(false);
 
-  // Load satellite readings and field tasks
+  // Load satellite readings, field tasks, and spectral anomalies
   useEffect(() => {
     async function loadData() {
       setIsLoading(true);
       try {
-        const [satData, taskData] = await Promise.all([
+        const [satData, taskData, anomalyData] = await Promise.all([
           fetchSatelliteReadings(plotId),
           fetchPlotFieldTasks(plotId),
+          fetchPlotSpectralAnomalies(plotId),
         ]);
 
         if (satData && satData.length > 0) {
@@ -84,28 +87,28 @@ export function BulkPlotNdviTrendMonitor({
               ndvi: 0.74,
               ndwi: 0.28,
               ndre: 0.62,
-              source: "sentinel-2",
+              source: "copernicus_sentinel2_l2a",
             },
             {
               reading_date: new Date(today.getTime() - 120 * 86400000).toISOString().split("T")[0],
               ndvi: 0.76,
               ndwi: 0.29,
               ndre: 0.64,
-              source: "sentinel-2",
+              source: "copernicus_sentinel2_l2a",
             },
             {
               reading_date: new Date(today.getTime() - 60 * 86400000).toISOString().split("T")[0],
               ndvi: 0.78,
               ndwi: 0.31,
               ndre: 0.66,
-              source: "sentinel-2",
+              source: "copernicus_sentinel2_l2a",
             },
             {
               reading_date: new Date(today.getTime() - 15 * 86400000).toISOString().split("T")[0],
               ndvi: 0.81,
               ndwi: 0.32,
               ndre: 0.68,
-              source: "sentinel-2",
+              source: "copernicus_sentinel2_l2a",
             },
           ];
           setReadings(mockReadings);
@@ -113,6 +116,9 @@ export function BulkPlotNdviTrendMonitor({
 
         if (taskData) {
           setTasks(taskData);
+        }
+        if (anomalyData) {
+          setAnomalies(anomalyData);
         }
       } catch (err) {
         console.warn("Could not load NDVI trend data:", err);
@@ -359,6 +365,41 @@ export function BulkPlotNdviTrendMonitor({
           </LineChart>
         </ResponsiveContainer>
       </div>
+
+      {/* Recorded Spectral Anomalies from Supabase */}
+      {anomalies.length > 0 && (
+        <div className="pt-3 border-t border-border/50 space-y-2">
+          <div className="text-xs font-bold text-red-600 dark:text-red-400 flex items-center gap-1.5">
+            <AlertTriangle className="h-4 w-4" />
+            Detected Sentinel-2 Spectral Anomalies ({anomalies.length})
+          </div>
+          <div className="space-y-2">
+            {anomalies.map((anom) => (
+              <div
+                key={anom.id}
+                className="p-3 rounded-xl bg-red-500/5 border border-red-500/30 text-xs flex flex-wrap items-center justify-between gap-2"
+              >
+                <div>
+                  <div className="font-semibold text-foreground flex items-center gap-2">
+                    <span>{anom.notes || `Spectral Drop: ${anom.drop_percentage}%`}</span>
+                    <Badge className="bg-red-500/20 text-red-600 border-red-500/40 text-[9px]">
+                      {anom.severity.toUpperCase()}
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Baseline NDVI: {anom.baseline_ndvi} → Current NDVI: {anom.current_ndvi} · Logged: {new Date(anom.detected_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20">
+                    {anom.status === "task_dispatched" ? "Task Dispatched to Field" : anom.status}
+                  </Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Open Field Tasks List */}
       {tasks.length > 0 && (

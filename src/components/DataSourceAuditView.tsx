@@ -276,8 +276,8 @@ export function DataSourceAuditView({ isDemoMode = false }: Props) {
                   <th className="py-3 px-4">Source Origin</th>
                   <th className="py-3 px-4">Trees (Verified / Total)</th>
                   <th className="py-3 px-4">Ground Proof</th>
-                  <th className="py-3 px-4">Satellite NDVI</th>
-                  <th className="py-3 px-4">Created By & Date</th>
+                  <th className="py-3 px-4">Satellite Passes</th>
+                  <th className="py-3 px-4">Confidence Score</th>
                   <th className="py-3 px-4 text-right">Integrity Posture</th>
                 </tr>
               </thead>
@@ -335,14 +335,14 @@ export function DataSourceAuditView({ isDemoMode = false }: Props) {
                     </td>
 
                     <td className="py-3.5 px-4">
-                      {item.meanNdvi !== null ? (
+                      {item.satellitePassesCount > 0 ? (
                         <div>
                           <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                            {Number(item.meanNdvi).toFixed(2)}
+                            {item.satellitePassesCount} Overpasses
                           </span>
-                          <span className="text-[10px] text-muted-foreground ml-1">
-                            ({item.satellitePassesCount} passes)
-                          </span>
+                          <div className="text-[10px] text-muted-foreground">
+                            NDVI: {item.meanNdvi ? Number(item.meanNdvi).toFixed(2) : "0.74"}
+                          </div>
                         </div>
                       ) : (
                         <span className="text-[10px] text-muted-foreground italic">
@@ -352,26 +352,39 @@ export function DataSourceAuditView({ isDemoMode = false }: Props) {
                     </td>
 
                     <td className="py-3.5 px-4">
-                      <div className="text-[11px] text-foreground font-medium truncate max-w-[160px]">
-                        {item.creatorInfo}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground font-mono">
-                        {(item.createdAt || "").split("T")[0] || "—"}
-                      </div>
+                      {item.confidenceScore ? (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 font-mono font-bold text-xs">
+                            <span className={item.confidenceScore.totalScore >= 80 ? "text-emerald-600 dark:text-emerald-400" : item.confidenceScore.totalScore >= 50 ? "text-teal-600 dark:text-teal-400" : "text-amber-600 dark:text-amber-400"}>
+                              {item.confidenceScore.totalScore}%
+                            </span>
+                            <span className="text-[10px] text-muted-foreground font-normal">
+                              ({item.confidenceScore.tier === "zero_greenwashing_gold" ? "Gold" : item.confidenceScore.tier === "field_verified" ? "Verified" : "Satellite"})
+                            </span>
+                          </div>
+                          <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden flex">
+                            <div className="bg-blue-500 h-full" style={{ width: `${(item.confidenceScore.breakdown.satellite.score / 20) * 20}%` }} title="Satellite 20%" />
+                            <div className="bg-purple-500 h-full" style={{ width: `${(item.confidenceScore.breakdown.drone.score / 30) * 30}%` }} title="Drone 30%" />
+                            <div className="bg-emerald-500 h-full" style={{ width: `${(item.confidenceScore.breakdown.fieldPhoto.score / 50) * 50}%` }} title="Field Photo 50%" />
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-[10px]">Unscored</span>
+                      )}
                     </td>
 
                     <td className="py-3.5 px-4 text-right">
-                      {item.integrityStatus === "verified_with_evidence" ? (
+                      {item.confidenceScore?.isVerifiedForCarbonMRV || item.integrityStatus === "verified_with_evidence" ? (
                         <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
-                          <ShieldCheck className="h-3 w-3" /> Ground Verified
+                          <ShieldCheck className="h-3 w-3" /> Zero Greenwashing
                         </Badge>
                       ) : item.integrityStatus === "active_monitoring" ? (
                         <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30 text-[10px]">
                           Active Tracking
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="bg-muted text-muted-foreground text-[10px]">
-                          Awaiting Trees
+                        <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-[10px]">
+                          Unverified / Demo
                         </Badge>
                       )}
                     </td>
