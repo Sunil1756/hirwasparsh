@@ -1254,7 +1254,7 @@ Please provide:
             <div className="p-2.5 rounded-xl bg-card border border-border/60 space-y-1">
               <div className="flex items-center justify-between text-[11px]">
                 <span className="text-muted-foreground font-medium flex items-center gap-1">
-                  🛰️ Space-Borne Satellite (Macro)
+                  🛰️ Space-Borne Canopy Index (Macro)
                 </span>
                 <span className="font-mono font-bold text-primary">
                   {activeConfidence.breakdown.satellite.score} / 40 pts
@@ -1274,7 +1274,7 @@ Please provide:
             <div className="p-2.5 rounded-xl bg-card border border-border/60 space-y-1">
               <div className="flex items-center justify-between text-[11px]">
                 <span className="text-muted-foreground font-medium flex items-center gap-1">
-                  📷 Ground Truth Mobile Geotags (Micro)
+                  📷 Stratified Sample Audits (Quad/PSP)
                 </span>
                 <span className="font-mono font-bold text-primary">
                   {activeConfidence.breakdown.fieldPhoto.score} / 60 pts

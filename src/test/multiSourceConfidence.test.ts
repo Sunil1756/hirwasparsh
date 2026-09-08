@@ -38,7 +38,7 @@ describe("Multi-Source Fusion & Confidence Scoring Engine", () => {
   it("computes Gold Tier (80-100%) score for verified plot with satellite macro data and ground photos", () => {
     const today = new Date().toISOString();
     const result = computeMultiSourceConfidenceScore({
-      totalPlantedTrees: 50,
+      totalPlantedTrees: 30,
       satelliteOverpasses: [
         { acquisition_date: "2026-01-01", ndvi: 0.65 },
         { acquisition_date: "2026-02-01", ndvi: 0.72 },
@@ -54,7 +54,6 @@ describe("Multi-Source Fusion & Confidence Scoring Engine", () => {
         { checked_at: today, status: "alive", ai_confidence: 96, is_verified: true },
         { checked_at: today, status: "alive", ai_confidence: 94, is_verified: true },
         { checked_at: today, status: "alive", ai_confidence: 95, is_verified: true },
-        { checked_at: today, status: "alive", ai_confidence: 97, is_verified: true },
       ],
     });
 
