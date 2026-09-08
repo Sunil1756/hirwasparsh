@@ -65,41 +65,85 @@ const Navbar = () => {
         {/* Brand Logo & Name */}
         <Link
           to="/"
-          className="flex items-center gap-1.5 sm:gap-2 shrink min-w-0 font-heading font-bold text-primary leading-none"
+          className="flex items-center gap-1.5 sm:gap-2 shrink-0 font-heading font-bold text-primary leading-none"
         >
           <img
             src={logo}
             alt="Green Enlightenment logo"
-            width={30}
-            height={30}
+            width={32}
+            height={32}
             className="h-7 w-7 sm:h-8 sm:w-8 rounded-full object-contain shrink-0"
           />
-          <span className="truncate font-bold text-[13px] min-[360px]:text-[14px] sm:text-[16px] text-foreground">
+          <span className="font-bold text-[14px] sm:text-[16px] text-foreground whitespace-nowrap">
             Green Enlightenment
           </span>
         </Link>
 
         {/* Desktop Navigation (>= 1024px) */}
-        <div className="hidden lg:flex items-center justify-center flex-1 min-w-0 gap-1 xl:gap-2">
-          {primaryLinks.map((link) => (
-            <Link
-              key={link.to}
-              to={link.to}
-              className={`px-3 py-2 rounded-xl text-[13px] xl:text-[14px] font-semibold whitespace-nowrap transition-colors ${
-                location.pathname === link.to
-                  ? "text-primary bg-primary/10"
-                  : "text-muted-foreground hover:text-primary hover:bg-primary/5"
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
+        <div className="hidden lg:flex items-center justify-center gap-0.5 xl:gap-1.5 2xl:gap-2 mx-1 xl:mx-3 min-w-0">
+          <Link
+            to="/"
+            className={`px-2 py-1.5 xl:px-3 xl:py-2 rounded-xl text-xs xl:text-[13px] 2xl:text-[14px] font-semibold whitespace-nowrap transition-colors ${
+              location.pathname === "/"
+                ? "text-primary bg-primary/10"
+                : "text-muted-foreground hover:text-primary hover:bg-primary/5"
+            }`}
+          >
+            {t.nav_home}
+          </Link>
+
+          <Link
+            to="/tree-map"
+            className={`px-2 py-1.5 xl:px-3 xl:py-2 rounded-xl text-xs xl:text-[13px] 2xl:text-[14px] font-semibold whitespace-nowrap transition-colors ${
+              location.pathname === "/tree-map"
+                ? "text-primary bg-primary/10"
+                : "text-muted-foreground hover:text-primary hover:bg-primary/5"
+            }`}
+          >
+            <span>Tree Map</span>
+            <span className="hidden xl:inline"> & GIS</span>
+          </Link>
+
+          <Link
+            to="/plant"
+            className={`px-2 py-1.5 xl:px-3 xl:py-2 rounded-xl text-xs xl:text-[13px] 2xl:text-[14px] font-semibold whitespace-nowrap transition-colors ${
+              location.pathname === "/plant"
+                ? "text-primary bg-primary/10"
+                : "text-muted-foreground hover:text-primary hover:bg-primary/5"
+            }`}
+          >
+            <span>Plant</span>
+            <span className="hidden xl:inline"> a Tree</span>
+          </Link>
+
+          <Link
+            to="/dashboard"
+            className={`px-2 py-1.5 xl:px-3 xl:py-2 rounded-xl text-xs xl:text-[13px] 2xl:text-[14px] font-semibold whitespace-nowrap transition-colors ${
+              location.pathname === "/dashboard"
+                ? "text-primary bg-primary/10"
+                : "text-muted-foreground hover:text-primary hover:bg-primary/5"
+            }`}
+          >
+            {t.nav_dashboard}
+          </Link>
+
+          <Link
+            to="/intelligence"
+            className={`px-2 py-1.5 xl:px-3 xl:py-2 rounded-xl text-xs xl:text-[13px] 2xl:text-[14px] font-semibold whitespace-nowrap transition-colors ${
+              location.pathname === "/intelligence"
+                ? "text-primary bg-primary/10"
+                : "text-muted-foreground hover:text-primary hover:bg-primary/5"
+            }`}
+          >
+            <span className="hidden xl:inline">AI </span>
+            <span>Intelligence</span>
+          </Link>
 
           {/* Community Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-1 px-3 py-2 rounded-xl text-[13px] xl:text-[14px] font-semibold whitespace-nowrap text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
-                Community <ChevronDown className="h-3.5 w-3.5" />
+              <button className="flex items-center gap-1 px-2 py-1.5 xl:px-3 xl:py-2 rounded-xl text-xs xl:text-[13px] 2xl:text-[14px] font-semibold whitespace-nowrap text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
+                Community <ChevronDown className="h-3 w-3 xl:h-3.5 xl:w-3.5" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="center" className="w-48 bg-popover z-[60]">
@@ -116,8 +160,10 @@ const Navbar = () => {
           {/* Institutional / B2B Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-1 px-3 py-2 rounded-xl text-[13px] xl:text-[14px] font-semibold whitespace-nowrap text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 transition-colors">
-                Institutional MRV <ChevronDown className="h-3.5 w-3.5" />
+              <button className="flex items-center gap-1 px-2 py-1.5 xl:px-3 xl:py-2 rounded-xl text-xs xl:text-[13px] 2xl:text-[14px] font-semibold whitespace-nowrap text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 transition-colors">
+                <span className="xl:hidden">MRV</span>
+                <span className="hidden xl:inline">Institutional MRV</span>
+                <ChevronDown className="h-3 w-3 xl:h-3.5 xl:w-3.5" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="center" className="w-56 bg-popover z-[60]">
@@ -137,19 +183,20 @@ const Navbar = () => {
           {isAdmin && (
             <Link
               to="/admin"
-              className={`px-2 py-2 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
+              className={`px-2 py-1.5 rounded-xl text-xs xl:text-[13px] font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
                 location.pathname === "/admin"
                   ? "text-primary bg-primary/10"
                   : "text-muted-foreground hover:text-primary hover:bg-primary/5"
               }`}
             >
-              <Shield className="h-3 w-3" /> Admin
+              <Shield className="h-3 w-3" />
+              <span className="hidden xl:inline">Admin</span>
             </Link>
           )}
         </div>
 
         {/* Right Side Action Controls */}
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <OfflineSyncModal />
           <LanguageSwitcher />
 
