@@ -233,7 +233,7 @@ const Login = () => {
   // Mode & Tab states
   const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
   const [authMethod, setAuthMethod] = useState<AuthMethod>("email");
-  const [phoneMode, setPhoneMode] = useState<PhoneAuthMode>("otp");
+  const [phoneMode, setPhoneMode] = useState<PhoneAuthMode>("password");
   const [loading, setLoading] = useState(false);
 
   // Anti-Bot Form interaction timer
@@ -252,7 +252,6 @@ const Login = () => {
   const [showPhonePassword, setShowPhonePassword] = useState(false);
   const [otpToken, setOtpToken] = useState("");
   const [otpSent, setOtpSent] = useState(false);
-  const [simulatedOtp, setSimulatedOtp] = useState<string | null>(null);
   const [resendTimer, setResendTimer] = useState(0);
 
   // Signup state
@@ -442,6 +441,15 @@ const Login = () => {
       return;
     }
 
+    if (data?.user) {
+      await supabase.from("profiles").upsert({
+        id: data.user.id,
+        full_name: cleanName,
+        organization_name: accountType !== "individual" ? orgName.trim() : null,
+        role: accountType,
+      });
+    }
+
     setLoading(false);
     toast({
       title: "Account Created! 🌱",
@@ -451,7 +459,7 @@ const Login = () => {
   };
 
   // -------------------------------------------------------------
-  // 3. PHONE NUMBER OTP: SEND OTP (WITH DYNAMIC SANDBOX FALLBACK)
+  // 3. PHONE NUMBER OTP: REAL SMS OTP (REQUIRES ACTIVE SMS GATEWAY)
   // -------------------------------------------------------------
   const handleSendPhoneOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -473,7 +481,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithOtp({
+      const { error } = await supabase.auth.signInWithOtp({
         phone: check.formatted,
         options: {
           channel: "sms",
@@ -488,33 +496,19 @@ const Login = () => {
       setLoading(false);
 
       if (error) {
-        // If Supabase project SMS gateway is not yet enabled (Unsupported phone provider):
-        // Automatically switch to Instant Secure OTP Verification Mode!
-        if (
+        const isProviderIssue =
           error.message?.toLowerCase().includes("unsupported phone provider") ||
           error.message?.toLowerCase().includes("sms provider") ||
-          error.message?.toLowerCase().includes("not configured")
-        ) {
-          const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-          sessionStorage.setItem(`demo_otp_${check.digits}`, generatedOtp);
-          setSimulatedOtp(generatedOtp);
-          setOtpSent(true);
-          setResendTimer(60);
-          toast({
-            title: "Verification Code Ready 📲",
-            description: `Your 6-digit OTP code is [ ${generatedOtp} ]. Enter it below to verify.`,
-            duration: 10000,
-          });
-          return;
-        }
+          error.message?.toLowerCase().includes("not configured");
 
         toast({
-          title: "SMS OTP Request",
-          description: error.message,
+          title: "SMS Gateway Notice 📲",
+          description: isProviderIssue
+            ? "Live SMS dispatch is not configured in this database environment. Please switch to 'Password' mode to sign in or register with your mobile number."
+            : error.message,
           variant: "destructive",
         });
       } else {
-        setSimulatedOtp(null);
         setOtpSent(true);
         setResendTimer(60);
         toast({
@@ -524,22 +518,16 @@ const Login = () => {
       }
     } catch (err: any) {
       setLoading(false);
-      // Resilient fallback OTP
-      const fallbackOtp = Math.floor(100000 + Math.random() * 900000).toString();
-      sessionStorage.setItem(`demo_otp_${check.digits}`, fallbackOtp);
-      setSimulatedOtp(fallbackOtp);
-      setOtpSent(true);
-      setResendTimer(60);
       toast({
-        title: "Verification Code Ready 📲",
-        description: `Your 6-digit OTP code is [ ${fallbackOtp} ]. Enter it below to verify.`,
-        duration: 10000,
+        title: "SMS Request Failed",
+        description: err.message || "Could not dispatch SMS OTP. Please use Password login.",
+        variant: "destructive",
       });
     }
   };
 
   // -------------------------------------------------------------
-  // 4. PHONE NUMBER OTP: VERIFY OTP
+  // 4. PHONE NUMBER OTP: VERIFY OTP (STRICT SUPABASE VERIFY)
   // -------------------------------------------------------------
   const handleVerifyPhoneOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -556,55 +544,6 @@ const Login = () => {
 
     setLoading(true);
 
-    const savedOtp = sessionStorage.getItem(`demo_otp_${check.digits}`);
-
-    // If sandbox OTP was used
-    if (savedOtp && cleanToken === savedOtp) {
-      const syntheticEmail = getPhoneSyntheticEmail(check.digits);
-      const defaultPass = `GreenPass@${check.digits.slice(-4)}!`;
-
-      // Try signing in with synthetic phone account
-      const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({
-        email: syntheticEmail,
-        password: defaultPass,
-      });
-
-      if (!loginErr && loginData?.session) {
-        setLoading(false);
-        sessionStorage.removeItem(`demo_otp_${check.digits}`);
-        toast({ title: "Verified & Signed In! 🌿", description: `Welcome back (${check.formatted}).` });
-        navigate(redirectTarget);
-        return;
-      }
-
-      // If user doesn't exist yet, create account
-      const { data: signupData, error: signupErr } = await supabase.auth.signUp({
-        email: syntheticEmail,
-        password: defaultPass,
-        options: {
-          data: {
-            full_name: signupName.trim() || `User ${check.digits.slice(-4)}`,
-            phone: check.formatted,
-            account_type: accountType,
-            organization_name: accountType !== "individual" ? orgName.trim() : null,
-          },
-        },
-      });
-
-      setLoading(false);
-      sessionStorage.removeItem(`demo_otp_${check.digits}`);
-
-      if (!signupErr && (signupData?.session || signupData?.user)) {
-        toast({ title: "Phone Verified & Account Created! 🌱", description: "Welcome to Green Enlightenment." });
-        navigate(redirectTarget);
-      } else {
-        toast({ title: "Verified! 🌿", description: "Phone verification successful." });
-        navigate(redirectTarget);
-      }
-      return;
-    }
-
-    // Try Supabase official verifyOtp
     try {
       const { data, error } = await supabase.auth.verifyOtp({
         phone: check.formatted,
@@ -617,10 +556,12 @@ const Login = () => {
       if (error) {
         toast({ title: "Verification Failed", description: error.message, variant: "destructive" });
       } else {
-        if (activeTab === "signup" && data?.user && signupName.trim()) {
+        if (data?.user) {
           await supabase.from("profiles").upsert({
             id: data.user.id,
-            full_name: signupName.trim(),
+            full_name: signupName.trim() || `User ${check.digits.slice(-4)}`,
+            organization_name: accountType !== "individual" ? orgName.trim() : null,
+            role: accountType,
           });
         }
         toast({ title: "Verified & Signed In! 🌿", description: "Welcome to Green Enlightenment." });
@@ -695,14 +636,38 @@ const Login = () => {
           },
         },
       });
-      setLoading(false);
 
       if (error) {
+        setLoading(false);
         toast({ title: "Signup Failed", description: error.message, variant: "destructive" });
-      } else {
-        toast({ title: "Account Created! 🌱", description: "You are signed in with your mobile number." });
-        navigate(redirectTarget);
+        return;
       }
+
+      // Check if user already exists
+      if (data?.user && (!data.user.identities || data.user.identities.length === 0)) {
+        setLoading(false);
+        toast({
+          title: "Account Already Registered",
+          description: "An account with this mobile number already exists. Please log in with your password.",
+          variant: "destructive",
+        });
+        setActiveTab("login");
+        return;
+      }
+
+      // Upsert profile in Supabase profiles table
+      if (data?.user) {
+        await supabase.from("profiles").upsert({
+          id: data.user.id,
+          full_name: cleanName,
+          organization_name: accountType !== "individual" ? orgName.trim() : null,
+          role: accountType,
+        });
+      }
+
+      setLoading(false);
+      toast({ title: "Account Created! 🌱", description: "You are signed in with your mobile number." });
+      navigate(redirectTarget);
     }
   };
 
@@ -1023,17 +988,6 @@ const Login = () => {
                     ) : (
                       /* OTP VERIFICATION VIEW */
                       <form onSubmit={handleVerifyPhoneOtp} className="space-y-4 animate-in fade-in duration-300">
-                        {simulatedOtp && (
-                          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-700 dark:text-emerald-300 space-y-1">
-                            <div className="font-bold flex items-center gap-1.5">
-                              <Sparkles className="h-3.5 w-3.5" /> Instant OTP Code:
-                            </div>
-                            <div>
-                              Your 6-digit verification code is <strong className="font-mono text-sm tracking-widest text-emerald-800 dark:text-emerald-200">[{simulatedOtp}]</strong>
-                            </div>
-                          </div>
-                        )}
-
                         <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-between text-xs">
                           <div className="flex items-center gap-2">
                             <Phone className="h-4 w-4 text-primary shrink-0" />
@@ -1041,7 +995,7 @@ const Login = () => {
                           </div>
                           <button
                             type="button"
-                            onClick={() => { setOtpSent(false); setSimulatedOtp(null); }}
+                            onClick={() => setOtpSent(false)}
                             className="text-primary font-semibold hover:underline"
                           >
                             Change
@@ -1364,17 +1318,6 @@ const Login = () => {
                     ) : (
                       /* OTP VERIFICATION VIEW */
                       <form onSubmit={handleVerifyPhoneOtp} className="space-y-4 animate-in fade-in duration-300">
-                        {simulatedOtp && (
-                          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-700 dark:text-emerald-300 space-y-1">
-                            <div className="font-bold flex items-center gap-1.5">
-                              <Sparkles className="h-3.5 w-3.5" /> Instant OTP Code:
-                            </div>
-                            <div>
-                              Your 6-digit verification code is <strong className="font-mono text-sm tracking-widest text-emerald-800 dark:text-emerald-200">[{simulatedOtp}]</strong>
-                            </div>
-                          </div>
-                        )}
-
                         <div className="p-3.5 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-between text-xs">
                           <div className="flex items-center gap-2">
                             <Phone className="h-4 w-4 text-primary shrink-0" />
@@ -1382,7 +1325,7 @@ const Login = () => {
                           </div>
                           <button
                             type="button"
-                            onClick={() => { setOtpSent(false); setSimulatedOtp(null); }}
+                            onClick={() => setOtpSent(false)}
                             className="text-primary font-semibold hover:underline"
                           >
                             Change
