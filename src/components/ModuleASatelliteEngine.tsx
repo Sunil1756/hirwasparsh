@@ -815,10 +815,6 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
   const currentLayer = SPECTRAL_LAYERS.find((l) => l.id === activeSpectral) || SPECTRAL_LAYERS[1];
 
   const activeConfidence: MultiSourceConfidenceResult = useMemo(() => {
-    const isPilot =
-      selectedZone.id.toLowerCase().includes("vruksha") ||
-      selectedZone.id.toLowerCase().includes("varshik") ||
-      selectedZone.name.toLowerCase().includes("vruksha");
     const isDemo = selectedZone.id.startsWith("demo_") || isDemoMode;
 
     const zoneTreeRecords = trees.filter(
@@ -830,13 +826,12 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
 
     return computeMultiSourceConfidenceScore({
       plotId: selectedZone.id,
-      totalPlantedTrees: selectedZone.targetTrees || 100,
+      totalPlantedTrees: selectedZone.targetTrees || (zoneTreeRecords.length > 0 ? zoneTreeRecords.length : 100),
       manualOverrides: {
-        satellitePassesCount: isDemo ? 0 : isPilot ? 7 : zoneTreeRecords.length > 0 ? 3 : 1,
+        satellitePassesCount: isDemo ? 0 : zoneTreeRecords.length > 0 ? 3 : 1,
         meanNdvi: selectedZone.meanNdvi,
-        hasDroneSurvey: isPilot,
-        verifiedTreesCount: isPilot ? Math.max(12, verifiedCount) : verifiedCount,
-        lastFieldDate: zoneTreeRecords[0]?.created_at || (isPilot ? new Date().toISOString() : undefined),
+        verifiedTreesCount: verifiedCount,
+        lastFieldDate: zoneTreeRecords[0]?.created_at || undefined,
       },
     });
   }, [selectedZone, trees, isDemoMode]);
@@ -1254,21 +1249,21 @@ Please provide:
             </div>
           </div>
 
-          {/* 4-Source Transparent Metric Progress Bars */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-2">
+          {/* 2-Pillar Grounded Verification Metric Progress Bars */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2">
             <div className="p-2.5 rounded-xl bg-card border border-border/60 space-y-1">
               <div className="flex items-center justify-between text-[11px]">
                 <span className="text-muted-foreground font-medium flex items-center gap-1">
-                  🛰️ Satellite Trend
+                  🛰️ Space-Borne Satellite (Macro)
                 </span>
                 <span className="font-mono font-bold text-primary">
-                  {activeConfidence.breakdown.satellite.score} / 20 pts
+                  {activeConfidence.breakdown.satellite.score} / 40 pts
                 </span>
               </div>
               <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
                 <div
                   className="bg-blue-500 h-full rounded-full transition-all"
-                  style={{ width: `${(activeConfidence.breakdown.satellite.score / 20) * 100}%` }}
+                  style={{ width: `${(activeConfidence.breakdown.satellite.score / 40) * 100}%` }}
                 />
               </div>
               <div className="text-[10px] text-muted-foreground truncate">
@@ -1279,36 +1274,16 @@ Please provide:
             <div className="p-2.5 rounded-xl bg-card border border-border/60 space-y-1">
               <div className="flex items-center justify-between text-[11px]">
                 <span className="text-muted-foreground font-medium flex items-center gap-1">
-                  🚁 Drone Survey
+                  📷 Ground Truth Mobile Geotags (Micro)
                 </span>
                 <span className="font-mono font-bold text-primary">
-                  {activeConfidence.breakdown.drone.score} / 30 pts
-                </span>
-              </div>
-              <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="bg-purple-500 h-full rounded-full transition-all"
-                  style={{ width: `${(activeConfidence.breakdown.drone.score / 30) * 100}%` }}
-                />
-              </div>
-              <div className="text-[10px] text-muted-foreground truncate">
-                {activeConfidence.breakdown.drone.explanation}
-              </div>
-            </div>
-
-            <div className="p-2.5 rounded-xl bg-card border border-border/60 space-y-1">
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-muted-foreground font-medium flex items-center gap-1">
-                  📷 Field Geotags
-                </span>
-                <span className="font-mono font-bold text-primary">
-                  {activeConfidence.breakdown.fieldPhoto.score} / 50 pts
+                  {activeConfidence.breakdown.fieldPhoto.score} / 60 pts
                 </span>
               </div>
               <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
                 <div
                   className="bg-emerald-500 h-full rounded-full transition-all"
-                  style={{ width: `${(activeConfidence.breakdown.fieldPhoto.score / 50) * 100}%` }}
+                  style={{ width: `${(activeConfidence.breakdown.fieldPhoto.score / 60) * 100}%` }}
                 />
               </div>
               <div className="text-[10px] text-muted-foreground truncate">
@@ -1319,10 +1294,10 @@ Please provide:
             <div className="p-2.5 rounded-xl bg-card border border-border/60 space-y-1">
               <div className="flex items-center justify-between text-[11px]">
                 <span className="text-muted-foreground font-medium flex items-center gap-1">
-                  ⏳ Time Decay
+                  ⏳ Freshness / Time Decay
                 </span>
                 <span className={`font-mono font-bold ${activeConfidence.breakdown.timeDecay.penaltyPoints > 0 ? "text-red-500" : "text-emerald-500"}`}>
-                  {activeConfidence.breakdown.timeDecay.penaltyPoints > 0 ? `-${activeConfidence.breakdown.timeDecay.penaltyPoints} pts` : "0 pts"}
+                  {activeConfidence.breakdown.timeDecay.penaltyPoints > 0 ? `-${activeConfidence.breakdown.timeDecay.penaltyPoints} pts` : "0 pts penalty"}
                 </span>
               </div>
               <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">

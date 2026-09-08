@@ -35,7 +35,7 @@ describe("Multi-Source Fusion & Confidence Scoring Engine", () => {
     expect(decay300.penalty).toBe(25.0);
   });
 
-  it("computes Gold Tier (80-100%) score for verified plot with satellite, drone, and field photos", () => {
+  it("computes Gold Tier (80-100%) score for verified plot with satellite macro data and ground photos", () => {
     const today = new Date().toISOString();
     const result = computeMultiSourceConfidenceScore({
       totalPlantedTrees: 50,
@@ -43,13 +43,6 @@ describe("Multi-Source Fusion & Confidence Scoring Engine", () => {
         { acquisition_date: "2026-01-01", ndvi: 0.65 },
         { acquisition_date: "2026-02-01", ndvi: 0.72 },
         { acquisition_date: "2026-03-01", ndvi: 0.78 },
-      ],
-      droneSurveys: [
-        {
-          survey_date: today,
-          tree_count_detected: 50,
-          resolution_cm_per_px: 2.5,
-        },
       ],
       fieldPhotos: [
         { checked_at: today, status: "alive", ai_confidence: 96, is_verified: true },
@@ -69,8 +62,8 @@ describe("Multi-Source Fusion & Confidence Scoring Engine", () => {
     expect(result.tier).toBe("zero_greenwashing_gold");
     expect(result.isVerifiedForCarbonMRV).toBe(true);
     expect(result.isDemoOrUnverified).toBe(false);
-    expect(result.breakdown.satellite.score).toBe(20);
-    expect(result.breakdown.drone.score).toBe(30);
+    expect(result.breakdown.satellite.score).toBe(40);
+    expect(result.breakdown.fieldPhoto.score).toBeGreaterThanOrEqual(50);
     expect(result.breakdown.timeDecay.penaltyPoints).toBe(0);
   });
 
@@ -85,7 +78,7 @@ describe("Multi-Source Fusion & Confidence Scoring Engine", () => {
 
     expect(result.tier).toBe("satellite_only");
     expect(result.isVerifiedForCarbonMRV).toBe(false);
-    expect(result.breakdown.satellite.score).toBe(14);
+    expect(result.breakdown.satellite.score).toBe(28);
     expect(result.breakdown.fieldPhoto.score).toBe(0);
   });
 
