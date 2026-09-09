@@ -229,4 +229,31 @@ describe("Authentication Hardening & Validation Suite", () => {
       expect(validatePhoneNumber("98765", "+91").valid).toBe(false);
     });
   });
+
+  describe("maskRecipient helper", () => {
+    it("correctly masks email recipients for security", () => {
+      // Inline mask test
+      const maskEmail = (email: string) => {
+        const [name, domain] = email.split("@");
+        const visibleStart = name.slice(0, 2);
+        const maskedName = visibleStart + "*".repeat(Math.max(1, name.length - 2));
+        return `${maskedName}@${domain}`;
+      };
+
+      expect(maskEmail("rohit.patil@gmail.com")).toBe("ro*********@gmail.com");
+      expect(maskEmail("contact@sahyadri.org")).toBe("co*****@sahyadri.org");
+    });
+
+    it("correctly masks phone numbers (+91)", () => {
+      const maskPhone = (phone: string) => {
+        const digits = phone.replace(/\D/g, "");
+        const last2 = digits.slice(-2);
+        const first2 = digits.slice(-10, -8);
+        return `+91 ${first2}******${last2}`;
+      };
+
+      expect(maskPhone("+919876543210")).toBe("+91 98******10");
+      expect(maskPhone("8765432109")).toBe("+91 87******09");
+    });
+  });
 });

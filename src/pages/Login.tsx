@@ -40,6 +40,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { sendOtpCode, verifyOtpCode, maskRecipient } from "@/services/otpService";
 
 type AccountType = "individual" | "ngo" | "school_college";
 type AuthMethod = "email" | "phone";
@@ -491,42 +492,31 @@ const Login = () => {
     }
 
     setLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: cleanEmail,
-        options: {
-          shouldCreateUser: activeTab === "signup",
-          data: {
-            full_name: activeTab === "signup" ? signupName.trim() : undefined,
-            account_type: activeTab === "signup" ? accountType : undefined,
-            organization_name: activeTab === "signup" && accountType !== "individual" ? orgName.trim() : undefined,
-          },
-        },
+    const res = await sendOtpCode({
+      recipient: cleanEmail,
+      channel: "email",
+      purpose: activeTab === "login" ? "login" : "signup",
+      metadata: {
+        full_name: activeTab === "signup" ? signupName.trim() : undefined,
+        account_type: activeTab === "signup" ? accountType : undefined,
+        organization_name: activeTab === "signup" && accountType !== "individual" ? orgName.trim() : undefined,
+      },
+    });
+    setLoading(false);
+
+    if (res.success) {
+      setEmailOtpSent(true);
+      setResendTimer(60);
+      toast({
+        title: "Verification Code Sent! ✉️",
+        description: res.message,
       });
-
-      setLoading(false);
-
-      if (error) {
-        if (activeTab === "login" && (error.message.toLowerCase().includes("signups not allowed") || error.message.toLowerCase().includes("user not found"))) {
-          toast({
-            title: "Account Not Found ⚠️",
-            description: "No registered account found with this email. Please switch to the 'Sign Up' tab first.",
-            variant: "destructive",
-          });
-        } else {
-          toast({ title: "Email OTP Request Failed", description: error.message, variant: "destructive" });
-        }
-      } else {
-        setEmailOtpSent(true);
-        setResendTimer(60);
-        toast({
-          title: "Verification Code Sent! ✉️",
-          description: `A 6-digit OTP code has been sent to ${cleanEmail}. Check your inbox.`,
-        });
-      }
-    } catch (err: any) {
-      setLoading(false);
-      toast({ title: "Error", description: err.message || "Failed to send email verification code.", variant: "destructive" });
+    } else {
+      toast({
+        title: "Email Verification Notice",
+        description: res.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -547,32 +537,24 @@ const Login = () => {
     }
 
     setLoading(true);
-    try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        email: cleanEmail,
-        token: cleanToken,
-        type: "email",
-      });
+    const res = await verifyOtpCode({
+      recipient: cleanEmail,
+      code: cleanToken,
+      channel: "email",
+      purpose: activeTab === "login" ? "login" : "signup",
+      metadata: {
+        full_name: signupName.trim(),
+        organization_name: accountType !== "individual" ? orgName.trim() : null,
+        account_type: accountType,
+      },
+    });
+    setLoading(false);
 
-      setLoading(false);
-
-      if (error) {
-        toast({ title: "Verification Failed", description: error.message, variant: "destructive" });
-      } else {
-        if (data?.user) {
-          await supabase.from("profiles").upsert({
-            id: data.user.id,
-            full_name: signupName.trim() || data.user.user_metadata?.full_name || cleanEmail.split("@")[0],
-            organization_name: accountType !== "individual" ? orgName.trim() : null,
-            role: accountType,
-          });
-        }
-        toast({ title: "Verified & Signed In! 🌿", description: "Welcome to Green Enlightenment." });
-        navigate(redirectTarget);
-      }
-    } catch (err: any) {
-      setLoading(false);
-      toast({ title: "Verification Error", description: err.message, variant: "destructive" });
+    if (res.success) {
+      toast({ title: "Verified & Signed In! 🌿", description: res.message });
+      navigate(redirectTarget);
+    } else {
+      toast({ title: "Verification Failed", description: res.message, variant: "destructive" });
     }
   };
 
@@ -597,48 +579,29 @@ const Login = () => {
     }
 
     setLoading(true);
+    const res = await sendOtpCode({
+      recipient: check.formatted,
+      channel: "sms",
+      purpose: activeTab === "login" ? "login" : "signup",
+      metadata: {
+        full_name: activeTab === "signup" ? signupName.trim() : undefined,
+        account_type: activeTab === "signup" ? accountType : undefined,
+        organization_name: activeTab === "signup" && accountType !== "individual" ? orgName.trim() : undefined,
+      },
+    });
+    setLoading(false);
 
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: check.formatted,
-        options: {
-          channel: "sms",
-          data: {
-            full_name: activeTab === "signup" ? signupName.trim() : undefined,
-            account_type: activeTab === "signup" ? accountType : undefined,
-            organization_name: activeTab === "signup" && accountType !== "individual" ? orgName.trim() : undefined,
-          },
-        },
-      });
-
-      setLoading(false);
-
-      if (error) {
-        const isProviderIssue =
-          error.message?.toLowerCase().includes("unsupported phone provider") ||
-          error.message?.toLowerCase().includes("sms provider") ||
-          error.message?.toLowerCase().includes("not configured");
-
-        toast({
-          title: "SMS Gateway Notice 📲",
-          description: isProviderIssue
-            ? "Live SMS dispatch is not configured in this database environment. Please switch to 'Password' mode to sign in or register with your mobile number."
-            : error.message,
-          variant: "destructive",
-        });
-      } else {
-        setOtpSent(true);
-        setResendTimer(60);
-        toast({
-          title: "OTP Sent! 📲",
-          description: `6-digit verification code sent to ${check.formatted}.`,
-        });
-      }
-    } catch (err: any) {
-      setLoading(false);
+    if (res.success) {
+      setOtpSent(true);
+      setResendTimer(60);
       toast({
-        title: "SMS Request Failed",
-        description: err.message || "Could not dispatch SMS OTP. Please use Password login.",
+        title: "Verification Code Sent! 📲",
+        description: res.message,
+      });
+    } else {
+      toast({
+        title: "SMS Gateway Notice 📲",
+        description: res.message,
         variant: "destructive",
       });
     }
@@ -661,33 +624,24 @@ const Login = () => {
     }
 
     setLoading(true);
+    const res = await verifyOtpCode({
+      recipient: check.formatted,
+      code: cleanToken,
+      channel: "sms",
+      purpose: activeTab === "login" ? "login" : "signup",
+      metadata: {
+        full_name: signupName.trim() || `User ${check.digits.slice(-4)}`,
+        organization_name: accountType !== "individual" ? orgName.trim() : null,
+        account_type: accountType,
+      },
+    });
+    setLoading(false);
 
-    try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        phone: check.formatted,
-        token: cleanToken,
-        type: "sms",
-      });
-
-      setLoading(false);
-
-      if (error) {
-        toast({ title: "Verification Failed", description: error.message, variant: "destructive" });
-      } else {
-        if (data?.user) {
-          await supabase.from("profiles").upsert({
-            id: data.user.id,
-            full_name: signupName.trim() || `User ${check.digits.slice(-4)}`,
-            organization_name: accountType !== "individual" ? orgName.trim() : null,
-            role: accountType,
-          });
-        }
-        toast({ title: "Verified & Signed In! 🌿", description: "Welcome to Green Enlightenment." });
-        navigate(redirectTarget);
-      }
-    } catch (err: any) {
-      setLoading(false);
-      toast({ title: "Verification Error", description: err.message, variant: "destructive" });
+    if (res.success) {
+      toast({ title: "Verified & Signed In! 🌿", description: res.message });
+      navigate(redirectTarget);
+    } else {
+      toast({ title: "Verification Failed", description: res.message, variant: "destructive" });
     }
   };
 
