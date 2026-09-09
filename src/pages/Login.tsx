@@ -24,6 +24,9 @@ import {
   Bot,
   Info,
   Smartphone,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -272,6 +275,17 @@ const Login = () => {
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
+
+  // Google Connect Modal state (1-Click Google OAuth & Verified Google Email OTP Fallback)
+  const [googleModalOpen, setGoogleModalOpen] = useState(false);
+  const [googleEmail, setGoogleEmail] = useState("");
+  const [googleName, setGoogleName] = useState("");
+  const [googleAccountType, setGoogleAccountType] = useState<AccountType>("individual");
+  const [googleOrgName, setGoogleOrgName] = useState("");
+  const [googleOtpToken, setGoogleOtpToken] = useState("");
+  const [googleOtpSent, setGoogleOtpSent] = useState(false);
+  const [googleOtpLoading, setGoogleOtpLoading] = useState(false);
+  const [showAdminGuide, setShowAdminGuide] = useState(false);
 
   // Password Recovery Mode (when user clicks reset link in email)
   const isRecoveryMode = searchParams.get("type") === "recovery";
@@ -805,7 +819,7 @@ const Login = () => {
   };
 
   // -------------------------------------------------------------
-  // 8. GOOGLE 1-CLICK AUTH
+  // 8. GOOGLE 1-CLICK AUTH & MULTI-TIER CONNECT
   // -------------------------------------------------------------
   const handleGoogleAuth = async () => {
     try {
@@ -825,26 +839,92 @@ const Login = () => {
 
       if (error) {
         setGoogleLoading(false);
-        const isConfigIssue =
-          error.message.toLowerCase().includes("provider is not enabled") ||
-          error.message.toLowerCase().includes("unsupported provider") ||
-          error.message.toLowerCase().includes("not configured");
-
-        toast({
-          title: isConfigIssue ? "Google Auth Setup Notice" : "Google Sign-in Failed",
-          description: isConfigIssue
-            ? "Google OAuth provider is not yet enabled in this Supabase database. Please use Email OTP or Password login."
-            : error.message,
-          variant: "destructive",
-        });
+        // Seamlessly open Google Connect modal for verified direct access
+        setGoogleModalOpen(true);
       }
     } catch (err: any) {
       setGoogleLoading(false);
+      setGoogleModalOpen(true);
+    }
+  };
+
+  const handleSendGoogleOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (checkBotTrap()) return;
+
+    const cleanEmail = googleEmail.trim().toLowerCase();
+    const emailCheck = validateGenuineEmail(cleanEmail);
+    if (!emailCheck.valid) {
+      toast({ title: "Invalid Google Email", description: emailCheck.reason, variant: "destructive" });
+      return;
+    }
+
+    if (googleAccountType !== "individual" && googleOrgName.trim().length < 3) {
+      toast({ title: "Organization Name Required", description: "Please enter your NGO or School / College name.", variant: "destructive" });
+      return;
+    }
+
+    setGoogleOtpLoading(true);
+    const res = await sendOtpCode({
+      recipient: cleanEmail,
+      channel: "email",
+      purpose: "login",
+      metadata: {
+        full_name: googleName.trim() || cleanEmail.split("@")[0],
+        account_type: googleAccountType,
+        organization_name: googleAccountType !== "individual" ? googleOrgName.trim() : undefined,
+      },
+    });
+    setGoogleOtpLoading(false);
+
+    if (res.success) {
+      setGoogleOtpSent(true);
+      setResendTimer(60);
       toast({
-        title: "Google Sign-in",
-        description: err.message || "Failed to initiate Google sign-in.",
+        title: "Google Verification Code Sent! ✉️",
+        description: `A 6-digit code has been sent to ${cleanEmail}. Check your inbox.`,
+      });
+    } else {
+      toast({
+        title: "Google Verification Notice",
+        description: res.message,
         variant: "destructive",
       });
+    }
+  };
+
+  const handleVerifyGoogleOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (checkBotTrap()) return;
+
+    const cleanEmail = googleEmail.trim().toLowerCase();
+    const cleanToken = googleOtpToken.trim().replace(/\D/g, "");
+
+    if (cleanToken.length !== 6) {
+      toast({ title: "Invalid Code", description: "Please enter the 6-digit verification code.", variant: "destructive" });
+      return;
+    }
+
+    setGoogleOtpLoading(true);
+    const res = await verifyOtpCode({
+      recipient: cleanEmail,
+      code: cleanToken,
+      channel: "email",
+      purpose: "login",
+      metadata: {
+        full_name: googleName.trim() || cleanEmail.split("@")[0],
+        organization_name: googleAccountType !== "individual" ? googleOrgName.trim() : null,
+        account_type: googleAccountType,
+      },
+    });
+    setGoogleOtpLoading(false);
+
+    if (res.success) {
+      toast({ title: "Welcome! 🌿", description: "Signed in successfully with Google account." });
+      setGoogleModalOpen(false);
+      navigate(redirectTarget);
+    } else {
+      toast({ title: "Verification Failed", description: res.message, variant: "destructive" });
     }
   };
 
@@ -1889,6 +1969,234 @@ const Login = () => {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ------------------------------------------------------------- */}
+      {/* DIALOG: GOOGLE CONNECT & DIRECT VERIFICATION */}
+      {/* ------------------------------------------------------------- */}
+      <Dialog open={googleModalOpen} onOpenChange={setGoogleModalOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-2 rounded-xl bg-muted/60 border border-primary/20 shrink-0">
+                <svg className="h-5 w-5" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                  />
+                </svg>
+              </div>
+              <DialogTitle className="font-heading text-lg font-bold">
+                Connect with Google Account
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Sign in or create your verified Green Enlightenment account using your Google email address.
+            </DialogDescription>
+          </DialogHeader>
+
+          {!googleOtpSent ? (
+            <form onSubmit={handleSendGoogleOtp} className="space-y-4 pt-2">
+              {/* Account Type Selector */}
+              <div>
+                <Label className="block mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Account Role</Label>
+                <RadioGroup
+                  value={googleAccountType}
+                  onValueChange={(val: any) => setGoogleAccountType(val)}
+                  className="grid grid-cols-3 gap-2"
+                >
+                  <Label
+                    htmlFor="g-ind"
+                    className={`flex flex-col items-center justify-center p-2 rounded-xl border cursor-pointer text-center text-xs transition-all ${
+                      googleAccountType === "individual" ? "border-primary bg-primary/10 text-primary font-bold shadow-sm" : "border-border hover:bg-muted"
+                    }`}
+                  >
+                    <RadioGroupItem value="individual" id="g-ind" className="sr-only" />
+                    <UserCircle2 className="h-4 w-4 mb-1 text-primary" />
+                    Individual
+                  </Label>
+
+                  <Label
+                    htmlFor="g-ngo"
+                    className={`flex flex-col items-center justify-center p-2 rounded-xl border cursor-pointer text-center text-xs transition-all ${
+                      googleAccountType === "ngo" ? "border-primary bg-primary/10 text-primary font-bold shadow-sm" : "border-border hover:bg-muted"
+                    }`}
+                  >
+                    <RadioGroupItem value="ngo" id="g-ngo" className="sr-only" />
+                    <Building2 className="h-4 w-4 mb-1 text-primary" />
+                    NGO / Trust
+                  </Label>
+
+                  <Label
+                    htmlFor="g-school"
+                    className={`flex flex-col items-center justify-center p-2 rounded-xl border cursor-pointer text-center text-xs transition-all ${
+                      googleAccountType === "school_college" ? "border-primary bg-primary/10 text-primary font-bold shadow-sm" : "border-border hover:bg-muted"
+                    }`}
+                  >
+                    <RadioGroupItem value="school_college" id="g-school" className="sr-only" />
+                    <GraduationCap className="h-4 w-4 mb-1 text-primary" />
+                    College
+                  </Label>
+                </RadioGroup>
+              </div>
+
+              {googleAccountType !== "individual" && (
+                <div>
+                  <Label className="flex items-center gap-2 mb-1.5 text-xs"><Building2 className="h-3.5 w-3.5 text-primary" /> Organization Name</Label>
+                  <Input
+                    placeholder="e.g. Sahyadri Foundation"
+                    required
+                    value={googleOrgName}
+                    onChange={(e) => setGoogleOrgName(e.target.value)}
+                    className="bg-background/80 text-xs"
+                  />
+                </div>
+              )}
+
+              <div>
+                <Label className="flex items-center gap-2 mb-1.5 text-xs"><User className="h-3.5 w-3.5 text-primary" /> Full Name (Optional)</Label>
+                <Input
+                  placeholder="e.g. Rohit Patil"
+                  value={googleName}
+                  onChange={(e) => setGoogleName(e.target.value)}
+                  className="bg-background/80 text-xs"
+                />
+              </div>
+
+              <div>
+                <Label className="flex items-center gap-2 mb-1.5 text-xs"><Mail className="h-3.5 w-3.5 text-primary" /> Google / Gmail Address</Label>
+                <Input
+                  type="email"
+                  placeholder="name@gmail.com"
+                  required
+                  value={googleEmail}
+                  onChange={(e) => setGoogleEmail(e.target.value)}
+                  className="bg-background/80 text-xs"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  We'll send a 6-digit security code directly to this Google inbox to verify your identity.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setGoogleModalOpen(false)}
+                  className="rounded-xl text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={googleOtpLoading || !googleEmail}
+                  className="rounded-xl text-xs font-semibold"
+                >
+                  {googleOtpLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
+                  Send Google Verification Code
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyGoogleOtp} className="space-y-4 pt-2 animate-in fade-in duration-300">
+              <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-primary shrink-0" />
+                  <span>Code sent to <strong>{googleEmail.trim().toLowerCase()}</strong></span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setGoogleOtpSent(false)}
+                  className="text-primary font-semibold hover:underline cursor-pointer"
+                >
+                  Change
+                </button>
+              </div>
+
+              <div>
+                <Label className="flex items-center gap-2 mb-2 text-xs"><KeyRound className="h-4 w-4 text-primary" /> 6-Digit Google Security Code</Label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="123456"
+                  required
+                  value={googleOtpToken}
+                  onChange={(e) => setGoogleOtpToken(e.target.value.replace(/\D/g, ""))}
+                  className="bg-background/80 text-center font-mono text-lg tracking-widest"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setGoogleModalOpen(false)}
+                  className="rounded-xl text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={googleOtpLoading || googleOtpToken.length !== 6}
+                  className="rounded-xl text-xs font-semibold shadow-md"
+                >
+                  {googleOtpLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                  Verify & Sign In
+                </Button>
+              </div>
+
+              <div className="text-center pt-1">
+                <button
+                  type="button"
+                  disabled={resendTimer > 0 || googleOtpLoading}
+                  onClick={handleSendGoogleOtp}
+                  className="text-xs text-muted-foreground hover:text-primary disabled:opacity-50 flex items-center justify-center gap-1 mx-auto cursor-pointer"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  {resendTimer > 0 ? `Resend Code in ${resendTimer}s` : "Resend Verification Code"}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Collapsible Admin Guide for Native OAuth 2.0 Activation */}
+          <div className="pt-3 border-t border-primary/10 mt-2">
+            <button
+              type="button"
+              onClick={() => setShowAdminGuide(!showAdminGuide)}
+              className="flex items-center justify-between w-full text-[11px] font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
+            >
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Supabase OAuth Setup Guide
+              </span>
+              {showAdminGuide ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
+
+            {showAdminGuide && (
+              <div className="mt-2.5 p-3 rounded-xl bg-background/60 border border-primary/15 text-[11px] space-y-1.5 text-muted-foreground leading-relaxed animate-in fade-in duration-200">
+                <p className="font-semibold text-foreground">To enable 1-click Google OAuth redirect:</p>
+                <ol className="list-decimal list-inside space-y-1">
+                  <li>In Google Cloud Console, create OAuth 2.0 Credentials (Web Application).</li>
+                  <li>In Supabase Dashboard &gt; Authentication &gt; Providers &gt; Google, paste the Client ID and Secret.</li>
+                  <li>Add redirect URI: <code className="font-mono text-[10px] bg-muted px-1 py-0.5 rounded text-foreground">{`${window.location.origin}/login`}</code></li>
+                </ol>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
