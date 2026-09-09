@@ -40,6 +40,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setRoles((data || []).map((r: any) => r.role as UserRole));
   };
 
+  const syncUserProfile = async (authUser: User) => {
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .eq("id", authUser.id)
+        .maybeSingle();
+
+      if (!profile) {
+        const metadata = authUser.user_metadata || {};
+        const name = metadata.full_name || metadata.name || authUser.email?.split("@")[0] || "User";
+        await supabase.from("profiles").upsert({
+          id: authUser.id,
+          full_name: name,
+          avatar_url: metadata.avatar_url || metadata.picture || null,
+          role: metadata.account_type || "individual",
+        });
+      }
+    } catch (e) {
+      console.warn("Could not sync user profile:", e);
+    }
+  };
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
@@ -47,7 +70,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(session?.user ?? null);
         setLoading(false);
         if (session?.user) {
-          setTimeout(() => fetchRoles(session.user.id), 0);
+          setTimeout(() => {
+            fetchRoles(session.user.id);
+            syncUserProfile(session.user);
+          }, 0);
         } else {
           setRoles([]);
         }
@@ -58,7 +84,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-      if (session?.user) fetchRoles(session.user.id);
+      if (session?.user) {
+        fetchRoles(session.user.id);
+        syncUserProfile(session.user);
+      }
     });
 
     return () => subscription.unsubscribe();
