@@ -821,12 +821,15 @@ const Login = () => {
   // -------------------------------------------------------------
   // 8. GOOGLE 1-CLICK AUTH & MULTI-TIER CONNECT
   // -------------------------------------------------------------
-  const handleGoogleAuth = async () => {
+  const handleGoogleAuth = () => {
+    setGoogleModalOpen(true);
+  };
+
+  const handleDirectOAuthRedirect = async () => {
     try {
       setGoogleLoading(true);
       const redirectUri = `${window.location.origin}${redirectTarget !== "/" ? redirectTarget : ""}`;
-
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: redirectUri,
@@ -836,15 +839,21 @@ const Login = () => {
           },
         },
       });
-
       if (error) {
         setGoogleLoading(false);
-        // Seamlessly open Google Connect modal for verified direct access
-        setGoogleModalOpen(true);
+        toast({
+          title: "OAuth Launch Notice",
+          description: error.message,
+          variant: "destructive",
+        });
       }
     } catch (err: any) {
       setGoogleLoading(false);
-      setGoogleModalOpen(true);
+      toast({
+        title: "OAuth Launch Error",
+        description: err.message || "Failed to initiate OAuth",
+        variant: "destructive",
+      });
     }
   };
 
@@ -2173,8 +2182,8 @@ const Login = () => {
             </form>
           )}
 
-          {/* Collapsible Admin Guide for Native OAuth 2.0 Activation */}
-          <div className="pt-3 border-t border-primary/10 mt-2">
+          {/* Admin Setup Guide & Direct OAuth Launch */}
+          <div className="pt-3 border-t border-primary/10 mt-2 space-y-2">
             <button
               type="button"
               onClick={() => setShowAdminGuide(!showAdminGuide)}
@@ -2187,13 +2196,36 @@ const Login = () => {
             </button>
 
             {showAdminGuide && (
-              <div className="mt-2.5 p-3 rounded-xl bg-background/60 border border-primary/15 text-[11px] space-y-1.5 text-muted-foreground leading-relaxed animate-in fade-in duration-200">
-                <p className="font-semibold text-foreground">To enable 1-click Google OAuth redirect:</p>
+              <div className="p-3 rounded-xl bg-background/60 border border-primary/15 text-[11px] space-y-2 text-muted-foreground leading-relaxed animate-in fade-in duration-200">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-foreground">To enable 1-click Google OAuth:</span>
+                  <a
+                    href="https://supabase.com/dashboard/project/qvikwdginymvjbrrlvkk/auth/providers"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline font-semibold"
+                  >
+                    Open Supabase Providers <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
                 <ol className="list-decimal list-inside space-y-1">
                   <li>In Google Cloud Console, create OAuth 2.0 Credentials (Web Application).</li>
                   <li>In Supabase Dashboard &gt; Authentication &gt; Providers &gt; Google, paste the Client ID and Secret.</li>
-                  <li>Add redirect URI: <code className="font-mono text-[10px] bg-muted px-1 py-0.5 rounded text-foreground">{`${window.location.origin}/login`}</code></li>
+                  <li>Set Callback URL: <code className="font-mono text-[10px] bg-muted px-1 py-0.5 rounded text-foreground">https://qvikwdginymvjbrrlvkk.supabase.co/auth/v1/callback</code></li>
                 </ol>
+                <div className="pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDirectOAuthRedirect}
+                    disabled={googleLoading}
+                    className="w-full h-8 text-[11px] rounded-lg gap-2"
+                  >
+                    {googleLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
+                    Launch Supabase Google OAuth
+                  </Button>
+                </div>
               </div>
             )}
           </div>
