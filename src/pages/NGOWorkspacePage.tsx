@@ -21,6 +21,8 @@ import {
   Users,
   Compass,
   RefreshCw,
+  Lock,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,9 +30,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { RoleBadge } from "@/components/B2BRoleGate";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { isProjectOwner, canEditProject } from "@/lib/projectOwnership";
 
 interface NGOPlot {
   id: string;
+  user_id?: string | null;
+  organization_name?: string | null;
   name: string;
   location: string;
   district: string;
@@ -49,6 +55,7 @@ const SAMPLE_NGO_PLOTS: NGOPlot[] = [
   {
     id: "plot_satara_agro",
     name: "Sahyadri Bio-Reserve Agroforestry Parcel",
+    organization_name: "Sahyadri Bio-Reserve Trust",
     location: "Satara Watershed Basin, Maharashtra",
     district: "Satara",
     acres: 5.0,
@@ -64,6 +71,7 @@ const SAMPLE_NGO_PLOTS: NGOPlot[] = [
   {
     id: "plot_nagpur_teak",
     name: "Vidarbha Teakwood & Bamboo Carbon Plot",
+    organization_name: "Vidarbha Forest Action Forum",
     location: "Nagpur Agroforestry Belt, Maharashtra",
     district: "Nagpur",
     acres: 12.0,
@@ -79,9 +87,19 @@ const SAMPLE_NGO_PLOTS: NGOPlot[] = [
 ];
 
 export default function NGOWorkspacePage() {
+  const { user, isAdmin } = useAuth();
   const [search, setSearch] = useState("");
+  const [tabFilter, setTabFilter] = useState<"all" | "mine" | "public">("all");
   const [dbPlots, setDbPlots] = useState<NGOPlot[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const [localProjectIds] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("my_created_project_ids") || "[]");
+    } catch {
+      return [];
+    }
+  });
 
   useEffect(() => {
     async function fetchProjects() {
@@ -100,6 +118,8 @@ export default function NGOWorkspacePage() {
 
             return {
               id: p.id,
+              user_id: p.user_id,
+              organization_name: p.organization_name,
               name: p.project_name || "Agroforestry Parcel",
               location: p.location || "Maharashtra, India",
               district: p.location?.split(",")[0] || "Maharashtra",
@@ -130,14 +150,28 @@ export default function NGOWorkspacePage() {
     return SAMPLE_NGO_PLOTS;
   }, [dbPlots]);
 
+  const myPlots = useMemo(() => {
+    return activePlotList.filter((p) => isProjectOwner(p, { user, localProjectIds }));
+  }, [activePlotList, user, localProjectIds]);
+
+  const publicPlots = useMemo(() => {
+    return activePlotList.filter((p) => !isProjectOwner(p, { user, localProjectIds }));
+  }, [activePlotList, user, localProjectIds]);
+
+  const scopedPlots = useMemo(() => {
+    if (tabFilter === "mine") return myPlots;
+    if (tabFilter === "public") return publicPlots;
+    return activePlotList;
+  }, [tabFilter, myPlots, publicPlots, activePlotList]);
+
   const filteredPlots = useMemo(() => {
-    return activePlotList.filter(
+    return scopedPlots.filter(
       (p) =>
         p.name.toLowerCase().includes(search.toLowerCase()) ||
         p.district.toLowerCase().includes(search.toLowerCase()) ||
         p.location.toLowerCase().includes(search.toLowerCase())
     );
-  }, [search, activePlotList]);
+  }, [search, scopedPlots]);
 
   const totalAcres = useMemo(() => filteredPlots.reduce((sum, p) => sum + p.acres, 0), [filteredPlots]);
   const totalTargetTrees = useMemo(() => filteredPlots.reduce((sum, p) => sum + p.targetTrees, 0), [filteredPlots]);
@@ -264,93 +298,181 @@ export default function NGOWorkspacePage() {
           </div>
         </div>
 
-        {/* Grid of Plots */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredPlots.map((plot) => (
-            <Card
-              key={plot.id}
-              className="rounded-2xl border border-primary/20 bg-card/70 backdrop-blur-md shadow-md flex flex-col justify-between overflow-hidden"
+        {/* Scope Filter Tabs: All vs Mine vs Public */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/40 pb-3">
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-muted/50 border border-border/40">
+            <button
+              type="button"
+              onClick={() => setTabFilter("all")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                tabFilter === "all"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
             >
-              <div>
-                <CardHeader className="pb-3 border-b border-border/20 bg-muted/20">
-                  <div className="flex items-center justify-between gap-2">
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] font-semibold ${
-                        plot.verificationTier === "Gold"
-                          ? "bg-amber-500/15 text-amber-600 border-amber-500/30"
-                          : plot.verificationTier === "Field Verified"
-                          ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30"
-                          : "bg-blue-500/15 text-blue-600 border-blue-500/30"
-                      }`}
-                    >
-                      {plot.verificationTier} ({plot.confidenceScore}%)
-                    </Badge>
-                    <span className="text-[11px] font-mono text-muted-foreground">
-                      NDVI {plot.ndviCurrent}
-                    </span>
-                  </div>
+              All Projects ({activePlotList.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setTabFilter("mine")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                tabFilter === "mine"
+                  ? "bg-background text-primary shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              My Projects ({myPlots.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setTabFilter("public")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                tabFilter === "public"
+                  ? "bg-background text-blue-600 shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Public Community ({publicPlots.length})
+            </button>
+          </div>
 
-                  <CardTitle className="text-base font-bold font-heading mt-2 line-clamp-1">
-                    {plot.name}
-                  </CardTitle>
-                  <CardDescription className="text-xs line-clamp-1">
-                    📍 {plot.location}
-                  </CardDescription>
-                </CardHeader>
-
-                <CardContent className="pt-4 space-y-3 text-xs">
-                  <div className="p-2.5 rounded-xl bg-background/60 border border-border/30 space-y-1.5">
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Area:</span>
-                      <strong className="text-foreground font-semibold">
-                        {plot.acres} Acres ({plot.hectares} Ha)
-                      </strong>
-                    </div>
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Planted Inventory:</span>
-                      <strong className="text-foreground">
-                        {plot.verifiedTrees} / {plot.targetTrees} trees
-                      </strong>
-                    </div>
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Last Satellite Overpass:</span>
-                      <span className="font-mono text-foreground">{plot.lastSatellitePass}</span>
-                    </div>
-                  </div>
-
-                  {plot.pendingScoutTasks > 0 ? (
-                    <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-[11px] flex items-center justify-between">
-                      <span>📸 {plot.pendingScoutTasks} Field photos needed</span>
-                      <Link to="/scouting" className="font-semibold underline">
-                        Dispatch &rarr;
-                      </Link>
-                    </div>
-                  ) : (
-                    <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[11px] flex items-center gap-1.5">
-                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                      <span>All required ground surveys up to date</span>
-                    </div>
-                  )}
-                </CardContent>
-              </div>
-
-              <div className="p-4 pt-0 border-t border-border/20 bg-muted/10 mt-2 flex items-center justify-between">
-                <Button asChild size="sm" variant="ghost" className="h-8 text-xs rounded-xl">
-                  <Link to={`/tree-map?project=${plot.id}`}>
-                    Inspect Satellite HUD &rarr;
-                  </Link>
-                </Button>
-
-                <Button asChild size="sm" variant="outline" className="h-8 text-xs rounded-xl border-primary/30">
-                  <Link to={`/plant/organization?project=${plot.id}`}>
-                    Edit Parcel
-                  </Link>
-                </Button>
-              </div>
-            </Card>
-          ))}
+          <span className="text-xs text-muted-foreground">
+            {tabFilter === "mine" ? (
+              <span className="text-primary font-medium">Showing projects you can edit & manage</span>
+            ) : (
+              <span>Showing transparent monitoring data & satellite health</span>
+            )}
+          </span>
         </div>
+
+        {/* Grid of Plots */}
+        {filteredPlots.length === 0 ? (
+          <div className="glass-card rounded-2xl p-8 text-center text-muted-foreground text-xs space-y-2">
+            <p>No afforestation plots match the current filter or search.</p>
+            {tabFilter === "mine" && (
+              <Button asChild size="sm" variant="outline" className="rounded-xl text-xs mt-2">
+                <Link to="/plant/organization?create=true">
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Onboard New Parcel
+                </Link>
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filteredPlots.map((plot) => {
+              const isMine = isProjectOwner(plot, { user, localProjectIds });
+              const canEdit = canEditProject(plot, { user, isAdmin, localProjectIds });
+
+              return (
+                <Card
+                  key={plot.id}
+                  className="rounded-2xl border border-primary/20 bg-card/70 backdrop-blur-md shadow-md flex flex-col justify-between overflow-hidden"
+                >
+                  <div>
+                    <CardHeader className="pb-3 border-b border-border/20 bg-muted/20">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] font-semibold ${
+                              plot.verificationTier === "Gold"
+                                ? "bg-amber-500/15 text-amber-600 border-amber-500/30"
+                                : plot.verificationTier === "Field Verified"
+                                ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30"
+                                : "bg-blue-500/15 text-blue-600 border-blue-500/30"
+                            }`}
+                          >
+                            {plot.verificationTier} ({plot.confidenceScore}%)
+                          </Badge>
+                          {isMine ? (
+                            <Badge className="bg-primary/15 text-primary border-primary/30 text-[9px] font-bold">
+                              Your Plot
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[9px] text-muted-foreground">
+                              Public
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="text-[11px] font-mono text-muted-foreground">
+                          NDVI {plot.ndviCurrent}
+                        </span>
+                      </div>
+
+                      <CardTitle className="text-base font-bold font-heading mt-2 line-clamp-1">
+                        {plot.name}
+                      </CardTitle>
+                      <CardDescription className="text-xs line-clamp-1">
+                        📍 {plot.location} {plot.organization_name ? `· ${plot.organization_name}` : ""}
+                      </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="pt-4 space-y-3 text-xs">
+                      <div className="p-2.5 rounded-xl bg-background/60 border border-border/30 space-y-1.5">
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Area:</span>
+                          <strong className="text-foreground font-semibold">
+                            {plot.acres} Acres ({plot.hectares} Ha)
+                          </strong>
+                        </div>
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Planted Inventory:</span>
+                          <strong className="text-foreground">
+                            {plot.verifiedTrees} / {plot.targetTrees} trees
+                          </strong>
+                        </div>
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Last Satellite Overpass:</span>
+                          <span className="font-mono text-foreground">{plot.lastSatellitePass}</span>
+                        </div>
+                      </div>
+
+                      {plot.pendingScoutTasks > 0 ? (
+                        <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-[11px] flex items-center justify-between">
+                          <span>📸 {plot.pendingScoutTasks} Field photos needed</span>
+                          {canEdit ? (
+                            <Link to="/scouting" className="font-semibold underline">
+                              Dispatch &rarr;
+                            </Link>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">Owner Dispatch Only</span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[11px] flex items-center gap-1.5">
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                          <span>All required ground surveys up to date</span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </div>
+
+                  <div className="p-4 pt-0 border-t border-border/20 bg-muted/10 mt-2 flex items-center justify-between">
+                    <Button asChild size="sm" variant="ghost" className="h-8 text-xs rounded-xl">
+                      <Link to={`/tree-map?project=${plot.id}`}>
+                        Inspect Satellite HUD &rarr;
+                      </Link>
+                    </Button>
+
+                    {canEdit ? (
+                      <Button asChild size="sm" variant="outline" className="h-8 text-xs rounded-xl border-primary/30">
+                        <Link to={`/plant/organization?project=${plot.id}`}>
+                          Edit Parcel
+                        </Link>
+                      </Button>
+                    ) : (
+                      <Button asChild size="sm" variant="outline" className="h-8 text-xs rounded-xl border-border/40 text-muted-foreground">
+                        <Link to={`/plant/organization?project=${plot.id}`}>
+                          <Lock className="h-3 w-3 mr-1" /> View Only
+                        </Link>
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

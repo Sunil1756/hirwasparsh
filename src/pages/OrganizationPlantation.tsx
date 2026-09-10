@@ -34,6 +34,7 @@ import { compressImage } from "@/lib/imageProcessing";
 import { syncUserProfileImpact } from "@/lib/syncUserImpact";
 import { validateGeodeticBoundary } from "@/lib/projectOnboardingService";
 import { fetchRealSentinel2Telemetry } from "@/lib/remoteSensing";
+import { isProjectOwner, canEditProject, getProjectAccessBadge } from "@/lib/projectOwnership";
 import "leaflet/dist/leaflet.css";
 
 type Project = {
@@ -148,7 +149,7 @@ const POPULAR_SPECIES = [
 
 const OrganizationPlantation = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [projects, setProjects] = useState<Project[]>([]);
@@ -219,11 +220,7 @@ const OrganizationPlantation = () => {
 
   // Filter projects owned by current user / device
   const myProjects = useMemo(() => {
-    return projects.filter((p) => {
-      if (user?.id && p.user_id === user.id) return true;
-      if (localProjectIds.includes(p.id)) return true;
-      return false;
-    });
+    return projects.filter((p) => isProjectOwner(p, { user, localProjectIds }));
   }, [projects, user, localProjectIds]);
 
   const publicProjects = useMemo(() => {
@@ -236,11 +233,12 @@ const OrganizationPlantation = () => {
   );
 
   const isOwner = useMemo(() => {
-    if (!activeProject) return false;
-    if (user?.id && activeProject.user_id === user.id) return true;
-    if (localProjectIds.includes(activeProject.id)) return true;
-    return false;
+    return isProjectOwner(activeProject, { user, localProjectIds });
   }, [activeProject, user, localProjectIds]);
+
+  const canEdit = useMemo(() => {
+    return canEditProject(activeProject, { user, isAdmin, localProjectIds });
+  }, [activeProject, user, isAdmin, localProjectIds]);
 
   // Convert active project boundary
   const activeBoundaryPoints: [number, number][] = useMemo(() => {
@@ -768,6 +766,14 @@ const OrganizationPlantation = () => {
 
   const uploadEvidence = async () => {
     if (!activeProject) return;
+    if (!canEdit) {
+      toast({
+        title: "Permission Denied 🔒",
+        description: "Evidence upload is restricted to the project owner and platform administrators.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (!evFile && evType !== "survival") {
       toast({ title: "Photo Required", description: "Attach the geotagged field or drone photo.", variant: "destructive" });
       return;
@@ -843,6 +849,14 @@ const OrganizationPlantation = () => {
 
   const runManualReaudit = async () => {
     if (!activeProject || !activeAuditReport) return;
+    if (!canEdit) {
+      toast({
+        title: "Permission Denied 🔒",
+        description: "Re-auditing is restricted to the project owner and platform administrators.",
+        variant: "destructive",
+      });
+      return;
+    }
     setVerifying(true);
     try {
       await new Promise((r) => setTimeout(r, 1200));
@@ -884,6 +898,15 @@ const OrganizationPlantation = () => {
 
   const handleDeleteProject = async (projectId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    const target = projects.find((p) => p.id === projectId);
+    if (!canEditProject(target, { user, isAdmin, localProjectIds })) {
+      toast({
+        title: "Permission Denied 🔒",
+        description: "You do not have permission to delete this project.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (!window.confirm("Are you sure you want to permanently delete this plantation project? All linked evidence, telemetry, and calculations will be removed.")) {
       return;
     }
@@ -1727,10 +1750,10 @@ const OrganizationPlantation = () => {
         {view === "detail" && activeProject && (
           <div className="space-y-6 animate-in fade-in duration-300">
             {/* Context Badge if Viewing Other Org's Public Project */}
-            {!isOwner && (
-              <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-600 flex items-center justify-between">
+            {!canEdit && (
+              <div className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-600 flex items-center justify-between">
                 <span className="flex items-center gap-2 font-medium">
-                  <Globe className="h-4 w-4" /> Viewing Public Project Registry Record ({activeProject.organization_name})
+                  <Globe className="h-4 w-4 shrink-0" /> Viewing Public Project Registry Record ({activeProject.organization_name})
                 </span>
                 <Badge variant="outline" className="text-[10px] border-blue-500/30 text-blue-600 bg-background">
                   Public Explorer (Read-Only)
@@ -1747,9 +1770,13 @@ const OrganizationPlantation = () => {
                       <Badge className="bg-primary/15 text-primary border-primary/30 text-[10px] font-bold">
                         Your Project 🌿
                       </Badge>
+                    ) : isAdmin ? (
+                      <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30 text-[10px] font-bold">
+                        Admin Privileges 🛡️
+                      </Badge>
                     ) : (
                       <Badge variant="outline" className="text-[10px]">
-                        Public Verified Record
+                        Public Verified Record ({activeProject.organization_name})
                       </Badge>
                     )}
                   </div>
@@ -1762,7 +1789,7 @@ const OrganizationPlantation = () => {
                   {activeCarbonLedger && (
                     <CarbonCertificateModal cert={activeCarbonLedger} />
                   )}
-                  {isOwner && (
+                  {canEdit && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -1882,7 +1909,7 @@ const OrganizationPlantation = () => {
             {activeAuditReport && (
               <ProjectVerificationCard
                 auditReport={activeAuditReport}
-                onReaudit={runManualReaudit}
+                onReaudit={canEdit ? runManualReaudit : undefined}
                 isReauditing={verifying}
               />
             )}
@@ -1895,7 +1922,9 @@ const OrganizationPlantation = () => {
               totalTrees={activeProject.target_trees}
               boundary={activeBoundaryPoints}
               bulkData={Array.isArray(activeProject.bulk_data) ? activeProject.bulk_data : []}
+              readOnly={!canEdit}
               onAuditCompleted={async (results) => {
+                if (!canEdit) return;
                 toast({
                   title: "Ground-Truth Audit Complete! 🎖️",
                   description: `Audited ${results.auditedCount} sample plots. Calibrated survival rate: ${results.survivalRatePercent}%.`,
@@ -1913,42 +1942,62 @@ const OrganizationPlantation = () => {
 
             {/* Evidence Upload (Field / Drone / Satellite) */}
             <div className="glass-card rounded-2xl p-6 border border-border/40 space-y-4">
-              <h3 className="font-heading font-semibold flex items-center gap-2">
-                <Upload className="h-4 w-4 text-primary" /> Upload Additional Drone Orthomosaics & Field Imagery
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Attaching geotagged camera photos or drone captures upgrades project credibility and maintains active carbon certification.
-              </p>
-
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <Label className="mb-1.5 block">Evidence Type</Label>
-                  <Select value={evType} onValueChange={setEvType}>
-                    <SelectTrigger className="bg-background/80"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {EVIDENCE_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <h3 className="font-heading font-semibold flex items-center gap-2">
+                    <Upload className="h-4 w-4 text-primary" /> Geotagged Drone Orthomosaics & Field Imagery ({evidence.length})
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {canEdit
+                      ? "Attaching geotagged camera photos or drone captures upgrades project credibility and maintains active carbon certification."
+                      : "Public verifiable ground evidence and field survey photos recorded for this plantation project."}
+                  </p>
                 </div>
-                {evType === "survival" && (
-                  <div>
-                    <Label className="mb-1.5 block">Survival Rate (%)</Label>
-                    <Input type="number" min={0} max={100} value={evSurvival} onChange={(e) => setEvSurvival(e.target.value)} className="bg-background/80" />
-                  </div>
+                {!canEdit && (
+                  <Badge variant="outline" className="text-[10px]">
+                    Read-Only Evidence Vault
+                  </Badge>
                 )}
-                <div className="sm:col-span-2">
-                  <Label className="mb-1.5 block">Field Photograph / Drone Capture {evType === "survival" ? "(optional)" : "*"}</Label>
-                  <Input type="file" accept="image/*" onChange={(e) => setEvFile(e.target.files?.[0] ?? null)} className="bg-background/80" />
-                </div>
-                <div className="sm:col-span-2">
-                  <Label className="mb-1.5 block">Field Notes / Observations</Label>
-                  <Textarea value={evNotes} onChange={(e) => setEvNotes(e.target.value)} placeholder="Block A perimeter, 400 saplings, drip irrigation active" className="bg-background/80" />
-                </div>
               </div>
-              <Button onClick={uploadEvidence} disabled={uploading} className="rounded-xl font-semibold">
-                {uploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-                Upload Geotagged Evidence
-              </Button>
+
+              {canEdit ? (
+                <div className="space-y-4 p-4 rounded-2xl bg-muted/20 border border-border/30">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <Label className="mb-1.5 block">Evidence Type</Label>
+                      <Select value={evType} onValueChange={setEvType}>
+                        <SelectTrigger className="bg-background/80"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {EVIDENCE_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {evType === "survival" && (
+                      <div>
+                        <Label className="mb-1.5 block">Survival Rate (%)</Label>
+                        <Input type="number" min={0} max={100} value={evSurvival} onChange={(e) => setEvSurvival(e.target.value)} className="bg-background/80" />
+                      </div>
+                    )}
+                    <div className="sm:col-span-2">
+                      <Label className="mb-1.5 block">Field Photograph / Drone Capture {evType === "survival" ? "(optional)" : "*"}</Label>
+                      <Input type="file" accept="image/*" onChange={(e) => setEvFile(e.target.files?.[0] ?? null)} className="bg-background/80" />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label className="mb-1.5 block">Field Notes / Observations</Label>
+                      <Textarea value={evNotes} onChange={(e) => setEvNotes(e.target.value)} placeholder="Block A perimeter, 400 saplings, drip irrigation active" className="bg-background/80" />
+                    </div>
+                  </div>
+                  <Button onClick={uploadEvidence} disabled={uploading} className="rounded-xl font-semibold">
+                    {uploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+                    Upload Geotagged Evidence
+                  </Button>
+                </div>
+              ) : (
+                <div className="p-3.5 rounded-xl bg-muted/40 border border-border/40 text-xs text-muted-foreground flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span>Project modifications and evidence uploads are restricted to <strong>{activeProject.organization_name}</strong> and system administrators.</span>
+                </div>
+              )}
 
               {evidence.length > 0 && (
                 <div className="grid gap-3 sm:grid-cols-3 pt-2">

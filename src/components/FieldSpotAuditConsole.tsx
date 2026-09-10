@@ -66,6 +66,7 @@ interface Props {
   totalTrees: number;
   boundary: [number, number][];
   bulkData?: any[];
+  readOnly?: boolean;
   onAuditCompleted?: (results: {
     auditedCount: number;
     survivalRatePercent: number;
@@ -80,6 +81,7 @@ export const FieldSpotAuditConsole = ({
   totalTrees,
   boundary,
   bulkData = [],
+  readOnly = false,
   onAuditCompleted,
 }: Props) => {
   const { toast } = useToast();
@@ -300,7 +302,18 @@ export const FieldSpotAuditConsole = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {samples.length === 0 ? (
+          {readOnly ? (
+            <>
+              {samples.length > 0 && (
+                <Button variant="outline" size="sm" onClick={downloadAuditManifest} className="h-8 text-xs rounded-xl gap-1">
+                  <Download className="h-3.5 w-3.5" /> Export Manifest
+                </Button>
+              )}
+              <Badge variant="outline" className="text-[11px] text-muted-foreground border-border/40 py-1 px-2.5">
+                Public View (Audit Actions Restricted)
+              </Badge>
+            </>
+          ) : samples.length === 0 ? (
             <Button onClick={generateRandomSampleBatch} className="rounded-xl font-semibold gap-1.5 shadow-sm">
               <Sparkles className="h-4 w-4" /> Draw 5% Sample Batch
             </Button>
@@ -344,11 +357,15 @@ export const FieldSpotAuditConsole = ({
 
           <div className="p-3 rounded-xl bg-background/80 border border-border/40">
             <span className="text-[11px] text-muted-foreground block">Assigned Ranger / Inspector</span>
-            <Input
-              value={auditorName}
-              onChange={(e) => setAuditorName(e.target.value)}
-              className="h-7 text-xs bg-background mt-1"
-            />
+            {readOnly ? (
+              <span className="text-xs font-semibold text-foreground block mt-1 truncate">{auditorName}</span>
+            ) : (
+              <Input
+                value={auditorName}
+                onChange={(e) => setAuditorName(e.target.value)}
+                className="h-7 text-xs bg-background mt-1"
+              />
+            )}
           </div>
         </div>
       )}
@@ -486,10 +503,11 @@ export const FieldSpotAuditConsole = ({
                     <button
                       key={val}
                       type="button"
-                      onClick={() => setCurrentStatus(val as any)}
-                      className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer font-semibold text-[11px] ${
+                      disabled={readOnly}
+                      onClick={() => !readOnly && setCurrentStatus(val as any)}
+                      className={`p-2.5 rounded-xl border text-center transition-all font-semibold text-[11px] ${
                         currentStatus === val ? `${color} shadow-sm ring-1 ring-primary/30` : "border-border/60 bg-card"
-                      }`}
+                      } ${readOnly ? "cursor-default opacity-80" : "cursor-pointer"}`}
                     >
                       {label}
                     </button>
@@ -505,6 +523,7 @@ export const FieldSpotAuditConsole = ({
                   </Label>
                   <Input
                     type="number"
+                    disabled={readOnly}
                     value={currentHeight}
                     onChange={(e) => setCurrentHeight(e.target.value)}
                     className="bg-background"
@@ -514,6 +533,7 @@ export const FieldSpotAuditConsole = ({
                   <Label className="mb-1 block font-semibold">Collar Diameter DBH (mm)</Label>
                   <Input
                     type="number"
+                    disabled={readOnly}
                     value={currentDbh}
                     onChange={(e) => setCurrentDbh(e.target.value)}
                     className="bg-background"
@@ -527,15 +547,21 @@ export const FieldSpotAuditConsole = ({
                 {currentPhotoPreview ? (
                   <div className="relative rounded-xl overflow-hidden border border-border/40 h-28 w-full">
                     <img src={currentPhotoPreview} alt="Field Proof" className="h-full w-full object-cover" />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => { setCurrentPhoto(null); setCurrentPhotoPreview(null); }}
-                      className="absolute top-1 right-1 h-6 text-[10px] bg-background/80 text-destructive"
-                    >
-                      Retake
-                    </Button>
+                    {!readOnly && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setCurrentPhoto(null); setCurrentPhotoPreview(null); }}
+                        className="absolute top-1 right-1 h-6 text-[10px] bg-background/80 text-destructive"
+                      >
+                        Retake
+                      </Button>
+                    )}
+                  </div>
+                ) : readOnly ? (
+                  <div className="p-3 rounded-xl bg-muted/40 border border-border/40 text-center text-muted-foreground text-xs">
+                    No field photograph attached for this spot plot.
                   </div>
                 ) : (
                   <label className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 cursor-pointer hover:border-primary transition-all">
@@ -556,6 +582,7 @@ export const FieldSpotAuditConsole = ({
                 <Label className="mb-1 block font-semibold">Field Inspector Notes</Label>
                 <Input
                   value={currentNotes}
+                  disabled={readOnly}
                   onChange={(e) => setCurrentNotes(e.target.value)}
                   placeholder="e.g. Healthy foliage, irrigated via drip"
                   className="bg-background"
@@ -563,12 +590,14 @@ export const FieldSpotAuditConsole = ({
               </div>
 
               <div className="flex justify-end gap-2 pt-2 border-t border-border/40">
-                <Button variant="ghost" onClick={() => setModalOpen(false)}>
-                  Cancel
+                <Button variant={readOnly ? "default" : "ghost"} onClick={() => setModalOpen(false)}>
+                  {readOnly ? "Close" : "Cancel"}
                 </Button>
-                <Button onClick={saveSampleAudit} className="font-semibold rounded-xl">
-                  Save Sample Audit Record
-                </Button>
+                {!readOnly && (
+                  <Button onClick={saveSampleAudit} className="font-semibold rounded-xl">
+                    Save Sample Audit Record
+                  </Button>
+                )}
               </div>
             </div>
           )}
