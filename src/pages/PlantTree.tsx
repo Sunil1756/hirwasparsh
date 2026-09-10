@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
-import { TreePine, Upload, MapPin, Calendar, Ruler, FileText, Loader2, CheckCircle, ShieldCheck, ShieldX, Clock, Bot, Camera, AlertTriangle, User, Heart, Ban, HandHeart, Lock, LogIn } from "lucide-react";
+import { TreePine, Upload, MapPin, Calendar, Ruler, FileText, Loader2, CheckCircle, ShieldCheck, ShieldX, Clock, Bot, Camera, AlertTriangle, User, Heart, Ban, HandHeart, Lock, LogIn, Building2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -405,6 +405,9 @@ const PlantTree = () => {
           latitude,
           longitude,
           description: description || null,
+          planting_type: "individual", // Explicit individual data partition
+          plot_id: null,
+          org_id: null,
           verification_status: "pending",
           admin_status: "pending",
           points_awarded: 0,
@@ -674,8 +677,10 @@ const PlantTree = () => {
       <div className="container mx-auto px-4 max-w-2xl">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm mb-4">
-              <TreePine className="h-4 w-4" /> Register Your Plantation
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
+              <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3.5 py-1.5 rounded-full text-xs font-semibold">
+                <TreePine className="h-3.5 w-3.5" /> Individual Planter Mode (1–5 Trees)
+              </div>
             </div>
             <h1 className="font-heading text-4xl font-bold mb-2">Plant a Tree</h1>
             <p className="text-muted-foreground">Upload 3 photos: Before → After → Selfie. Points awarded after admin approval only.</p>
@@ -684,6 +689,24 @@ const PlantTree = () => {
                 text="वृक्षारोपण नोंदणी मार्गदर्शक: प्रथम रोपण करण्यापूर्वीच्या रिकाम्या जागेचा फोटो घ्या. नंतर लावलेल्या रोपाचा फोटो घ्या आणि रोपासोबत एक सेल्फी अपलोड करा. योग्य प्रजाती निवडून सबमिट करा."
               />
               {driveId && <Badge variant="secondary">Registering under a Plantation Drive</Badge>}
+            </div>
+
+            {/* Institutional / NGO / CSR Switcher Banner */}
+            <div className="mt-4 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs text-left">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
+                  <Building2 className="h-4 w-4" />
+                </div>
+                <div>
+                  <span className="font-bold text-foreground">Planting at Scale for an NGO, College, or CSR?</span>
+                  <p className="text-[11px] text-muted-foreground">Use the Institutional MRV Workspace for multi-acre geofenced plots & bulk manifests.</p>
+                </div>
+              </div>
+              <Link to="/ngo-workspace" className="shrink-0 w-full sm:w-auto">
+                <Button variant="outline" size="sm" className="w-full sm:w-auto text-xs h-7 px-2.5 rounded-lg border-emerald-500/30 text-emerald-700 dark:text-emerald-300 gap-1">
+                  NGO Portal <ArrowRight className="h-3 w-3" />
+                </Button>
+              </Link>
             </div>
           </div>
 

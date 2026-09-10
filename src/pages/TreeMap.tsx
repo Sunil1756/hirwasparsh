@@ -21,6 +21,7 @@ import {
   Compass,
   CheckCircle2,
   Ruler,
+  Building2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -83,7 +84,7 @@ const fetchTrees = async () => {
   const { data, error } = await supabase
     .from("trees")
     .select(
-      "id, tree_name, species, location, latitude, longitude, verification_status, admin_status, ai_confidence, created_at, photo_url, height_cm"
+      "id, tree_name, species, location, latitude, longitude, verification_status, admin_status, ai_confidence, created_at, photo_url, height_cm, planting_type, plot_id, org_id"
     )
     .order("created_at", { ascending: false });
   if (error) throw error;
@@ -103,6 +104,7 @@ const TreeMap = () => {
   const [activeTab, setActiveTab] = useState<"tree_map" | "satellite_ndvi" | "field_scouting">(
     "tree_map"
   );
+  const [scopeFilter, setScopeFilter] = useState<"all" | "individual" | "institutional">("all");
   const [filter, setFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [stageFilter, setStageFilter] = useState("all");
@@ -121,8 +123,23 @@ const TreeMap = () => {
     [trees]
   );
 
+  const individualTreesList = useMemo(
+    () => trees.filter((t: any) => t.planting_type !== "institutional" && !t.plot_id),
+    [trees]
+  );
+
+  const institutionalTreesList = useMemo(
+    () => trees.filter((t: any) => t.planting_type === "institutional" || !!t.plot_id),
+    [trees]
+  );
+
   const filtered = useMemo(() => {
-    return trees.filter((t) => {
+    return trees.filter((t: any) => {
+      const scopeOk =
+        scopeFilter === "all" ||
+        (scopeFilter === "individual" && t.planting_type !== "institutional" && !t.plot_id) ||
+        (scopeFilter === "institutional" && (t.planting_type === "institutional" || !!t.plot_id));
+
       const stageOk =
         stageFilter === "all" ||
         (stageFilter === "sapling" && (t.height_cm ?? 0) < 100) ||
@@ -146,9 +163,9 @@ const TreeMap = () => {
         t.species.toLowerCase().includes(filter.toLowerCase()) ||
         t.location.toLowerCase().includes(filter.toLowerCase());
 
-      return statusOk && stageOk && speciesOk && dateOk && textMatch;
+      return scopeOk && statusOk && stageOk && speciesOk && dateOk && textMatch;
     });
-  }, [trees, statusFilter, stageFilter, speciesFilter, dateFilter, filter]);
+  }, [trees, scopeFilter, statusFilter, stageFilter, speciesFilter, dateFilter, filter]);
 
   const treesWithCoords = useMemo(
     () => filtered.filter((t) => t.latitude && t.longitude),
@@ -315,6 +332,30 @@ const TreeMap = () => {
                     value={filter}
                     onChange={(e) => setFilter(e.target.value)}
                   />
+                </div>
+
+                {/* Dataset Partition / Scope Selector */}
+                <div className="space-y-1.5 p-2.5 rounded-xl bg-primary/5 border border-primary/20">
+                  <Label className="text-[11px] font-bold uppercase tracking-wider text-primary flex items-center justify-between">
+                    <span>Data Domain</span>
+                    <span className="text-[10px] text-muted-foreground font-normal">Isolated Datasets</span>
+                  </Label>
+                  <Select value={scopeFilter} onValueChange={(val: any) => setScopeFilter(val)}>
+                    <SelectTrigger className="rounded-xl h-9 text-xs font-semibold bg-background/80">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        <span className="flex items-center gap-1.5">🌐 All Plantations ({trees.length})</span>
+                      </SelectItem>
+                      <SelectItem value="individual">
+                        <span className="flex items-center gap-1.5">🌿 Individual Trees ({individualTreesList.length})</span>
+                      </SelectItem>
+                      <SelectItem value="institutional">
+                        <span className="flex items-center gap-1.5">🏢 Institutional / Plots ({institutionalTreesList.length})</span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Status Filter */}

@@ -41,8 +41,22 @@ const GrowthUpdates = () => {
     queryKey: ["user-approved-trees", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_my_trees_with_token");
-      if (error) throw error;
+      try {
+        const { data, error } = await supabase.rpc("get_my_trees_with_token");
+        if (!error && data) {
+          // Strictly isolate individual personal trees (exclude institutional plot trees)
+          return (data as any[]).filter(t => t.planting_type !== "institutional" && !t.plot_id);
+        }
+      } catch {}
+
+      // Fallback direct query on individual trees
+      const { data } = await supabase
+        .from("trees")
+        .select("id, tree_name, species, qr_token, latitude, longitude, photo_url, height_cm, planting_type, plot_id")
+        .eq("user_id", user!.id)
+        .eq("planting_type", "individual")
+        .is("plot_id", null);
+
       return data ?? [];
     },
   });
