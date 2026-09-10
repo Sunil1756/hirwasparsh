@@ -166,9 +166,6 @@ const Navbar = () => {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="center" className="w-56 bg-popover z-[60]">
-              <DropdownMenuLabel className="text-[11px] font-bold text-muted-foreground">
-                ACIC Startup Portals
-              </DropdownMenuLabel>
               {b2bLinks.map((item) => (
                 <DropdownMenuItem key={item.to} asChild>
                   <Link to={item.to} className="w-full cursor-pointer text-xs">
