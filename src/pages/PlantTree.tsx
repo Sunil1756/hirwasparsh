@@ -677,11 +677,7 @@ const PlantTree = () => {
       <div className="container mx-auto px-4 max-w-2xl">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <div className="text-center mb-8">
-            <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
-              <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3.5 py-1.5 rounded-full text-xs font-semibold">
-                <TreePine className="h-3.5 w-3.5" /> Individual Planter Mode (1–5 Trees)
-              </div>
-            </div>
+
             <h1 className="font-heading text-4xl font-bold mb-2">Plant a Tree</h1>
             <p className="text-muted-foreground">Upload 3 photos: Before → After → Selfie. Points awarded after admin approval only.</p>
             <div className="flex flex-wrap items-center justify-center gap-2 mt-3">

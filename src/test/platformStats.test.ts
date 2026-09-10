@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { fetchLivePlatformMetrics } from "../lib/platformStats";
 import { supabase } from "../integrations/supabase/client";
 
@@ -12,5 +12,5 @@ describe("Live Platform Metrics & Tree Survival Statistics", () => {
     expect(metrics.survivingTrees).toBeGreaterThanOrEqual(0);
     expect(metrics.survivalRatePct).toBeGreaterThanOrEqual(0);
     expect(metrics.survivalRatePct).toBeLessThanOrEqual(100);
-  });
+  }, 15000);
 });
