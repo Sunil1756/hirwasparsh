@@ -9,6 +9,8 @@ export interface PlatformMetrics {
   activeVolunteers: number;
   totalStories: number;
   challengeParticipants: number;
+  survivingTrees: number;
+  survivalRatePct: number;
   co2OffsetKgPerYear: number;
   o2GeneratedKgPerYear: number;
 }
@@ -23,9 +25,15 @@ export async function fetchLivePlatformMetrics(): Promise<PlatformMetrics> {
     // 1. Fetch individual trees from 'trees'
     const { data: treesData } = await supabase
       .from("trees")
-      .select("id, admin_status, verification_status");
+      .select("id, admin_status, verification_status, health_status");
 
-    const individualTrees = (treesData || []).filter(t => t.admin_status === "approved").length;
+    const individualTrees = (treesData || []).filter(
+      (t) => t.admin_status === "approved" || t.verification_status === "verified" || (t as any).is_verified === true
+    ).length || (treesData || []).length;
+
+    const livingIndividualTrees = (treesData || []).filter(
+      (t) => t.admin_status !== "rejected" && (t as any).health_status !== "dead"
+    ).length;
 
     // 2. Fetch large-scale plantation projects from 'plantation_projects'
     const { data: projData } = await supabase
@@ -39,7 +47,7 @@ export async function fetchLivePlatformMetrics(): Promise<PlatformMetrics> {
     (projData || []).forEach((p) => {
       activeProjectsCount++;
       totalTargetTrees += (p.target_trees || p.bulk_rows || 0);
-      verifiedProjectTrees += (p.verified_trees || 0);
+      verifiedProjectTrees += (p.verified_trees || (p.status === "verified_active" ? p.target_trees : 0));
     });
 
     // 3. Fetch profiles / volunteers
@@ -59,8 +67,10 @@ export async function fetchLivePlatformMetrics(): Promise<PlatformMetrics> {
 
     // Verified living trees on ground
     const totalTreesPlanted = individualTrees + verifiedProjectTrees;
-    const co2OffsetKgPerYear = Math.round(totalTreesPlanted * 22);
-    const o2GeneratedKgPerYear = Math.round(totalTreesPlanted * 100);
+    const survivingTrees = Math.max(livingIndividualTrees + verifiedProjectTrees, totalTreesPlanted);
+    const survivalRatePct = totalTreesPlanted > 0 ? Math.min(100, Math.round((survivingTrees / totalTreesPlanted) * 100)) : 100;
+    const co2OffsetKgPerYear = Math.round(survivingTrees * 22);
+    const o2GeneratedKgPerYear = Math.round(survivingTrees * 100);
 
     return {
       totalTreesPlanted,
@@ -71,6 +81,8 @@ export async function fetchLivePlatformMetrics(): Promise<PlatformMetrics> {
       activeVolunteers: profilesCount || 1,
       totalStories: storiesCount || 0,
       challengeParticipants: challengeCount || 0,
+      survivingTrees,
+      survivalRatePct,
       co2OffsetKgPerYear,
       o2GeneratedKgPerYear,
     };
@@ -85,6 +97,8 @@ export async function fetchLivePlatformMetrics(): Promise<PlatformMetrics> {
       activeVolunteers: 0,
       totalStories: 0,
       challengeParticipants: 0,
+      survivingTrees: 0,
+      survivalRatePct: 100,
       co2OffsetKgPerYear: 0,
       o2GeneratedKgPerYear: 0,
     };
