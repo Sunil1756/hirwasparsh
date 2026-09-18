@@ -35,6 +35,7 @@ import BulkOnboardPage from "./pages/BulkOnboardPage";
 import CertificateVerify from "./pages/CertificateVerify";
 import CSRCorporatePortal from "./pages/CSRCorporatePortal";
 import NGOWorkspacePage from "./pages/NGOWorkspacePage";
+import PricingPage from "./pages/PricingPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { LanguageProvider } from "./contexts/LanguageContext";
 
