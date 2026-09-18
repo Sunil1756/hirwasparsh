@@ -35,7 +35,7 @@ import BulkOnboardPage from "./pages/BulkOnboardPage";
 import CertificateVerify from "./pages/CertificateVerify";
 import CSRCorporatePortal from "./pages/CSRCorporatePortal";
 import NGOWorkspacePage from "./pages/NGOWorkspacePage";
-import PricingPage from "./pages/PricingPage";
+import ProtectedRoute from "./components/ProtectedRoute";
 import { LanguageProvider } from "./contexts/LanguageContext";
 
 const queryClient = new QueryClient();
@@ -52,11 +52,11 @@ const App = () => (
           <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/about" element={<About />} />
-          <Route path="/plant" element={<PlantChooser />} />
-          <Route path="/plant/individual" element={<PlantTree />} />
+          <Route path="/plant" element={<ProtectedRoute><PlantChooser /></ProtectedRoute>} />
+          <Route path="/plant/individual" element={<ProtectedRoute><PlantTree /></ProtectedRoute>} />
           <Route path="/plant/organization" element={<OrganizationPlantation />} />
-          <Route path="/plant/bulk" element={<BulkOnboardPage />} />
-          <Route path="/bulk-onboard" element={<BulkOnboardPage />} />
+          <Route path="/plant/bulk" element={<ProtectedRoute><BulkOnboardPage /></ProtectedRoute>} />
+          <Route path="/bulk-onboard" element={<ProtectedRoute><BulkOnboardPage /></ProtectedRoute>} />
           <Route path="/dashboard" element={<CommunityDashboard />} />
           <Route path="/tree-map" element={<TreeMap />} />
           <Route path="/scouting" element={<FieldScoutingPage />} />
