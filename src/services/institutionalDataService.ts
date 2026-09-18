@@ -7,6 +7,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { computeMultiSourceConfidenceScore, MultiSourceConfidenceResult } from "@/lib/multiSourceConfidenceEngine";
+export * from "@/lib/mrvThreeTierEngine";
 
 export interface OrganizationEntity {
   id: string;
