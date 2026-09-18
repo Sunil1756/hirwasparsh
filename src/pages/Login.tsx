@@ -821,11 +821,7 @@ const Login = () => {
   // -------------------------------------------------------------
   // 8. GOOGLE 1-CLICK AUTH & MULTI-TIER CONNECT
   // -------------------------------------------------------------
-  const handleGoogleAuth = () => {
-    setGoogleModalOpen(true);
-  };
-
-  const handleDirectOAuthRedirect = async () => {
+  const handleGoogleAuth = async () => {
     try {
       setGoogleLoading(true);
       const redirectUri = `${window.location.origin}${redirectTarget !== "/" ? redirectTarget : ""}`;
@@ -840,21 +836,19 @@ const Login = () => {
         },
       });
       if (error) {
+        console.warn("Direct Google OAuth launch notice:", error.message);
         setGoogleLoading(false);
-        toast({
-          title: "OAuth Launch Notice",
-          description: error.message,
-          variant: "destructive",
-        });
+        setGoogleModalOpen(true);
       }
     } catch (err: any) {
+      console.warn("Direct Google OAuth error:", err);
       setGoogleLoading(false);
-      toast({
-        title: "OAuth Launch Error",
-        description: err.message || "Failed to initiate OAuth",
-        variant: "destructive",
-      });
+      setGoogleModalOpen(true);
     }
+  };
+
+  const handleDirectOAuthRedirect = async () => {
+    await handleGoogleAuth();
   };
 
   const handleSendGoogleOtp = async (e: React.FormEvent) => {
