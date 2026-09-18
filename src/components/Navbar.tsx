@@ -104,7 +104,7 @@ const Navbar = () => {
           </Link>
 
           <Link
-            to={user ? "/plant" : "/login?redirect=/plant"}
+            to="/plant"
             className={`px-2 py-1.5 xl:px-3 xl:py-2 rounded-xl text-xs xl:text-[13px] 2xl:text-[14px] font-semibold whitespace-nowrap transition-colors ${
               location.pathname === "/plant" || location.pathname.startsWith("/plant/")
                 ? "text-primary bg-primary/10"
@@ -292,26 +292,23 @@ const Navbar = () => {
               <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-3 py-1">
                 Main Menu
               </div>
-              {primaryLinks.map((link) => {
-                const targetTo = link.to === "/plant" && !user ? "/login?redirect=/plant" : link.to;
-                return (
-                  <Link
-                    key={link.to}
-                    to={targetTo}
-                    onClick={() => setOpen(false)}
-                    className={`px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-between ${
-                      location.pathname === link.to
-                        ? "text-primary bg-primary/15 font-bold"
-                        : "text-foreground hover:text-primary hover:bg-primary/5"
-                    }`}
-                  >
-                    <span>{link.label}</span>
-                    {location.pathname === link.to && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                    )}
-                  </Link>
-                );
-              })}
+              {primaryLinks.map((link) => (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  onClick={() => setOpen(false)}
+                  className={`px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-between ${
+                    location.pathname === link.to
+                      ? "text-primary bg-primary/15 font-bold"
+                      : "text-foreground hover:text-primary hover:bg-primary/5"
+                  }`}
+                >
+                  <span>{link.label}</span>
+                  {location.pathname === link.to && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  )}
+                </Link>
+              ))}
 
               <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 px-3 pt-3 pb-1">
                 Institutional & B2B Portals

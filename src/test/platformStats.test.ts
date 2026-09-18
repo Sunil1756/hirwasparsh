@@ -42,9 +42,16 @@ describe("Live Platform Metrics & Tree Survival Statistics", () => {
   });
 
   it("handles live or empty database gracefully without crashing", async () => {
+    vi.spyOn(supabase, "from").mockImplementation((): any => ({
+      select: vi.fn().mockResolvedValue({ data: [], count: 0 }),
+    }));
+
     const metrics = await fetchLivePlatformMetrics();
     expect(metrics).toBeDefined();
     expect(typeof metrics.survivingTrees).toBe("number");
     expect(typeof metrics.survivalRatePct).toBe("number");
+    expect(metrics.totalTreesPlanted).toBe(0);
+
+    vi.restoreAllMocks();
   });
 });
