@@ -1,6 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { TreePine, MapPin, Calendar, Ruler, ShieldCheck, Clock, Loader2, Download, Heart, Droplets, AlertTriangle, Skull, Bot, Activity, Sun, CloudRain, Sparkles, Wind } from "lucide-react";
+import { TreePine, MapPin, Calendar, Ruler, ShieldCheck, Clock, Loader2, Download, Heart, Droplets, AlertTriangle, Skull, Bot, Activity, Sun, CloudRain, Sparkles, Wind, Camera, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
@@ -151,12 +151,25 @@ const TreeProfile = () => {
     : band === "fair" ? "hsl(38 92% 50%)"
     : "hsl(0 84% 60%)";
 
+  const handleSharePassport = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: `${tree?.tree_name || "Tree"} — Green Enlightenment Passport`,
+        text: `Track the growth and verifiable carbon impact of ${tree?.tree_name} (${tree?.species}) on Green Enlightenment!`,
+        url: profileUrl,
+      }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(profileUrl);
+      alert("Digital Tree Passport link copied to clipboard! 📋");
+    }
+  };
+
   return (
     <div className="min-h-screen pt-24 pb-12">
       <div className="container mx-auto px-4 max-w-4xl">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <div className="grid md:grid-cols-3 gap-8">
-            {/* Left: Photo + QR */}
+            {/* Left: Photo + QR + Quick Check-in */}
             <div className="space-y-6">
               {showSlider ? (
                 <BeforeAfterSlider beforeUrl={beforeUrl!} afterUrl={afterUrl!} beforeLabel="Planted" afterLabel="Now" />
@@ -168,18 +181,31 @@ const TreeProfile = () => {
                 </div>
               )}
 
-              <div className="glass-card rounded-2xl p-6 text-center">
-                <h3 className="font-heading font-semibold mb-3">Tree QR Code</h3>
-                <div ref={qrRef} className="inline-block bg-card p-3 rounded-xl">
-                  <QRCodeSVG value={profileUrl} size={180} level="H" />
+              <div className="glass-card rounded-2xl p-6 text-center space-y-3">
+                <h3 className="font-heading font-semibold text-base">Digital Tree Passport</h3>
+                <div ref={qrRef} className="inline-block bg-card p-3 rounded-xl shadow-inner">
+                  <QRCodeSVG value={profileUrl} size={170} level="H" />
                 </div>
-                <p className="text-xs text-muted-foreground mt-2 break-all">{profileUrl}</p>
-                <Button variant="outline" size="sm" className="mt-3 gap-2" onClick={downloadQR}>
-                  <Download className="h-4 w-4" /> Download QR
-                </Button>
-                <Link to={`/tree-story/${id}`}>
-                  <Button size="sm" className="mt-2 w-full gap-2">
-                    <TreePine className="h-4 w-4" /> View Growth Story
+                <p className="text-[11px] text-muted-foreground break-all">{profileUrl}</p>
+                
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs rounded-xl" onClick={downloadQR}>
+                    <Download className="h-3.5 w-3.5" /> Download QR
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs rounded-xl" onClick={handleSharePassport}>
+                    <Share2 className="h-3.5 w-3.5" /> Share
+                  </Button>
+                </div>
+
+                <Link to={`/growth-updates?tree=${id}`} className="block">
+                  <Button size="sm" className="w-full gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm">
+                    <Camera className="h-3.5 w-3.5" /> 30-Day Growth Check-in
+                  </Button>
+                </Link>
+
+                <Link to={`/tree-story/${id}`} className="block">
+                  <Button variant="ghost" size="sm" className="w-full gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+                    <TreePine className="h-3.5 w-3.5" /> View Growth Story Slideshow
                   </Button>
                 </Link>
               </div>
