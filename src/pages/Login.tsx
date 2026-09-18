@@ -196,9 +196,10 @@ function validatePhoneNumber(phone: string, countryCode = "+91"): { valid: boole
   return { valid: true, formatted: `${countryCode}${digitsOnly}`, digits: digitsOnly };
 }
 
-// Password strength evaluator
+// Password strength evaluator (enforces >= 6 characters with multi-factor security scoring)
 function evaluatePassword(pwd: string) {
-  const hasMinLen = pwd.length >= 8;
+  const hasMinLen = pwd.length >= 6;
+  const hasIdealLen = pwd.length >= 8;
   const hasUpper = /[A-Z]/.test(pwd);
   const hasLower = /[a-z]/.test(pwd);
   const hasNumber = /[0-9]/.test(pwd);
@@ -206,6 +207,7 @@ function evaluatePassword(pwd: string) {
 
   let score = 0;
   if (hasMinLen) score += 1;
+  if (hasIdealLen) score += 1;
   if (hasUpper) score += 1;
   if (hasLower) score += 1;
   if (hasNumber) score += 1;
@@ -216,10 +218,12 @@ function evaluatePassword(pwd: string) {
   return {
     score,
     hasMinLen,
+    hasIdealLen,
     hasUpper,
     hasLower,
     hasNumber,
     hasSpecial,
+    isValid: hasMinLen,
     isStrong,
   };
 }

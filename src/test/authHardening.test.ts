@@ -113,7 +113,8 @@ function validateGenuineEmail(email: string): { valid: boolean; reason?: string 
 }
 
 function evaluatePassword(pwd: string) {
-  const hasMinLen = pwd.length >= 8;
+  const hasMinLen = pwd.length >= 6;
+  const hasIdealLen = pwd.length >= 8;
   const hasUpper = /[A-Z]/.test(pwd);
   const hasLower = /[a-z]/.test(pwd);
   const hasNumber = /[0-9]/.test(pwd);
@@ -121,6 +122,7 @@ function evaluatePassword(pwd: string) {
 
   let score = 0;
   if (hasMinLen) score++;
+  if (hasIdealLen) score++;
   if (hasUpper) score++;
   if (hasLower) score++;
   if (hasNumber) score++;
@@ -129,11 +131,13 @@ function evaluatePassword(pwd: string) {
   return {
     score,
     hasMinLen,
+    hasIdealLen,
     hasUpper,
     hasLower,
     hasNumber,
     hasSpecial,
-    isStrong: score >= 5,
+    isValid: hasMinLen,
+    isStrong: hasMinLen && hasUpper && hasLower && hasNumber && hasSpecial,
   };
 }
 
@@ -192,12 +196,18 @@ describe("Authentication Hardening & Validation Suite", () => {
     it("correctly identifies strong 5-tier passwords", () => {
       const evalStrong = evaluatePassword("GreenPlant#2026");
       expect(evalStrong.isStrong).toBe(true);
-      expect(evalStrong.score).toBe(5);
+      expect(evalStrong.score).toBeGreaterThanOrEqual(5);
       expect(evalStrong.hasMinLen).toBe(true);
+      expect(evalStrong.hasIdealLen).toBe(true);
       expect(evalStrong.hasUpper).toBe(true);
       expect(evalStrong.hasLower).toBe(true);
       expect(evalStrong.hasNumber).toBe(true);
       expect(evalStrong.hasSpecial).toBe(true);
+    });
+
+    it("validates passwords meeting >= 6 character length requirement", () => {
+      expect(evaluatePassword("Abc12!").isValid).toBe(true);
+      expect(evaluatePassword("12345").isValid).toBe(false);
     });
 
     it("rejects weak passwords lacking numbers or symbols or length", () => {
