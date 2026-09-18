@@ -180,6 +180,7 @@ const OrganizationPlantation = () => {
   const [location, setLocation] = useState("");
   const [boundary, setBoundary] = useState<[number, number][]>([]);
   const [targetTrees, setTargetTrees] = useState("100");
+  const [existingTrees, setExistingTrees] = useState("0");
   const [speciesText, setSpeciesText] = useState("Neem, Banyan, Peepal, Jamun");
   const [plantationDate, setPlantationDate] = useState(() => {
     const d = new Date();
@@ -599,6 +600,7 @@ const OrganizationPlantation = () => {
     setLocation("");
     setBoundary([]);
     setTargetTrees("100");
+    setExistingTrees("0");
     setSpeciesText("Neem, Banyan, Peepal, Jamun");
     setPlantationDate(new Date().toISOString().split("T")[0]);
     setBulkRows([]);
@@ -641,6 +643,23 @@ const OrganizationPlantation = () => {
       existingProjects: projects,
     });
 
+    const baselineTreesNum = Number(existingTrees) || 0;
+    const targetTreesNum = Number(targetTrees) || 100;
+    const totalCanopyNum = targetTreesNum + baselineTreesNum;
+
+    const formattedBulkData = Array.isArray(bulkRows) && bulkRows.length > 0
+      ? {
+          records: bulkRows,
+          baseline_existing_trees: baselineTreesNum,
+          target_new_trees: targetTreesNum,
+          total_canopy_trees: totalCanopyNum,
+        }
+      : {
+          baseline_existing_trees: baselineTreesNum,
+          target_new_trees: targetTreesNum,
+          total_canopy_trees: totalCanopyNum,
+        };
+
     const newProjectPayload = {
       user_id: user.id,
       project_name: projectName.trim(),
@@ -652,10 +671,10 @@ const OrganizationPlantation = () => {
       latitude: centroid[0] as number,
       longitude: centroid[1] as number,
       boundary: boundary.map(([lat, lng]) => ({ lat, lng })),
-      target_trees: Number(targetTrees) || 100,
+      target_trees: targetTreesNum,
       species: speciesText.split(",").map((s) => s.trim()).filter(Boolean),
       plantation_date: plantationDate,
-      bulk_data: bulkRows,
+      bulk_data: formattedBulkData,
       bulk_rows: bulkRows.length,
       status: preAudit.status,
       ai_score: preAudit.overallScore,
@@ -1398,26 +1417,71 @@ const OrganizationPlantation = () => {
             {/* STEP 3: TARGET & SPECIES */}
             {step === 3 && (
               <div className="space-y-4 animate-in fade-in duration-300">
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-3">
                   <div>
-                    <Label className="flex items-center gap-1.5 mb-1.5 font-semibold">Target Number of Trees *</Label>
+                    <Label className="flex items-center gap-1.5 mb-1.5 font-semibold text-xs">
+                      <Leaf className="h-3.5 w-3.5 text-primary" /> Target Newly Planted Trees *
+                    </Label>
                     <Input
                       type="number"
                       min={1}
                       value={targetTrees}
                       onChange={(e) => setTargetTrees(e.target.value)}
-                      placeholder="500"
+                      placeholder="1000"
                       className="bg-background/80"
                     />
+                    <span className="text-[10px] text-muted-foreground mt-0.5 block">New saplings to plant & track</span>
                   </div>
                   <div>
-                    <Label className="flex items-center gap-1.5 mb-1.5 font-semibold">Plantation Drive Date *</Label>
+                    <Label className="flex items-center gap-1.5 mb-1.5 font-semibold text-xs">
+                      <TreePine className="h-3.5 w-3.5 text-blue-500" /> Pre-existing Baseline Trees
+                    </Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={existingTrees}
+                      onChange={(e) => setExistingTrees(e.target.value)}
+                      placeholder="754"
+                      className="bg-background/80"
+                    />
+                    <span className="text-[10px] text-muted-foreground mt-0.5 block">Mature trees already on parcel</span>
+                  </div>
+                  <div>
+                    <Label className="flex items-center gap-1.5 mb-1.5 font-semibold text-xs">
+                      <Calendar className="h-3.5 w-3.5 text-amber-500" /> Plantation Drive Date *
+                    </Label>
                     <Input
                       type="date"
                       value={plantationDate}
                       onChange={(e) => setPlantationDate(e.target.value)}
                       className="bg-background/80"
                     />
+                    <span className="text-[10px] text-muted-foreground mt-0.5 block">Scheduled plantation date</span>
+                  </div>
+                </div>
+
+                {/* Dynamic Canopy Segmentation Breakdown Banner */}
+                <div className="p-3.5 rounded-xl bg-gradient-to-r from-primary/10 via-background to-blue-500/10 border border-primary/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-lg bg-primary/15 text-primary">
+                      <TreePine className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <span className="font-bold text-foreground">
+                        Total Parcel Canopy Capacity: {(Number(targetTrees) || 0) + (Number(existingTrees) || 0)} Trees
+                      </span>
+                      <p className="text-[11px] text-muted-foreground">
+                        MRV automatically segregates new carbon additionality from baseline forest canopy.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2.5 shrink-0 text-[11px] font-medium">
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                      {Number(targetTrees) || 0} Planted (MRV Trackable)
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30">
+                      {Number(existingTrees) || 0} Baseline (Protected)
+                    </span>
                   </div>
                 </div>
 
@@ -1698,8 +1762,10 @@ const OrganizationPlantation = () => {
                       </strong>
                     </div>
                     <div className="p-3 rounded-xl bg-card border border-border/40">
-                      <span className="text-muted-foreground block mb-0.5 font-medium">Target Saplings & Date:</span>
-                      <strong className="text-sm font-semibold">{targetTrees} Trees · {plantationDate}</strong>
+                      <span className="text-muted-foreground block mb-0.5 font-medium">Canopy & Target:</span>
+                      <strong className="text-sm font-semibold text-primary">
+                        {(Number(targetTrees) || 0) + (Number(existingTrees) || 0)} Total ({targetTrees} Planted + {existingTrees} Baseline)
+                      </strong>
                     </div>
                     <div className="p-3 rounded-xl bg-card border border-border/40">
                       <span className="text-muted-foreground block mb-0.5 font-medium">Records Attached:</span>
@@ -1807,16 +1873,25 @@ const OrganizationPlantation = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-2 text-center">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-2 text-center">
                 <div className="p-3 rounded-xl bg-card border border-border/40">
                   <Target className="h-4 w-4 mx-auto text-primary" />
                   <p className="mt-1 font-bold text-base">{activeProject.target_trees}</p>
-                  <p className="text-xs text-muted-foreground">Target Trees</p>
+                  <p className="text-xs text-muted-foreground">Planted Target</p>
                 </div>
-                <div className="p-3 rounded-xl bg-card border border-border/40">
-                  <Leaf className="h-4 w-4 mx-auto text-primary" />
-                  <p className="mt-1 font-bold text-base">{activeProject.bulk_rows}</p>
-                  <p className="text-xs text-muted-foreground">Data Rows</p>
+                <div className="p-3 rounded-xl bg-card border border-blue-500/20 bg-blue-500/5">
+                  <TreePine className="h-4 w-4 mx-auto text-blue-500" />
+                  <p className="mt-1 font-bold text-base text-blue-600 dark:text-blue-400">
+                    {activeProject.bulk_data?.baseline_existing_trees ?? activeProject.bulk_data?.metadata?.baseline_existing_trees ?? 0}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Baseline Trees</p>
+                </div>
+                <div className="p-3 rounded-xl bg-card border border-emerald-500/20 bg-emerald-500/5">
+                  <Leaf className="h-4 w-4 mx-auto text-emerald-500" />
+                  <p className="mt-1 font-bold text-base text-emerald-600 dark:text-emerald-400">
+                    {(Number(activeProject.target_trees) || 0) + Number(activeProject.bulk_data?.baseline_existing_trees ?? activeProject.bulk_data?.metadata?.baseline_existing_trees ?? 0)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Total Canopy</p>
                 </div>
                 <div className="p-3 rounded-xl bg-card border border-border/40">
                   <Camera className="h-4 w-4 mx-auto text-primary" />
