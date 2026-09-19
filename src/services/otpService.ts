@@ -62,29 +62,16 @@ export async function sendOtpCode(params: SendOtpParams): Promise<OtpResponse> {
 
   try {
     if (channel === "email") {
-      // 1. Send via Supabase Auth Email OTP
+      // 1. Send via Supabase Auth Email OTP (supports both login for existing users and instant signup for new users)
       const { error: authError } = await supabase.auth.signInWithOtp({
         email: cleanRecipient,
         options: {
-          shouldCreateUser: purpose === "signup",
+          shouldCreateUser: true,
           data: metadata || {},
         },
       });
 
       if (authError) {
-        // If user not found on login tab
-        if (
-          purpose === "login" &&
-          (authError.message.toLowerCase().includes("signups not allowed") ||
-            authError.message.toLowerCase().includes("user not found"))
-        ) {
-          return {
-            success: false,
-            message: "No registered account found with this email. Please switch to the Sign Up tab first.",
-            error: authError.message,
-          };
-        }
-
         // Try edge function fallback if available
         try {
           const { data: edgeData, error: edgeError } = await supabase.functions.invoke("send-otp", {

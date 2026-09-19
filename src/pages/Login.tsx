@@ -308,6 +308,22 @@ const Login = () => {
     }
   }, [user, navigate, isRecoveryMode, redirectTarget]);
 
+  // Check for OAuth callback errors in URL hash or query params
+  useEffect(() => {
+    const hash = window.location.hash;
+    const errorParam = searchParams.get("error") || searchParams.get("error_description");
+    if (hash.includes("error") || errorParam) {
+      console.warn("OAuth provider redirect notice detected:", hash || errorParam);
+      // Clean up the URL hash so it doesn't stay in address bar
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      setGoogleModalOpen(true);
+      toast({
+        title: "Google Authentication 🌐",
+        description: "Please enter your Google / Gmail address to receive your 6-digit verification code.",
+      });
+    }
+  }, [searchParams, toast]);
+
   // Resend OTP Countdown Timer
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -825,7 +841,12 @@ const Login = () => {
   // -------------------------------------------------------------
   // 8. GOOGLE 1-CLICK AUTH & MULTI-TIER CONNECT
   // -------------------------------------------------------------
-  const handleGoogleAuth = async () => {
+  const handleGoogleAuth = () => {
+    setGoogleModalOpen(true);
+    setGoogleOtpSent(false);
+  };
+
+  const handleDirectOAuthRedirect = async () => {
     try {
       setGoogleLoading(true);
       const redirectUri = `${window.location.origin}${redirectTarget !== "/" ? redirectTarget : ""}`;
@@ -840,27 +861,21 @@ const Login = () => {
         },
       });
       if (error) {
-        console.warn("Direct Google OAuth launch notice:", error.message);
         setGoogleLoading(false);
-        setGoogleModalOpen(true);
         toast({
-          title: "Google Account Sign In 🌐",
-          description: "Enter your Google / Gmail address to sign in or register with verified Google authentication.",
+          title: "Direct OAuth Notice",
+          description: error.message || "Google OAuth requires credentials in Supabase Dashboard. Use Google Verification Code above.",
+          variant: "destructive",
         });
       }
     } catch (err: any) {
-      console.warn("Direct Google OAuth error:", err);
       setGoogleLoading(false);
-      setGoogleModalOpen(true);
       toast({
-        title: "Google Account Sign In 🌐",
-        description: "Enter your Google / Gmail address to sign in or register with verified Google authentication.",
+        title: "OAuth Error",
+        description: err.message || "Could not launch external Google OAuth.",
+        variant: "destructive",
       });
     }
-  };
-
-  const handleDirectOAuthRedirect = async () => {
-    await handleGoogleAuth();
   };
 
   const handleSendGoogleOtp = async (e: React.FormEvent) => {
