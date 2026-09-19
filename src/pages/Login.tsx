@@ -843,11 +843,19 @@ const Login = () => {
         console.warn("Direct Google OAuth launch notice:", error.message);
         setGoogleLoading(false);
         setGoogleModalOpen(true);
+        toast({
+          title: "Google Account Sign In 🌐",
+          description: "Enter your Google / Gmail address to sign in or register with verified Google authentication.",
+        });
       }
     } catch (err: any) {
       console.warn("Direct Google OAuth error:", err);
       setGoogleLoading(false);
       setGoogleModalOpen(true);
+      toast({
+        title: "Google Account Sign In 🌐",
+        description: "Enter your Google / Gmail address to sign in or register with verified Google authentication.",
+      });
     }
   };
 

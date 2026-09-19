@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { TreePine, Award, Leaf, TrendingUp, Star, Shield, Target, User, LogIn, Clock, CheckCircle, XCircle, AlertTriangle, Car, Wind, Sprout, Building2, ArrowUpRight, Satellite } from "lucide-react";
+import { TreePine, Award, Leaf, TrendingUp, Star, Shield, Target, User, LogIn, Clock, CheckCircle, XCircle, AlertTriangle, Car, Wind, Sprout, Building2, ArrowUpRight, Satellite, Edit3 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { syncUserProfileImpact } from "@/lib/syncUserImpact";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { EditProfileModal } from "@/components/EditProfileModal";
 
 const badgeDefs = [
   { name: "Tree Guardian", icon: <Shield className="h-8 w-8" />, threshold: 5, desc: "Plant 5 trees" },
@@ -36,6 +37,7 @@ const statusIcon = (s: string) => {
 
 const CommunityDashboard = () => {
   const { user, loading: authLoading } = useAuth();
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
@@ -142,17 +144,44 @@ const CommunityDashboard = () => {
     <div className="min-h-screen pt-24 pb-12">
       <div className="container mx-auto px-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="flex items-center gap-4 mb-8">
-            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-              <User className="h-8 w-8" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+            <div className="flex items-center gap-4">
+              <div className="h-16 w-16 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center text-primary text-3xl shrink-0 shadow-inner">
+                {profile?.avatar_url && profile.avatar_url.length <= 4 ? (
+                  <span>{profile.avatar_url}</span>
+                ) : (
+                  <User className="h-8 w-8" />
+                )}
+              </div>
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <h1 className="font-heading text-2xl sm:text-3xl font-bold">{profile?.full_name ?? user.email}</h1>
+                  {profile?.organization_name && (
+                    <Badge variant="outline" className="text-xs border-primary/30 text-primary">
+                      {profile.organization_name}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-muted-foreground text-sm mt-0.5">
+                  Member since {new Date(user.created_at).toLocaleDateString()} · {userProjects.length} Projects Active
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="font-heading text-3xl font-bold">{profile?.full_name ?? user.email}</h1>
-              <p className="text-muted-foreground text-sm">
-                Member since {new Date(user.created_at).toLocaleDateString()} · {userProjects.length} Projects Active
-              </p>
-            </div>
+
+            <Button
+              onClick={() => setEditProfileOpen(true)}
+              variant="outline"
+              className="rounded-xl text-xs font-semibold gap-2 border-primary/30 hover:bg-primary/10 shrink-0 w-fit"
+            >
+              <Edit3 className="h-3.5 w-3.5 text-primary" /> Edit Profile & Username
+            </Button>
           </div>
+
+          <EditProfileModal
+            open={editProfileOpen}
+            onOpenChange={setEditProfileOpen}
+            currentProfile={profile}
+          />
 
           {/* Stats — Verified Live Data */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

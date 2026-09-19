@@ -17,10 +17,12 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import NotificationsBell from "@/components/NotificationsBell";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { OfflineSyncModal } from "@/components/OfflineSyncModal";
+import { EditProfileModal } from "@/components/EditProfileModal";
 import logo from "@/assets/logo.png";
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
   const location = useLocation();
   const { user, signOut, isAdmin, isGovernment } = useAuth();
   const { t } = useLanguage();
@@ -217,9 +219,12 @@ const Navbar = () => {
                     {displayName}
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setEditProfileOpen(true)} className="cursor-pointer">
+                    <User className="h-4 w-4 mr-2 text-primary" /> Edit Profile / Username
+                  </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/dashboard">
-                      <User className="h-4 w-4 mr-2" /> Profile
+                      <User className="h-4 w-4 mr-2" /> Dashboard
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
@@ -232,10 +237,8 @@ const Navbar = () => {
                       <Bell className="h-4 w-4 mr-2" /> Notifications
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/dashboard">
-                      <Settings className="h-4 w-4 mr-2" /> Settings
-                    </Link>
+                  <DropdownMenuItem onClick={() => setEditProfileOpen(true)} className="cursor-pointer">
+                    <Settings className="h-4 w-4 mr-2" /> Settings
                   </DropdownMenuItem>
                   {isAdmin && (
                     <DropdownMenuItem asChild>
@@ -250,6 +253,16 @@ const Navbar = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+
+              <EditProfileModal
+                open={editProfileOpen}
+                onOpenChange={setEditProfileOpen}
+                currentProfile={{
+                  full_name: (user?.user_metadata?.full_name as string) || null,
+                  organization_name: (user?.user_metadata?.organization_name as string) || null,
+                  avatar_url: (user?.user_metadata?.avatar_url as string) || null,
+                }}
+              />
             </>
           ) : (
             <div className="hidden sm:flex items-center gap-1.5 shrink-0">
