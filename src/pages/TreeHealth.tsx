@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
+import { MultiSourceSurvivalScoreCard } from "@/components/MultiSourceSurvivalScoreCard";
 
 const statusOptions = [
   { value: "healthy", label: "🌿 Healthy", icon: <Heart className="h-5 w-5 text-primary" /> },
@@ -162,6 +163,22 @@ const TreeHealth = () => {
             <h3 className="font-heading font-semibold mb-3">Platform Survival Rate</h3>
             <Progress value={survivalRate} className="h-3 mb-2" />
             <p className="text-sm text-muted-foreground">{totalTrees - deadCount} alive out of {totalTrees} total trees</p>
+          </div>
+
+          {/* Multi-Source Fusion Survival Confidence Score */}
+          <div className="mb-8">
+            <MultiSourceSurvivalScoreCard
+              projectName="All Registered Trees Health Monitor"
+              initialParams={{
+                totalPlantedTrees: totalTrees > 0 ? totalTrees : 100,
+                livingCount: statusCounts.healthy,
+                stressedCount: statusCounts["needs water"] + statusCounts.damaged,
+                deadCount: statusCounts.dead,
+                currentMeanNdvi: 0.75,
+                baselineNdvi: 0.65,
+                overpassCount: 5,
+              }}
+            />
           </div>
 
           {/* Add update */}

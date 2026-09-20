@@ -18,6 +18,7 @@ import { FieldScoutingModule } from "@/components/FieldScoutingModule";
 import { ESGReportModal } from "@/components/ESGReportModal";
 import { GeminiApiKeyModal } from "@/components/GeminiApiKeyModal";
 import { DataSourceAuditView } from "@/components/DataSourceAuditView";
+import { MultiSourceSurvivalScoreCard } from "@/components/MultiSourceSurvivalScoreCard";
 import { getNdviColor } from "@/lib/remoteSensing";
 
 // Maharashtra center and bounds
@@ -288,6 +289,22 @@ const SatelliteMonitoring = () => {
           {/* Parcel Boundary & Carbon Estimator (Turf.js) */}
           <div className="mb-8">
             <PlotPolygonDrawer />
+          </div>
+
+          {/* Multi-Source Fusion Survival Confidence Score Engine */}
+          <div className="mb-8">
+            <MultiSourceSurvivalScoreCard
+              projectName={districtFilter === "all" ? "Maharashtra Agroforestry State Cluster" : `${districtFilter} Agroforestry Sector`}
+              initialParams={{
+                totalPlantedTrees: filteredTrees.length > 0 ? filteredTrees.length : 250,
+                livingCount: approvedTrees.length > 0 ? approvedTrees.length : 228,
+                stressedCount: Math.round((filteredTrees.length - approvedTrees.length) * 0.7),
+                deadCount: Math.round((filteredTrees.length - approvedTrees.length) * 0.3),
+                currentMeanNdvi: 0.74,
+                baselineNdvi: 0.65,
+                overpassCount: 5,
+              }}
+            />
           </div>
 
           {/* 36-Month Satellite Time-Series & Allometric Carbon Engine */}
