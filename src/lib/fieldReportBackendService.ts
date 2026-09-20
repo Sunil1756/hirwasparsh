@@ -247,13 +247,15 @@ const OFFLINE_FIELD_AUDIT_QUEUE_KEY = "green_offline_field_audits_v1";
  */
 export function enqueueOfflineFieldReport(input: FieldReportInput): void {
   try {
-    const saved = localStorage.getItem(OFFLINE_FIELD_AUDIT_QUEUE_KEY);
-    const queue = saved ? JSON.parse(saved) : [];
-    queue.push({
-      ...input,
-      offlineQueuedAt: new Date().toISOString(),
-    });
-    localStorage.setItem(OFFLINE_FIELD_AUDIT_QUEUE_KEY, JSON.stringify(queue));
+    if (typeof window !== "undefined" && window.localStorage) {
+      const saved = window.localStorage.getItem(OFFLINE_FIELD_AUDIT_QUEUE_KEY);
+      const queue = saved ? JSON.parse(saved) : [];
+      queue.push({
+        ...input,
+        offlineQueuedAt: new Date().toISOString(),
+      });
+      window.localStorage.setItem(OFFLINE_FIELD_AUDIT_QUEUE_KEY, JSON.stringify(queue));
+    }
   } catch (e) {
     console.warn("Could not save to offline field audit queue:", e);
   }

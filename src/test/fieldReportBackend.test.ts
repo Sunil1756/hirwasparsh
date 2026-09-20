@@ -264,6 +264,89 @@ describe("Field Report Backend — Supabase Database Persistence & Submission", 
     expect(mockInsertCheckIns).toHaveBeenCalled();
   });
 
+  it("handles stressed saplings correctly in database submission with weighted survival rate", async () => {
+    const mockInsertEvidence = vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: { id: "evidence-stressed-555" },
+          error: null,
+        }),
+      }),
+    });
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === "project_evidence") {
+        return { insert: mockInsertEvidence } as any;
+      }
+      return { update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: null, error: null }) }) } as any;
+    });
+
+    const input: FieldReportInput = {
+      projectId: "proj-stressed-123",
+      projectName: "Agroforestry Belt",
+      auditorName: "Ranger Ananya Deshmukh",
+      latitude: 18.5204,
+      longitude: 73.8567,
+      totalAudited: 10,
+      livingCount: 8,
+      stressedCount: 2,
+      deadCount: 0,
+      photoUrl: "https://supabase.co/storage/v1/object/public/treebank/audit-sample-photo.jpg",
+      notes: "Moderate moisture stress observed on 2 saplings. Drip irrigation requested.",
+    };
+
+    const res = await submitFieldSpotAuditReport(input);
+
+    expect(res.success).toBe(true);
+    expect(res.evidenceId).toBe("evidence-stressed-555");
+    expect(res.survivalRatePct).toBe(90); // (8 + 0.5 * 2) / 10 = 90%
+    expect(res.savedToDatabase).toBe(true);
+    expect(mockInsertEvidence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        project_id: "proj-stressed-123",
+        evidence_type: "survival",
+        survival_percent: 90,
+        photo_url: "https://supabase.co/storage/v1/object/public/treebank/audit-sample-photo.jpg",
+      })
+    );
+  });
+
+  it("safely enqueues report to offline field queue when database call fails", async () => {
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === "project_evidence") {
+        return {
+          insert: vi.fn().mockReturnValue({
+            select: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: null,
+                error: { message: "Network connection lost in remote forest" },
+              }),
+            }),
+          }),
+        } as any;
+      }
+      return {} as any;
+    });
+
+    const input: FieldReportInput = {
+      projectId: "proj-remote-123",
+      auditorName: "Ranger Devendra",
+      latitude: 19.5,
+      longitude: 74.2,
+      totalAudited: 5,
+      livingCount: 5,
+      stressedCount: 0,
+      deadCount: 0,
+    };
+
+    const res = await submitFieldSpotAuditReport(input);
+
+    expect(res.success).toBe(true);
+    expect(res.savedToDatabase).toBe(false);
+    expect(res.queuedForOfflineSync).toBe(true);
+    expect(res.message).toContain("offline field queue");
+  });
+
   it("blocks submission if payload validation fails without calling database", async () => {
     const invalidInput: FieldReportInput = {
       projectId: "",

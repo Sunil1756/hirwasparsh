@@ -1,10 +1,14 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { ShieldAlert, MapPin, Sparkles, ArrowLeft } from "lucide-react";
+import { ShieldAlert, MapPin, Sparkles, ArrowLeft, PlusCircle, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { FieldScoutingModule } from "@/components/FieldScoutingModule";
+import { FieldReportSubmissionWizard } from "@/components/FieldReportSubmissionWizard";
 
 export default function FieldScoutingPage() {
+  const [reportWizardOpen, setReportWizardOpen] = useState(false);
+
   return (
     <div className="min-h-screen pt-24 pb-16">
       <div className="container mx-auto px-4 space-y-6">
@@ -24,6 +28,12 @@ export default function FieldScoutingPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setReportWizardOpen(true)}
+              className="rounded-xl gap-1.5 text-xs sm:text-sm font-semibold shadow-md bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <ShieldCheck className="h-4 w-4" /> Submit Field Survival Audit
+            </Button>
             <Link to="/tree-map">
               <Button variant="outline" className="rounded-xl gap-2 text-xs sm:text-sm">
                 <ArrowLeft className="h-4 w-4" /> Back to Tree Map
@@ -34,8 +44,13 @@ export default function FieldScoutingPage() {
 
         {/* Live Module B Component */}
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
-          <FieldScoutingModule />
+          <FieldScoutingModule onOpenAuditWizard={() => setReportWizardOpen(true)} />
         </motion.div>
+
+        <FieldReportSubmissionWizard
+          open={reportWizardOpen}
+          onOpenChange={setReportWizardOpen}
+        />
       </div>
     </div>
   );

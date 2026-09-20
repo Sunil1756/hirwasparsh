@@ -29,6 +29,7 @@ import {
   Clock,
   Filter,
   ShieldAlert,
+  ShieldCheck,
   Search,
   Camera,
   RefreshCw,
@@ -64,7 +65,11 @@ const MapClickListener = ({ onLocationSelect }: { onLocationSelect: (lat: number
   return null;
 };
 
-export function FieldScoutingModule() {
+interface FieldScoutingModuleProps {
+  onOpenAuditWizard?: () => void;
+}
+
+export function FieldScoutingModule({ onOpenAuditWizard }: FieldScoutingModuleProps = {}) {
   const [pins, setPins] = useState<ScoutingPin[]>([]);
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -186,6 +191,16 @@ export function FieldScoutingModule() {
         </div>
 
         <div className="flex items-center gap-2">
+          {onOpenAuditWizard && (
+            <Button
+              size="sm"
+              onClick={onOpenAuditWizard}
+              className="rounded-xl text-xs gap-1.5 font-semibold shadow-md bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <ShieldCheck className="h-3.5 w-3.5" /> Submit Survival Audit
+            </Button>
+          )}
+
           <Button
             variant="outline"
             size="sm"
@@ -199,7 +214,7 @@ export function FieldScoutingModule() {
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="rounded-xl text-xs gap-1.5 font-semibold shadow-md">
+              <Button size="sm" variant="outline" className="rounded-xl text-xs gap-1.5 font-semibold border-primary/30">
                 <Plus className="h-3.5 w-3.5" /> Drop Scouting Pin
               </Button>
             </DialogTrigger>
