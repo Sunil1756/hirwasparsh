@@ -43,6 +43,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { compressImage } from "@/lib/imageProcessing";
 import { supabase } from "@/integrations/supabase/client";
+import { submitFieldSpotAuditReport } from "@/lib/fieldReportBackendService";
 
 export interface SampledTreeRecord {
   sample_id: string;
@@ -208,17 +209,39 @@ export const FieldSpotAuditConsole = ({
       }
     }
 
-    // Insert real record into Supabase project_evidence table
+    // Submit verified spot audit to Supabase backend with geotag validation
     try {
-      await supabase.from("project_evidence").insert({
-        project_id: projectId,
-        evidence_type: "survival",
-        photo_url: uploadedPath,
+      await submitFieldSpotAuditReport({
+        projectId,
+        projectName,
+        organizationName,
+        auditorName,
         latitude: activeSample.expected_lat,
         longitude: activeSample.expected_lng,
-        survival_percent: currentStatus === "dead" ? 0 : 100,
+        totalAudited: 1,
+        livingCount: currentStatus === "alive" ? 1 : 0,
+        stressedCount: currentStatus === "stressed" ? 1 : 0,
+        deadCount: currentStatus === "dead" ? 1 : 0,
+        photoUrl: uploadedPath,
         notes: `[${activeSample.sample_id} | ${activeSample.species}] Vitality: ${currentStatus.toUpperCase()}, Height: ${currentHeight}cm, DBH: ${currentDbh}mm. Ranger Notes: ${currentNotes} (Auditor: ${auditorName})`,
-        captured_at: new Date().toISOString(),
+        capturedAt: new Date().toISOString(),
+        sampleItems: [
+          {
+            sample_id: activeSample.sample_id,
+            tree_id: activeSample.tree_id,
+            species: activeSample.species,
+            expected_lat: activeSample.expected_lat,
+            expected_lng: activeSample.expected_lng,
+            actual_lat: activeSample.expected_lat,
+            actual_lng: activeSample.expected_lng,
+            status: currentStatus,
+            measured_height_cm: Number(currentHeight) || 55,
+            measured_dbh_mm: Number(currentDbh) || 12,
+            photo_url: uploadedPath,
+            notes: currentNotes,
+          },
+        ],
+        plotBoundary: boundary,
       });
     } catch (dbErr) {
       console.warn("Evidence database sync notice:", dbErr);
