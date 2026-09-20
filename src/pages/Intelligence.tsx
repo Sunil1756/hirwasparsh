@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { useEffect, useState } from "react";
 import AICareAssistant from "@/components/AICareAssistant";
+import { PredictiveRiskAlertsConsole } from "@/components/PredictiveRiskAlertsConsole";
 
 const COLORS = ["#1B5E20", "#4CAF50", "#81C784", "#A5D6A7", "#C8E6C9"];
 
@@ -303,6 +304,9 @@ const Intelligence = () => {
             )}
           </div>
         </div>
+
+        {/* ML Predictive Threat Radar & 90-Day NDVI Forecaster */}
+        <PredictiveRiskAlertsConsole plotName="Statewide Agroforestry Threat Radar" />
 
         {/* AI Care Assistant */}
         <AICareAssistant />

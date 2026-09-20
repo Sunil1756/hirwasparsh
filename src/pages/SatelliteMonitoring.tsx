@@ -19,6 +19,7 @@ import { ESGReportModal } from "@/components/ESGReportModal";
 import { GeminiApiKeyModal } from "@/components/GeminiApiKeyModal";
 import { DataSourceAuditView } from "@/components/DataSourceAuditView";
 import { MultiSourceSurvivalScoreCard } from "@/components/MultiSourceSurvivalScoreCard";
+import { PredictiveRiskAlertsConsole } from "@/components/PredictiveRiskAlertsConsole";
 import { getNdviColor } from "@/lib/remoteSensing";
 
 // Maharashtra center and bounds
@@ -304,6 +305,13 @@ const SatelliteMonitoring = () => {
                 baselineNdvi: 0.65,
                 overpassCount: 5,
               }}
+            />
+          </div>
+
+          {/* ML Predictive Risk Alerts & 90-Day NDVI Threat Forecaster */}
+          <div className="mb-8">
+            <PredictiveRiskAlertsConsole
+              plotName={districtFilter === "all" ? "Maharashtra Agroforestry State Cluster" : `${districtFilter} Agroforestry Sector`}
             />
           </div>
 
