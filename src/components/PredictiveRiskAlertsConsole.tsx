@@ -19,10 +19,14 @@ import {
   Info,
   Layers,
   Zap,
+  Waves,
+  RefreshCw,
+  Gauge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Slider } from "@/components/ui/slider";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -42,6 +46,9 @@ import {
   PredictiveThreatAlert,
   SpectralTimePoint,
   ThreatSeverity,
+  extractSpectralRiskFeatures,
+  forecastNdviTrajectory,
+  classifyPlantationThreat,
 } from "@/lib/predictiveRiskEngine";
 import { triggerAiRiskAlertPipeline } from "@/lib/riskAlertNotificationService";
 import { useToast } from "@/hooks/use-toast";
@@ -71,9 +78,12 @@ export function PredictiveRiskAlertsConsole({
   className = "",
 }: Props) {
   const { toast } = useToast();
-  const [activeScenario, setActiveScenario] = useState<"drought" | "pest" | "clearing" | "healthy">("drought");
+  const [activeScenario, setActiveScenario] = useState<
+    "drought" | "pest" | "clearing" | "waterlogging" | "fire" | "healthy"
+  >("drought");
   const [isDispatching, setIsDispatching] = useState(false);
   const [dispatchedTaskId, setDispatchedTaskId] = useState<string | null>(null);
+  const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
 
   // Dynamic scenarios for interactive ML testing
   const currentSeries: SpectralTimePoint[] = useMemo(() => {
@@ -93,6 +103,18 @@ export function PredictiveRiskAlertsConsole({
           { date: "2026-02-01", ndvi: 0.82, ndre: 0.70, ndwi: 0.38, lstTempC: 25.5 },
           { date: "2026-02-25", ndvi: 0.79, ndre: 0.67, ndwi: 0.36, lstTempC: 26.0 },
           { date: "2026-03-15", ndvi: 0.44, ndre: 0.32, ndwi: 0.05, lstTempC: 33.0 }, // Sudden drop
+        ];
+      case "waterlogging":
+        return [
+          { date: "2026-01-05", ndvi: 0.74, ndre: 0.62, ndwi: 0.42, lstTempC: 24.0 },
+          { date: "2026-02-10", ndvi: 0.69, ndre: 0.52, ndwi: 0.45, lstTempC: 24.5 },
+          { date: "2026-03-18", ndvi: 0.61, ndre: 0.44, ndwi: 0.48, lstTempC: 25.0 }, // High water + chlorosis
+        ];
+      case "fire":
+        return [
+          { date: "2026-01-15", ndvi: 0.68, ndre: 0.54, ndwi: 0.10, lstTempC: 30.0 },
+          { date: "2026-02-20", ndvi: 0.58, ndre: 0.44, ndwi: -0.05, lstTempC: 35.5 },
+          { date: "2026-03-25", ndvi: 0.46, ndre: 0.32, ndwi: -0.15, lstTempC: 39.2 }, // High thermal anomaly
         ];
       case "healthy":
       default:
@@ -151,6 +173,8 @@ export function PredictiveRiskAlertsConsole({
       <ShieldAlert className="h-6 w-6 text-destructive" />
     ) : threatType === "WILDFIRE_SUSCEPTIBILITY" ? (
       <Flame className="h-6 w-6 text-orange-500" />
+    ) : threatType === "SOIL_SALINIZATION" ? (
+      <Waves className="h-6 w-6 text-blue-500" />
     ) : (
       <TreePine className="h-6 w-6 text-emerald-500" />
     );
@@ -223,20 +247,20 @@ export function PredictiveRiskAlertsConsole({
         {/* Scenario Switcher for Demo / Testing */}
         <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-background/60 border border-primary/20 text-xs">
           <span className="px-2 text-[11px] font-bold text-muted-foreground">ML Scenario:</span>
-          {(["drought", "pest", "clearing", "healthy"] as const).map((sc) => (
+          {(["drought", "pest", "clearing", "waterlogging", "fire", "healthy"] as const).map((sc) => (
             <button
               key={sc}
               onClick={() => {
                 setActiveScenario(sc);
                 setDispatchedTaskId(null);
               }}
-              className={`px-3 py-1 rounded-lg font-semibold capitalize transition-all cursor-pointer ${
+              className={`px-2.5 py-1 rounded-lg font-semibold capitalize transition-all cursor-pointer ${
                 activeScenario === sc
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {sc === "clearing" ? "Encroachment" : sc}
+              {sc === "clearing" ? "Encroachment" : sc === "waterlogging" ? "Waterlog" : sc}
             </button>
           ))}
         </div>
@@ -426,8 +450,8 @@ export function PredictiveRiskAlertsConsole({
         </div>
       </div>
 
-      {/* Spectral Derivatives & Mathematical Feature Matrix */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+      {/* Spectral Derivatives & Mathematical 6-Feature Radar Matrix */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-2">
         <div className="p-3 rounded-xl bg-background/60 border border-primary/15 text-center">
           <div className="text-[11px] text-muted-foreground flex items-center justify-center gap-1">
             <TrendingDown className="h-3 w-3 text-primary" /> Velocity (dNDVI/dt)
@@ -440,12 +464,12 @@ export function PredictiveRiskAlertsConsole({
             {features.ndviVelocity30d >= 0 ? "+" : ""}
             {features.ndviVelocity30d.toFixed(3)}/mo
           </div>
-          <div className="text-[10px] text-muted-foreground">Rate of Canopy Shift</div>
+          <div className="text-[10px] text-muted-foreground">Canopy Shift Rate</div>
         </div>
 
         <div className="p-3 rounded-xl bg-background/60 border border-primary/15 text-center">
           <div className="text-[11px] text-muted-foreground flex items-center justify-center gap-1">
-            <Droplets className="h-3 w-3 text-sky-500" /> Foliar NDWI Index
+            <Droplets className="h-3 w-3 text-sky-500" /> Foliar NDWI
           </div>
           <div
             className={`font-heading text-lg font-bold mt-0.5 ${
@@ -455,7 +479,7 @@ export function PredictiveRiskAlertsConsole({
             {features.foliarHydrationNdwi >= 0 ? "+" : ""}
             {features.foliarHydrationNdwi.toFixed(2)}
           </div>
-          <div className="text-[10px] text-muted-foreground">Foliar Water Hydration</div>
+          <div className="text-[10px] text-muted-foreground">Leaf Water Content</div>
         </div>
 
         <div className="p-3 rounded-xl bg-background/60 border border-primary/15 text-center">
@@ -484,7 +508,40 @@ export function PredictiveRiskAlertsConsole({
             {features.thermalAnomalyC >= 0 ? "+" : ""}
             {features.thermalAnomalyC.toFixed(1)}°C
           </div>
-          <div className="text-[10px] text-muted-foreground">LST vs Seasonal Norm</div>
+          <div className="text-[10px] text-muted-foreground">LST vs Baseline</div>
+        </div>
+
+        <div className="p-3 rounded-xl bg-background/60 border border-primary/15 text-center">
+          <div className="text-[11px] text-muted-foreground flex items-center justify-center gap-1">
+            <Gauge className="h-3 w-3 text-indigo-500" /> Z-Score Metric
+          </div>
+          <div
+            className={`font-heading text-lg font-bold mt-0.5 ${
+              Math.abs(features.zScoreNdvi) > 2.0 ? "text-rose-500" : "text-foreground"
+            }`}
+          >
+            {features.zScoreNdvi >= 0 ? "+" : ""}
+            {features.zScoreNdvi.toFixed(2)}σ
+          </div>
+          <div className="text-[10px] text-muted-foreground">Statistical Sigma</div>
+        </div>
+
+        <div className="p-3 rounded-xl bg-background/60 border border-primary/15 text-center">
+          <div className="text-[11px] text-muted-foreground flex items-center justify-center gap-1">
+            <Zap className="h-3 w-3 text-amber-500" /> Risk Index
+          </div>
+          <div
+            className={`font-heading text-lg font-bold mt-0.5 ${
+              features.compositeRiskScore >= 70
+                ? "text-rose-500"
+                : features.compositeRiskScore >= 40
+                ? "text-amber-500"
+                : "text-emerald-500"
+            }`}
+          >
+            {features.compositeRiskScore}/100
+          </div>
+          <div className="text-[10px] text-muted-foreground">Multi-Factor Score</div>
         </div>
       </div>
     </div>

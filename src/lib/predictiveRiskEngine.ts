@@ -1,11 +1,12 @@
 /**
  * Machine Learning Predictive Risk & Threat Forecasting Engine for Agroforestry Plantations
- * Analyzes Sentinel-2 multi-spectral time-series (NDVI, NDRE, NDWI, LST) to predict:
+ * Analyzes Sentinel-2 multi-spectral time-series (NDVI, NDRE, NDWI, EVI, LST) to predict:
  * 1. Drought & Moisture Stress Shock
  * 2. Pest & Locust Canopy Defoliation
  * 3. Encroachment & Illegal Tree Felling
  * 4. Wildfire Susceptibility & Thermal Stress
- * 5. 30/60/90-Day Predictive NDVI Trajectory Forecasting with 95% Confidence Bounds
+ * 5. Soil Salinization & Waterlogging / Root Hypoxia
+ * 6. 30/60/90-Day Predictive NDVI Trajectory Forecasting with 95% Confidence Bounds
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +27,7 @@ export interface SpectralTimePoint {
   ndvi: number;
   ndre?: number;
   ndwi?: number;
+  evi?: number;
   lstTempC?: number;
   cloudCoverPct?: number;
 }
@@ -34,13 +36,17 @@ export interface ExtractedSpectralFeatures {
   currentNdvi: number;
   baselineNdvi: number;
   ndviDelta: number;
-  ndviVelocity30d: number; // 1st derivative d(NDVI)/dt
-  ndviAcceleration: number; // 2nd derivative d²(NDVI)/dt²
+  ndviVelocity30d: number; // 1st derivative d(NDVI)/dt (change per month)
+  ndviAcceleration: number; // 2nd derivative d²(NDVI)/dt² (curvature)
+  zScoreNdvi: number; // Statistical Z-score departure from baseline
+  ewmaSmoothedNdvi: number; // Exponentially Weighted Moving Average (alpha=0.35)
   foliarHydrationNdwi: number;
   redEdgeChlorophyllRatio: number; // NDRE / NDVI
+  structuralEvi: number;
   thermalAnomalyC: number; // Current LST - Seasonal Baseline
   consecutiveDecliningPasses: number;
   volatilityVariance: number;
+  compositeRiskScore: number; // 0 to 100
   dataPointsCount: number;
 }
 
@@ -59,7 +65,7 @@ export interface PredictiveThreatAlert {
   threatTitle: string;
   severity: ThreatSeverity;
   riskProbabilityPct: number; // 0 to 100%
-  daysUntilCriticalBreach: number | null; // Lead time in days
+  daysUntilCriticalBreach: number | null; // Lead time in days before reaching critical threshold (<0.40)
   primaryDriver: string;
   scientificExplanation: string;
   recommendedAction: string;
@@ -67,6 +73,58 @@ export interface PredictiveThreatAlert {
   detectedAt: string;
   features: ExtractedSpectralFeatures;
   forecast: ForecastPoint[];
+}
+
+/**
+ * Computes exact lead time in days until predicted trajectory breaches critical stress threshold (default: 0.40)
+ */
+export function calculateDaysUntilThresholdBreach(
+  currentNdvi: number,
+  velocity30d: number,
+  criticalThreshold: number = 0.40
+): number | null {
+  if (currentNdvi <= criticalThreshold) return 0;
+  if (velocity30d >= 0) return null; // Not declining towards breach
+
+  const dailySlope = velocity30d / 30; // negative value
+  const daysToCross = (criticalThreshold - currentNdvi) / dailySlope;
+  return Math.max(1, Math.min(180, Math.round(daysToCross)));
+}
+
+/**
+ * Computes a unified 0-100 Multi-Factor Risk Score combining velocity, hydration, thermal anomaly, and Z-score
+ */
+export function calculateMultiFactorRiskScore(
+  currentNdvi: number,
+  velocity30d: number,
+  ndwi: number,
+  thermalAnomaly: number,
+  zScore: number
+): number {
+  let score = 12; // baseline benign level
+
+  // 1. Degradation velocity points (up to 40 pts)
+  if (velocity30d < -0.15) score += 40;
+  else if (velocity30d < -0.08) score += 30;
+  else if (velocity30d < -0.03) score += 18;
+  else if (velocity30d < 0.0) score += 8;
+
+  // 2. Moisture / Hydration stress points (up to 25 pts)
+  if (ndwi < -0.10) score += 25;
+  else if (ndwi < 0.0) score += 18;
+  else if (ndwi < 0.08) score += 10;
+
+  // 3. Thermal stress points (up to 20 pts)
+  if (thermalAnomaly >= 5.0) score += 20;
+  else if (thermalAnomaly >= 3.0) score += 14;
+  else if (thermalAnomaly >= 1.5) score += 8;
+
+  // 4. Statistical Z-Score deviation points (up to 15 pts)
+  if (zScore < -2.5) score += 15;
+  else if (zScore < -1.5) score += 10;
+  else if (zScore < -0.8) score += 5;
+
+  return Math.min(100, Math.max(0, Math.round(score)));
 }
 
 /**
@@ -84,11 +142,15 @@ export function extractSpectralRiskFeatures(
       ndviDelta: 0.09,
       ndviVelocity30d: 0.02,
       ndviAcceleration: 0.0,
+      zScoreNdvi: 1.2,
+      ewmaSmoothedNdvi: 0.74,
       foliarHydrationNdwi: 0.28,
       redEdgeChlorophyllRatio: 0.82,
+      structuralEvi: 0.64,
       thermalAnomalyC: 0.0,
       consecutiveDecliningPasses: 0,
       volatilityVariance: 0.01,
+      compositeRiskScore: 10,
       dataPointsCount: 0,
     };
   }
@@ -140,19 +202,41 @@ export function extractSpectralRiskFeatures(
     }
   }
 
-  // Variance / Volatility
+  // Variance, Standard Deviation & Volatility
   const mean = sorted.reduce((sum, p) => sum + p.ndvi, 0) / n;
   const variance =
     sorted.reduce((sum, p) => sum + Math.pow(p.ndvi - mean, 2), 0) / Math.max(1, n - 1);
-  const volatilityVariance = Math.round(Math.sqrt(variance) * 1000) / 1000;
+  const stdDev = Math.sqrt(variance);
+  const volatilityVariance = Math.round(stdDev * 1000) / 1000;
+
+  // Statistical Z-Score Departure
+  const zScoreNdvi =
+    stdDev > 0.005 ? Math.round(((currentNdvi - mean) / stdDev) * 100) / 100 : 0.0;
+
+  // EWMA Smoothed NDVI (alpha = 0.35)
+  let ewma = sorted[0].ndvi;
+  const alpha = 0.35;
+  for (let i = 1; i < n; i++) {
+    ewma = alpha * sorted[i].ndvi + (1 - alpha) * ewma;
+  }
+  const ewmaSmoothedNdvi = Math.round(ewma * 100) / 100;
 
   const currentNdwi = latest.ndwi ?? Math.round(((currentNdvi - 0.45) * 0.75) * 100) / 100;
   const currentNdre = latest.ndre ?? Math.round((currentNdvi * 0.8) * 100) / 100;
+  const structuralEvi = latest.evi ?? Math.round((currentNdvi * 0.88) * 100) / 100;
   const redEdgeChlorophyllRatio =
     currentNdvi > 0.05 ? Math.round((currentNdre / currentNdvi) * 100) / 100 : 0.8;
 
   const currentLst = latest.lstTempC ?? Math.round(36 - currentNdvi * 10.5);
   const thermalAnomalyC = Math.round((currentLst - seasonalBaselineTempC) * 10) / 10;
+
+  const compositeRiskScore = calculateMultiFactorRiskScore(
+    currentNdvi,
+    ndviVelocity30d,
+    currentNdwi,
+    thermalAnomalyC,
+    zScoreNdvi
+  );
 
   return {
     currentNdvi,
@@ -160,11 +244,15 @@ export function extractSpectralRiskFeatures(
     ndviDelta,
     ndviVelocity30d,
     ndviAcceleration,
+    zScoreNdvi,
+    ewmaSmoothedNdvi,
     foliarHydrationNdwi: currentNdwi,
     redEdgeChlorophyllRatio,
+    structuralEvi,
     thermalAnomalyC,
     consecutiveDecliningPasses,
     volatilityVariance,
+    compositeRiskScore,
     dataPointsCount: n,
   };
 }
@@ -194,7 +282,7 @@ export function forecastNdviTrajectory(
   );
 
   // 1. Add historical points
-  sorted.forEach((p, idx) => {
+  sorted.forEach((p) => {
     result.push({
       date: p.date,
       daysAhead: 0,
@@ -240,8 +328,8 @@ export function forecastNdviTrajectory(
 }
 
 /**
- * 3. ML DECISION TREE & THREAT CLASSIFIER
- * Evaluates spectral derivatives and cross-band ratios to detect risks before tree mortality
+ * 3. ML DECISION TREE & THREAT CLASSIFIER (6-Class Matrix)
+ * Evaluates spectral derivatives and cross-band ratios in physiological order of precedence
  */
 export function classifyPlantationThreat(
   features: ExtractedSpectralFeatures,
@@ -251,11 +339,11 @@ export function classifyPlantationThreat(
     currentNdvi,
     ndviDelta,
     ndviVelocity30d,
-    ndviAcceleration,
     foliarHydrationNdwi,
     redEdgeChlorophyllRatio,
     thermalAnomalyC,
     consecutiveDecliningPasses,
+    compositeRiskScore,
   } = features;
 
   const now = new Date().toISOString();
@@ -265,8 +353,8 @@ export function classifyPlantationThreat(
   const f90 = forecast.find((p) => p.daysAhead === 90)?.predictedNdvi ?? currentNdvi;
 
   // RULE 1: ENCROACHMENT / RAPID ILLEGAL CLEARING
-  // Sudden catastrophic drop between adjacent overpasses
-  if (ndviVelocity30d <= -0.20 || ndviDelta <= -0.30) {
+  // Sudden catastrophic drop between adjacent overpasses (velocity <= -0.20/month)
+  if (ndviVelocity30d <= -0.20 || (ndviVelocity30d <= -0.15 && ndviDelta <= -0.35)) {
     return {
       id,
       threatType: "ENCROACHMENT_CLEARING",
@@ -284,16 +372,73 @@ export function classifyPlantationThreat(
     };
   }
 
-  // RULE 2: DROUGHT & MOISTURE SHOCK
+  // RULE 2: WILDFIRE & THERMAL ANOMALY RISK
+  // Extreme surface temperature (>= 5.5°C anomaly) + critical dry fuel (NDWI < -0.08)
+  if (thermalAnomalyC >= 5.5 && foliarHydrationNdwi < -0.08) {
+    return {
+      id,
+      threatType: "WILDFIRE_SUSCEPTIBILITY",
+      threatTitle: "🔥 High Wildfire & Thermal Stress Vulnerability",
+      severity: "HIGH",
+      riskProbabilityPct: 88,
+      daysUntilCriticalBreach: 5,
+      primaryDriver: `Severe surface thermal anomaly (+${thermalAnomalyC}°C) with desiccated fuel load (NDWI: ${foliarHydrationNdwi.toFixed(2)})`,
+      scientificExplanation: `Thermal infrared radiance indicates land surface temperatures exceeding 38°C with dry combustible leaf litter. Risk of ground fire propagation is elevated.`,
+      recommendedAction: "Clear 5-meter perimeter firebreaks, clear dry biomass undergrowth, and establish active hydration buffer zones.",
+      autoDispatchTaskTitle: "FIRE PREVENTION: Perimeter Firebreak Clearing & Thermal Mitigation",
+      detectedAt: now,
+      features,
+      forecast,
+    };
+  }
+
+  // RULE 3: SOIL SALINIZATION & ROOT WATERLOGGING / HYPOXIA
+  // Excessive surface water retention (NDWI >= 0.35) accompanied by declining NDVI and chlorosis
+  if (foliarHydrationNdwi >= 0.35 && ndviVelocity30d < -0.02) {
+    return {
+      id,
+      threatType: "SOIL_SALINIZATION",
+      threatTitle: "🌊 Root Zone Hypoxia / Waterlogging & Salinity Alert",
+      severity: "HIGH",
+      riskProbabilityPct: 79,
+      daysUntilCriticalBreach: 18,
+      primaryDriver: `Excessive surface water retention (NDWI: ${foliarHydrationNdwi.toFixed(2)}) accompanied by root chlorosis`,
+      scientificExplanation: `Spectral telemetry indicates stagnant surface pooling and soil saturation leading to anoxic root stress, salt accumulation in the rhizosphere, and inhibited nutrient uptake.`,
+      recommendedAction: "Excavate lateral drainage channels to alleviate standing water, aerate soil, and apply agricultural gypsum for salinity buffer.",
+      autoDispatchTaskTitle: "DRAINAGE AUDIT: Excavate Lateral Trenches & Alleviate Root Hypoxia",
+      detectedAt: now,
+      features,
+      forecast,
+    };
+  }
+
+  // RULE 4: PEST & LOCUST CANOPY DEFOLIATION
+  // Sharp RedEdge degradation despite normal foliar moisture
+  if (redEdgeChlorophyllRatio < 0.72 && foliarHydrationNdwi >= 0.10 && foliarHydrationNdwi < 0.35 && currentNdvi < 0.68) {
+    return {
+      id,
+      threatType: "PEST_DEFOLIATION",
+      threatTitle: "🐛 Biological Pest / Locust Defoliation Alert",
+      severity: "HIGH",
+      riskProbabilityPct: 84,
+      daysUntilCriticalBreach: 12,
+      primaryDriver: `RedEdge Chlorophyll ratio suppressed (${redEdgeChlorophyllRatio.toFixed(2)}) despite normal root moisture (NDWI: ${foliarHydrationNdwi.toFixed(2)})`,
+      scientificExplanation: `Sentinel-2 Band 5 (RedEdge 705nm) exhibits abnormal chlorophyll breakdown while root hydration remains intact. This signature strongly correlates with foliar herbivory, caterpillar defoliation, or fungal blight.`,
+      recommendedAction: "Dispatch agroforestry scout to inspect underside of leaves and deploy organic 2% Neem Oil foliar bio-pesticide spray.",
+      autoDispatchTaskTitle: "FIELD INSPECTION: Foliar Pest / Fungal Blight Diagnosis & Neem Spray",
+      detectedAt: now,
+      features,
+      forecast,
+    };
+  }
+
+  // RULE 5: DROUGHT & MOISTURE SHOCK
   // Negative NDWI + continuous downward velocity + thermal anomaly
   if (
-    (foliarHydrationNdwi < 0.05 && ndviVelocity30d < -0.04) ||
+    (foliarHydrationNdwi < 0.05 && ndviVelocity30d < -0.03) ||
     (consecutiveDecliningPasses >= 2 && foliarHydrationNdwi < 0.10)
   ) {
-    const daysToCritical =
-      ndviVelocity30d < 0 && currentNdvi > 0.40
-        ? Math.max(3, Math.round(((currentNdvi - 0.40) / Math.abs(ndviVelocity30d)) * 30))
-        : 7;
+    const daysToCritical = calculateDaysUntilThresholdBreach(currentNdvi, ndviVelocity30d, 0.40) ?? 7;
 
     const severity: ThreatSeverity =
       daysToCritical <= 28 || foliarHydrationNdwi < 0.0 || ndviVelocity30d < -0.10
@@ -317,47 +462,7 @@ export function classifyPlantationThreat(
     };
   }
 
-  // RULE 3: PEST & LOCUST CANOPY DEFOLIATION
-  // Sharp RedEdge degradation despite adequate soil moisture
-  if (redEdgeChlorophyllRatio < 0.72 && foliarHydrationNdwi >= 0.12 && currentNdvi < 0.65) {
-    return {
-      id,
-      threatType: "PEST_DEFOLIATION",
-      threatTitle: "🐛 Biological Pest / Locust Defoliation Alert",
-      severity: "HIGH",
-      riskProbabilityPct: 84,
-      daysUntilCriticalBreach: 12,
-      primaryDriver: `RedEdge Chlorophyll ratio suppressed (${redEdgeChlorophyllRatio.toFixed(2)}) despite normal root moisture (NDWI: ${foliarHydrationNdwi.toFixed(2)})`,
-      scientificExplanation: `Sentinel-2 Band 5 (RedEdge 705nm) exhibits abnormal chlorophyll breakdown while root hydration remains intact. This signature strongly correlates with foliar herbivory, caterpillar defoliation, or fungal blight.`,
-      recommendedAction: "Dispatch agroforestry scout to inspect underside of leaves and deploy organic 2% Neem Oil foliar bio-pesticide spray.",
-      autoDispatchTaskTitle: "FIELD INSPECTION: Foliar Pest / Fungal Blight Diagnosis & Neem Spray",
-      detectedAt: now,
-      features,
-      forecast,
-    };
-  }
-
-  // RULE 4: WILDFIRE & THERMAL ANOMALY RISK
-  // Extreme surface temperature + critical dry biomass
-  if (thermalAnomalyC >= 4.5 && foliarHydrationNdwi < -0.10) {
-    return {
-      id,
-      threatType: "WILDFIRE_SUSCEPTIBILITY",
-      threatTitle: "🔥 High Wildfire & Thermal Stress Vulnerability",
-      severity: "HIGH",
-      riskProbabilityPct: 88,
-      daysUntilCriticalBreach: 5,
-      primaryDriver: `Surface thermal anomaly (+${thermalAnomalyC}°C) with desiccated fuel load (NDWI: ${foliarHydrationNdwi.toFixed(2)})`,
-      scientificExplanation: `Thermal infrared radiance indicates land surface temperatures exceeding 38°C with dry combustible leaf litter. Risk of ground fire propagation is elevated.`,
-      recommendedAction: "Clear 5-meter perimeter firebreaks, clear dry biomass undergrowth, and establish active hydration buffer zones.",
-      autoDispatchTaskTitle: "FIRE PREVENTION: Perimeter Firebreak Clearing & Thermal Mitigation",
-      detectedAt: now,
-      features,
-      forecast,
-    };
-  }
-
-  // RULE 5: OPTIMAL CANOPY GROWTH & ACCRETION
+  // RULE 6: OPTIMAL CANOPY GROWTH & ACCRETION
   if (ndviVelocity30d >= 0.02 || f90 >= currentNdvi + 0.02) {
     return {
       id,
@@ -376,13 +481,13 @@ export function classifyPlantationThreat(
     };
   }
 
-  // RULE 6: STABLE DEFAULT CANOPY
+  // RULE 7: STABLE DEFAULT CANOPY
   return {
     id,
     threatType: "STABLE_CANOPY",
     threatTitle: "🌱 Stable Canopy Equilibrium (Normal Seasonal Trend)",
     severity: "LOW",
-    riskProbabilityPct: 15,
+    riskProbabilityPct: Math.min(25, compositeRiskScore),
     daysUntilCriticalBreach: null,
     primaryDriver: `Stable NDVI trajectory (${currentNdvi.toFixed(2)} with ΔNDVI ${ndviDelta >= 0 ? "+" : ""}${ndviDelta})`,
     scientificExplanation: `Plantation spectral telemetry reflects healthy vegetative stability consistent with regional agroforestry baselines.`,
