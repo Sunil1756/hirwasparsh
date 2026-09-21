@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, LogOut, Shield, Building2, User, Settings, TreePine, Bell, ChevronDown } from "lucide-react";
+import { Menu, X, LogOut, Shield, Building2, User, Settings, TreePine, Bell, ChevronDown, Compass, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -24,7 +24,7 @@ const Navbar = () => {
   const [open, setOpen] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const location = useLocation();
-  const { user, signOut, isAdmin, isGovernment } = useAuth();
+  const { user, signOut, isAdmin, isGovernment, isFieldWorker, isTreeAdopter, activeRole } = useAuth();
   const { t } = useLanguage();
 
   const primaryLinks = [
@@ -219,34 +219,40 @@ const Navbar = () => {
                     {displayName}
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/adopter" className="cursor-pointer text-emerald-600 dark:text-emerald-400 font-medium">
+                      <Heart className="h-4 w-4 mr-2" /> Adopter Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/field-worker" className="cursor-pointer text-amber-600 dark:text-amber-400 font-medium">
+                      <Compass className="h-4 w-4 mr-2" /> Field Worker Console
+                    </Link>
+                  </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin" className="cursor-pointer text-rose-600 dark:text-rose-400 font-medium">
+                        <Shield className="h-4 w-4 mr-2" /> Admin Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setEditProfileOpen(true)} className="cursor-pointer">
                     <User className="h-4 w-4 mr-2 text-primary" /> Edit Profile / Username
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/dashboard">
-                      <User className="h-4 w-4 mr-2" /> Dashboard
+                      <User className="h-4 w-4 mr-2" /> Community Overview
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/growth-updates">
-                      <TreePine className="h-4 w-4 mr-2" /> My Trees
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/dashboard">
-                      <Bell className="h-4 w-4 mr-2" /> Notifications
+                      <TreePine className="h-4 w-4 mr-2" /> My Plantations
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setEditProfileOpen(true)} className="cursor-pointer">
                     <Settings className="h-4 w-4 mr-2" /> Settings
                   </DropdownMenuItem>
-                  {isAdmin && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/admin">
-                        <Shield className="h-4 w-4 mr-2" /> Admin Dashboard
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={signOut}>
                     <LogOut className="h-4 w-4 mr-2" /> Log Out

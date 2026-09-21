@@ -38,6 +38,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
+import { assignUserRbacRole, AppRole, APP_ROLES } from "@/lib/rbacService";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function AdminDashboard() {
   const { user, isAdmin, loading, signOut } = useAuth();
@@ -161,6 +169,29 @@ export default function AdminDashboard() {
       toast({
         title: "Action failed",
         description: err?.message || "Could not update tree status",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation to update user RBAC role
+  const updateUserRoleMutation = useMutation({
+    mutationFn: async ({ userId, newRole }: { userId: string; newRole: AppRole }) => {
+      const res = await assignUserRbacRole(userId, newRole);
+      if (!res.success) throw new Error(res.error);
+      return res;
+    },
+    onSuccess: (_, { newRole }) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
+      toast({
+        title: "🛡️ Role Updated",
+        description: `User role successfully assigned to ${APP_ROLES[newRole]?.displayName || newRole}.`,
+      });
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Role update failed",
+        description: err?.message || "Could not update user role.",
         variant: "destructive",
       });
     },
@@ -882,41 +913,79 @@ export default function AdminDashboard() {
                         <tr>
                           <th className="p-3">Planter Name</th>
                           <th className="p-3">Email Address</th>
-                          <th className="p-3">Role</th>
+                          <th className="p-3">Assigned RBAC Role</th>
                           <th className="p-3">Trees Planted</th>
                           <th className="p-3">Eco-Points Balance</th>
                           <th className="p-3">Joined Date</th>
+                          <th className="p-3 text-right">Role Governance</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/60">
-                        {profiles.map((p) => (
-                          <tr key={p.id} className="hover:bg-primary/5 transition-colors">
-                            <td className="p-3 font-semibold text-foreground">
-                              {p.full_name || "Anonymous Planter"}
-                            </td>
-                            <td className="p-3 text-muted-foreground">{p.email}</td>
-                            <td className="p-3">
-                              <Badge
-                                className={`text-[10px] capitalize ${
-                                  p.role === "admin"
-                                    ? "bg-primary text-primary-foreground"
-                                    : "bg-muted text-muted-foreground"
-                                }`}
-                              >
-                                {p.role || "planter"}
-                              </Badge>
-                            </td>
-                            <td className="p-3 font-semibold text-foreground">
-                              {p.trees_planted || 0}
-                            </td>
-                            <td className="p-3 font-bold text-emerald-600">
-                              {p.eco_points || 0} pts
-                            </td>
-                            <td className="p-3 text-muted-foreground">
-                              {new Date(p.created_at).toLocaleDateString()}
-                            </td>
-                          </tr>
-                        ))}
+                        {profiles.map((p) => {
+                          const currentRole = (p.role as AppRole) || "tree_adopter";
+                          return (
+                            <tr key={p.id} className="hover:bg-primary/5 transition-colors">
+                              <td className="p-3 font-semibold text-foreground">
+                                {p.full_name || "Anonymous Planter"}
+                              </td>
+                              <td className="p-3 text-muted-foreground">{p.email}</td>
+                              <td className="p-3">
+                                <Badge
+                                  className={`text-[10px] capitalize ${
+                                    currentRole === "admin"
+                                      ? "bg-rose-500/15 text-rose-600 border-rose-500/30"
+                                      : currentRole === "field_worker"
+                                      ? "bg-amber-500/15 text-amber-600 border-amber-500/30"
+                                      : currentRole === "government"
+                                      ? "bg-blue-500/15 text-blue-600 border-blue-500/30"
+                                      : "bg-emerald-500/15 text-emerald-600 border-emerald-500/30"
+                                  }`}
+                                >
+                                  {APP_ROLES[currentRole]?.displayName || currentRole}
+                                </Badge>
+                              </td>
+                              <td className="p-3 font-semibold text-foreground">
+                                {p.trees_planted || 0}
+                              </td>
+                              <td className="p-3 font-bold text-emerald-600">
+                                {p.eco_points || 0} pts
+                              </td>
+                              <td className="p-3 text-muted-foreground">
+                                {new Date(p.created_at).toLocaleDateString()}
+                              </td>
+                              <td className="p-3 text-right">
+                                <Select
+                                  value={currentRole}
+                                  onValueChange={(val: AppRole) =>
+                                    updateUserRoleMutation.mutate({
+                                      userId: p.id,
+                                      newRole: val,
+                                    })
+                                  }
+                                  disabled={updateUserRoleMutation.isPending}
+                                >
+                                  <SelectTrigger className="h-7 w-36 text-xs rounded-xl ml-auto">
+                                    <SelectValue placeholder="Assign Role" />
+                                  </SelectTrigger>
+                                  <SelectContent align="end">
+                                    <SelectItem value="admin" className="text-xs font-semibold text-rose-600">
+                                      🛡️ Admin
+                                    </SelectItem>
+                                    <SelectItem value="field_worker" className="text-xs font-semibold text-amber-600">
+                                      🧭 Field Worker
+                                    </SelectItem>
+                                    <SelectItem value="tree_adopter" className="text-xs font-semibold text-emerald-600">
+                                      🌱 Tree Adopter
+                                    </SelectItem>
+                                    <SelectItem value="government" className="text-xs font-semibold text-blue-600">
+                                      🏛️ Government
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

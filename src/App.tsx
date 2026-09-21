@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import RBACRoleSwitcherBar from "@/components/RBACRoleSwitcherBar";
+import RoleProtectedRoute from "@/components/RoleProtectedRoute";
 import Index from "./pages/Index";
 import About from "./pages/About";
 import PlantTree from "./pages/PlantTree";
@@ -18,6 +20,8 @@ import Leaderboard from "./pages/Leaderboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminAuditLog from "./pages/AdminAuditLog";
 import GovernmentDashboard from "./pages/GovernmentDashboard";
+import FieldWorkerDashboard from "./pages/FieldWorkerDashboard";
+import TreeAdopterDashboard from "./pages/TreeAdopterDashboard";
 import Login from "./pages/Login";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
@@ -49,46 +53,50 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
-          <Navbar />
-          <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/plant" element={<PlantChooser />} />
-          <Route path="/plant/individual" element={<ProtectedRoute><PlantTree /></ProtectedRoute>} />
-          <Route path="/plant/organization" element={<OrganizationPlantation />} />
-          <Route path="/plant/bulk" element={<ProtectedRoute><BulkOnboardPage /></ProtectedRoute>} />
-          <Route path="/bulk-onboard" element={<ProtectedRoute><BulkOnboardPage /></ProtectedRoute>} />
-          <Route path="/dashboard" element={<CommunityDashboard />} />
-          <Route path="/tree-map" element={<TreeMap />} />
-          <Route path="/scouting" element={<FieldScoutingPage />} />
-          <Route path="/analytics" element={<Navigate to="/intelligence" replace />} />
-          <Route path="/leaderboard" element={<Leaderboard />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admin-login" element={<AdminDashboard />} />
-          <Route path="/admin/audit-log" element={<AdminAuditLog />} />
-          <Route path="/government" element={<GovernmentDashboard />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/tree/:id" element={<TreeProfile />} />
-          <Route path="/tree-story/:id" element={<TreeStory />} />
-          <Route path="/challenges" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/drives" element={<Navigate to="/plant" replace />} />
-          <Route path="/tree-health" element={<Navigate to="/intelligence" replace />} />
-          <Route path="/growth-updates" element={<GrowthUpdates />} />
-          <Route path="/satellite" element={<Navigate to="/tree-map" replace />} />
-          <Route path="/green-impact" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/intelligence" element={<Intelligence />} />
-          <Route path="/csr-portal" element={<CSRCorporatePortal />} />
-          <Route path="/ngo-workspace" element={<NGOWorkspacePage />} />
-          <Route path="/pricing" element={<PricingPage />} />
-          <Route path="/verify/cert/:serialNo" element={<CertificateVerify />} />
-          <Route path="/verify/cert" element={<CertificateVerify />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-        <Footer />
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
+            <Navbar />
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/plant" element={<PlantChooser />} />
+              <Route path="/plant/individual" element={<ProtectedRoute><PlantTree /></ProtectedRoute>} />
+              <Route path="/plant/organization" element={<OrganizationPlantation />} />
+              <Route path="/plant/bulk" element={<ProtectedRoute><BulkOnboardPage /></ProtectedRoute>} />
+              <Route path="/bulk-onboard" element={<ProtectedRoute><BulkOnboardPage /></ProtectedRoute>} />
+              <Route path="/dashboard" element={<CommunityDashboard />} />
+              <Route path="/adopter" element={<RoleProtectedRoute requiredRole={["tree_adopter", "user", "admin"]}><TreeAdopterDashboard /></RoleProtectedRoute>} />
+              <Route path="/my-trees" element={<RoleProtectedRoute requiredRole={["tree_adopter", "user", "admin"]}><TreeAdopterDashboard /></RoleProtectedRoute>} />
+              <Route path="/field-worker" element={<RoleProtectedRoute requiredRole={["field_worker", "admin"]}><FieldWorkerDashboard /></RoleProtectedRoute>} />
+              <Route path="/scouting" element={<RoleProtectedRoute requiredRole={["field_worker", "admin"]}><FieldWorkerDashboard /></RoleProtectedRoute>} />
+              <Route path="/tree-map" element={<TreeMap />} />
+              <Route path="/analytics" element={<Navigate to="/intelligence" replace />} />
+              <Route path="/leaderboard" element={<Leaderboard />} />
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin-login" element={<AdminDashboard />} />
+              <Route path="/admin/audit-log" element={<AdminAuditLog />} />
+              <Route path="/government" element={<GovernmentDashboard />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/tree/:id" element={<TreeProfile />} />
+              <Route path="/tree-story/:id" element={<TreeStory />} />
+              <Route path="/challenges" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/drives" element={<Navigate to="/plant" replace />} />
+              <Route path="/tree-health" element={<Navigate to="/intelligence" replace />} />
+              <Route path="/growth-updates" element={<GrowthUpdates />} />
+              <Route path="/satellite" element={<Navigate to="/tree-map" replace />} />
+              <Route path="/green-impact" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/intelligence" element={<Intelligence />} />
+              <Route path="/csr-portal" element={<CSRCorporatePortal />} />
+              <Route path="/ngo-workspace" element={<NGOWorkspacePage />} />
+              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/verify/cert/:serialNo" element={<CertificateVerify />} />
+              <Route path="/verify/cert" element={<CertificateVerify />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <RBACRoleSwitcherBar />
+            <Footer />
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
     </LanguageProvider>
   </QueryClientProvider>
 );
