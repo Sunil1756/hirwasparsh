@@ -6,6 +6,34 @@ import {
   RiskAlertDispatchParams,
 } from "@/lib/riskAlertNotificationService";
 
+vi.mock("@/integrations/supabase/client", () => {
+  return {
+    supabase: {
+      functions: {
+        invoke: vi.fn().mockResolvedValue({
+          data: {
+            success: true,
+            message: "Risk alert dispatched via Edge Function.",
+            taskId: "task-mock-edge-123",
+            fieldWorkersNotified: 2,
+            adoptersNotified: 1,
+            deliveryChannels: ["in_app_realtime", "field_task_queue", "adopter_portal"],
+          },
+          error: null,
+        }),
+      },
+      from: vi.fn().mockReturnValue({
+        insert: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: { id: "task-mock-123" }, error: null }),
+            single: vi.fn().mockResolvedValue({ data: { id: "task-mock-123" }, error: null }),
+          }),
+        }),
+      }),
+    },
+  };
+});
+
 describe("AI Risk Alerts Notification & Communication Dispatcher Suite", () => {
   beforeEach(() => {
     vi.clearAllMocks();

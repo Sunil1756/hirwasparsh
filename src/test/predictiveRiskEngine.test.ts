@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   extractSpectralRiskFeatures,
   forecastNdviTrajectory,
@@ -7,6 +7,23 @@ import {
   dispatchPredictiveRiskFieldTask,
   SpectralTimePoint,
 } from "../lib/predictiveRiskEngine";
+
+vi.mock("@/integrations/supabase/client", () => {
+  return {
+    supabase: {
+      from: vi.fn().mockReturnValue({
+        insert: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { id: "mock-task-id-123" },
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    },
+  };
+});
 
 describe("Machine Learning Predictive Risk & Threat Forecasting Engine", () => {
   describe("1. Spectral Feature Extraction", () => {

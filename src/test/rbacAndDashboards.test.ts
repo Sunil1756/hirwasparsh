@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   AppRole,
   RbacPermission,
@@ -7,6 +7,19 @@ import {
   hasRbacPermission,
   assignUserRbacRole,
 } from "@/lib/rbacService";
+
+vi.mock("@/integrations/supabase/client", () => {
+  return {
+    supabase: {
+      from: vi.fn().mockReturnValue({
+        update: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ error: null }),
+        }),
+        upsert: vi.fn().mockResolvedValue({ error: null }),
+      }),
+    },
+  };
+});
 
 describe("Role-Based Access Control (RBAC) & Dashboard Architecture Suite", () => {
   describe("1. Role Resolution Logic (resolvePrimaryRole)", () => {
