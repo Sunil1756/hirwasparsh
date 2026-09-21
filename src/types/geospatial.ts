@@ -77,6 +77,14 @@ export type TreeSurvivalStatus =
   | "dead"
   | "unverified";
 
+export interface VerificationPlanterContext {
+  accountType?: "individual" | "ngo" | "csr" | "government" | "corporate" | string;
+  plantingType?: "individual" | "organization" | "bulk_ngo" | "csr_sponsored" | string;
+  isIndividualPlanter?: boolean;
+  projectId?: string | null;
+  plotId?: string | null;
+}
+
 export interface BotanicalAiVerificationResult {
   isLivingTree: boolean;
   speciesCommon: string;
@@ -85,6 +93,11 @@ export interface BotanicalAiVerificationResult {
   crownHealthScore: number;
   vitalityStatus: "healthy" | "moderate_stress" | "severe_stress" | "dead_or_dry" | "not_a_tree_fraud";
   growthStage: "sapling" | "young_tree" | "mature_tree" | "overmature";
+  stemLignification?: "woody" | "semi_woody" | "herbaceous" | "unknown";
+  leafMorphology?: string;
+  chlorophyllPigmentation?: "dense_photosynthetic_green" | "moderate_green" | "chlorotic_yellow" | "necrotic_brown";
+  backgroundSetting?: "in_ground_soil_pit" | "nursery_polybag" | "indoor_pot" | "screen_or_recycled_media" | "open_field";
+  isGenuineInGroundPlantation?: boolean;
   confidenceScore: number;
   detectedStressFactors: string[];
   fraudRiskScore: number;
@@ -93,4 +106,6 @@ export interface BotanicalAiVerificationResult {
   aiReport: string;
   compositeScore: number;
   isAutoApproved: boolean;
+  routingDecision: "auto_approved" | "manual_review_queue" | "fraud_rejected" | "institutional_mrv_audit_queue";
+  rationale: string;
 }

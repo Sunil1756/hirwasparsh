@@ -122,10 +122,50 @@ describe("Geospatial Remote Sensing & AI Verification Workflow Suite", () => {
         aiReport: "Healthy specimen.",
       };
 
-      const decision = calculateCompositeAiVerificationScore(result);
+      const decision = calculateCompositeAiVerificationScore(result, {
+        accountType: "individual",
+        plantingType: "individual",
+      });
       expect(decision.isAutoApproved).toBe(true);
       expect(decision.routingDecision).toBe("auto_approved");
       expect(decision.compositeScore).toBeGreaterThanOrEqual(70);
+    });
+
+    it("strictly isolates institutional NGO and CSR projects from individual single-photo auto-approval", () => {
+      const result: BotanicalAiAnalysisResult = {
+        isLivingTree: true,
+        speciesCommon: "Teak",
+        speciesScientific: "Tectona grandis",
+        botanicalFamily: "Lamiaceae",
+        crownHealthScore: 95,
+        vitalityStatus: "healthy",
+        growthStage: "young_tree",
+        confidenceScore: 0.96,
+        detectedStressFactors: [],
+        fraudRiskScore: 2,
+        fraudFlags: [],
+        perceptualHash: "ffff111122223333",
+        aiReport: "High-density plot planting candidate.",
+      };
+
+      // 1. NGO Account Context
+      const ngoDecision = calculateCompositeAiVerificationScore(result, {
+        accountType: "ngo",
+        plantingType: "organization",
+        projectId: "proj-ngo-001",
+      });
+      expect(ngoDecision.isAutoApproved).toBe(false);
+      expect(ngoDecision.routingDecision).toBe("institutional_mrv_audit_queue");
+      expect(ngoDecision.rationale).toContain("Institutional NGO/CSR");
+
+      // 2. CSR Corporate Context
+      const csrDecision = calculateCompositeAiVerificationScore(result, {
+        accountType: "csr",
+        plantingType: "csr_sponsored",
+        projectId: "proj-csr-002",
+      });
+      expect(csrDecision.isAutoApproved).toBe(false);
+      expect(csrDecision.routingDecision).toBe("institutional_mrv_audit_queue");
     });
 
     it("rejects non-tree fraud or synthetic duplicate images", () => {
@@ -145,7 +185,7 @@ describe("Geospatial Remote Sensing & AI Verification Workflow Suite", () => {
         aiReport: "Fraud detected.",
       };
 
-      const decision = calculateCompositeAiVerificationScore(result);
+      const decision = calculateCompositeAiVerificationScore(result, { accountType: "individual" });
       expect(decision.isAutoApproved).toBe(false);
       expect(decision.routingDecision).toBe("fraud_rejected");
     });
@@ -167,7 +207,7 @@ describe("Geospatial Remote Sensing & AI Verification Workflow Suite", () => {
         aiReport: "Moderate foliage stress.",
       };
 
-      const decision = calculateCompositeAiVerificationScore(result);
+      const decision = calculateCompositeAiVerificationScore(result, { accountType: "individual" });
       expect(decision.isAutoApproved).toBe(false);
       expect(decision.routingDecision).toBe("manual_review_queue");
     });

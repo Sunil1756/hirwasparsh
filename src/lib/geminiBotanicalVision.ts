@@ -1,8 +1,4 @@
-/**
- * Google Gemini 2.5 Multi-Modal Botanical AI & Anti-Fraud Verification Service
- * Inspects ground-truth mobile photos to classify tree species, evaluate crown vitality,
- * detect botanical stress, and compute perceptual image hashes (dHash) to prevent fraudulent uploads.
- */
+import { VerificationPlanterContext } from "@/types/geospatial";
 
 export interface BotanicalAiAnalysisResult {
   isLivingTree: boolean;
@@ -12,6 +8,11 @@ export interface BotanicalAiAnalysisResult {
   crownHealthScore: number; // 0 to 100
   vitalityStatus: "healthy" | "moderate_stress" | "severe_stress" | "dead_or_dry" | "not_a_tree_fraud";
   growthStage: "sapling" | "young_tree" | "mature_tree" | "overmature";
+  stemLignification?: "woody" | "semi_woody" | "herbaceous" | "unknown";
+  leafMorphology?: string;
+  chlorophyllPigmentation?: "dense_photosynthetic_green" | "moderate_green" | "chlorotic_yellow" | "necrotic_brown";
+  backgroundSetting?: "in_ground_soil_pit" | "nursery_polybag" | "indoor_pot" | "screen_or_recycled_media" | "open_field";
+  isGenuineInGroundPlantation?: boolean;
   confidenceScore: number; // 0.0 to 1.0
   detectedStressFactors: string[];
   fraudRiskScore: number; // 0 (genuine) to 100 (high fraud probability)
@@ -165,12 +166,17 @@ export async function analyzeTreePhotoWithBotanicalAi(
       crownHealthScore: health,
       vitalityStatus: "healthy",
       growthStage: "young_tree",
+      stemLignification: "woody",
+      leafMorphology: "Pinnately compound with serrated margins",
+      chlorophyllPigmentation: "dense_photosynthetic_green",
+      backgroundSetting: "in_ground_soil_pit",
+      isGenuineInGroundPlantation: true,
       confidenceScore: 0.91,
       detectedStressFactors: [],
       fraudRiskScore: 4,
       fraudFlags: [],
       perceptualHash: dHash,
-      aiReport: `Botanical validation confirmed genuine living ${claimedSpecies || "Azadirachta indica"} specimen with active chlorophyll pigmentation and healthy terminal foliage.`,
+      aiReport: `Botanical validation confirmed genuine living ${claimedSpecies || "Azadirachta indica"} specimen with active chlorophyll pigmentation, lignified stem, and healthy in-ground pit establishment.`,
     };
   }
 
@@ -188,11 +194,16 @@ Return ONLY a valid JSON object with EXACTLY this structure:
   "crownHealthScore": integer (0 to 100),
   "vitalityStatus": "healthy" | "moderate_stress" | "severe_stress" | "dead_or_dry" | "not_a_tree_fraud",
   "growthStage": "sapling" | "young_tree" | "mature_tree" | "overmature",
+  "stemLignification": "woody" | "semi_woody" | "herbaceous" | "unknown",
+  "leafMorphology": "string describing leaf structure (e.g. pinnate, simple ovate, palmate, needle-like)",
+  "chlorophyllPigmentation": "dense_photosynthetic_green" | "moderate_green" | "chlorotic_yellow" | "necrotic_brown",
+  "backgroundSetting": "in_ground_soil_pit" | "nursery_polybag" | "indoor_pot" | "screen_or_recycled_media" | "open_field",
+  "isGenuineInGroundPlantation": boolean (true if sapling is physically in a prepared ground soil pit, false if indoor houseplant or unplanted polybag),
   "confidenceScore": float (0.0 to 1.0),
   "detectedStressFactors": ["string", "string"],
-  "fraudRiskScore": integer (0 = authentic ground photo, 100 = photo of computer monitor/fake plant/indoor furniture),
+  "fraudRiskScore": integer (0 = authentic ground photo, 100 = photo of computer monitor/fake plastic plant/indoor furniture),
   "fraudFlags": ["string", "string"],
-  "aiReport": "1-2 sentence scientific assessment of leaf morphology, canopy vigor, and structural authenticity."
+  "aiReport": "1-2 sentence scientific assessment of leaf morphology, chlorophyll health, stem lignification, and ground establishment."
 }
 `;
 
@@ -243,6 +254,11 @@ Return ONLY a valid JSON object with EXACTLY this structure:
       crownHealthScore: Number(parsed.crownHealthScore) || 80,
       vitalityStatus: parsed.vitalityStatus || "healthy",
       growthStage: parsed.growthStage || "young_tree",
+      stemLignification: parsed.stemLignification || "woody",
+      leafMorphology: parsed.leafMorphology || "Broadleaf foliage",
+      chlorophyllPigmentation: parsed.chlorophyllPigmentation || "dense_photosynthetic_green",
+      backgroundSetting: parsed.backgroundSetting || "in_ground_soil_pit",
+      isGenuineInGroundPlantation: parsed.isGenuineInGroundPlantation !== undefined ? Boolean(parsed.isGenuineInGroundPlantation) : true,
       confidenceScore: Number(parsed.confidenceScore) || 0.88,
       detectedStressFactors: Array.isArray(parsed.detectedStressFactors) ? parsed.detectedStressFactors : [],
       fraudRiskScore: Number(parsed.fraudRiskScore) || 5,
@@ -260,6 +276,11 @@ Return ONLY a valid JSON object with EXACTLY this structure:
       crownHealthScore: 85,
       vitalityStatus: "healthy",
       growthStage: "young_tree",
+      stemLignification: "woody",
+      leafMorphology: "Alternate compound leaves",
+      chlorophyllPigmentation: "dense_photosynthetic_green",
+      backgroundSetting: "in_ground_soil_pit",
+      isGenuineInGroundPlantation: true,
       confidenceScore: 0.85,
       detectedStressFactors: [],
       fraudRiskScore: 5,
@@ -272,11 +293,15 @@ Return ONLY a valid JSON object with EXACTLY this structure:
 
 /**
  * Computes a standardized composite AI verification score and automated approval decision.
+ * Strictly isolates individual citizen tree planters from institutional NGO / CSR corporate workflows.
  */
-export function calculateCompositeAiVerificationScore(result: BotanicalAiAnalysisResult): {
+export function calculateCompositeAiVerificationScore(
+  result: BotanicalAiAnalysisResult,
+  context?: VerificationPlanterContext
+): {
   compositeScore: number;
   isAutoApproved: boolean;
-  routingDecision: "auto_approved" | "manual_review_queue" | "fraud_rejected";
+  routingDecision: "auto_approved" | "manual_review_queue" | "fraud_rejected" | "institutional_mrv_audit_queue";
   rationale: string;
 } {
   const confidenceComponent = (result.confidenceScore || 0.8) * 70;
@@ -285,28 +310,60 @@ export function calculateCompositeAiVerificationScore(result: BotanicalAiAnalysi
 
   const compositeScore = Math.max(0, Math.min(100, Math.round(confidenceComponent + healthComponent - fraudPenalty)));
 
-  if (!result.isLivingTree || result.vitalityStatus === "not_a_tree_fraud" || result.fraudRiskScore >= 50) {
+  // 1. Strict Institutional Isolation Gate:
+  // NGO, CSR, Corporate, Government, or Plot-level bulk plantation drives MUST NOT be auto-approved by individual photo AI.
+  const isInstitutional =
+    context &&
+    (context.accountType === "ngo" ||
+      context.accountType === "csr" ||
+      context.accountType === "corporate" ||
+      context.accountType === "government" ||
+      context.plantingType === "organization" ||
+      context.plantingType === "bulk_ngo" ||
+      context.plantingType === "csr_sponsored" ||
+      context.projectId != null ||
+      context.isIndividualPlanter === false);
+
+  if (isInstitutional) {
+    return {
+      compositeScore,
+      isAutoApproved: false,
+      routingDecision: "institutional_mrv_audit_queue",
+      rationale:
+        "Institutional NGO/CSR projects are isolated from lightweight individual auto-approval. Must complete Tier 1/2/3 multi-tree MRV audits (geodetic polygon validation, Sentinel-2 plot accretion, 5% ranger spot audit, and admin sign-off).",
+    };
+  }
+
+  // 2. Fraud & Non-Tree Detection Gate for Individual Planters
+  if (
+    !result.isLivingTree ||
+    result.vitalityStatus === "not_a_tree_fraud" ||
+    result.fraudRiskScore >= 50 ||
+    result.backgroundSetting === "screen_or_recycled_media"
+  ) {
     return {
       compositeScore,
       isAutoApproved: false,
       routingDecision: "fraud_rejected",
-      rationale: "Photo flagged as non-plant object, synthetic material, or duplicate image.",
+      rationale: "Photo flagged as non-plant object, synthetic artificial plant, computer screen capture, or duplicate image.",
     };
   }
 
+  // 3. Individual Planter Auto-Approval Gate (>= 70% composite score & low fraud risk)
   if (compositeScore >= 70 && result.fraudRiskScore < 25) {
     return {
       compositeScore,
       isAutoApproved: true,
       routingDecision: "auto_approved",
-      rationale: "High-confidence taxonomic match and genuine living tree structure verified.",
+      rationale: "High-confidence taxonomic match and genuine living tree structure verified for individual planter profile.",
     };
   }
 
+  // 4. Borderline / Moderate Confidence -> Supervisory Review Queue
   return {
     compositeScore,
     isAutoApproved: false,
     routingDecision: "manual_review_queue",
-    rationale: "Moderate confidence or borderline health score requires forestry supervisor review.",
+    rationale: "Moderate confidence or borderline health score (< 70% threshold) requires forestry supervisor review.",
   };
 }
