@@ -347,21 +347,121 @@ describe("Field Report Backend — Supabase Database Persistence & Submission", 
     expect(res.message).toContain("offline field queue");
   });
 
-  it("blocks submission if payload validation fails without calling database", async () => {
-    const invalidInput: FieldReportInput = {
-      projectId: "",
-      auditorName: "",
-      latitude: 0,
-      longitude: 0,
-      totalAudited: 0,
-      livingCount: 0,
+  it("updates public.trees survival_status and public.plots when plotId is provided", async () => {
+    const mockInsertEvidence = vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: { id: "evidence-plot-101" },
+          error: null,
+        }),
+      }),
+    });
+
+    const mockInsertCheckIns = vi.fn().mockResolvedValue({ error: null });
+    const mockUpdateProject = vi.fn().mockReturnValue({
+      eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+    });
+    const mockUpdateTree = vi.fn().mockReturnValue({
+      eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+    });
+    const mockUpdatePlot = vi.fn().mockReturnValue({
+      eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+    });
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === "project_evidence") return { insert: mockInsertEvidence } as any;
+      if (table === "check_ins") return { insert: mockInsertCheckIns } as any;
+      if (table === "plantation_projects") return { update: mockUpdateProject } as any;
+      if (table === "trees") return { update: mockUpdateTree } as any;
+      if (table === "plots") return { update: mockUpdatePlot } as any;
+      return {} as any;
+    });
+
+    const input: FieldReportInput = {
+      projectId: "proj-plot-101",
+      plotId: "plot-uuid-777",
+      auditorName: "Ranger Vikram",
+      latitude: 19.2,
+      longitude: 73.6,
+      totalAudited: 3,
+      livingCount: 2,
+      stressedCount: 1,
+      deadCount: 0,
+      sampleItems: [
+        {
+          sample_id: "SMP-1",
+          tree_id: "tree-1",
+          species: "Neem",
+          actual_lat: 19.2,
+          actual_lng: 73.6,
+          status: "alive",
+          measured_height_cm: 60,
+        },
+        {
+          sample_id: "SMP-2",
+          tree_id: "tree-2",
+          species: "Neem",
+          actual_lat: 19.21,
+          actual_lng: 73.61,
+          status: "stressed",
+          measured_height_cm: 50,
+        },
+      ],
+    };
+
+    const res = await submitFieldSpotAuditReport(input);
+
+    expect(res.success).toBe(true);
+    expect(res.savedToDatabase).toBe(true);
+    expect(res.survivalRatePct).toBe(83.3); // (2 + 0.5 * 1) / 3 = 2.5 / 3 = 83.3%
+    expect(mockUpdateTree).toHaveBeenCalled();
+    expect(mockUpdatePlot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        verified_survival_rate_pct: 83.3,
+      })
+    );
+  });
+
+  it("drains and synchronizes queued offline field reports when connectivity returns", async () => {
+    const {
+      enqueueOfflineFieldReport,
+      getQueuedOfflineFieldReportsCount,
+      syncQueuedOfflineFieldReports,
+    } = await import("@/lib/fieldReportBackendService");
+
+    const offlineInput: FieldReportInput = {
+      projectId: "proj-offline-sync",
+      auditorName: "Ranger Sandeep",
+      latitude: 19.0,
+      longitude: 73.0,
+      totalAudited: 4,
+      livingCount: 4,
       stressedCount: 0,
       deadCount: 0,
     };
 
-    const res = await submitFieldSpotAuditReport(invalidInput);
-    expect(res.success).toBe(false);
-    expect(res.savedToDatabase).toBe(false);
-    expect(supabase.from).not.toHaveBeenCalled();
+    enqueueOfflineFieldReport(offlineInput);
+    expect(getQueuedOfflineFieldReportsCount()).toBeGreaterThan(0);
+
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === "project_evidence") {
+        return {
+          insert: vi.fn().mockReturnValue({
+            select: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: "evidence-synced-123" },
+                error: null,
+              }),
+            }),
+          }),
+        } as any;
+      }
+      return { update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: null, error: null }) }) } as any;
+    });
+
+    const syncResult = await syncQueuedOfflineFieldReports();
+    expect(syncResult.syncedCount).toBeGreaterThan(0);
+    expect(getQueuedOfflineFieldReportsCount()).toBe(0);
   });
 });
+

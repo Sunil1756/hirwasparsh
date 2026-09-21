@@ -241,23 +241,27 @@ export function validateFieldReport(input: FieldReportInput): FieldReportValidat
 // ---------------------------------------------------------------------------
 
 const OFFLINE_FIELD_AUDIT_QUEUE_KEY = "green_offline_field_audits_v1";
+let inMemoryOfflineQueue: Array<FieldReportInput & { offlineQueuedAt: string }> = [];
 
 /**
  * Enqueues a failed or offline field report locally so rangers in dead zones never lose survey data.
  */
 export function enqueueOfflineFieldReport(input: FieldReportInput): void {
+  const item = {
+    ...input,
+    offlineQueuedAt: new Date().toISOString(),
+  };
+  inMemoryOfflineQueue.push(item);
+
   try {
     if (typeof window !== "undefined" && window.localStorage) {
       const saved = window.localStorage.getItem(OFFLINE_FIELD_AUDIT_QUEUE_KEY);
       const queue = saved ? JSON.parse(saved) : [];
-      queue.push({
-        ...input,
-        offlineQueuedAt: new Date().toISOString(),
-      });
+      queue.push(item);
       window.localStorage.setItem(OFFLINE_FIELD_AUDIT_QUEUE_KEY, JSON.stringify(queue));
     }
   } catch (e) {
-    console.warn("Could not save to offline field audit queue:", e);
+    console.warn("Could not save to offline field audit queue in localStorage:", e);
   }
 }
 
@@ -334,6 +338,24 @@ export async function submitFieldSpotAuditReport(
         if (!checkInsError) {
           checkInsCreated = checkInRows.length;
         }
+
+        // Update each sampled tree's survival_status in public.trees
+        for (const sample of input.sampleItems.filter((s) => s.tree_id)) {
+          const mappedStatus =
+            sample.status === "alive" ? "alive" : sample.status === "stressed" ? "moisture_stressed" : "dead";
+          try {
+            await supabase
+              .from("trees")
+              .update({
+                survival_status: mappedStatus,
+                height_cm: sample.measured_height_cm || undefined,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", sample.tree_id!);
+          } catch (treeErr) {
+            console.warn(`Could not update tree status for ${sample.tree_id}:`, treeErr);
+          }
+        }
       }
     }
 
@@ -343,11 +365,28 @@ export async function submitFieldSpotAuditReport(
         .from("plantation_projects")
         .update({
           verified_trees: input.livingCount,
+          survival_rate_pct: survivalRate,
           updated_at: new Date().toISOString(),
         })
         .eq("id", input.projectId);
     } catch (updateErr) {
       console.warn("Could not update project aggregate living count:", updateErr);
+    }
+
+    // Step 5: If plotId is provided, update plot-level survival metrics
+    if (input.plotId) {
+      try {
+        await supabase
+          .from("plots")
+          .update({
+            verified_survival_rate_pct: survivalRate,
+            last_satellite_sync_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", input.plotId);
+      } catch (plotErr) {
+        console.warn("Could not update plot survival rate:", plotErr);
+      }
     }
 
     return {
@@ -370,6 +409,77 @@ export async function submitFieldSpotAuditReport(
       error: err.message,
     };
   }
+}
+
+/**
+ * Returns the count of pending offline field reports.
+ */
+export function getQueuedOfflineFieldReportsCount(): number {
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      const saved = window.localStorage.getItem(OFFLINE_FIELD_AUDIT_QUEUE_KEY);
+      if (saved) {
+        return JSON.parse(saved).length;
+      }
+    }
+  } catch {}
+  return inMemoryOfflineQueue.length;
+}
+
+/**
+ * Synchronizes all queued offline field reports to Supabase when connectivity is restored.
+ */
+export async function syncQueuedOfflineFieldReports(): Promise<{
+  syncedCount: number;
+  failedCount: number;
+  results: FieldReportSubmissionResult[];
+}> {
+  let queue: FieldReportInput[] = [];
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      const saved = window.localStorage.getItem(OFFLINE_FIELD_AUDIT_QUEUE_KEY);
+      if (saved) queue = JSON.parse(saved);
+    }
+  } catch {}
+
+  if (queue.length === 0 && inMemoryOfflineQueue.length > 0) {
+    queue = [...inMemoryOfflineQueue];
+  }
+
+  if (queue.length === 0) {
+    return { syncedCount: 0, failedCount: 0, results: [] };
+  }
+
+  const results: FieldReportSubmissionResult[] = [];
+  const remainingQueue: FieldReportInput[] = [];
+  let syncedCount = 0;
+  let failedCount = 0;
+
+  for (const report of queue) {
+    try {
+      const res = await submitFieldSpotAuditReport(report);
+      if (res.savedToDatabase) {
+        syncedCount++;
+        results.push(res);
+      } else {
+        failedCount++;
+        remainingQueue.push(report);
+        results.push(res);
+      }
+    } catch (err) {
+      failedCount++;
+      remainingQueue.push(report);
+    }
+  }
+
+  inMemoryOfflineQueue = remainingQueue.map((r) => ({ ...r, offlineQueuedAt: new Date().toISOString() }));
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      window.localStorage.setItem(OFFLINE_FIELD_AUDIT_QUEUE_KEY, JSON.stringify(remainingQueue));
+    }
+  } catch {}
+
+  return { syncedCount, failedCount, results };
 }
 
 /**
@@ -400,3 +510,4 @@ export async function fetchProjectAuditHistory(projectId: string): Promise<Array
     return [];
   }
 }
+
