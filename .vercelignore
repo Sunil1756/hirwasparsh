@@ -1,0 +1,29 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Testing and Coverage
+coverage
+.nyc_output
+*.log
+*.log.*
+
+# Environment & Local Supabase
+.env.local
+.env.*.local
+supabase/.temp
+supabase/.branches
+
+# IDE & Editor files
+.vscode
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS files
+.DS_Store
+Thumbs.db

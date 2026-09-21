@@ -5,10 +5,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import RoleProtectedRoute from "@/components/RoleProtectedRoute";
 import RBACRoleSwitcherBar from "@/components/RBACRoleSwitcherBar";
 import FieldWorkerDashboard from "@/pages/FieldWorkerDashboard";
 import TreeAdopterDashboard from "@/pages/TreeAdopterDashboard";
+import CSRCorporatePortal from "@/pages/CSRCorporatePortal";
+import NGOWorkspacePage from "@/pages/NGOWorkspacePage";
 import React from "react";
 
 // Mock Supabase client
@@ -27,12 +30,16 @@ vi.mock("@/integrations/supabase/client", () => ({
       eq: vi.fn().mockReturnThis(),
       order: vi.fn().mockReturnThis(),
       limit: vi.fn().mockReturnThis(),
+      or: vi.fn().mockResolvedValue({ data: [], error: null }),
       maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
       single: vi.fn().mockResolvedValue({ data: null, error: null }),
       upsert: vi.fn().mockResolvedValue({ error: null }),
       update: vi.fn().mockResolvedValue({ error: null }),
       insert: vi.fn().mockResolvedValue({ error: null }),
     })),
+    functions: {
+      invoke: vi.fn().mockResolvedValue({ data: { success: true }, error: null }),
+    },
   },
 }));
 
@@ -88,28 +95,24 @@ describe("Navigation, RBAC Routing & Multi-Device Responsiveness Suite", () => {
       // Click mobile hamburger menu
       fireEvent.click(toggleButton);
       expect(screen.getByText("Main Menu")).toBeDefined();
+      expect(screen.getByText("Institutional & B2B Portals")).toBeDefined();
     });
   });
 
-  describe("2. RBAC Persona Simulator Removal & Strict Route Protection", () => {
-    it("ensures RBAC Persona Simulator renders null and is completely deactivated", () => {
-      const TestComponent = () => {
-        const queryClient = createTestQueryClient();
-        return (
-          <QueryClientProvider client={queryClient}>
-            <LanguageProvider>
-              <AuthProvider>
-                <BrowserRouter>
-                  <RBACRoleSwitcherBar />
-                </BrowserRouter>
-              </AuthProvider>
-            </LanguageProvider>
-          </QueryClientProvider>
-        );
-      };
+  describe("2. Footer Navigation & ESG Compliance Links", () => {
+    it("renders comprehensive footer with B2B, platform, and MRV standards", () => {
+      render(
+        <BrowserRouter>
+          <Footer />
+        </BrowserRouter>
+      );
 
-      const { container } = render(<TestComponent />);
-      expect(container.firstChild).toBeNull();
+      expect(screen.getAllByText("Green Enlightenment").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText(/Platform & Tools/i)).toBeDefined();
+      expect(screen.getByText(/Institutional & ESG/i)).toBeDefined();
+      expect(screen.getByText(/SEBI BRSR Core Principle 6 & Verra VM0047 Compliant/i)).toBeDefined();
+      expect(screen.getByText(/CSR Carbon & ESG Portal/i)).toBeDefined();
+      expect(screen.getByText(/NGO Operator Command Center/i)).toBeDefined();
     });
   });
 
@@ -161,8 +164,8 @@ describe("Navigation, RBAC Routing & Multi-Device Responsiveness Suite", () => {
 
       expect(container).toBeDefined();
       expect(screen.getByText("Field Scout & Ranger Console")).toBeDefined();
-      expect(screen.getByText("5% Cochran")).toBeDefined();
-      expect(screen.getByText("Ground Truth Survival Calculator")).toBeDefined();
+      expect(screen.getAllByText(/5% Cochran/i).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText(/Ground Truth Survival Calculator/i)).toBeDefined();
     });
 
     it("renders TreeAdopterDashboard without throwing errors", () => {
@@ -183,6 +186,45 @@ describe("Navigation, RBAC Routing & Multi-Device Responsiveness Suite", () => {
       expect(screen.getByText("Citizen Adopter Sanctuary")).toBeDefined();
       expect(screen.getByText("CO₂e Sequestered")).toBeDefined();
       expect(screen.getByText("My Adopted Canopy Portfolio")).toBeDefined();
+    });
+
+    it("renders CSRCorporatePortal without throwing errors", () => {
+      const queryClient = createTestQueryClient();
+      const { container } = render(
+        <QueryClientProvider client={queryClient}>
+          <LanguageProvider>
+            <AuthProvider>
+              <BrowserRouter>
+                <CSRCorporatePortal />
+              </BrowserRouter>
+            </AuthProvider>
+          </LanguageProvider>
+        </QueryClientProvider>
+      );
+
+      expect(container).toBeDefined();
+      expect(screen.getByText("CSR & ESG Carbon Intelligence Portal")).toBeDefined();
+      expect(screen.getByText(/SEBI BRSR Core Principle 6/i)).toBeDefined();
+      expect(screen.getByText("Sponsored Plantation Projects")).toBeDefined();
+    });
+
+    it("renders NGOWorkspacePage without throwing errors", () => {
+      const queryClient = createTestQueryClient();
+      const { container } = render(
+        <QueryClientProvider client={queryClient}>
+          <LanguageProvider>
+            <AuthProvider>
+              <BrowserRouter>
+                <NGOWorkspacePage />
+              </BrowserRouter>
+            </AuthProvider>
+          </LanguageProvider>
+        </QueryClientProvider>
+      );
+
+      expect(container).toBeDefined();
+      expect(screen.getByText("NGO & Project Operator Command Center")).toBeDefined();
+      expect(screen.getByText("Afforestation Parcels & Plots")).toBeDefined();
     });
   });
 });

@@ -25,16 +25,45 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { CarbonAuditResult } from "@/lib/carbonLedger";
+import { CarbonAuditResult, calculateCarbonLedgerMetrics } from "@/lib/carbonLedger";
 
 interface Props {
-  cert: CarbonAuditResult;
+  cert?: CarbonAuditResult | null;
+  projectId?: string;
+  projectName?: string;
+  organizationName?: string;
+  targetTrees?: number;
+  verifiedTrees?: number;
+  confidenceScore?: number;
+  co2OffsetKg?: number;
+  verificationTier?: string;
   triggerButton?: React.ReactNode;
 }
 
-export const CarbonCertificateModal = ({ cert, triggerButton }: Props) => {
+export const CarbonCertificateModal = ({
+  cert: propCert,
+  projectId,
+  projectName = "Agroforestry Carbon Plot",
+  organizationName = "Institutional ESG Sponsor",
+  targetTrees = 1000,
+  verifiedTrees = 920,
+  confidenceScore = 88,
+  co2OffsetKg,
+  verificationTier = "Gold",
+  triggerButton,
+}: Props) => {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+
+  // Fallback / compute cert if not provided
+  const cert: CarbonAuditResult = propCert || calculateCarbonLedgerMetrics({
+    projectId: projectId || "proj-mrv-default",
+    projectName,
+    organizationName,
+    targetTrees,
+    acres: Math.max(0.5, Math.round((targetTrees / 450) * 10) / 10),
+    survivalRatePercent: targetTrees > 0 ? Math.round((verifiedTrees / targetTrees) * 100) : 92,
+  });
 
   const copyCertLink = () => {
     navigator.clipboard.writeText(cert.qrVerificationUrl);
