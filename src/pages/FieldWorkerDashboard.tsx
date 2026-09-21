@@ -29,6 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { FieldReportSubmissionWizard } from "@/components/FieldReportSubmissionWizard";
+import { MultiSourceSurvivalScoreCard } from "@/components/MultiSourceSurvivalScoreCard";
 import { getOfflineTreeQueue, syncOfflineTreesWithSupabase } from "@/lib/offlineSyncService";
 import {
   getQueuedOfflineFieldReportsCount,
@@ -323,6 +324,23 @@ export default function FieldWorkerDashboard() {
               </div>
               <div className="text-[10px] text-emerald-600/80 mt-0.5">Confidence Level 95% (e=±5%)</div>
             </div>
+          </div>
+
+          {/* 3-Pillar Multi-Source Survival Confidence MRV Dial & Parameter Simulator */}
+          <div className="mb-2">
+            <MultiSourceSurvivalScoreCard
+              projectName="Maharashtra Agroforestry Field Sector"
+              initialParams={{
+                totalPlantedTrees: 500,
+                livingCount: livingCount,
+                stressedCount: stressedCount,
+                deadCount: deadCount,
+                currentMeanNdvi: 0.74,
+                baselineNdvi: 0.65,
+                overpassCount: 5,
+              }}
+              onRefresh={() => queryClient.invalidateQueries({ queryKey: ["field-worker-audits"] })}
+            />
           </div>
 
           {/* Main Grid: Left Column (Tasks & Calculations) | Right Column (Recent Field Audits) */}

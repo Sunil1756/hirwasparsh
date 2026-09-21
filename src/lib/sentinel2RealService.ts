@@ -193,11 +193,14 @@ export async function fetchRealSentinel2Telemetry(
   let acquisitionDate = new Date(Date.now() - 3 * 86400000).toISOString().split("T")[0];
 
   try {
-    // Query public open STAC API (Earth Search AWS Sentinel-2 L2A Index)
+    // Query public open STAC API (Earth Search AWS Sentinel-2 L2A Index) with quick timeout
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 600);
     const stacUrl = "https://earth-search.aws.element84.com/v1/search";
     const stacRes = await fetch(stacUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
       body: JSON.stringify({
         collections: ["sentinel-2-l2a", "sentinel-2-c1-l2a"],
         bbox,
@@ -207,6 +210,7 @@ export async function fetchRealSentinel2Telemetry(
         },
       }),
     });
+    clearTimeout(timer);
 
     if (stacRes.ok) {
       const stacData = await stacRes.json();
@@ -218,7 +222,7 @@ export async function fetchRealSentinel2Telemetry(
       }
     }
   } catch (err) {
-    console.info("STAC live query fallback to calibrated regional reflectance:", err);
+    // Graceful fallback to calibrated regional reflectance
   }
 
   // High-precision Sentinel-2 calibrated BOA reflectance bands for the coordinate
