@@ -16,17 +16,21 @@ export interface OfflineTreeQueueItem {
 
 const OFFLINE_QUEUE_KEY = "green_offline_tree_queue_v1";
 
+let inMemoryTreeQueue: OfflineTreeQueueItem[] = [];
+
 /**
  * Gets all locally queued trees waiting for internet sync.
  */
 export function getOfflineTreeQueue(): OfflineTreeQueueItem[] {
   try {
-    const data = localStorage.getItem(OFFLINE_QUEUE_KEY);
-    if (data) return JSON.parse(data);
+    if (typeof window !== "undefined" && window.localStorage) {
+      const data = window.localStorage.getItem(OFFLINE_QUEUE_KEY);
+      if (data) return JSON.parse(data);
+    }
   } catch (e) {
     console.error("Error loading offline tree queue:", e);
   }
-  return [];
+  return inMemoryTreeQueue;
 }
 
 /**
@@ -43,8 +47,11 @@ export function enqueueOfflineTree(
   };
 
   queue.push(newItem);
+  inMemoryTreeQueue = queue;
   try {
-    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+    if (typeof window !== "undefined" && window.localStorage) {
+      window.localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+    }
   } catch (e) {
     console.error("Error saving offline tree:", e);
   }
@@ -56,8 +63,11 @@ export function enqueueOfflineTree(
  */
 export function removeOfflineTree(localId: string) {
   const queue = getOfflineTreeQueue().filter((item) => item.localId !== localId);
+  inMemoryTreeQueue = queue;
   try {
-    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+    if (typeof window !== "undefined" && window.localStorage) {
+      window.localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+    }
   } catch (e) {
     console.error("Error updating offline tree queue:", e);
   }
@@ -67,8 +77,11 @@ export function removeOfflineTree(localId: string) {
  * Clears the entire offline queue.
  */
 export function clearOfflineQueue() {
+  inMemoryTreeQueue = [];
   try {
-    localStorage.removeItem(OFFLINE_QUEUE_KEY);
+    if (typeof window !== "undefined" && window.localStorage) {
+      window.localStorage.removeItem(OFFLINE_QUEUE_KEY);
+    }
   } catch (e) {
     console.error("Error clearing offline queue:", e);
   }

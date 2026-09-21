@@ -3,13 +3,15 @@
  *
  * Provides end-to-end backend logic for:
  * 1. Ranger field spot audit submission & geotag validation.
- * 2. Survival rate calculation (living vs dead vs stressed).
- * 3. Supabase persistence to `project_evidence` and `check_ins` tables.
- * 4. Offline sync resilience for field rangers in low-connectivity forest terrain.
- * 5. Aggregation of verified living tree counts on `plantation_projects`.
+ * 2. Geo-tagged photo uploads to Supabase Storage with public URL generation.
+ * 3. Anti-spoofing EXIF vs Device GPS cross-verification (Haversine delta analysis).
+ * 4. Ground-truth survival rate calculation (living vs stressed vs dead silvicultural weighting).
+ * 5. Supabase persistence to `project_evidence`, `check_ins`, `trees`, `plantation_projects`, and `plots`.
+ * 6. Offline sync resilience for field rangers in low-connectivity forest terrain.
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { compressImage, haversineMeters } from "@/lib/imageProcessing";
 
 export interface SampledTreeAuditItem {
   sample_id: string;
@@ -69,9 +71,115 @@ export interface FieldReportSubmissionResult {
   error?: string;
 }
 
+export interface ExifGpsCrossValidationResult {
+  status: "matched" | "drift_warning" | "fraud_spoofing_rejected" | "no_exif";
+  distanceMeters: number;
+  message: string;
+  isAcceptable: boolean;
+}
+
+export interface FieldReportWorkflowInput extends FieldReportInput {
+  photoFile?: File | Blob | null;
+  exifData?: {
+    lat?: number;
+    lng?: number;
+    dateTime?: string;
+    hasGps?: boolean;
+  } | null;
+  dominantSpecies?: string;
+  averageHeightCm?: number;
+  interventions?: {
+    dripRescue?: boolean;
+    weedClearing?: boolean;
+    bioMulch?: boolean;
+    pestTreatment?: boolean;
+    fencingRepair?: boolean;
+  };
+}
+
+export interface FieldReportWorkflowResult {
+  success: boolean;
+  evidenceId?: string;
+  message: string;
+  survivalRatePct: number;
+  savedToDatabase: boolean;
+  queuedForOfflineSync?: boolean;
+  uploadedPhotoUrl?: string | null;
+  exifValidation: ExifGpsCrossValidationResult;
+  validation: FieldReportValidationResult;
+  errors?: string[];
+  warnings?: string[];
+}
+
 // ---------------------------------------------------------------------------
-// 1. PURE VALIDATION & MATHEMATICAL ENGINES
+// 1. GEOSPATIAL VALIDATION & EXIF CROSS-VERIFICATION
 // ---------------------------------------------------------------------------
+
+/**
+ * Calculates Haversine distance in meters between two geodetic coordinates.
+ */
+export function calculateHaversineDistanceMeters(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  return haversineMeters(lat1, lon1, lat2, lon2);
+}
+
+/**
+ * Cross-validates photo EXIF GPS location with reported device GPS location.
+ * Detects location spoofing or non-on-site stock photography.
+ */
+export function validateExifVersusDeviceGps(
+  exifLat?: number | null,
+  exifLng?: number | null,
+  deviceLat?: number | null,
+  deviceLng?: number | null
+): ExifGpsCrossValidationResult {
+  if (
+    exifLat === undefined ||
+    exifLat === null ||
+    exifLng === undefined ||
+    exifLng === null ||
+    deviceLat === undefined ||
+    deviceLat === null ||
+    deviceLng === undefined ||
+    deviceLng === null
+  ) {
+    return {
+      status: "no_exif",
+      distanceMeters: 0,
+      message: "No embedded EXIF GPS tags found in photo. Relying on device GPS telemetry.",
+      isAcceptable: true,
+    };
+  }
+
+  const distanceMeters = Math.round(haversineMeters(exifLat, exifLng, deviceLat, deviceLng));
+
+  if (distanceMeters <= 100) {
+    return {
+      status: "matched",
+      distanceMeters,
+      message: `Photo EXIF coordinates match device GPS within ${distanceMeters}m. High spatial fidelity.`,
+      isAcceptable: true,
+    };
+  } else if (distanceMeters <= 5000) {
+    return {
+      status: "drift_warning",
+      distanceMeters,
+      message: `Moderate distance discrepancy (${distanceMeters}m) between photo EXIF and surveyor GPS. Acceptable within dense canopy margin.`,
+      isAcceptable: true,
+    };
+  } else {
+    return {
+      status: "fraud_spoofing_rejected",
+      distanceMeters,
+      message: `Severe distance discrepancy (${(distanceMeters / 1000).toFixed(1)}km) detected between photo location and surveyor GPS. Flagged for anti-fraud review.`,
+      isAcceptable: false,
+    };
+  }
+}
 
 /**
  * Validates GPS coordinate bounds and optional boundary polygon containment.
@@ -237,7 +345,73 @@ export function validateFieldReport(input: FieldReportInput): FieldReportValidat
 }
 
 // ---------------------------------------------------------------------------
-// 2. SUPABASE BACKEND PERSISTENCE & OFFLINE SYNC
+// 2. SUPABASE STORAGE PHOTO UPLOADER
+// ---------------------------------------------------------------------------
+
+/**
+ * Uploads a field report photo to Supabase Storage and returns its permanent public URL.
+ */
+export async function uploadFieldReportPhoto(
+  file: File | Blob,
+  projectId: string
+): Promise<{
+  publicUrl: string | null;
+  storagePath: string | null;
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    let processedFile: File | Blob = file;
+    if (typeof window !== "undefined" && typeof document !== "undefined" && file instanceof File) {
+      try {
+        processedFile = await compressImage(file, 1400, 0.8);
+      } catch (cErr) {
+        console.warn("Client-side image compression fallback to raw file:", cErr);
+      }
+    }
+
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substring(2, 8);
+    const storagePath = `projects/${projectId}/field-audits/${timestamp}-${randomSuffix}.jpg`;
+
+    const { data, error } = await supabase.storage
+      .from("treebank")
+      .upload(storagePath, processedFile, {
+        contentType: "image/jpeg",
+        upsert: true,
+      });
+
+    if (error) {
+      console.warn("Supabase storage upload notice:", error.message);
+      return {
+        publicUrl: null,
+        storagePath: null,
+        success: false,
+        error: error.message,
+      };
+    }
+
+    const { data: urlData } = supabase.storage.from("treebank").getPublicUrl(data.path);
+    const publicUrl = urlData?.publicUrl || data.path;
+
+    return {
+      publicUrl,
+      storagePath: data.path,
+      success: true,
+    };
+  } catch (err: any) {
+    console.warn("Exception during field report photo upload:", err);
+    return {
+      publicUrl: null,
+      storagePath: null,
+      success: false,
+      error: err.message || "Failed to upload photo",
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 3. SUPABASE BACKEND PERSISTENCE & OFFLINE SYNC
 // ---------------------------------------------------------------------------
 
 const OFFLINE_FIELD_AUDIT_QUEUE_KEY = "green_offline_field_audits_v1";
@@ -285,7 +459,9 @@ export async function submitFieldSpotAuditReport(
 
   const timestamp = input.capturedAt || new Date().toISOString();
   const survivalRate = validation.calculatedSurvivalRatePct;
-  const auditNotes = input.notes || `[5% Spot Audit] Audited: ${input.totalAudited}, Living: ${input.livingCount}, Stressed: ${input.stressedCount}, Dead: ${input.deadCount} (Auditor: ${input.auditorName})`;
+  const auditNotes =
+    input.notes ||
+    `[5% Spot Audit] Audited: ${input.totalAudited}, Living: ${input.livingCount}, Stressed: ${input.stressedCount}, Dead: ${input.deadCount} (Auditor: ${input.auditorName})`;
 
   try {
     // Step 2: Insert primary evidence record into Supabase `project_evidence` table
@@ -411,6 +587,122 @@ export async function submitFieldSpotAuditReport(
   }
 }
 
+// ---------------------------------------------------------------------------
+// 4. UNIFIED END-TO-END DATA SUBMISSION WORKFLOW
+// ---------------------------------------------------------------------------
+
+/**
+ * End-to-end data submission workflow orchestrator for field reports:
+ * 1. Validates geotag and input structure.
+ * 2. Cross-validates EXIF vs Device GPS anti-spoofing location.
+ * 3. Compresses & uploads field photo to Supabase storage bucket.
+ * 4. Compiles structured silvicultural audit notes and interventions.
+ * 5. Persists multi-table tree survival data to Supabase database.
+ */
+export async function processFieldReportSubmissionWorkflow(
+  input: FieldReportWorkflowInput
+): Promise<FieldReportWorkflowResult> {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // 1. Validate Geotagging & Input Fields
+  const validation = validateFieldReport(input);
+  errors.push(...validation.errors);
+  warnings.push(...validation.warnings);
+
+  // 2. EXIF vs Device GPS Cross-Verification
+  const exifValidation = validateExifVersusDeviceGps(
+    input.exifData?.lat,
+    input.exifData?.lng,
+    input.latitude,
+    input.longitude
+  );
+
+  if (!exifValidation.isAcceptable) {
+    errors.push(exifValidation.message);
+  } else if (exifValidation.status === "drift_warning") {
+    warnings.push(exifValidation.message);
+  }
+
+  // If critical validation errors exist, fail fast
+  if (errors.length > 0) {
+    return {
+      success: false,
+      message: `Validation failed: ${errors.join("; ")}`,
+      survivalRatePct: validation.calculatedSurvivalRatePct,
+      savedToDatabase: false,
+      exifValidation,
+      validation,
+      errors,
+      warnings,
+    };
+  }
+
+  // 3. Upload Photo to Supabase Storage if File/Blob is provided
+  let resolvedPhotoUrl = input.photoUrl || null;
+  if (input.photoFile) {
+    const uploadRes = await uploadFieldReportPhoto(input.photoFile, input.projectId);
+    if (uploadRes.success && uploadRes.publicUrl) {
+      resolvedPhotoUrl = uploadRes.publicUrl;
+    } else if (uploadRes.error) {
+      warnings.push(`Photo upload to cloud storage was delayed: ${uploadRes.error}. Cached locally.`);
+    }
+  }
+
+  // 4. Compile Structured Notes
+  const interventionList: string[] = [];
+  if (input.interventions?.dripRescue) interventionList.push("Urgent Drip Irrigation Needed");
+  if (input.interventions?.weedClearing) interventionList.push("Manual Ring Weeding Required");
+  if (input.interventions?.bioMulch) interventionList.push("Organic Bio-Mulch Application");
+  if (input.interventions?.pestTreatment) interventionList.push("Organic Bio-Pesticide (NSKE 5%)");
+  if (input.interventions?.fencingRepair) interventionList.push("Bamboo Tree Guard Reinforcement");
+
+  const speciesInfo = input.dominantSpecies ? `Species: ${input.dominantSpecies}` : "";
+  const heightInfo = input.averageHeightCm ? `Avg Height: ${input.averageHeightCm}cm` : "";
+  const interventionText =
+    interventionList.length > 0 ? `Interventions: ${interventionList.join(", ")}` : "Status: Routine Maintenance";
+  const userNotes = input.notes || "Standard 5% Cochran spot audit completed.";
+
+  const compiledNotes = [
+    `[5% Spot Audit]`,
+    speciesInfo,
+    heightInfo,
+    `Living: ${input.livingCount}, Stressed: ${input.stressedCount}, Dead: ${input.deadCount}`,
+    interventionText,
+    `Observations: ${userNotes}`,
+    `(Auditor: ${input.auditorName} [${input.auditorRole || "Official Ranger"}])`,
+  ]
+    .filter(Boolean)
+    .join(" | ");
+
+  // 5. Submit to Supabase Database
+  const submissionPayload: FieldReportInput = {
+    ...input,
+    photoUrl: resolvedPhotoUrl,
+    notes: compiledNotes,
+  };
+
+  const submissionResult = await submitFieldSpotAuditReport(submissionPayload);
+
+  return {
+    success: submissionResult.success,
+    evidenceId: submissionResult.evidenceId,
+    message: submissionResult.message,
+    survivalRatePct: submissionResult.survivalRatePct,
+    savedToDatabase: submissionResult.savedToDatabase,
+    queuedForOfflineSync: submissionResult.queuedForOfflineSync,
+    uploadedPhotoUrl: resolvedPhotoUrl,
+    exifValidation,
+    validation,
+    errors: errors.length > 0 ? errors : undefined,
+    warnings: warnings.length > 0 ? warnings : undefined,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 5. OFFLINE QUEUE UTILITIES & AUDIT HISTORY FETCHING
+// ---------------------------------------------------------------------------
+
 /**
  * Returns the count of pending offline field reports.
  */
@@ -510,4 +802,3 @@ export async function fetchProjectAuditHistory(projectId: string): Promise<Array
     return [];
   }
 }
-

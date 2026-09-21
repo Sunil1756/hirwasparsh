@@ -30,6 +30,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { FieldReportSubmissionWizard } from "@/components/FieldReportSubmissionWizard";
 import { getOfflineTreeQueue, syncOfflineTreesWithSupabase } from "@/lib/offlineSyncService";
+import {
+  getQueuedOfflineFieldReportsCount,
+  syncQueuedOfflineFieldReports,
+} from "@/lib/fieldReportBackendService";
 import { Link } from "react-router-dom";
 
 export default function FieldWorkerDashboard() {
@@ -58,7 +62,8 @@ export default function FieldWorkerDashboard() {
     window.addEventListener("offline", handleOffline);
 
     // Check offline queue count
-    setOfflineCount(getOfflineTreeQueue().length);
+    const totalOffline = getOfflineTreeQueue().length + getQueuedOfflineFieldReportsCount();
+    setOfflineCount(totalOffline);
 
     // Watch position
     if (navigator.geolocation) {
@@ -155,12 +160,15 @@ export default function FieldWorkerDashboard() {
   const handleManualSync = async () => {
     setIsSyncing(true);
     try {
-      const result = await syncOfflineTreesWithSupabase(user?.id);
-      const newCount = getOfflineTreeQueue().length;
+      const treeRes = await syncOfflineTreesWithSupabase(user?.id);
+      const reportRes = await syncQueuedOfflineFieldReports();
+      const totalSynced = treeRes.syncedCount + reportRes.syncedCount;
+      const totalFailed = treeRes.failedCount + reportRes.failedCount;
+      const newCount = getOfflineTreeQueue().length + getQueuedOfflineFieldReportsCount();
       setOfflineCount(newCount);
       toast({
         title: "🔄 Offline Sync Completed",
-        description: `Synced ${result.syncedCount} items (${result.failedCount} failed).`,
+        description: `Synced ${totalSynced} items (${totalFailed} pending).`,
       });
       queryClient.invalidateQueries({ queryKey: ["field-worker-audits"] });
     } catch (e: any) {

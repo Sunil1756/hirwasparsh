@@ -24,6 +24,7 @@ import {
   Heart,
   Calendar,
   Layers,
+  Scissors,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,10 +52,13 @@ import { supabase } from "@/integrations/supabase/client";
 import exifr from "exifr";
 import { compressImage } from "@/lib/imageProcessing";
 import {
-  submitFieldSpotAuditReport,
+  processFieldReportSubmissionWorkflow,
+  uploadFieldReportPhoto,
   calculateGroundSurvivalRate,
   validateFieldReportGeoTagging,
-  FieldReportInput,
+  validateExifVersusDeviceGps,
+  FieldReportWorkflowInput,
+  ExifGpsCrossValidationResult,
 } from "@/lib/fieldReportBackendService";
 import { screenTreeImageWithAI } from "@/lib/gemini";
 
@@ -138,6 +142,7 @@ export const FieldReportSubmissionWizard = ({
     dateTime?: string;
     hasGps: boolean;
   } | null>(null);
+  const [exifCrossValidation, setExifCrossValidation] = useState<ExifGpsCrossValidationResult | null>(null);
   const [aiScreening, setAiScreening] = useState<{
     running: boolean;
     valid: boolean | null;
@@ -261,27 +266,37 @@ export const FieldReportSubmissionWizard = ({
       });
 
       if (exif?.latitude && exif?.longitude) {
+        const lat = Number(exif.latitude.toFixed(6));
+        const lng = Number(exif.longitude.toFixed(6));
         setExifData({
-          lat: exif.latitude,
-          lng: exif.longitude,
+          lat,
+          lng,
           dateTime: exif.DateTimeOriginal?.toISOString?.() || undefined,
           hasGps: true,
         });
-        // Auto-fill latitude/longitude if empty or close
+
+        // Auto-fill latitude/longitude if empty
         if (!latitude || !longitude) {
-          setLatitude(Number(exif.latitude.toFixed(6)));
-          setLongitude(Number(exif.longitude.toFixed(6)));
+          setLatitude(lat);
+          setLongitude(lng);
         }
+
+        // Cross-validate with reported location
+        const crossVal = validateExifVersusDeviceGps(lat, lng, latitude ?? lat, longitude ?? lng);
+        setExifCrossValidation(crossVal);
+
         toast({
           title: "EXIF Geotag Detected 📍",
-          description: `Photo metadata: ${exif.latitude.toFixed(4)}, ${exif.longitude.toFixed(4)}`,
+          description: `Photo metadata: ${lat.toFixed(4)}, ${lng.toFixed(4)}`,
         });
       } else {
         setExifData({ hasGps: false });
+        setExifCrossValidation(null);
       }
     } catch (err) {
       console.warn("EXIF extraction notice:", err);
       setExifData({ hasGps: false });
+      setExifCrossValidation(null);
     }
 
     // 2. Automated AI Botanical Vision Screening
@@ -337,36 +352,7 @@ export const FieldReportSubmissionWizard = ({
     setSubmitting(true);
 
     try {
-      // 1. Upload photo to Supabase Storage
-      let uploadedPhotoUrl: string | null = null;
-      if (photoFile) {
-        try {
-          const compressed = await compressImage(photoFile, 1400, 0.8);
-          const storageKey = `projects/${selectedProjectId}/field-audit-${Date.now()}.jpg`;
-          const { data: uploadRes, error: uploadErr } = await supabase.storage
-            .from("treebank")
-            .upload(storageKey, compressed, { upsert: true });
-
-          if (!uploadErr && uploadRes) {
-            uploadedPhotoUrl = uploadRes.path;
-          }
-        } catch (storageErr) {
-          console.warn("Storage upload notice:", storageErr);
-        }
-      }
-
-      // 2. Build Silvicultural Notes
-      const interventionList: string[] = [];
-      if (interventions.dripRescue) interventionList.push("Urgent Drip Irrigation Needed");
-      if (interventions.weedClearing) interventionList.push("Manual Ring Weeding Required");
-      if (interventions.bioMulch) interventionList.push("Organic Bio-Mulch Application");
-      if (interventions.pestTreatment) interventionList.push("Organic Bio-Pesticide (NSKE 5%)");
-      if (interventions.fencingRepair) interventionList.push("Bamboo Tree Guard Reinforcement");
-
-      const compiledNotes = `[5% Spot Audit] Species: ${dominantSpecies}, Avg Height: ${averageHeightCm}cm. Living: ${livingCount}, Stressed: ${stressedCount}, Dead: ${deadCount}. Interventions: ${interventionList.length > 0 ? interventionList.join(", ") : "Normal Growth"}. Observations: ${generalNotes} (Auditor: ${auditorName} [${auditorRole}])`;
-
-      // 3. Submit via backend service
-      const payload: FieldReportInput = {
+      const payload: FieldReportWorkflowInput = {
         projectId: selectedProjectId,
         projectName: selectedProject?.project_name,
         organizationName: selectedProject?.organization_name,
@@ -380,19 +366,32 @@ export const FieldReportSubmissionWizard = ({
         livingCount,
         stressedCount,
         deadCount,
-        photoUrl: uploadedPhotoUrl || photoPreview,
-        notes: compiledNotes,
+        dominantSpecies,
+        averageHeightCm: averageHeightCm ? Number(averageHeightCm) : undefined,
+        interventions,
+        photoFile,
+        photoUrl: photoPreview,
+        exifData: exifData
+          ? {
+              lat: exifData.lat,
+              lng: exifData.lng,
+              dateTime: exifData.dateTime,
+              hasGps: exifData.hasGps,
+            }
+          : undefined,
+        notes: generalNotes,
         capturedAt: new Date().toISOString(),
+        plotBoundary: selectedProject?.boundary,
       };
 
-      const result = await submitFieldSpotAuditReport(payload);
+      const result = await processFieldReportSubmissionWorkflow(payload);
 
       setSubmitting(false);
 
       if (result.success) {
         setSubmissionSuccess(result);
         toast({
-          title: "Field Report Submitted! 🌿",
+          title: "Field Report Processed! 🌿",
           description: `Ground survival rate recorded: ${result.survivalRatePct}%. Saved to Supabase database.`,
         });
         if (onSuccess) {
@@ -422,6 +421,7 @@ export const FieldReportSubmissionWizard = ({
     setPhotoFile(null);
     setPhotoPreview(null);
     setExifData(null);
+    setExifCrossValidation(null);
     setAiScreening({ running: false, valid: null });
   };
 
@@ -743,17 +743,39 @@ export const FieldReportSubmissionWizard = ({
                     <div className="p-3 rounded-xl bg-muted/40 border border-primary/15 flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2">
                         <MapPin className="h-4 w-4 text-primary shrink-0" />
-                        <span>
-                          EXIF Geotag:{" "}
-                          <strong>
+                        <div>
+                          <div className="font-semibold text-foreground">
+                            EXIF Geotag:{" "}
                             {exifData?.hasGps && exifData.lat && exifData.lng
                               ? `${exifData.lat.toFixed(4)}, ${exifData.lng.toFixed(4)}`
-                              : "Device GPS Applied"}
-                          </strong>
-                        </span>
+                              : "No Embedded EXIF GPS (Using Device Telemetry)"}
+                          </div>
+                          {exifCrossValidation && (
+                            <div className="text-[11px] text-muted-foreground mt-0.5">
+                              {exifCrossValidation.message}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">
-                        Verified
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] shrink-0 ${
+                          exifCrossValidation?.status === "matched"
+                            ? "border-emerald-500 text-emerald-600 bg-emerald-500/10"
+                            : exifCrossValidation?.status === "drift_warning"
+                            ? "border-amber-500 text-amber-600 bg-amber-500/10"
+                            : exifCrossValidation?.status === "fraud_spoofing_rejected"
+                            ? "border-rose-500 text-rose-600 bg-rose-500/10"
+                            : "border-primary/30 text-primary"
+                        }`}
+                      >
+                        {exifCrossValidation?.status === "matched"
+                          ? "GPS Match ✓"
+                          : exifCrossValidation?.status === "drift_warning"
+                          ? "Canopy Drift ⚠️"
+                          : exifCrossValidation?.status === "fraud_spoofing_rejected"
+                          ? "Spoofing Flag ❌"
+                          : "Device GPS"}
                       </Badge>
                     </div>
 
