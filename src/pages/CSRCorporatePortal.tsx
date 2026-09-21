@@ -33,6 +33,7 @@ import { ESGReportModal } from "@/components/ESGReportModal";
 import { CarbonCertificateModal } from "@/components/CarbonCertificateModal";
 import { B2BRoleGate, RoleBadge } from "@/components/B2BRoleGate";
 import { isAuditExportEligible, B2BRole } from "@/lib/b2bAccessControl";
+import { IpccCarbonCreditModeler } from "@/components/IpccCarbonCreditModeler";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -311,6 +312,16 @@ export default function CSRCorporatePortal() {
           </CardContent>
         </Card>
       </div>
+
+      {/* IPCC Tier-2 Allometric Carbon Credit & Sequestration Engine */}
+      <IpccCarbonCreditModeler
+        initialPlantedTrees={totalTreesPlanted > 0 ? totalTreesPlanted : 5200}
+        initialSurvivalRate={portfolioAvgSurvival > 0 ? portfolioAvgSurvival : 95}
+        initialAgeYears={3.0}
+        initialSpeciesKey="mixed_native"
+        projectName="Tata Sustainability & ACIC Institutional Portfolio"
+        organizationName="ACIC ESG Afforestation Fund"
+      />
 
       {/* Main Portfolio Registry & Deep Audits */}
       <div className="space-y-4">

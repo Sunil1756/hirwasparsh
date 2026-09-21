@@ -32,6 +32,7 @@ import { RoleBadge } from "@/components/B2BRoleGate";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { isProjectOwner, canEditProject } from "@/lib/projectOwnership";
+import { IpccCarbonCreditModeler } from "@/components/IpccCarbonCreditModeler";
 
 interface NGOPlot {
   id: string;
@@ -275,6 +276,16 @@ export default function NGOWorkspacePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* IPCC Tier-2 Allometric Carbon Credit & Sequestration Engine */}
+      <IpccCarbonCreditModeler
+        initialPlantedTrees={totalTargetTrees > 0 ? totalTargetTrees : 2550}
+        initialSurvivalRate={totalTargetTrees > 0 ? Math.round((totalVerified / totalTargetTrees) * 100) : 92}
+        initialAgeYears={2.5}
+        initialSpeciesKey="mixed_native"
+        projectName="ACIC NGO Operator Stand"
+        organizationName="ACIC Afforestation Operators"
+      />
 
       {/* Parcel Portfolio & Field Workflows */}
       <div className="space-y-4">
