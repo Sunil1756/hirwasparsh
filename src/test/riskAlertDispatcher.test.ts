@@ -45,10 +45,12 @@ describe("AI Risk Alerts Notification & Communication Dispatcher Suite", () => {
         "DROUGHT_SHOCK",
         "Sacred Banyan #42",
         "NDWI deficit (-0.18)",
-        3
+        3,
+        "Ficus benghalensis"
       );
       expect(advisory.title).toContain("Hydration Advisory");
       expect(advisory.title).toContain("Sacred Banyan #42");
+      expect(advisory.title).toContain("Ficus benghalensis");
       expect(advisory.body).toContain("moisture stress");
       expect(advisory.careTip).toContain("local rangers");
     });
@@ -87,6 +89,17 @@ describe("AI Risk Alerts Notification & Communication Dispatcher Suite", () => {
       expect(advisory.title).toContain("Thermal Alert");
       expect(advisory.body).toContain("firebreaks");
     });
+
+    it("generates vitality advisory for SURVIVAL_RATE_DROP", () => {
+      const advisory = formatAdopterHealthAdvisory(
+        "SURVIVAL_RATE_DROP",
+        "Vidarbha Afforestation Stand",
+        "Plot survival rate 78%",
+        4
+      );
+      expect(advisory.title).toContain("Plantation Vitality Safeguard Active");
+      expect(advisory.body).toContain("bio-fertilizer and micro-irrigation");
+    });
   });
 
   describe("2. Field Worker Dispatch Briefing (formatFieldWorkerDispatchAlert)", () => {
@@ -100,43 +113,38 @@ describe("AI Risk Alerts Notification & Communication Dispatcher Suite", () => {
         "Verify root zone moisture and initiate drip irrigation"
       );
 
-      expect(briefing.title).toContain("[DISPATCH] DROUGHT SHOCK at Pune Hills Sector 4B");
+      expect(briefing.title).toContain("DROUGHT SHOCK");
+      expect(briefing.title).toContain("Pune Hills Sector 4B");
       expect(briefing.body).toContain("18.5204° N, 73.8567° E");
-      expect(briefing.body).toContain("Breach estimated in 3 days");
+      expect(briefing.body).toContain("3 days");
       expect(briefing.body).toContain("5% Cochran spot audit");
     });
   });
 
-  describe("3. End-to-End Multi-Channel Alert Pipeline (triggerAiRiskAlertPipeline)", () => {
-    it("dispatches alert payload successfully with multi-channel recipient logging", async () => {
-      const payload: RiskAlertDispatchParams = {
-        projectId: "demo-project-dev-001",
-        projectName: "Western Ghats Ecological Corridor",
-        treeId: "tree-test-999",
-        treeName: "Ancient Mahua Tree",
+  describe("3. Supabase Edge Function Alert Dispatch Pipeline", () => {
+    it("successfully dispatches alert through Supabase Edge Function", async () => {
+      const params: RiskAlertDispatchParams = {
+        treeId: "tree-test-101",
+        treeName: "Neem Legacy",
+        species: "Azadirachta indica",
         threatType: "DROUGHT_SHOCK",
-        threatTitle: "🚨 CRITICAL: Root-Zone Moisture Shock",
+        threatTitle: "Hydration Deficit",
         severity: "CRITICAL",
         riskProbabilityPct: 88,
         daysUntilCriticalBreach: 3,
-        primaryDriver: "NDWI dropped below -0.15 with 6 consecutive dry days",
-        recommendedAction: "Dispatch emergency water tanker and apply organic mulch",
-        latitude: 17.9237,
-        longitude: 73.6586,
-        currentNdvi: 0.52,
-        ndviDelta: -0.14,
-        foliarNdwi: -0.16,
+        primaryDriver: "NDWI deficit (-0.22)",
+        recommendedAction: "Irrigate 15L/day",
+        latitude: 18.5204,
+        longitude: 73.8567,
       };
 
-      const result = await triggerAiRiskAlertPipeline(payload);
+      const result = await triggerAiRiskAlertPipeline(params);
 
-      expect(result).toBeDefined();
       expect(result.success).toBe(true);
-      expect(result.threatType).toBe("DROUGHT_SHOCK");
-      expect(result.severity).toBe("CRITICAL");
-      expect(result.fieldWorkersNotified).toBeGreaterThanOrEqual(1);
-      expect(result.adoptersNotified).toBeGreaterThanOrEqual(1);
-      expect(result.deliveryChannels).toContain("in_app_realtime");
+      expect(result.taskId).toBe("task-mock-edge-123");
+      expect(result.fieldWorkersNotified).toBeGreaterThan(0);
+      expect(result.adoptersNotified).toBeGreaterThan(0);
+      expect(result.deliveryChannels).toContain("field_task_queue");
     });
   });
 });

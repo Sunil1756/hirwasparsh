@@ -35,6 +35,7 @@ import {
   getQueuedOfflineFieldReportsCount,
   syncQueuedOfflineFieldReports,
 } from "@/lib/fieldReportBackendService";
+import { RiskAlertNotificationBanner } from "@/components/RiskAlertNotificationBanner";
 import { Link } from "react-router-dom";
 
 export default function FieldWorkerDashboard() {
@@ -233,6 +234,15 @@ export default function FieldWorkerDashboard() {
               </Button>
             </div>
           </div>
+
+          {/* Real-Time Automated AI Risk Dispatch Alerts */}
+          <RiskAlertNotificationBanner
+            role="field_worker"
+            onSelectAction={() => {
+              setSelectedProjectId("demo-project-dev-001");
+              setWizardOpen(true);
+            }}
+          />
 
           {/* AI Sentinel-2 Anomaly Alert Banner */}
           <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-amber-500/15 border-2 border-amber-500/30 shadow-md">

@@ -13,6 +13,8 @@ export type ThreatType =
   | "ENCROACHMENT_CLEARING"
   | "WILDFIRE_SUSCEPTIBILITY"
   | "SOIL_SALINIZATION"
+  | "SURVIVAL_RATE_DROP"
+  | "CANOPY_HEALTH_ANOMALY"
   | "STABLE_CANOPY"
   | "CANOPY_ACCRETION";
 
@@ -31,6 +33,8 @@ export interface AnomalyAlertPayload {
   severity: ThreatSeverity;
   riskProbabilityPct: number;
   daysUntilCriticalBreach?: number | null;
+  survivalRatePct?: number;
+  survivalRateDropPct?: number;
   primaryDriver: string;
   scientificExplanation?: string;
   recommendedAction: string;
@@ -71,10 +75,11 @@ serve(async (req) => {
     let adoptersNotified = 0;
     const notificationsCreated: any[] = [];
 
-    // 1. AUTO-GENERATE FIELD WORKER TASK
+    // 1. AUTO-GENERATE FIELD WORKER TASK IN `field_tasks`
     try {
+      const locationLabel = payload.plotName || payload.projectName || (payload.latitude ? `${payload.latitude.toFixed(4)}°, ${payload.longitude?.toFixed(4)}°` : "Monitored Stand");
       const taskTitle = `🚨 [${payload.severity}] ${payload.threatTitle.replace(/^[^\w]+/, "").trim()}`;
-      const taskDesc = `Anomaly Driver: ${payload.primaryDriver}\n\nRecommended Action: ${payload.recommendedAction}\n\nCoordinates: ${payload.latitude ?? "N/A"}°, ${payload.longitude ?? "N/A"}°\nLead Time: ${leadDays} days until critical threshold breach.`;
+      const taskDesc = `Target Sector: ${locationLabel}\nAnomaly Driver: ${payload.primaryDriver}\n\nRecommended Action: ${payload.recommendedAction}\n\nCoordinates: ${payload.latitude ?? "N/A"}°, ${payload.longitude ?? "N/A"}°\nLead Time: ${leadDays} days until critical threshold breach.\nProtocol: Perform 5% Cochran random spot audit and upload ground validation photogrammetry.`;
 
       const { data: taskData, error: taskErr } = await supabase
         .from("field_tasks")
@@ -90,6 +95,8 @@ serve(async (req) => {
             threat_type: payload.threatType,
             severity: payload.severity,
             risk_probability_pct: payload.riskProbabilityPct,
+            survival_rate_pct: payload.survivalRatePct,
+            survival_rate_drop_pct: payload.survivalRateDropPct,
             latitude: payload.latitude,
             longitude: payload.longitude,
             current_ndvi: payload.currentNdvi,
@@ -97,6 +104,7 @@ serve(async (req) => {
             foliar_ndwi: payload.foliarNdwi,
             project_id: payload.projectId,
             tree_id: payload.treeId,
+            species: payload.species,
             source: "ai_risk_alert_dispatcher_edge_function",
           },
         })
@@ -110,9 +118,8 @@ serve(async (req) => {
       console.warn("Could not insert into field_tasks:", taskEx);
     }
 
-    // 2. DISPATCH NOTIFICATION FOR FIELD WORKERS
+    // 2. DISPATCH TACTICAL DISPATCH NOTIFICATIONS FOR FIELD WORKERS
     try {
-      // Find field workers or rangers in database
       const { data: fieldWorkers } = await supabase
         .from("profiles")
         .select("id, full_name, role")
@@ -125,7 +132,7 @@ serve(async (req) => {
           user_id: worker.id,
           type: "field_anomaly_dispatch",
           title: `⚠️ Operational Alert: ${payload.threatTitle}`,
-          body: `Satellite anomaly detected at ${payload.plotName || payload.projectName || "Plantation Sector"}. Urgent field inspection & 5% spot audit recommended within ${leadDays} days.`,
+          body: `Anomaly detected at ${payload.plotName || payload.projectName || "Monitored Stand"}. Urgent field inspection & 5% spot audit recommended within ${leadDays} days. Action: ${payload.recommendedAction}`,
           read: false,
           data: {
             task_id: createdTaskId,
@@ -148,7 +155,7 @@ serve(async (req) => {
       console.warn("Could not notify field workers:", workerEx);
     }
 
-    // 3. DISPATCH PROACTIVE ADVISORY FOR TREE ADOPTERS
+    // 3. DISPATCH PROACTIVE & REASSURING ADVISORY FOR TREE ADOPTERS
     try {
       let adopterUserIds: string[] = [];
 
@@ -166,13 +173,13 @@ serve(async (req) => {
           .from("trees")
           .select("user_id")
           .eq("project_id", payload.projectId)
-          .limit(20);
+          .limit(30);
         if (projectTrees) {
           adopterUserIds = Array.from(new Set(projectTrees.map((t: any) => t.user_id).filter(Boolean)));
         }
       }
 
-      // If no specific adopter found, target all adopter profiles
+      // Fallback: notify active community adopters if no specific tree owner found
       if (adopterUserIds.length === 0) {
         const { data: adopters } = await supabase
           .from("profiles")
@@ -184,9 +191,18 @@ serve(async (req) => {
         }
       }
 
-      // Construct reassuring, actionable advisory
-      const adopterTitle = `🌿 Care Update: Monitoring for ${payload.treeName || "Your Adopted Plantation"}`;
-      const adopterBody = `Our Sentinel-2 AI satellite telemetry noticed a slight environmental variation (${payload.primaryDriver}) in your tree's sector. A field scout has already been dispatched for hydration care. Your tree is actively safeguarded!`;
+      // Species-specific or threat-specific care guidance
+      const speciesName = payload.species || "Tree";
+      let adopterTitle = `🌿 Care Update: Monitoring for ${payload.treeName || "Your Adopted Tree"}`;
+      let adopterBody = `Our Sentinel-2 AI satellite telemetry noticed a slight environmental variation (${payload.primaryDriver}) in your tree's sector. A field scout has already been dispatched with priority care. Your tree is actively safeguarded!`;
+
+      if (payload.threatType === "DROUGHT_SHOCK") {
+        adopterTitle = `💧 Hydration Care Active: ${payload.treeName || speciesName}`;
+        adopterBody = `Satellite sensors detected temporary dry soil conditions. Emergency drip irrigation & bio-mulch application have been assigned to local ground rangers.`;
+      } else if (payload.threatType === "SURVIVAL_RATE_DROP") {
+        adopterTitle = `🛡️ Stand Health Protection: ${payload.projectName || "Plantation"}`;
+        adopterBody = `Telemetry flagged a localized vitality change. Dedicated forestry scouts are conducting on-site nourishment and sapling replenishment.`;
+      }
 
       for (const userId of adopterUserIds) {
         const adopterNotif = {
@@ -198,6 +214,7 @@ serve(async (req) => {
           data: {
             tree_id: payload.treeId,
             tree_name: payload.treeName,
+            species: payload.species,
             threat_type: payload.threatType,
             severity: payload.severity,
             action_route: payload.treeId ? `/tree/${payload.treeId}` : "/adopter",

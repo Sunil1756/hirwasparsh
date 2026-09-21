@@ -34,6 +34,7 @@ import { useToast } from "@/hooks/use-toast";
 import { QRCodeSVG } from "qrcode.react";
 import { Link } from "react-router-dom";
 import { TreeNdviSatelliteViewer } from "@/components/TreeNdviSatelliteViewer";
+import { RiskAlertNotificationBanner } from "@/components/RiskAlertNotificationBanner";
 
 export default function TreeAdopterDashboard() {
   const { user } = useAuth();
@@ -208,6 +209,9 @@ export default function TreeAdopterDashboard() {
               </Badge>
             </div>
           </div>
+
+          {/* Real-time AI Risk Alert & Health Notification Stream */}
+          <RiskAlertNotificationBanner role="adopter" />
 
           {/* Personal Eco-Impact Wallet Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">

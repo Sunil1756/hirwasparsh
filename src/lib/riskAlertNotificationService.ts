@@ -20,6 +20,8 @@ export interface RiskAlertDispatchParams {
   severity: ThreatSeverity;
   riskProbabilityPct: number;
   daysUntilCriticalBreach?: number | null;
+  survivalRatePct?: number;
+  survivalRateDropPct?: number;
   primaryDriver: string;
   scientificExplanation?: string;
   recommendedAction: string;
@@ -49,18 +51,20 @@ export function formatAdopterHealthAdvisory(
   threatType: ThreatType,
   treeName: string = "Your Adopted Tree",
   primaryDriver: string = "environmental change",
-  leadDays: number = 7
+  leadDays: number = 7,
+  species?: string
 ): { title: string; body: string; careTip: string } {
+  const speciesText = species ? ` (${species})` : "";
   switch (threatType) {
     case "DROUGHT_SHOCK":
       return {
-        title: `💧 Hydration Advisory for ${treeName}`,
-        body: `Sentinel-2 satellites observed elevated moisture stress in your tree's sector (${primaryDriver}). A field ranger has been dispatched to inspect soil moisture and provide irrigation care.`,
+        title: `💧 Hydration Advisory for ${treeName}${speciesText}`,
+        body: `Sentinel-2 satellites observed elevated moisture stress in your tree's sector (${primaryDriver}). A field ranger has been dispatched to inspect soil moisture and provide emergency irrigation care.`,
         careTip: "No action required from you — local rangers have prioritized this waypoint!",
       };
     case "PEST_DEFOLIATION":
       return {
-        title: `🐛 Canopy Health Check-In for ${treeName}`,
+        title: `🐛 Canopy Health Check-In for ${treeName}${speciesText}`,
         body: `Subtle foliage variations were spotted during the recent satellite pass. A ground scout is conducting a 5% spot audit to check for seasonal pests and apply organic protection if needed.`,
         careTip: "We are tracking the recovery curve via weekly satellite passes.",
       };
@@ -76,9 +80,21 @@ export function formatAdopterHealthAdvisory(
         body: `High surface temperatures detected in the regional perimeter. Preventive firebreaks and moisture spraying have been activated.`,
         careTip: "Automatic satellite thermal monitoring is scanning every 24 hours.",
       };
+    case "SURVIVAL_RATE_DROP":
+      return {
+        title: `🛡️ Plantation Vitality Safeguard Active`,
+        body: `Our AI health telemetry identified a localized vitality adjustment in the plantation sector (${primaryDriver}). Dedicated ground workers are providing bio-fertilizer and micro-irrigation.`,
+        careTip: "Your tree's vital status is continuously monitored in your Tree Adopter dashboard.",
+      };
+    case "SOIL_SALINIZATION":
+      return {
+        title: `🌊 Soil Balance Advisory for ${treeName}`,
+        body: `Telemetry noted seasonal drainage retention near the root zone. Field scouts are aerating the subsoil and adjusting drainage channels.`,
+        careTip: "Root health metrics will refresh after the next ground survey pass.",
+      };
     default:
       return {
-        title: `🌱 Health Update for ${treeName}`,
+        title: `🌱 Health Update for ${treeName}${speciesText}`,
         body: `Routine satellite scan completed. Telemetry reflects active monitoring: ${primaryDriver}.`,
         careTip: "Check your Digital Tree Passport for recent growth statistics!",
       };
@@ -156,6 +172,8 @@ export async function triggerAiRiskAlertPipeline(
             threat_type: params.threatType,
             severity: params.severity,
             risk_probability_pct: params.riskProbabilityPct,
+            survival_rate_pct: params.survivalRatePct,
+            survival_rate_drop_pct: params.survivalRateDropPct,
             latitude: params.latitude,
             longitude: params.longitude,
             source: "risk_alert_notification_service",
@@ -181,7 +199,8 @@ export async function triggerAiRiskAlertPipeline(
       params.threatType,
       params.treeName,
       params.primaryDriver,
-      leadDays
+      leadDays,
+      params.species
     );
 
     // Insert Field Worker Notification
