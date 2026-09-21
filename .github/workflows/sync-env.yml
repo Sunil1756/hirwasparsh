@@ -1,0 +1,45 @@
+name: Sync Environment Variables to Vercel
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_env:
+        description: "Target Vercel environment(s) to synchronize"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - production
+          - preview
+          - development
+
+jobs:
+  sync-environment:
+    name: Sync GitHub Secrets to Vercel Environment Variables
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Execute Vercel Environment Sync Script
+        run: node scripts/sync-vercel-env.mjs
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          SYNC_TARGET_ENV: ${{ github.event.inputs.target_env || 'all' }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+          VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
