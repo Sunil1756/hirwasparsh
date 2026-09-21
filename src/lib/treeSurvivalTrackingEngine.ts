@@ -125,7 +125,8 @@ export function evaluateTreeSurvivalStatus(
     else if (status === "dead") auditBase = 0;
     else if (status === "unverified") auditBase = 50;
 
-    const confFactor = (aiConfidence ?? 90) / 100;
+    const rawConf = aiConfidence ?? 90;
+    const confFactor = rawConf > 1 ? rawConf / 100 : rawConf;
     groundTruthScore = Math.round(auditBase * recencyDecay * confFactor);
     hasRecentAudit = daysSinceAudit <= 60;
   }

@@ -269,3 +269,44 @@ Return ONLY a valid JSON object with EXACTLY this structure:
     };
   }
 }
+
+/**
+ * Computes a standardized composite AI verification score and automated approval decision.
+ */
+export function calculateCompositeAiVerificationScore(result: BotanicalAiAnalysisResult): {
+  compositeScore: number;
+  isAutoApproved: boolean;
+  routingDecision: "auto_approved" | "manual_review_queue" | "fraud_rejected";
+  rationale: string;
+} {
+  const confidenceComponent = (result.confidenceScore || 0.8) * 70;
+  const healthComponent = (result.crownHealthScore || 70) * 0.3;
+  const fraudPenalty = (result.fraudRiskScore || 0) * 0.5;
+
+  const compositeScore = Math.max(0, Math.min(100, Math.round(confidenceComponent + healthComponent - fraudPenalty)));
+
+  if (!result.isLivingTree || result.vitalityStatus === "not_a_tree_fraud" || result.fraudRiskScore >= 50) {
+    return {
+      compositeScore,
+      isAutoApproved: false,
+      routingDecision: "fraud_rejected",
+      rationale: "Photo flagged as non-plant object, synthetic material, or duplicate image.",
+    };
+  }
+
+  if (compositeScore >= 70 && result.fraudRiskScore < 25) {
+    return {
+      compositeScore,
+      isAutoApproved: true,
+      routingDecision: "auto_approved",
+      rationale: "High-confidence taxonomic match and genuine living tree structure verified.",
+    };
+  }
+
+  return {
+    compositeScore,
+    isAutoApproved: false,
+    routingDecision: "manual_review_queue",
+    rationale: "Moderate confidence or borderline health score requires forestry supervisor review.",
+  };
+}
