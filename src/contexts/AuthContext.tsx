@@ -7,6 +7,7 @@ import {
   resolvePrimaryRole,
   hasRbacPermission,
 } from "@/lib/rbacService";
+import { identifyUser, resetUser } from "@/lib/analytics";
 
 type UserRole = "admin" | "moderator" | "user" | "government" | "field_worker" | "tree_adopter";
 
@@ -112,10 +113,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setTimeout(() => {
             fetchRoles(session.user.id);
             syncUserProfile(session.user);
+            identifyUser(session.user.id, {
+              role: session.user.user_metadata?.account_type || "individual",
+              organization_name: session.user.user_metadata?.organization_name,
+            });
           }, 0);
         } else {
           setRoles([]);
           setProfileRole(null);
+          resetUser();
         }
       }
     );
@@ -127,6 +133,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (session?.user) {
         fetchRoles(session.user.id);
         syncUserProfile(session.user);
+        identifyUser(session.user.id, {
+          role: session.user.user_metadata?.account_type || "individual",
+          organization_name: session.user.user_metadata?.organization_name,
+        });
       }
     });
 
@@ -137,6 +147,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await supabase.auth.signOut();
     setRoles([]);
     setProfileRole(null);
+    resetUser();
   };
 
   const primaryRole = resolvePrimaryRole(roles, profileRole);

@@ -10,6 +10,7 @@ import Footer from "@/components/Footer";
 import RoleProtectedRoute from "@/components/RoleProtectedRoute";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { AnalyticsTracker } from "@/lib/analytics";
 
 // Lazy-loaded pages to eliminate blank-screen render blocking and minimize initial bundle size
 const Index = lazy(() => import("./pages/Index"));
@@ -54,6 +55,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <AnalyticsTracker />
           <AuthProvider>
             <Navbar />
             <Suspense fallback={<PageLoadingFallback />}>
