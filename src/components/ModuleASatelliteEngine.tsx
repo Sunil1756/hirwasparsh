@@ -90,6 +90,10 @@ import {
   computeMultiSourceConfidenceScore,
   MultiSourceConfidenceResult,
 } from "@/lib/multiSourceConfidenceEngine";
+import {
+  validateGpsCoordinates,
+  syncCoordinateSatelliteTelemetry,
+} from "@/lib/geospatialSatelliteService";
 
 interface TreeRecord {
   id: string;
@@ -899,6 +903,106 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
     [activeSpectral, selectedZone.name, toast]
   );
 
+  const [isLocatingGps, setIsLocatingGps] = useState(false);
+
+  // Live GPS Coordinate Tracker & Satellite Telemetry Sync
+  const handleLocateUserGps = useCallback(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      toast({
+        title: "GPS Unavailable",
+        description: "Geolocation is not supported by your browser environment.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLocatingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        setIsLocatingGps(false);
+        const { latitude, longitude, accuracy, altitude } = pos.coords;
+        const validation = validateGpsCoordinates({
+          latitude,
+          longitude,
+          accuracyMeters: accuracy,
+          elevationMeters: altitude || undefined,
+        });
+
+        if (!validation.isValid) {
+          toast({
+            title: "Invalid GPS Fix",
+            description: validation.errors[0] || "Could not validate coordinates.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        setMapCenter([validation.latitude, validation.longitude]);
+        setMapZoom(17);
+
+        try {
+          const { scene } = await syncCoordinateSatelliteTelemetry(
+            validation.latitude,
+            validation.longitude
+          );
+          setInspectedTelemetry({
+            plotName: "Current GPS Location",
+            tileId: scene.tileId,
+            satelliteSource: scene.satelliteSource,
+            acquisitionDate: scene.acquisitionDate,
+            cloudCoverPct: scene.cloudCoverPct,
+            centerLat: scene.centerLat,
+            centerLng: scene.centerLng,
+            latitude: scene.centerLat,
+            longitude: scene.centerLng,
+            elevationM: scene.elevationM,
+            b02Blue: scene.bands.b02Blue,
+            b03Green: scene.bands.b03Green,
+            b04Red: scene.bands.b04Red,
+            b05RedEdge: scene.bands.b05RedEdge,
+            b08Nir: scene.bands.b08Nir,
+            b11Swir: scene.bands.b11Swir,
+            ndvi: scene.indices.ndvi,
+            ndre: scene.indices.ndre,
+            ndwi: scene.indices.ndwi,
+            evi: scene.indices.evi,
+            savi: scene.indices.savi,
+            surfaceTempC: scene.indices.surfaceTempC,
+            chlorophyllDensityUgCm2: scene.indices.chlorophyllDensityUgCm2,
+            canopyCoveragePct: scene.indices.canopyCoveragePct,
+            biomassCarbonMTPerHa: scene.indices.standingBiomassMTPerHa,
+            totalCarbonStockCo2eMT: Math.round(scene.indices.standingBiomassMTPerHa * 1.72 * 10) / 10,
+            soilMoisturePct: scene.agroWeather?.soilMoisture0to7cmPct ?? 30,
+            classification: scene.indices.ndvi >= 0.65 ? "Dense Healthy Canopy (High Vigor)" : scene.indices.ndvi >= 0.45 ? "Moderate Growth" : "Barren / Non-Vegetated Terrain",
+            healthDiagnosis: `Sentinel-2 L2A telemetry retrieved for GPS waypoint (${validation.latitude.toFixed(4)}°N, ${validation.longitude.toFixed(4)}°E). Accuracy: ±${validation.accuracyMeters || 5}m.`,
+            recommendation: "Live GPS lock verified and synced to satellite telemetry.",
+            isLiveSatelliteData: true,
+          } as any);
+
+          toast({
+            title: `📍 GPS Locked: ${validation.latitude.toFixed(4)}°N, ${validation.longitude.toFixed(4)}°E`,
+            description: `NDVI: ${scene.indices.ndvi} | Accuracy: ±${validation.accuracyMeters || 5}m | Tile: ${scene.tileId}`,
+          });
+        } catch (err: any) {
+          toast({
+            title: "Satellite Sync Error",
+            description: err?.message || "Failed to fetch satellite telemetry.",
+            variant: "destructive",
+          });
+        }
+      },
+      (err) => {
+        setIsLocatingGps(false);
+        toast({
+          title: "GPS Location Error",
+          description: err.message || "Failed to acquire GPS fix. Please check location permissions.",
+          variant: "destructive",
+        });
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }, [toast]);
+
   // Handle Preset or Real Project Selection
   const handleSelectZone = async (zone: AgroforestryPresetZone) => {
     setSelectedZone(zone);
@@ -1034,6 +1138,16 @@ Please provide:
                 }}
               />
             </div>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleLocateUserGps}
+              disabled={isLocatingGps}
+              className="h-9 text-xs rounded-xl gap-1.5 shadow-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <MapPin className="h-3.5 w-3.5" />
+              {isLocatingGps ? "Acquiring GPS..." : "📍 My GPS & Sync"}
+            </Button>
             <Button
               variant="outline"
               size="sm"

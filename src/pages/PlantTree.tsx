@@ -16,6 +16,7 @@ import { computeImageDHash, evaluatePhotoDuplicateFraud } from "@/lib/perceptual
 import { detectSpeciesAI, screenTreeImageWithAI, verifyTreeWithGeminiAI } from "@/lib/gemini";
 import { enqueueOfflineTree } from "@/lib/offlineSyncService";
 import { VernacularVoiceAssistant } from "@/components/VernacularVoiceAssistant";
+import { validateGpsCoordinates, syncCoordinateSatelliteTelemetry } from "@/lib/geospatialSatelliteService";
 
 type NearbyTree = {
   id: string; tree_name: string; species: string; user_id: string;
@@ -419,6 +420,9 @@ const PlantTree = () => {
           photo_hash: photoHash,
           phash: dhashFingerprint || null,
           health_status: "healthy",
+          survival_status: "alive",
+          survival_probability_pct: 95.0,
+          gps_accuracy_meters: gpsAccuracy ?? 5.0,
           exif_timestamp: new Date().toISOString(),
           ai_detected_species: speciesDetection?.common_name || null,
           ai_scientific_name: speciesDetection?.scientific_name || null,
@@ -430,6 +434,10 @@ const PlantTree = () => {
       if (insertError) throw insertError;
 
       if (tree) {
+        // Asynchronously sync Sentinel-2 satellite baseline for the newly planted GPS coordinate
+        if (latitude != null && longitude != null) {
+          syncCoordinateSatelliteTelemetry(latitude, longitude, (tree as any).id).catch(() => {});
+        }
         setVerifying(true);
         setSubmitted(true);
         try {
