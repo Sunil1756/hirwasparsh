@@ -19,7 +19,7 @@ export const RoleProtectedRoute = ({
   requiredPermission,
   fallbackUrl = "/login",
 }: RoleProtectedRouteProps) => {
-  const { user, loading, activeRole, can, switchSimulatedRole } = useAuth();
+  const { user, loading, activeRole, can, signOut } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -56,7 +56,6 @@ export const RoleProtectedRoute = ({
 
   if (!isAuthorized) {
     const activeRoleDef = APP_ROLES[activeRole];
-    const targetRole = Array.isArray(requiredRole) ? requiredRole[0] : requiredRole;
 
     return (
       <div className="min-h-screen pt-24 pb-16 flex items-center justify-center px-4">
@@ -68,13 +67,17 @@ export const RoleProtectedRoute = ({
           <div className="space-y-1.5">
             <h2 className="font-heading text-2xl font-bold text-foreground">Access Restricted</h2>
             <p className="text-xs text-muted-foreground">
-              Your active role does not possess the permissions required to view this dashboard.
+              Your account role does not have permission to view this restricted administration console.
             </p>
           </div>
 
           <div className="p-3.5 rounded-2xl bg-muted/50 border text-left text-xs space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Current Active Role:</span>
+              <span className="text-muted-foreground">Signed in as:</span>
+              <span className="font-medium text-foreground">{user.email}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Current Role:</span>
               <Badge className={activeRoleDef?.colorClass || ""}>
                 {activeRoleDef?.displayName || activeRole}
               </Badge>
@@ -96,16 +99,14 @@ export const RoleProtectedRoute = ({
               </Button>
             </Link>
 
-            {targetRole && (
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => switchSimulatedRole(targetRole)}
-                className="flex-1 rounded-xl text-xs gap-1.5 shadow-sm"
-              >
-                <RefreshCw className="h-3.5 w-3.5" /> Switch to {targetRole}
-              </Button>
-            )}
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={signOut}
+              className="flex-1 rounded-xl text-xs gap-1.5 shadow-sm"
+            >
+              Sign Out
+            </Button>
           </div>
         </div>
       </div>

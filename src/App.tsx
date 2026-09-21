@@ -7,7 +7,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import RBACRoleSwitcherBar from "@/components/RBACRoleSwitcherBar";
 import RoleProtectedRoute from "@/components/RoleProtectedRoute";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { LanguageProvider } from "@/contexts/LanguageContext";
@@ -74,10 +73,10 @@ const App = () => (
                 <Route path="/tree-map" element={<TreeMap />} />
                 <Route path="/analytics" element={<Navigate to="/intelligence" replace />} />
                 <Route path="/leaderboard" element={<Leaderboard />} />
-                <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin" element={<RoleProtectedRoute requiredRole="admin"><AdminDashboard /></RoleProtectedRoute>} />
                 <Route path="/admin-login" element={<AdminDashboard />} />
-                <Route path="/admin/audit-log" element={<AdminAuditLog />} />
-                <Route path="/government" element={<GovernmentDashboard />} />
+                <Route path="/admin/audit-log" element={<RoleProtectedRoute requiredRole="admin"><AdminAuditLog /></RoleProtectedRoute>} />
+                <Route path="/government" element={<RoleProtectedRoute requiredRole={["government", "admin"]}><GovernmentDashboard /></RoleProtectedRoute>} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/tree/:id" element={<TreeProfile />} />
@@ -97,7 +96,6 @@ const App = () => (
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
-            <RBACRoleSwitcherBar />
             <Footer />
           </AuthProvider>
         </BrowserRouter>

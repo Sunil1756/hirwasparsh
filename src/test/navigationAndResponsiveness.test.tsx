@@ -91,9 +91,8 @@ describe("Navigation, RBAC Routing & Multi-Device Responsiveness Suite", () => {
     });
   });
 
-  describe("2. RBAC Role Switcher Bar", () => {
-    it("renders role simulation options when user is signed in", () => {
-      // Mock authenticated user context
+  describe("2. RBAC Persona Simulator Removal & Strict Route Protection", () => {
+    it("ensures RBAC Persona Simulator renders null and is completely deactivated", () => {
       const TestComponent = () => {
         const queryClient = createTestQueryClient();
         return (
@@ -110,7 +109,7 @@ describe("Navigation, RBAC Routing & Multi-Device Responsiveness Suite", () => {
       };
 
       const { container } = render(<TestComponent />);
-      expect(container).toBeDefined();
+      expect(container.firstChild).toBeNull();
     });
   });
 

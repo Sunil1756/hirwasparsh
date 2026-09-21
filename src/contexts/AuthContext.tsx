@@ -17,13 +17,11 @@ type AuthContextType = {
   roles: UserRole[];
   primaryRole: AppRole;
   activeRole: AppRole;
-  activeRoleOverride: AppRole | null;
   isAdmin: boolean;
   isFieldWorker: boolean;
   isTreeAdopter: boolean;
   isGovernment: boolean;
   can: (permission: RbacPermission) => boolean;
-  switchSimulatedRole: (role: AppRole | null) => void;
   signOut: () => Promise<void>;
 };
 
@@ -34,13 +32,11 @@ const AuthContext = createContext<AuthContextType>({
   roles: [],
   primaryRole: "tree_adopter",
   activeRole: "tree_adopter",
-  activeRoleOverride: null,
   isAdmin: false,
   isFieldWorker: false,
   isTreeAdopter: true,
   isGovernment: false,
   can: () => false,
-  switchSimulatedRole: () => {},
   signOut: async () => {},
 });
 
@@ -52,14 +48,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [roles, setRoles] = useState<UserRole[]>([]);
   const [profileRole, setProfileRole] = useState<string | null>(null);
-  const [activeRoleOverride, setActiveRoleOverride] = useState<AppRole | null>(() => {
+
+  // Clean up any legacy simulated role tokens on startup
+  useEffect(() => {
     try {
-      const saved = typeof window !== "undefined" ? localStorage.getItem("hirwasparsh_simulated_role") : null;
-      return (saved as AppRole) || null;
-    } catch {
-      return null;
-    }
-  });
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("hirwasparsh_simulated_role");
+        sessionStorage.removeItem("hirwasparsh_simulated_role");
+      }
+    } catch {}
+  }, []);
 
   const fetchRoles = async (userId: string) => {
     try {
@@ -135,36 +133,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const switchSimulatedRole = (newRole: AppRole | null) => {
-    setActiveRoleOverride(newRole);
-    try {
-      if (newRole) {
-        localStorage.setItem("hirwasparsh_simulated_role", newRole);
-      } else {
-        localStorage.removeItem("hirwasparsh_simulated_role");
-      }
-    } catch {
-      // ignore storage errors
-    }
-  };
-
   const signOut = async () => {
     await supabase.auth.signOut();
     setRoles([]);
     setProfileRole(null);
-    setActiveRoleOverride(null);
-    try {
-      localStorage.removeItem("hirwasparsh_simulated_role");
-    } catch {}
   };
 
   const primaryRole = resolvePrimaryRole(roles, profileRole);
-  const activeRole: AppRole = activeRoleOverride || primaryRole;
+  const activeRole: AppRole = primaryRole;
 
-  const isAdmin = activeRole === "admin" || (!activeRoleOverride && roles.includes("admin"));
-  const isGovernment = activeRole === "government" || (!activeRoleOverride && roles.includes("government"));
-  const isFieldWorker = activeRole === "field_worker" || (!activeRoleOverride && (roles.includes("field_worker") || roles.includes("moderator")));
-  const isTreeAdopter = activeRole === "tree_adopter" || activeRole === "user";
+  const isAdmin = primaryRole === "admin" || roles.includes("admin") || profileRole === "admin";
+  const isGovernment = primaryRole === "government" || roles.includes("government") || profileRole === "government";
+  const isFieldWorker =
+    primaryRole === "field_worker" ||
+    roles.includes("field_worker") ||
+    roles.includes("moderator") ||
+    profileRole === "field_worker" ||
+    profileRole === "moderator" ||
+    profileRole === "ngo";
+  const isTreeAdopter = primaryRole === "tree_adopter" || primaryRole === "user";
 
   const can = (permission: RbacPermission): boolean => {
     return hasRbacPermission(activeRole, permission);
@@ -179,13 +166,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         roles,
         primaryRole,
         activeRole,
-        activeRoleOverride,
         isAdmin,
         isFieldWorker,
         isTreeAdopter,
         isGovernment,
         can,
-        switchSimulatedRole,
         signOut,
       }}
     >
