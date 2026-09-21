@@ -10,6 +10,7 @@ import { useCallback, useRef } from "react";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
 import { computeHealthScore, computeImpact, careTips, nearbyNativeSuggestions, treeAgeMonths, ageLabel } from "@/lib/treeIntelligence";
 import { VernacularVoiceAssistant } from "@/components/VernacularVoiceAssistant";
+import { TreeNdviSatelliteViewer } from "@/components/TreeNdviSatelliteViewer";
 
 const healthIcon: Record<string, React.ReactNode> = {
   healthy: <Heart className="h-4 w-4 text-primary" />,
@@ -328,6 +329,17 @@ const TreeProfile = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Copernicus Sentinel-2 Multi-Spectral NDVI Telemetry */}
+              {tree.latitude && tree.longitude && (
+                <TreeNdviSatelliteViewer
+                  treeId={tree.id}
+                  latitude={tree.latitude}
+                  longitude={tree.longitude}
+                  treeName={tree.tree_name}
+                  species={tree.species}
+                />
+              )}
 
               {/* Environmental Impact */}
               <div className="glass-card rounded-2xl p-6">

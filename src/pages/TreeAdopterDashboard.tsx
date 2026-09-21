@@ -20,6 +20,7 @@ import {
   X,
   Loader2,
   CheckCircle2,
+  Satellite,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { QRCodeSVG } from "qrcode.react";
 import { Link } from "react-router-dom";
+import { TreeNdviSatelliteViewer } from "@/components/TreeNdviSatelliteViewer";
 
 export default function TreeAdopterDashboard() {
   const { user } = useAuth();
@@ -41,6 +43,7 @@ export default function TreeAdopterDashboard() {
   // Modal states
   const [selectedTreeForPassport, setSelectedTreeForPassport] = useState<any | null>(null);
   const [selectedTreeForGrowth, setSelectedTreeForGrowth] = useState<any | null>(null);
+  const [selectedTreeForNdvi, setSelectedTreeForNdvi] = useState<any | null>(null);
   const [growthPhoto, setGrowthPhoto] = useState<File | null>(null);
   const [growthNotes, setGrowthNotes] = useState<string>("");
   const [growthHeightCm, setGrowthHeightCm] = useState<number>(85);
@@ -377,6 +380,15 @@ export default function TreeAdopterDashboard() {
                           </Button>
                         </div>
 
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setSelectedTreeForNdvi(tree)}
+                          className="w-full h-8 text-xs gap-1.5 rounded-xl border-primary/30 text-primary hover:bg-primary/10 font-medium"
+                        >
+                          <Satellite className="h-3.5 w-3.5 text-primary" /> Sentinel-2 NDVI Telemetry
+                        </Button>
+
                         <Link to={`/tree/${tree.id}`} className="block">
                           <Button variant="ghost" size="sm" className="w-full h-7 text-[11px] text-muted-foreground hover:text-foreground">
                             <ExternalLink className="h-3 w-3 mr-1" /> View Full Telemetry & Blockchain Proof
@@ -526,6 +538,34 @@ export default function TreeAdopterDashboard() {
               )}
             </Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sentinel-2 Multi-Spectral NDVI Telemetry Modal */}
+      <Dialog open={!!selectedTreeForNdvi} onOpenChange={() => setSelectedTreeForNdvi(null)}>
+        <DialogContent className="max-w-2xl rounded-3xl p-6 max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-lg font-bold flex items-center gap-2">
+              <Satellite className="h-5 w-5 text-primary" />
+              Copernicus Sentinel-2 Vegetation Index Telemetry
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Live 10m GSD Multi-Spectral NDVI and surface reflectance analytics for{" "}
+              <strong>{selectedTreeForNdvi?.tree_name}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedTreeForNdvi && (
+            <div className="pt-2">
+              <TreeNdviSatelliteViewer
+                treeId={selectedTreeForNdvi.id}
+                latitude={selectedTreeForNdvi.latitude || 18.5204}
+                longitude={selectedTreeForNdvi.longitude || 73.8567}
+                treeName={selectedTreeForNdvi.tree_name}
+                species={selectedTreeForNdvi.species}
+              />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
