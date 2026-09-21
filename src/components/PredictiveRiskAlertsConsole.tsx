@@ -43,6 +43,7 @@ import {
   SpectralTimePoint,
   ThreatSeverity,
 } from "@/lib/predictiveRiskEngine";
+import { triggerAiRiskAlertPipeline } from "@/lib/riskAlertNotificationService";
 import { useToast } from "@/hooks/use-toast";
 
 interface Props {
@@ -157,11 +158,27 @@ export function PredictiveRiskAlertsConsole({
   const handleDispatchFieldTask = async () => {
     setIsDispatching(true);
     try {
-      const res = await dispatchPredictiveRiskFieldTask(alert, plotId, projectId);
+      const res = await triggerAiRiskAlertPipeline({
+        projectId,
+        plotId,
+        plotName,
+        threatType: alert.threatType,
+        threatTitle: alert.threatTitle,
+        severity: alert.severity,
+        riskProbabilityPct: alert.riskProbabilityPct,
+        daysUntilCriticalBreach: alert.daysUntilCriticalBreach,
+        primaryDriver: alert.primaryDriver,
+        scientificExplanation: alert.scientificExplanation,
+        recommendedAction: alert.recommendedAction,
+        currentNdvi: alert.features.currentNdvi,
+        ndviDelta: alert.features.ndviDelta,
+        foliarNdwi: alert.features.foliarHydrationNdwi,
+      });
+
       setDispatchedTaskId(res.taskId || `task-${Date.now()}`);
       toast({
-        title: "⚡ Predictive Task Dispatched!",
-        description: `Field task "${alert.autoDispatchTaskTitle}" assigned to local ranger with highest priority.`,
+        title: "⚡ Multi-Channel AI Risk Alert Dispatched!",
+        description: `Generated field task for Rangers & sent proactive advisories to ${res.adoptersNotified || 1} Tree Adopters.`,
       });
     } catch (err: any) {
       toast({

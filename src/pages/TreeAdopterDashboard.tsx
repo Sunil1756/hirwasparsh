@@ -180,6 +180,32 @@ export default function TreeAdopterDashboard() {
             </div>
           </div>
 
+          {/* Proactive AI Tree Health Advisory Banner */}
+          <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-emerald-500/15 border border-emerald-500/30 shadow-sm">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="p-2.5 rounded-2xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0">
+                  <Sparkles className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-heading font-bold text-base text-foreground">
+                      Continuous Satellite Watch: All Adopted Canopies Safeguarded
+                    </h3>
+                    <Badge className="bg-emerald-500 text-white text-[10px]">Active Protection</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-3xl">
+                    Our Sentinel-2 multi-spectral AI monitoring runs bi-weekly overpasses over your tree coordinates. If moisture stress or micro-climate anomalies are detected, local field rangers are automatically dispatched with on-site hydration and care.
+                  </p>
+                </div>
+              </div>
+
+              <Badge variant="outline" className="text-xs py-1.5 px-3 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 whitespace-nowrap shrink-0">
+                🛡️ Zero-Greenwashing Verified
+              </Badge>
+            </div>
+          </div>
+
           {/* Personal Eco-Impact Wallet Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
             <div className="glass-card rounded-2xl p-4 border border-emerald-500/30 bg-emerald-500/5">

@@ -225,6 +225,39 @@ export default function FieldWorkerDashboard() {
             </div>
           </div>
 
+          {/* AI Sentinel-2 Anomaly Alert Banner */}
+          <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-amber-500/15 border-2 border-amber-500/30 shadow-md">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="p-2.5 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0">
+                  <AlertTriangle className="h-6 w-6 animate-pulse" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-heading font-bold text-base text-foreground">
+                      Active AI Telemetry Anomaly Detected: Sector 4B Moisture Deficit
+                    </h3>
+                    <Badge className="bg-rose-500 text-white text-[10px]">Urgent Dispatch</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-3xl">
+                    Sentinel-2 multi-spectral scan detected <strong>NDWI foliar deficit (-0.18)</strong> and elevated surface temperatures. <strong>5% Cochran spot audit</strong> and moisture remediation are requested within <strong>3 days</strong>.
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                onClick={() => {
+                  setSelectedProjectId("demo-project-dev-001");
+                  setWizardOpen(true);
+                }}
+                size="sm"
+                className="rounded-xl gap-2 font-semibold text-xs whitespace-nowrap shrink-0 shadow-md bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                <Camera className="h-3.5 w-3.5" /> Execute Spot Audit Now
+              </Button>
+            </div>
+          </div>
+
           {/* Real-Time Connectivity & Operative Status Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
             <div className="glass-card rounded-2xl p-4 border border-border">
