@@ -18,6 +18,14 @@ export const envSchema = z.object({
     .string()
     .optional()
     .default(""),
+  VITE_COPERNICUS_CLIENT_ID: z
+    .string()
+    .optional()
+    .default("sh-bca04d51-5029-419e-a9d2-29b4cb7ae6fa"),
+  VITE_COPERNICUS_CLIENT_SECRET: z
+    .string()
+    .optional()
+    .default("65bC8ZTF2Uu4Vy9nBV8Tg6q6ldXAxenF"),
   VITE_POSTHOG_KEY: z
     .string()
     .optional()
