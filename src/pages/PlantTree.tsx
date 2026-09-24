@@ -17,6 +17,8 @@ import { detectSpeciesAI, screenTreeImageWithAI, verifyTreeWithGeminiAI } from "
 import { enqueueOfflineTree } from "@/lib/offlineSyncService";
 import { VernacularVoiceAssistant } from "@/components/VernacularVoiceAssistant";
 import { validateGpsCoordinates, syncCoordinateSatelliteTelemetry } from "@/lib/geospatialSatelliteService";
+import { GpsLocationCapture } from "@/components/GpsLocationCapture";
+import { useGpsRegistration } from "@/hooks/useGpsRegistration";
 
 type NearbyTree = {
   id: string; tree_name: string; species: string; user_id: string;
@@ -44,6 +46,17 @@ const PlantTree = () => {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const driveId = searchParams.get("drive");
+  const projectId = searchParams.get("project") || driveId;
+
+  const {
+    coordinates: gpsCoords,
+    permissionStatus: gpsPermission,
+    isLoading: isGpsLoading,
+    error: gpsError,
+    boundaryValidation: gpsBoundaryValidation,
+    acquireGpsLock,
+    setManualCoordinates,
+  } = useGpsRegistration({ projectId });
 
   const [currentStep, setCurrentStep] = useState<PhotoStep>("before");
   const [submitted, setSubmitted] = useState(false);
@@ -120,24 +133,30 @@ const PlantTree = () => {
     }
   }, []);
 
-  const getBrowserLocation = useCallback(() => {
-    if (!navigator.geolocation) {
-      setGeoStatus("failed");
-      return;
+  // Sync GPS Coordinates from hook
+  useEffect(() => {
+    if (gpsCoords) {
+      setLatitude(gpsCoords.latitude);
+      setLongitude(gpsCoords.longitude);
+      setGpsAccuracy(gpsCoords.accuracyMeters);
+      reverseGeocode(gpsCoords.latitude, gpsCoords.longitude);
+      setGeoStatus("success");
     }
-    setGeoStatus("browser");
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        setLatitude(pos.coords.latitude);
-        setLongitude(pos.coords.longitude);
-        setGpsAccuracy(pos.coords.accuracy ?? null);
-        await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
-        setGeoStatus("success");
-      },
-      () => setGeoStatus("failed"),
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
-    );
-  }, [reverseGeocode]);
+  }, [gpsCoords, reverseGeocode]);
+
+  const getBrowserLocation = useCallback(async () => {
+    setGeoStatus("loading");
+    const coords = await acquireGpsLock();
+    if (coords) {
+      setLatitude(coords.latitude);
+      setLongitude(coords.longitude);
+      setGpsAccuracy(coords.accuracyMeters);
+      await reverseGeocode(coords.latitude, coords.longitude);
+      setGeoStatus("success");
+    } else {
+      setGeoStatus("failed");
+    }
+  }, [acquireGpsLock, reverseGeocode]);
 
   const fileToBase64 = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
@@ -247,22 +266,24 @@ const PlantTree = () => {
     }
 
     // 🌍 AUTO GEO-TAG on EVERY photo capture (not just "after")
-    // Try EXIF GPS first → fall back to browser geolocation
+    // Try EXIF GPS first → fall back to GPS lock
     if (!latitude || !longitude || step === "after") {
       setGeoStatus("loading");
       try {
         const gps = await exifr.gps(file);
         if (gps?.latitude && gps?.longitude) {
+          await setManualCoordinates(gps.latitude, gps.longitude, 5);
           setLatitude(gps.latitude);
           setLongitude(gps.longitude);
+          setGpsAccuracy(5);
           await reverseGeocode(gps.latitude, gps.longitude);
           setGeoStatus("success");
           toast({ title: "📍 Location auto-tagged", description: "GPS extracted from photo metadata." });
         } else {
-          getBrowserLocation();
+          acquireGpsLock();
         }
       } catch {
-        getBrowserLocation();
+        acquireGpsLock();
       }
     }
 
@@ -887,40 +908,22 @@ const PlantTree = () => {
                 </div>
               </div>
 
-              {/* Location */}
-              <div className="glass-card rounded-xl p-4">
-                <Label className="flex items-center gap-2 mb-2"><MapPin className="h-4 w-4" /> Auto-detected Location</Label>
-                {geoStatus === "success" && (
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-sm text-primary"><CheckCircle className="h-4 w-4" /> Location detected</div>
-                    <p className="text-sm">{location}</p>
-                    <p className="text-xs text-muted-foreground">
-                      GPS: {latitude?.toFixed(6)}, {longitude?.toFixed(6)}
-                      {gpsAccuracy != null && ` · ±${Math.round(gpsAccuracy)}m`}
-                    </p>
-                    {gpsAccuracy != null && gpsAccuracy > 12 && (
-                      <div className="mt-2 rounded-lg border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive flex items-start gap-2">
-                        <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                        <span><strong>GPS Signal Too Weak.</strong> Please step out from under heavy concrete structures or trees into the open to lock your physical coordinates.</span>
-                      </div>
-                    )}
+              {/* Location & GPS Capture */}
+              <div className="space-y-3">
+                <GpsLocationCapture
+                  coordinates={gpsCoords}
+                  isLoading={isGpsLoading}
+                  error={gpsError}
+                  permissionStatus={gpsPermission}
+                  boundaryValidation={gpsBoundaryValidation}
+                  projectName={projectId ? `Project ${projectId.slice(0, 8)}` : undefined}
+                  onAcquireLock={acquireGpsLock}
+                />
+                {location && (
+                  <div className="rounded-lg bg-muted/40 border border-border p-3 text-xs flex items-center gap-2 text-muted-foreground">
+                    <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span><strong className="text-foreground">Address:</strong> {location}</span>
                   </div>
-                )}
-                {(geoStatus === "loading" || geoStatus === "browser") && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Detecting location...
-                  </div>
-                )}
-                {geoStatus === "failed" && (
-                  <div className="space-y-2">
-                    <p className="text-sm text-destructive">Could not detect location.</p>
-                    <Button type="button" variant="outline" size="sm" onClick={getBrowserLocation}>
-                      <MapPin className="h-4 w-4 mr-1" /> Try Again
-                    </Button>
-                  </div>
-                )}
-                {geoStatus === "idle" && (
-                  <p className="text-sm text-muted-foreground">Upload "After" photo to detect location</p>
                 )}
               </div>
 
