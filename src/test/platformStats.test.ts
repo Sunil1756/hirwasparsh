@@ -9,18 +9,18 @@ describe("Live Platform Metrics & Tree Survival Statistics", () => {
         return {
           select: vi.fn().mockResolvedValue({
             data: [
-              { id: "tree-1", admin_status: "approved", verification_status: "verified", health_status: "healthy" },
-              { id: "tree-2", admin_status: "approved", verification_status: "verified", health_status: "dead" },
-              { id: "tree-3", admin_status: "approved", verification_status: "verified", health_status: "healthy" },
+              { id: "tree-1", admin_status: "approved", verification_status: "verified", health_status: "healthy", status: "alive" },
+              { id: "tree-2", admin_status: "approved", verification_status: "verified", health_status: "dead", status: "dead" },
+              { id: "tree-3", admin_status: "approved", verification_status: "verified", health_status: "healthy", status: "alive" },
             ],
           }),
         };
       }
-      if (table === "plantation_projects") {
+      if (table === "projects") {
         return {
           select: vi.fn().mockResolvedValue({
             data: [
-              { id: "proj-1", target_trees: 1000, verified_trees: 950, status: "verified_active" },
+              { id: "proj-1", target_trees: 1000, planted_trees: 950, status: "active" },
             ],
           }),
         };

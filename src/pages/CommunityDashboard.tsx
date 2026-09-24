@@ -74,9 +74,9 @@ const CommunityDashboard = () => {
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("plantation_projects")
-        .select("*")
-        .eq("user_id", user!.id)
+        .from("projects" as any)
+        .select("id, name, location_name, target_trees, planted_trees, status, created_at, organization_id, organizations(name)")
+        .or(`created_by.eq.${user!.id},organization_id.not.is.null`)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -254,24 +254,24 @@ const CommunityDashboard = () => {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {userProjects.map((p) => (
-                    <Link key={p.id} to={`/plant/organization?project=${p.id}`} className="block">
+                  {userProjects.map((p: any) => (
+                    <Link key={p.id} to={`/projects`} className="block">
                       <div className="p-3.5 rounded-xl bg-muted/40 hover:bg-muted/70 transition-all border border-border/40 flex items-center justify-between">
                         <div>
-                          <h4 className="font-heading font-bold text-sm text-foreground">{p.project_name}</h4>
-                          <p className="text-xs text-muted-foreground">{p.organization_name} · {p.location}</p>
+                          <h4 className="font-heading font-bold text-sm text-foreground">{p.name || p.project_name}</h4>
+                          <p className="text-xs text-muted-foreground">{p.organizations?.name || p.organization_name || "Personal Project"} · {p.location_name || p.location || "Location set"}</p>
                           <span className="text-[11px] text-emerald-600 font-semibold block mt-0.5">
-                            {p.verified_trees > 0
-                              ? `🌿 ${p.verified_trees} Verified Trees`
+                            {p.planted_trees > 0
+                              ? `🌿 ${p.planted_trees} Planted Trees`
                               : `🌱 ${p.target_trees} Target Trees`}
                           </span>
                         </div>
                         <div className="text-right">
-                          <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
-                            Trust {p.ai_score || 85}/100
+                          <Badge variant="outline" className="text-[10px] border-primary/40 text-primary capitalize">
+                            {p.status || "active"}
                           </Badge>
                           <span className="text-[10px] text-primary flex items-center gap-1 mt-1 font-semibold justify-end">
-                            Telemetry <ArrowUpRight className="h-3 w-3" />
+                            Manage <ArrowUpRight className="h-3 w-3" />
                           </span>
                         </div>
                       </div>

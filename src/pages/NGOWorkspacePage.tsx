@@ -106,39 +106,44 @@ export default function NGOWorkspacePage() {
     async function fetchProjects() {
       try {
         const { data: projects } = await supabase
-          .from("plantation_projects")
-          .select("*")
+          .from("projects" as any)
+          .select("id, created_by, name, location_name, target_trees, planted_trees, target_area_hectares, status, created_at, organization_id, organizations(name)")
           .order("created_at", { ascending: false });
 
         if (projects && projects.length > 0) {
-          const mapped: NGOPlot[] = projects.map((p) => {
+          const mapped: NGOPlot[] = projects.map((p: any) => {
             const target = Number(p.target_trees) || 100;
-            const verified = Number(p.verified_trees) || 0;
-            const score = verified > 0 ? Math.min(100, Math.round(40 + (verified / target) * 60)) : 28;
+            const planted = Number(p.planted_trees) || 0;
+            const score = p.status === "active" ? 90 : p.status === "under_review" ? 65 : 35;
             const tier = score >= 80 ? "Gold" : score >= 50 ? "Field Verified" : "Satellite Only";
+            const ha = Number(p.target_area_hectares) || Math.max(0.2, Math.round((target / 1100) * 10) / 10);
+            const acres = Number((ha * 2.47105).toFixed(1));
 
             return {
               id: p.id,
-              user_id: p.user_id,
-              organization_name: p.organization_name,
-              name: p.project_name || "Agroforestry Parcel",
-              location: p.location || "Maharashtra, India",
-              district: p.location?.split(",")[0] || "Maharashtra",
-              acres: Math.max(0.5, Math.round((target / 450) * 10) / 10),
-              hectares: Math.max(0.2, Math.round((target / 1100) * 10) / 10),
+              user_id: p.created_by,
+              organization_name: p.organizations?.name || "Community / NGO",
+              name: p.name || "Agroforestry Parcel",
+              location: p.location_name || "Maharashtra, India",
+              district: p.location_name?.split(",")[0] || "Maharashtra",
+              acres,
+              hectares: ha,
               targetTrees: target,
-              verifiedTrees: verified,
+              verifiedTrees: planted,
               confidenceScore: score,
               verificationTier: tier,
-              pendingScoutTasks: verified === 0 ? 1 : 0,
+              pendingScoutTasks: p.status === "under_review" ? 1 : 0,
               lastSatellitePass: p.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
-              ndviCurrent: 0.72,
+              ndviCurrent: p.status === "active" ? 0.72 : 0.52,
             };
           });
           setDbPlots(mapped);
+        } else {
+          setDbPlots([]);
         }
       } catch (err) {
         console.warn("Could not load NGO plots from Supabase:", err);
+        setDbPlots([]);
       } finally {
         setIsLoading(false);
       }
@@ -147,8 +152,7 @@ export default function NGOWorkspacePage() {
   }, []);
 
   const activePlotList = useMemo(() => {
-    if (dbPlots.length > 0) return dbPlots;
-    return SAMPLE_NGO_PLOTS;
+    return dbPlots;
   }, [dbPlots]);
 
   const myPlots = useMemo(() => {
