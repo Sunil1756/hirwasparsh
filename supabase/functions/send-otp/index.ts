@@ -75,7 +75,6 @@ serve(async (req) => {
       // 1. Channel: EMAIL
       if (targetChannel === "email") {
         try {
-          // Trigger Supabase native Email OTP
           const { error: authError } = await supabase.auth.signInWithOtp({
             email: cleanRecipient,
             options: {
@@ -94,22 +93,22 @@ serve(async (req) => {
 
       // 2. Channel: SMS / Phone
       if (targetChannel === "sms") {
-        const FAST2SMS_API_KEY = Deno.env.get("FAST2SMS_API_KEY");
         const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
         const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
+        const TWILIO_VERIFY_SERVICE_SID = Deno.env.get("TWILIO_VERIFY_SERVICE_SID") || "VAd29c28e5dd8a149fd0df8ba772d18628";
         const TWILIO_FROM_NUMBER = Deno.env.get("TWILIO_FROM_NUMBER");
+        const FAST2SMS_API_KEY = Deno.env.get("FAST2SMS_API_KEY");
 
-        // If Twilio is configured
-        if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_FROM_NUMBER) {
+        // Prefer Twilio Verify API (supports global & Indian carrier SMS on trial and full accounts)
+        if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN) {
           try {
-            const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
+            const verifyUrl = `https://verify.twilio.com/v2/Services/${TWILIO_VERIFY_SERVICE_SID}/Verifications`;
             const params = new URLSearchParams({
               To: cleanRecipient,
-              From: TWILIO_FROM_NUMBER,
-              Body: `Your Green Enlightenment verification code is: ${generatedCode}. Valid for 10 minutes. Do not share this code.`,
+              Channel: "sms",
             });
 
-            const res = await fetch(twilioUrl, {
+            const res = await fetch(verifyUrl, {
               method: "POST",
               headers: {
                 Authorization: "Basic " + btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`),
@@ -118,14 +117,32 @@ serve(async (req) => {
               body: params.toString(),
             });
 
-            const twilioData = await res.json();
-            dispatchResult = { dispatched: res.ok, provider: "twilio" };
+            const verifyData = await res.json();
+            if (res.ok) {
+              dispatchResult = { dispatched: true, provider: "twilio_verify" };
+            } else if (TWILIO_FROM_NUMBER) {
+              // Fallback to direct Messages API
+              const msgUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
+              const msgParams = new URLSearchParams({
+                To: cleanRecipient,
+                From: TWILIO_FROM_NUMBER,
+                Body: `Your Green Enlightenment OTP is ${generatedCode}. Valid for 10 minutes.`,
+              });
+              const msgRes = await fetch(msgUrl, {
+                method: "POST",
+                headers: {
+                  Authorization: "Basic " + btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`),
+                  "Content-Type": "application/x-www-form-urlencoded",
+                },
+                body: msgParams.toString(),
+              });
+              dispatchResult = { dispatched: msgRes.ok, provider: "twilio_sms" };
+            }
           } catch (err) {
             console.error("Twilio send error:", err);
           }
         } else if (FAST2SMS_API_KEY) {
           try {
-            // Fast2SMS integration for Indian numbers
             const digits = cleanRecipient.replace(/\D/g, "").slice(-10);
             const res = await fetch("https://www.fast2sms.com/dev/bulkV2", {
               method: "POST",
@@ -167,7 +184,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          message: `Verification code sent to ${maskedRecipient}.`,
+          message: `Verification code sent to ${maskedRecipient} via Twilio.`,
           channel: targetChannel,
           recipient: maskedRecipient,
           expiresInMinutes: 10,
@@ -188,8 +205,42 @@ serve(async (req) => {
       }
 
       const cleanCode = code.trim();
-      const codeHash = await sha256(cleanCode);
+      const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
+      const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
+      const TWILIO_VERIFY_SERVICE_SID = Deno.env.get("TWILIO_VERIFY_SERVICE_SID") || "VAd29c28e5dd8a149fd0df8ba772d18628";
 
+      // If Twilio Verify is active, check Twilio Verify service
+      if (targetChannel === "sms" && TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN) {
+        try {
+          const checkUrl = `https://verify.twilio.com/v2/Services/${TWILIO_VERIFY_SERVICE_SID}/VerificationCheck`;
+          const checkParams = new URLSearchParams({
+            To: cleanRecipient,
+            Code: cleanCode,
+          });
+
+          const checkRes = await fetch(checkUrl, {
+            method: "POST",
+            headers: {
+              Authorization: "Basic " + btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`),
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: checkParams.toString(),
+          });
+
+          const checkData = await checkRes.json();
+          if (checkRes.ok && checkData.status === "approved") {
+            return new Response(
+              JSON.stringify({ success: true, valid: true, message: "Twilio verification approved." }),
+              { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+        } catch (err) {
+          console.warn("Twilio check exception:", err);
+        }
+      }
+
+      // Database challenge verification fallback
+      const codeHash = await sha256(cleanCode);
       const { data, error } = await supabase.rpc("verify_otp_challenge", {
         p_recipient: cleanRecipient,
         p_otp_hash: codeHash,
