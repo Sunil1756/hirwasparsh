@@ -201,28 +201,32 @@ export interface ProjectBoundary {
   updated_at: string;
 }
 
-// 6. Tree
+// 6. Tree / Core Tree Data Model (Phase 4 Task 15)
 export interface Tree {
-  id: string;
-  project_id?: string | null;
+  id: string; // 1. Tree ID
+  project_id?: string | null; // 2. Project ID
+  species: string; // 3. Species
+  plantation_date: string; // 4. Plantation date (YYYY-MM-DD or ISO)
+  latitude: number; // 5. Latitude (-90.0 to 90.0)
+  longitude: number; // 6. Longitude (-180.0 to 180.0)
+  created_by?: string | null; // 7. Created by (Planter / Creator UUID)
+  user_id?: string | null; // User identifier alias
+  status: TreeStatus; // 8. Initial status ('alive', 'thriving', etc.)
+  created_at: string; // 9. Created timestamp (ISO 8601)
+
+  // Extended biometrics & audit metadata
+  tree_name: string;
   boundary_id?: string | null;
   organization_id?: string | null;
-  user_id?: string | null;
-  tree_name: string;
-  species: string;
   botanical_name?: string | null;
-  plantation_date: string;
   height_cm: number;
   dbh_cm?: number | null;
   canopy_radius_cm?: number | null;
   location: string;
-  latitude: number;
-  longitude: number;
   elevation_m?: number | null;
   photo_url?: string | null;
   before_photo_url?: string | null;
   selfie_photo_url?: string | null;
-  status: TreeStatus;
   verification_status: VerificationStatus;
   admin_status: AdminStatus;
   ai_confidence?: number | null;
@@ -235,9 +239,52 @@ export interface Tree {
   device_fingerprint?: string | null;
   photo_hash?: string | null;
   exif_timestamp?: string | null;
-  created_at: string;
   updated_at: string;
 }
+
+// Tree Data Model Creation Input
+export interface CreateTreeInput {
+  id?: string; // Optional client-generated UUID
+  project_id?: string | null; // 2. Project ID
+  species: string; // 3. Species (Required)
+  plantation_date?: string; // 4. Plantation date (Defaults to CURRENT_DATE)
+  latitude: number; // 5. Latitude (Required [-90, +90])
+  longitude: number; // 6. Longitude (Required [-180, +180])
+  created_by?: string | null; // 7. Created by (User UUID)
+  user_id?: string | null;
+  status?: TreeStatus; // 8. Initial status (Defaults to 'alive')
+  
+  // Optional extended attributes
+  tree_name?: string;
+  boundary_id?: string | null;
+  organization_id?: string | null;
+  botanical_name?: string | null;
+  height_cm?: number;
+  dbh_cm?: number | null;
+  canopy_radius_cm?: number | null;
+  location?: string;
+  elevation_m?: number | null;
+  photo_url?: string | null;
+  planting_type?: PlantingType;
+}
+
+// Tree Data Model Validation Result
+export interface TreeValidationResult {
+  isValid: boolean;
+  errors: string[];
+  normalizedData?: {
+    id: string;
+    project_id: string | null;
+    species: string;
+    plantation_date: string;
+    latitude: number;
+    longitude: number;
+    created_by: string | null;
+    status: TreeStatus;
+    created_at: string;
+  };
+}
+
 
 // 7. Tree Photo / Evidence
 export interface TreePhoto {
