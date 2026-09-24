@@ -39,6 +39,7 @@ const NGOWorkspacePage = lazy(() => import("./pages/NGOWorkspacePage"));
 const PricingPage = lazy(() => import("./pages/PricingPage"));
 const TreeStory = lazy(() => import("./pages/TreeStory"));
 const OrganizationPortal = lazy(() => import("./pages/OrganizationPortal"));
+const ProjectManagement = lazy(() => import("./pages/ProjectManagement"));
 
 const PageLoadingFallback = () => (
   <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3">
@@ -95,6 +96,8 @@ const App = () => (
                 <Route path="/ngo-workspace" element={<RoleProtectedRoute requiredRole={["field_worker", "admin"]}><NGOWorkspacePage /></RoleProtectedRoute>} />
                 <Route path="/organization" element={<ProtectedRoute><OrganizationPortal /></ProtectedRoute>} />
                 <Route path="/organization-portal" element={<ProtectedRoute><OrganizationPortal /></ProtectedRoute>} />
+                <Route path="/projects" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />
+                <Route path="/project-management" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />
                 <Route path="/pricing" element={<PricingPage />} />
                 <Route path="/verify/cert/:serialNo" element={<CertificateVerify />} />
                 <Route path="/verify/cert" element={<CertificateVerify />} />

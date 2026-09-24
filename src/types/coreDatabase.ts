@@ -1,4 +1,4 @@
-﻿/**
+/**
  * HIRWA SPARSH — PHASE 2 CORE DATABASE SCHEMA TYPES
  * 11 Core Entities:
  *   1. UserProfile (profiles)
@@ -47,7 +47,13 @@ export type ProjectType =
   | 'corporate_csr'
   | 'government_reserve';
 
-export type ProjectStatus = 'draft' | 'active' | 'completed' | 'suspended';
+export type ProjectStatus =
+  | 'draft'
+  | 'submitted'
+  | 'under_review'
+  | 'active'
+  | 'completed'
+  | 'suspended';
 
 export type BoundaryType =
   | 'planting_zone'
@@ -161,18 +167,24 @@ export interface Project {
   location_name?: string | null;
   centroid_latitude?: number | null;
   centroid_longitude?: number | null;
+  species_list?: string[] | null;
   start_date?: string | null;
   end_date?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  verification_notes?: string | null;
   created_by?: string | null;
   created_at: string;
   updated_at: string;
 }
 
-// 5. Project Boundary / GIS Polygon
+// 5. Project Boundary / GIS Polygon / Compartment
 export interface ProjectBoundary {
   id: string;
   project_id: string;
   boundary_name: string;
+  compartment_code?: string | null;
+  target_species?: string[] | null;
   geometry_geojson: {
     type: 'Polygon' | 'MultiPolygon' | 'Feature' | 'FeatureCollection';
     coordinates?: any;
@@ -180,6 +192,7 @@ export interface ProjectBoundary {
   };
   area_sqm?: number | null;
   area_hectares?: number | null;
+  area_acres?: number | null;
   kml_raw_content?: string | null;
   boundary_type: BoundaryType;
   created_at: string;
