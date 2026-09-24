@@ -89,7 +89,7 @@ describe("Authentication & Authorization Backend Services", () => {
     });
 
     it("dispatches SMS OTP and normalizes Indian mobile format", async () => {
-      mockSignInWithOtp.mockResolvedValueOnce({ error: null });
+      mockInvoke.mockResolvedValueOnce({ data: { success: true }, error: null });
 
       const res = await sendOtpCode({
         recipient: "9820123456",
@@ -98,14 +98,15 @@ describe("Authentication & Authorization Backend Services", () => {
       });
 
       expect(res.success).toBe(true);
-      expect(mockSignInWithOtp).toHaveBeenCalledWith({
-        phone: "+919820123456",
-        options: {
+      expect(mockInvoke).toHaveBeenCalledWith("send-otp", {
+        body: expect.objectContaining({
+          action: "send",
+          recipient: "+919820123456",
           channel: "sms",
-          data: {},
-        },
+        }),
       });
     });
+
 
     it("validates 6-digit code format and rejects invalid lengths", async () => {
       const res = await verifyOtpCode({

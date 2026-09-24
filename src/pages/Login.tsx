@@ -11,9 +11,6 @@ import {
   GraduationCap,
   UserCircle2,
   CheckCircle2,
-  XCircle,
-  ShieldCheck,
-  AlertTriangle,
   Eye,
   EyeOff,
   Phone,
@@ -21,12 +18,8 @@ import {
   ArrowLeft,
   RotateCcw,
   Sparkles,
-  Bot,
-  Info,
+  ShieldCheck,
   Smartphone,
-  ChevronDown,
-  ChevronUp,
-  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,17 +33,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { sendOtpCode, verifyOtpCode, maskRecipient } from "@/services/otpService";
+import { sendOtpCode, verifyOtpCode } from "@/services/otpService";
 
 type AccountType = "individual" | "ngo" | "school_college";
 type AuthMethod = "email" | "phone";
-type PhoneAuthMode = "otp" | "password";
-type EmailAuthMode = "password" | "otp";
 
-// 90+ Comprehensive disposable & fake email domains blacklist
+// 90+ Comprehensive disposable email domains blacklist
 const DISPOSABLE_EMAIL_DOMAINS = new Set([
   "tempmail.com",
   "mailinator.com",
@@ -109,27 +101,6 @@ const DISPOSABLE_EMAIL_DOMAINS = new Set([
   "crazymail.com",
   "mailnesia.com",
   "tmailor.com",
-  "protonmail.invalid",
-  "spam4.me",
-  "yopmail.fr",
-  "yopmail.net",
-  "cool.fr.nf",
-  "jetable.fr.nf",
-  "nospam.ze.tc",
-  "nomail.xl.cx",
-  "mega.zik.dj",
-  "speed.1s.fr",
-  "courriel.fr.nf",
-  "moncourrier.fr.nf",
-  "monemail.fr.nf",
-  "monmail.fr.nf",
-  "tempmailaddress.com",
-  "discard.email",
-  "discardmail.com",
-  "spambox.us",
-  "trashmail.net",
-  "trashmail.me",
-  "trashmail.org",
 ]);
 
 // Strict Email validation helper
@@ -147,7 +118,6 @@ function validateGenuineEmail(email: string): { valid: boolean; reason?: string 
     return { valid: false, reason: "Email username is too short (min 3 characters)." };
   }
 
-  // Reject repeated character spam (e.g. aaaaa@, 11111@, asdf@)
   if (
     /^(.)\1+$/.test(localPart) ||
     ["asdf", "test", "fake", "temp", "admin", "null", "aaaa", "user", "demo"].includes(localPart)
@@ -179,11 +149,9 @@ function validatePhoneNumber(phone: string, countryCode = "+91"): { valid: boole
     if (digitsOnly.length !== 10) {
       return { valid: false, reason: "Indian mobile numbers must be exactly 10 digits." };
     }
-    // Must start with 6, 7, 8, or 9
     if (!/^[6-9]\d{9}$/.test(digitsOnly)) {
       return { valid: false, reason: "Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9." };
     }
-    // Reject repeated digits (e.g. 9999999999, 1234567890)
     if (/^(.)\1+$/.test(digitsOnly) || digitsOnly === "1234567890" || digitsOnly === "9876543210") {
       return { valid: false, reason: "Please enter a genuine, active mobile number." };
     }
@@ -196,7 +164,7 @@ function validatePhoneNumber(phone: string, countryCode = "+91"): { valid: boole
   return { valid: true, formatted: `${countryCode}${digitsOnly}`, digits: digitsOnly };
 }
 
-// Password strength evaluator (enforces >= 6 characters with multi-factor security scoring)
+// Password strength evaluator
 function evaluatePassword(pwd: string) {
   const hasMinLen = pwd.length >= 6;
   const hasIdealLen = pwd.length >= 8;
@@ -228,11 +196,6 @@ function evaluatePassword(pwd: string) {
   };
 }
 
-// Helper to convert phone number into synthetic email for robust Supabase Auth sessions
-function getPhoneSyntheticEmail(digits: string): string {
-  return `phone_${digits}@greenenlightenment.org`;
-}
-
 const Login = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -242,27 +205,20 @@ const Login = () => {
   // Mode & Tab states
   const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
   const [authMethod, setAuthMethod] = useState<AuthMethod>("email");
-  const [emailMode, setEmailMode] = useState<EmailAuthMode>("password");
-  const [phoneMode, setPhoneMode] = useState<PhoneAuthMode>("password");
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
 
   // Anti-Bot Form interaction timer
   const formMountTime = useRef(Date.now());
-  const [botHoneypot, setBotHoneypot] = useState(""); // Invisible bot trap field
+  const [botHoneypot, setBotHoneypot] = useState("");
 
-  // Email Login state
+  // Email Auth state
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [showLoginPassword, setShowLoginPassword] = useState(false);
-  const [emailOtpToken, setEmailOtpToken] = useState("");
-  const [emailOtpSent, setEmailOtpSent] = useState(false);
 
-  // Phone Auth state
+  // Phone Auth state (ONLY SMS OTP via Twilio)
   const [countryCode, setCountryCode] = useState("+91");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [phonePassword, setPhonePassword] = useState("");
-  const [showPhonePassword, setShowPhonePassword] = useState(false);
   const [otpToken, setOtpToken] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
@@ -280,24 +236,13 @@ const Login = () => {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
 
-  // Google Connect Modal state (1-Click Google OAuth & Verified Google Email OTP Fallback)
-  const [googleModalOpen, setGoogleModalOpen] = useState(false);
-  const [googleEmail, setGoogleEmail] = useState("");
-  const [googleName, setGoogleName] = useState("");
-  const [googleAccountType, setGoogleAccountType] = useState<AccountType>("individual");
-  const [googleOrgName, setGoogleOrgName] = useState("");
-  const [googleOtpToken, setGoogleOtpToken] = useState("");
-  const [googleOtpSent, setGoogleOtpSent] = useState(false);
-  const [googleOtpLoading, setGoogleOtpLoading] = useState(false);
-  const [showAdminGuide, setShowAdminGuide] = useState(false);
-
-  // Password Recovery Mode (when user clicks reset link in email)
+  // Password Recovery Mode
   const isRecoveryMode = searchParams.get("type") === "recovery";
   const [newRecoveryPassword, setNewRecoveryPassword] = useState("");
   const [showRecoveryPassword, setShowRecoveryPassword] = useState(false);
   const [recoveryLoading, setRecoveryLoading] = useState(false);
 
-  // Dynamic redirect destination if arriving from a protected flow
+  // Dynamic redirect destination
   const redirectParam = searchParams.get("redirect");
   const redirectTarget = redirectParam && redirectParam.startsWith("/") ? redirectParam : "/";
 
@@ -307,22 +252,6 @@ const Login = () => {
       navigate(redirectTarget);
     }
   }, [user, navigate, isRecoveryMode, redirectTarget]);
-
-  // Check for OAuth callback errors in URL hash or query params
-  useEffect(() => {
-    const hash = window.location.hash;
-    const errorParam = searchParams.get("error") || searchParams.get("error_description");
-    if (hash.includes("error") || errorParam) {
-      console.warn("OAuth provider redirect notice detected:", hash || errorParam);
-      // Clean up the URL hash so it doesn't stay in address bar
-      window.history.replaceState(null, "", window.location.pathname + window.location.search);
-      setGoogleModalOpen(true);
-      toast({
-        title: "Google Authentication 🌐",
-        description: "Please enter your Google / Gmail address to receive your 6-digit verification code.",
-      });
-    }
-  }, [searchParams, toast]);
 
   // Resend OTP Countdown Timer
   useEffect(() => {
@@ -334,16 +263,12 @@ const Login = () => {
   }, [resendTimer]);
 
   const passwordEvaluation = useMemo(() => evaluatePassword(signupPassword), [signupPassword]);
-  const phonePasswordEvaluation = useMemo(() => evaluatePassword(phonePassword), [phonePassword]);
   const recoveryPasswordEvaluation = useMemo(() => evaluatePassword(newRecoveryPassword), [newRecoveryPassword]);
-  const emailEvaluation = useMemo(() => validateGenuineEmail(signupEmail), [signupEmail]);
-  const loginEmailEvaluation = useMemo(() => validateGenuineEmail(loginEmail), [loginEmail]);
   const phoneEvaluation = useMemo(() => validatePhoneNumber(phoneNumber, countryCode), [phoneNumber, countryCode]);
 
-  // Check for Bot Spam Attacks
+  // Anti-bot check
   const checkBotTrap = (): boolean => {
     if (botHoneypot.trim().length > 0) {
-      console.warn("Bot trap triggered!");
       toast({
         title: "Submission Blocked",
         description: "Automated submission rejected.",
@@ -351,10 +276,11 @@ const Login = () => {
       });
       return true;
     }
-    if (Date.now() - formMountTime.current < 600) {
+    const duration = Date.now() - formMountTime.current;
+    if (duration < 400) {
       toast({
-        title: "Quick submission detected",
-        description: "Please take a moment to review your details.",
+        title: "Submission Too Fast",
+        description: "Please verify your input before submitting.",
         variant: "destructive",
       });
       return true;
@@ -363,7 +289,7 @@ const Login = () => {
   };
 
   // -------------------------------------------------------------
-  // 1. EMAIL + PASSWORD LOGIN
+  // 1. EMAIL + PASSWORD: LOGIN
   // -------------------------------------------------------------
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -374,6 +300,7 @@ const Login = () => {
       toast({ title: "Invalid Email", description: emailCheck.reason, variant: "destructive" });
       return;
     }
+
     if (!loginPassword) {
       toast({ title: "Password Required", description: "Please enter your account password.", variant: "destructive" });
       return;
@@ -387,62 +314,50 @@ const Login = () => {
     setLoading(false);
 
     if (error) {
-      if (error.message.toLowerCase().includes("invalid login credentials")) {
-        toast({
-          title: "Invalid Email or Password ⚠️",
-          description: "No matching account found with these credentials. If you have not registered yet, please click the 'Sign Up' tab above first.",
-          variant: "destructive",
-        });
-      } else {
-        toast({ title: "Login Failed", description: error.message, variant: "destructive" });
-      }
+      toast({
+        title: "Invalid Email or Password",
+        description: "Please check your login details or use 'Forgot Password?'.",
+        variant: "destructive",
+      });
     } else {
-      toast({ title: "Welcome back! 🌿", description: "You are signed in to Green Enlightenment." });
+      toast({
+        title: "Welcome back! 🌿",
+        description: `Signed in as ${loginEmail.trim().toLowerCase()}.`,
+      });
       navigate(redirectTarget);
     }
   };
 
   // -------------------------------------------------------------
-  // 2. EMAIL + PASSWORD SIGNUP
+  // 2. EMAIL + PASSWORD: SIGNUP
   // -------------------------------------------------------------
   const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (checkBotTrap()) return;
 
-    // Full name verification
     const cleanName = signupName.trim();
-    if (cleanName.length < 3) {
-      toast({ title: "Invalid Name", description: "Full name must be at least 3 characters.", variant: "destructive" });
-      return;
-    }
-    if (!/^[a-zA-Z\s.'-]+$/.test(cleanName)) {
-      toast({ title: "Invalid Name Format", description: "Name must contain letters only.", variant: "destructive" });
-      return;
-    }
-
-    // Organization validation
-    if (accountType !== "individual" && orgName.trim().length < 3) {
-      toast({
-        title: "Organization Name Required",
-        description: "Please enter your NGO or School / College name.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Strict email check
     const cleanEmail = signupEmail.trim().toLowerCase();
+
+    if (cleanName.length < 3) {
+      toast({ title: "Name Required", description: "Full name must be at least 3 characters.", variant: "destructive" });
+      return;
+    }
+
+    if (accountType !== "individual" && orgName.trim().length < 3) {
+      toast({ title: "Organization Required", description: "Please enter your NGO or College name.", variant: "destructive" });
+      return;
+    }
+
     const emailCheck = validateGenuineEmail(cleanEmail);
     if (!emailCheck.valid) {
-      toast({ title: "Email Not Allowed", description: emailCheck.reason, variant: "destructive" });
+      toast({ title: "Invalid Email", description: emailCheck.reason, variant: "destructive" });
       return;
     }
 
-    // Strict password check
     if (!passwordEvaluation.isStrong) {
       toast({
-        title: "Weak Password",
-        description: "Password must be at least 8 characters and include uppercase, lowercase, number, and symbol.",
+        title: "Strong Password Required",
+        description: "Password must be 8+ characters with uppercase, lowercase, number, and symbol.",
         variant: "destructive",
       });
       return;
@@ -465,16 +380,15 @@ const Login = () => {
 
     if (error) {
       setLoading(false);
-      toast({ title: "Signup failed", description: error.message, variant: "destructive" });
+      toast({ title: "Signup Failed", description: error.message, variant: "destructive" });
       return;
     }
 
-    // If account already exists, prompt user to log in instead of silently authenticating
     if (data?.user && (!data.user.identities || data.user.identities.length === 0)) {
       setLoading(false);
       toast({
         title: "Account Already Registered",
-        description: "This email address is already registered. Please switch to the 'Log In' tab and enter your password.",
+        description: "This email is already registered. Please log in with your password.",
         variant: "destructive",
       });
       setActiveTab("login");
@@ -500,101 +414,7 @@ const Login = () => {
   };
 
   // -------------------------------------------------------------
-  // 3. EMAIL OTP: REAL EMAIL VERIFICATION CODE
-  // -------------------------------------------------------------
-  const handleSendEmailOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (checkBotTrap()) return;
-
-    const targetEmail = activeTab === "login" ? loginEmail : signupEmail;
-    const cleanEmail = targetEmail.trim().toLowerCase();
-    const emailCheck = validateGenuineEmail(cleanEmail);
-    if (!emailCheck.valid) {
-      toast({ title: "Invalid Email", description: emailCheck.reason, variant: "destructive" });
-      return;
-    }
-
-    if (activeTab === "signup") {
-      const cleanName = signupName.trim();
-      if (cleanName.length < 3) {
-        toast({ title: "Name Required", description: "Please enter your full name.", variant: "destructive" });
-        return;
-      }
-      if (accountType !== "individual" && orgName.trim().length < 3) {
-        toast({ title: "Organization Name Required", description: "Please enter your NGO or School / College name.", variant: "destructive" });
-        return;
-      }
-    }
-
-    setLoading(true);
-    const res = await sendOtpCode({
-      recipient: cleanEmail,
-      channel: "email",
-      purpose: activeTab === "login" ? "login" : "signup",
-      metadata: {
-        full_name: activeTab === "signup" ? signupName.trim() : undefined,
-        account_type: activeTab === "signup" ? accountType : undefined,
-        organization_name: activeTab === "signup" && accountType !== "individual" ? orgName.trim() : undefined,
-      },
-    });
-    setLoading(false);
-
-    if (res.success) {
-      setEmailOtpSent(true);
-      setResendTimer(60);
-      toast({
-        title: "Verification Code Sent! ✉️",
-        description: res.message,
-      });
-    } else {
-      toast({
-        title: "Email Verification Notice",
-        description: res.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  // -------------------------------------------------------------
-  // 4. EMAIL OTP: VERIFY 6-DIGIT CODE
-  // -------------------------------------------------------------
-  const handleVerifyEmailOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (checkBotTrap()) return;
-
-    const targetEmail = activeTab === "login" ? loginEmail : signupEmail;
-    const cleanEmail = targetEmail.trim().toLowerCase();
-    const cleanToken = emailOtpToken.trim().replace(/\D/g, "");
-
-    if (cleanToken.length !== 6) {
-      toast({ title: "Invalid Code", description: "Please enter the 6-digit code received in your email.", variant: "destructive" });
-      return;
-    }
-
-    setLoading(true);
-    const res = await verifyOtpCode({
-      recipient: cleanEmail,
-      code: cleanToken,
-      channel: "email",
-      purpose: activeTab === "login" ? "login" : "signup",
-      metadata: {
-        full_name: signupName.trim(),
-        organization_name: accountType !== "individual" ? orgName.trim() : null,
-        account_type: accountType,
-      },
-    });
-    setLoading(false);
-
-    if (res.success) {
-      toast({ title: "Verified & Signed In! 🌿", description: res.message });
-      navigate(redirectTarget);
-    } else {
-      toast({ title: "Verification Failed", description: res.message, variant: "destructive" });
-    }
-  };
-
-  // -------------------------------------------------------------
-  // 3. PHONE NUMBER OTP: REAL SMS OTP (REQUIRES ACTIVE SMS GATEWAY)
+  // 3. PHONE NUMBER: SEND TWILIO SMS OTP
   // -------------------------------------------------------------
   const handleSendPhoneOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -603,6 +423,10 @@ const Login = () => {
     if (activeTab === "signup") {
       if (signupName.trim().length < 3) {
         toast({ title: "Name Required", description: "Please enter your real full name.", variant: "destructive" });
+        return;
+      }
+      if (accountType !== "individual" && orgName.trim().length < 3) {
+        toast({ title: "Organization Required", description: "Please enter your NGO or College name.", variant: "destructive" });
         return;
       }
     }
@@ -630,12 +454,12 @@ const Login = () => {
       setOtpSent(true);
       setResendTimer(60);
       toast({
-        title: "Verification Code Sent! 📲",
+        title: "Twilio OTP Dispatched! 📲",
         description: res.message,
       });
     } else {
       toast({
-        title: "SMS Gateway Notice 📲",
+        title: "SMS Delivery Failed",
         description: res.message,
         variant: "destructive",
       });
@@ -643,7 +467,7 @@ const Login = () => {
   };
 
   // -------------------------------------------------------------
-  // 4. PHONE NUMBER OTP: VERIFY OTP (STRICT SUPABASE VERIFY)
+  // 4. PHONE NUMBER: VERIFY TWILIO SMS OTP
   // -------------------------------------------------------------
   const handleVerifyPhoneOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -673,7 +497,7 @@ const Login = () => {
     setLoading(false);
 
     if (res.success) {
-      toast({ title: "Verified & Signed In! 🌿", description: res.message });
+      toast({ title: "Verified & Logged In! 🌿", description: res.message });
       navigate(redirectTarget);
     } else {
       toast({ title: "Verification Failed", description: res.message, variant: "destructive" });
@@ -681,105 +505,7 @@ const Login = () => {
   };
 
   // -------------------------------------------------------------
-  // 5. PHONE + PASSWORD AUTH (DIRECT LOGIN/SIGNUP)
-  // -------------------------------------------------------------
-  const handlePhonePasswordAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (checkBotTrap()) return;
-
-    const check = validatePhoneNumber(phoneNumber, countryCode);
-    if (!check.valid || !check.digits || !check.formatted) {
-      toast({ title: "Invalid Phone Number", description: check.reason, variant: "destructive" });
-      return;
-    }
-
-    if (!phonePassword) {
-      toast({ title: "Password Required", description: "Please enter your password.", variant: "destructive" });
-      return;
-    }
-
-    const syntheticEmail = getPhoneSyntheticEmail(check.digits);
-
-    if (activeTab === "login") {
-      setLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
-        email: syntheticEmail,
-        password: phonePassword,
-      });
-      setLoading(false);
-
-      if (error) {
-        toast({ title: "Login Failed", description: "Incorrect mobile number or password.", variant: "destructive" });
-      } else {
-        toast({ title: "Welcome back! 🌿", description: `Signed in with ${check.formatted}.` });
-        navigate(redirectTarget);
-      }
-    } else {
-      // Signup with Phone + Password
-      const cleanName = signupName.trim();
-      if (cleanName.length < 3) {
-        toast({ title: "Name Required", description: "Full name must be at least 3 characters.", variant: "destructive" });
-        return;
-      }
-      if (!phonePasswordEvaluation.isStrong) {
-        toast({
-          title: "Weak Password",
-          description: "Password must be 8+ characters with uppercase, lowercase, number, and symbol.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setLoading(true);
-      const { data, error } = await supabase.auth.signUp({
-        email: syntheticEmail,
-        password: phonePassword,
-        options: {
-          data: {
-            full_name: cleanName,
-            phone: check.formatted,
-            account_type: accountType,
-            organization_name: accountType === "individual" ? null : orgName.trim(),
-          },
-        },
-      });
-
-      if (error) {
-        setLoading(false);
-        toast({ title: "Signup Failed", description: error.message, variant: "destructive" });
-        return;
-      }
-
-      // Check if user already exists
-      if (data?.user && (!data.user.identities || data.user.identities.length === 0)) {
-        setLoading(false);
-        toast({
-          title: "Account Already Registered",
-          description: "An account with this mobile number already exists. Please log in with your password.",
-          variant: "destructive",
-        });
-        setActiveTab("login");
-        return;
-      }
-
-      // Upsert profile in Supabase profiles table
-      if (data?.user) {
-        await supabase.from("profiles").upsert({
-          id: data.user.id,
-          full_name: cleanName,
-          organization_name: accountType !== "individual" ? orgName.trim() : null,
-          role: accountType,
-        });
-      }
-
-      setLoading(false);
-      toast({ title: "Account Created! 🌱", description: "You are signed in with your mobile number." });
-      navigate(redirectTarget);
-    }
-  };
-
-  // -------------------------------------------------------------
-  // 6. FORGOT PASSWORD REQUEST
+  // 5. FORGOT PASSWORD REQUEST
   // -------------------------------------------------------------
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -808,7 +534,7 @@ const Login = () => {
   };
 
   // -------------------------------------------------------------
-  // 7. PASSWORD RECOVERY SUBMISSION
+  // 6. PASSWORD RECOVERY SUBMISSION
   // -------------------------------------------------------------
   const handleUpdateRecoveryPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -838,144 +564,26 @@ const Login = () => {
     }
   };
 
-  // -------------------------------------------------------------
-  // 8. GOOGLE 1-CLICK AUTH & MULTI-TIER CONNECT
-  // -------------------------------------------------------------
-  const handleGoogleAuth = () => {
-    setGoogleModalOpen(true);
-    setGoogleOtpSent(false);
-  };
-
-  const handleDirectOAuthRedirect = async () => {
-    try {
-      setGoogleLoading(true);
-      const redirectUri = `${window.location.origin}${redirectTarget !== "/" ? redirectTarget : ""}`;
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: redirectUri,
-          queryParams: {
-            access_type: "offline",
-            prompt: "consent",
-          },
-        },
-      });
-      if (error) {
-        setGoogleLoading(false);
-        toast({
-          title: "Direct OAuth Notice",
-          description: error.message || "Google OAuth requires credentials in Supabase Dashboard. Use Google Verification Code above.",
-          variant: "destructive",
-        });
-      }
-    } catch (err: any) {
-      setGoogleLoading(false);
-      toast({
-        title: "OAuth Error",
-        description: err.message || "Could not launch external Google OAuth.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleSendGoogleOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (checkBotTrap()) return;
-
-    const cleanEmail = googleEmail.trim().toLowerCase();
-    const emailCheck = validateGenuineEmail(cleanEmail);
-    if (!emailCheck.valid) {
-      toast({ title: "Invalid Google Email", description: emailCheck.reason, variant: "destructive" });
-      return;
-    }
-
-    if (googleAccountType !== "individual" && googleOrgName.trim().length < 3) {
-      toast({ title: "Organization Name Required", description: "Please enter your NGO or School / College name.", variant: "destructive" });
-      return;
-    }
-
-    setGoogleOtpLoading(true);
-    const res = await sendOtpCode({
-      recipient: cleanEmail,
-      channel: "email",
-      purpose: "login",
-      metadata: {
-        full_name: googleName.trim() || cleanEmail.split("@")[0],
-        account_type: googleAccountType,
-        organization_name: googleAccountType !== "individual" ? googleOrgName.trim() : undefined,
-      },
-    });
-    setGoogleOtpLoading(false);
-
-    if (res.success) {
-      setGoogleOtpSent(true);
-      setResendTimer(60);
-      toast({
-        title: "Google Verification Code Sent! ✉️",
-        description: `A 6-digit code has been sent to ${cleanEmail}. Check your inbox.`,
-      });
-    } else {
-      toast({
-        title: "Google Verification Notice",
-        description: res.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleVerifyGoogleOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (checkBotTrap()) return;
-
-    const cleanEmail = googleEmail.trim().toLowerCase();
-    const cleanToken = googleOtpToken.trim().replace(/\D/g, "");
-
-    if (cleanToken.length !== 6) {
-      toast({ title: "Invalid Code", description: "Please enter the 6-digit verification code.", variant: "destructive" });
-      return;
-    }
-
-    setGoogleOtpLoading(true);
-    const res = await verifyOtpCode({
-      recipient: cleanEmail,
-      code: cleanToken,
-      channel: "email",
-      purpose: "login",
-      metadata: {
-        full_name: googleName.trim() || cleanEmail.split("@")[0],
-        organization_name: googleAccountType !== "individual" ? googleOrgName.trim() : null,
-        account_type: googleAccountType,
-      },
-    });
-    setGoogleOtpLoading(false);
-
-    if (res.success) {
-      toast({ title: "Welcome! 🌿", description: "Signed in successfully with Google account." });
-      setGoogleModalOpen(false);
-      navigate(redirectTarget);
-    } else {
-      toast({ title: "Verification Failed", description: res.message, variant: "destructive" });
-    }
-  };
-
-  // =============================================================
-  // RENDER: PASSWORD RECOVERY MODE
-  // =============================================================
+  // RENDER: PASSWORD RECOVERY VIEW
   if (isRecoveryMode) {
     return (
-      <div className="min-h-screen pt-24 pb-12 flex items-center justify-center px-4">
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-md">
+      <div className="min-h-screen pt-24 pb-12 flex items-center justify-center px-4 bg-gradient-to-b from-background via-muted/20 to-background">
+        <div className="w-full max-w-md">
           <div className="text-center mb-6">
-            <TreePine className="h-12 w-12 text-primary mx-auto mb-2" />
-            <h1 className="font-heading text-3xl font-bold">Reset Your Password</h1>
-            <p className="text-muted-foreground text-sm">Create a new secure password for your account</p>
+            <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-3">
+              <KeyRound className="h-6 w-6" />
+            </div>
+            <h1 className="font-heading text-2xl font-bold">Set New Password</h1>
+            <p className="text-xs text-muted-foreground mt-1">
+              Create a new secure password for your Green Enlightenment account.
+            </p>
           </div>
 
           <div className="glass-card rounded-2xl p-6 sm:p-8 shadow-xl border border-primary/20">
             <form onSubmit={handleUpdateRecoveryPassword} className="space-y-4">
               <div>
                 <Label className="flex items-center justify-between mb-2">
-                  <span className="flex items-center gap-2"><Lock className="h-4 w-4 text-primary" /> New Secure Password</span>
+                  <span className="text-xs font-medium">New Password</span>
                 </Label>
                 <div className="relative">
                   <Input
@@ -996,17 +604,16 @@ const Login = () => {
                 </div>
               </div>
 
-              {/* Live Strength Meter */}
               {newRecoveryPassword.length > 0 && (
                 <div className="p-3 rounded-xl bg-background/60 border border-primary/15 space-y-2 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-muted-foreground">Password Strength:</span>
                     <span className={`font-bold ${recoveryPasswordEvaluation.score >= 5 ? "text-emerald-600" : recoveryPasswordEvaluation.score >= 3 ? "text-amber-500" : "text-rose-500"}`}>
-                      {recoveryPasswordEvaluation.score >= 5 ? "Strong 🟢" : recoveryPasswordEvaluation.score >= 3 ? "Medium 🟡" : "Weak 🔴"}
+                      {recoveryPasswordEvaluation.score >= 5 ? "Strong 🔒" : recoveryPasswordEvaluation.score >= 3 ? "Medium ⚠️" : "Weak ❌"}
                     </span>
                   </div>
-                  <div className="grid grid-cols-5 gap-1">
-                    {[1, 2, 3, 4, 5].map((lvl) => (
+                  <div className="grid grid-cols-6 gap-1">
+                    {[1, 2, 3, 4, 5, 6].map((lvl) => (
                       <div
                         key={lvl}
                         className={`h-1.5 rounded-full transition-all duration-300 ${
@@ -1030,75 +637,72 @@ const Login = () => {
               </Button>
             </form>
           </div>
-        </motion.div>
+        </div>
       </div>
     );
   }
 
-  // =============================================================
-  // RENDER: MAIN AUTH PORTAL (LOGIN & SIGNUP)
-  // =============================================================
   return (
-    <div className="min-h-screen pt-24 pb-12 flex items-center justify-center px-4">
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-md">
+    <div className="min-h-screen pt-20 pb-16 flex items-center justify-center px-4 bg-gradient-to-b from-background via-emerald-950/5 to-background">
+      <div className="w-full max-w-md">
+        {/* Anti-Bot trap */}
+        <input
+          type="text"
+          name="bot_trap"
+          tabIndex={-1}
+          autoComplete="off"
+          value={botHoneypot}
+          onChange={(e) => setBotHoneypot(e.target.value)}
+          className="sr-only opacity-0 absolute pointer-events-none h-0 w-0"
+        />
+
         {/* Brand Banner */}
         <div className="text-center mb-6">
-          <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3 border border-primary/20 shadow-inner text-primary">
-            <TreePine className="h-8 w-8" />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-3 border border-primary/20">
+            <TreePine className="h-3.5 w-3.5" /> Green Enlightenment NGO
           </div>
-          <h1 className="font-heading text-3xl font-bold">Green Enlightenment</h1>
-          <p className="text-muted-foreground text-sm">Empowering Communities with Smart Agroforestry</p>
+          <h1 className="font-heading text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            {activeTab === "login" ? "Welcome Back" : "Join the Movement"}
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+            {activeTab === "login"
+              ? "Sign in to monitor your adopted trees and verified carbon impact."
+              : "Create your account to plant, adopt, and track verified trees."}
+          </p>
         </div>
 
-        <div className="glass-card rounded-2xl p-6 sm:p-8 shadow-xl border border-primary/20 relative">
-          {/* Honeypot Field for Automated Bot Defense (Hidden from real humans) */}
-          <input
-            type="text"
-            name="user_website_url"
-            value={botHoneypot}
-            onChange={(e) => setBotHoneypot(e.target.value)}
-            className="hidden pointer-events-none opacity-0 absolute -z-50"
-            tabIndex={-1}
-            autoComplete="off"
-          />
-
-          <Tabs
-            value={activeTab}
-            onValueChange={(val: any) => {
-              setActiveTab(val);
-              setOtpSent(false);
-              setEmailOtpSent(false);
-            }}
-          >
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="login" className="font-semibold">Log In</TabsTrigger>
-              <TabsTrigger value="signup" className="font-semibold">Sign Up</TabsTrigger>
+        {/* Auth Glass Card */}
+        <div className="glass-card rounded-3xl p-6 sm:p-8 shadow-2xl border border-border/60 backdrop-blur-xl bg-card/95">
+          <Tabs value={activeTab} onValueChange={(val: any) => { setActiveTab(val); setOtpSent(false); }} className="w-full">
+            <TabsList className="grid grid-cols-2 w-full mb-6 p-1 bg-muted/70 rounded-2xl">
+              <TabsTrigger value="login" className="rounded-xl text-xs sm:text-sm font-semibold py-2">
+                Log In
+              </TabsTrigger>
+              <TabsTrigger value="signup" className="rounded-xl text-xs sm:text-sm font-semibold py-2">
+                Sign Up
+              </TabsTrigger>
             </TabsList>
 
-            {/* Auth Method Switcher (Email vs Phone) */}
-            <div className="flex items-center justify-center gap-2 mb-5 p-1 rounded-xl bg-background/60 border border-primary/15 text-xs font-semibold">
+            {/* Method Switcher: Email vs Phone Number */}
+            <div className="grid grid-cols-2 gap-2 mb-6 p-1 bg-muted/40 rounded-2xl border">
               <button
                 type="button"
-                onClick={() => {
-                  setAuthMethod("email");
-                  setOtpSent(false);
-                  setEmailOtpSent(false);
-                }}
-                className={`flex-1 py-1.5 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  authMethod === "email" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                onClick={() => { setAuthMethod("email"); setOtpSent(false); }}
+                className={`flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  authMethod === "email"
+                    ? "bg-background text-foreground shadow-sm border border-border"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Mail className="h-3.5 w-3.5" /> Email
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setAuthMethod("phone");
-                  setOtpSent(false);
-                  setEmailOtpSent(false);
-                }}
-                className={`flex-1 py-1.5 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  authMethod === "phone" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                onClick={() => { setAuthMethod("phone"); setOtpSent(false); }}
+                className={`flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  authMethod === "phone"
+                    ? "bg-background text-foreground shadow-sm border border-border"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Phone className="h-3.5 w-3.5" /> Phone Number
@@ -1108,318 +712,152 @@ const Login = () => {
             {/* ------------------------------------------------------------- */}
             {/* TAB: LOG IN */}
             {/* ------------------------------------------------------------- */}
-            <TabsContent value="login">
+            <TabsContent value="login" className="space-y-4 mt-0 focus-visible:outline-none">
               {authMethod === "email" ? (
-                /* EMAIL LOGIN: PASSWORD OR EMAIL OTP */
-                <div className="space-y-4">
-                  <div className="flex items-center justify-center gap-4 text-xs font-semibold pb-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEmailMode("password");
-                        setEmailOtpSent(false);
-                      }}
-                      className={`flex items-center gap-1 pb-1 border-b-2 cursor-pointer transition-all ${
-                        emailMode === "password" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
-                      }`}
-                    >
-                      <Lock className="h-3.5 w-3.5" /> Password
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEmailMode("otp");
-                        setEmailOtpSent(false);
-                      }}
-                      className={`flex items-center gap-1 pb-1 border-b-2 cursor-pointer transition-all ${
-                        emailMode === "otp" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
-                      }`}
-                    >
-                      <KeyRound className="h-3.5 w-3.5" /> Email OTP
-                    </button>
-                  </div>
-
-                  {emailMode === "password" ? (
-                    <form onSubmit={handleEmailLogin} className="space-y-4">
-                      <div>
-                        <Label className="flex items-center gap-2 mb-2"><Mail className="h-4 w-4 text-primary" /> Email Address</Label>
-                        <Input
-                          type="email"
-                          placeholder="you@gmail.com"
-                          required
-                          value={loginEmail}
-                          onChange={(e) => setLoginEmail(e.target.value)}
-                          className="bg-background/80"
-                        />
-                      </div>
-
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <Label className="flex items-center gap-2"><Lock className="h-4 w-4 text-primary" /> Password</Label>
-                          <button
-                            type="button"
-                            onClick={() => setForgotPasswordOpen(true)}
-                            className="text-xs text-primary font-semibold hover:underline cursor-pointer"
-                          >
-                            Forgot Password?
-                          </button>
-                        </div>
-                        <div className="relative">
-                          <Input
-                            type={showLoginPassword ? "text" : "password"}
-                            placeholder="••••••••"
-                            required
-                            value={loginPassword}
-                            onChange={(e) => setLoginPassword(e.target.value)}
-                            className="bg-background/80 pr-10"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowLoginPassword(!showLoginPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                          >
-                            {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
-                        </div>
-                      </div>
-
-                      <Button type="submit" disabled={loading} className="w-full font-semibold rounded-xl shadow-md">
-                        {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
-                        Log In with Email
-                      </Button>
-                    </form>
-                  ) : (
-                    /* EMAIL OTP LOGIN */
-                    !emailOtpSent ? (
-                      <form onSubmit={handleSendEmailOtp} className="space-y-4">
-                        <div>
-                          <Label className="flex items-center gap-2 mb-2"><Mail className="h-4 w-4 text-primary" /> Registered Email</Label>
-                          <Input
-                            type="email"
-                            placeholder="you@gmail.com"
-                            required
-                            value={loginEmail}
-                            onChange={(e) => setLoginEmail(e.target.value)}
-                            className="bg-background/80"
-                          />
-                          <p className="text-[11px] text-muted-foreground mt-1.5">
-                            We will send a real 6-digit verification code to your email inbox. (Requires an existing registered account).
-                          </p>
-                        </div>
-
-                        <Button type="submit" disabled={loading || !loginEmail} className="w-full font-semibold rounded-xl shadow-md">
-                          {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
-                          Send Email Verification Code
-                        </Button>
-                      </form>
-                    ) : (
-                      /* EMAIL OTP VERIFICATION VIEW */
-                      <form onSubmit={handleVerifyEmailOtp} className="space-y-4 animate-in fade-in duration-300">
-                        <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2">
-                            <Mail className="h-4 w-4 text-primary shrink-0" />
-                            <span>Code sent to <strong>{loginEmail.trim().toLowerCase()}</strong></span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setEmailOtpSent(false)}
-                            className="text-primary font-semibold hover:underline"
-                          >
-                            Change
-                          </button>
-                        </div>
-
-                        <div>
-                          <Label className="flex items-center gap-2 mb-2"><KeyRound className="h-4 w-4 text-primary" /> 6-Digit Email Code</Label>
-                          <Input
-                            type="text"
-                            inputMode="numeric"
-                            maxLength={6}
-                            placeholder="123456"
-                            required
-                            value={emailOtpToken}
-                            onChange={(e) => setEmailOtpToken(e.target.value.replace(/\D/g, ""))}
-                            className="bg-background/80 text-center font-mono text-lg tracking-widest"
-                          />
-                        </div>
-
-                        <Button type="submit" disabled={loading || emailOtpToken.length !== 6} className="w-full font-semibold rounded-xl shadow-md">
-                          {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-                          Verify Code & Log In
-                        </Button>
-
-                        <div className="text-center pt-1">
-                          <button
-                            type="button"
-                            disabled={resendTimer > 0 || loading}
-                            onClick={handleSendEmailOtp}
-                            className="text-xs text-muted-foreground hover:text-primary disabled:opacity-50 flex items-center justify-center gap-1 mx-auto cursor-pointer"
-                          >
-                            <RotateCcw className="h-3 w-3" />
-                            {resendTimer > 0 ? `Resend Code in ${resendTimer}s` : "Resend Verification Code"}
-                          </button>
-                        </div>
-                      </form>
-                    )
-                  )}
-                </div>
-              ) : (
-                /* PHONE LOGIN (PASSWORD OR SMS OTP) */
-                <div className="space-y-4">
-                  <div className="flex items-center justify-center gap-4 text-xs font-semibold pb-1">
-                    <button
-                      type="button"
-                      onClick={() => setPhoneMode("password")}
-                      className={`flex items-center gap-1 pb-1 border-b-2 cursor-pointer transition-all ${
-                        phoneMode === "password" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
-                      }`}
-                    >
-                      <Lock className="h-3.5 w-3.5" /> Mobile + Password
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setPhoneMode("otp"); setOtpSent(false); }}
-                      className={`flex items-center gap-1 pb-1 border-b-2 cursor-pointer transition-all ${
-                        phoneMode === "otp" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
-                      }`}
-                    >
-                      <KeyRound className="h-3.5 w-3.5" /> SMS OTP
-                    </button>
-                  </div>
-
-                  {phoneMode === "password" ? (
-                    /* PHONE + PASSWORD LOGIN */
-                    <form onSubmit={handlePhonePasswordAuth} className="space-y-4">
-                      <div>
-                        <Label className="flex items-center gap-2 mb-2"><Phone className="h-4 w-4 text-primary" /> Mobile Number</Label>
-                        <div className="flex items-center gap-2">
-                          <span className="px-3 py-2 rounded-xl bg-background/80 border border-primary/20 text-xs font-mono font-bold text-primary">
-                            {countryCode}
-                          </span>
-                          <Input
-                            type="tel"
-                            placeholder="9876543210"
-                            required
-                            value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value)}
-                            className="bg-background/80 font-mono"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label className="flex items-center gap-2 mb-2"><Lock className="h-4 w-4 text-primary" /> Password</Label>
-                        <div className="relative">
-                          <Input
-                            type={showPhonePassword ? "text" : "password"}
-                            placeholder="••••••••"
-                            required
-                            value={phonePassword}
-                            onChange={(e) => setPhonePassword(e.target.value)}
-                            className="bg-background/80 pr-10"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPhonePassword(!showPhonePassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                          >
-                            {showPhonePassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
-                        </div>
-                      </div>
-
-                      <Button type="submit" disabled={loading || !phoneNumber || !phonePassword} className="w-full font-semibold rounded-xl shadow-md">
-                        {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
-                        Log In with Mobile & Password
-                      </Button>
-                    </form>
-                  ) : (
-                    /* SMS OTP LOGIN */
-                    <div className="space-y-4">
-                      <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs flex items-start gap-2.5">
-                        <Info className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
-                        <div>
-                          <p className="font-semibold">SMS Gateway Notice</p>
-                          <p className="text-[11px] leading-relaxed mt-0.5">
-                            Live SMS dispatch requires active carrier credentials (Twilio/MessageBird) in Supabase. You can also log in via <strong>Mobile + Password</strong> or switch to <strong>Email OTP</strong> above.
-                          </p>
-                        </div>
-                      </div>
-
-                      {!otpSent ? (
-                        <form onSubmit={handleSendPhoneOtp} className="space-y-4">
-                          <div>
-                            <Label className="flex items-center gap-2 mb-2"><Phone className="h-4 w-4 text-primary" /> Mobile Number</Label>
-                            <div className="flex items-center gap-2">
-                              <span className="px-3 py-2 rounded-xl bg-background/80 border border-primary/20 text-xs font-mono font-bold text-primary">
-                                {countryCode}
-                              </span>
-                              <Input
-                                type="tel"
-                                placeholder="9876543210"
-                                required
-                                value={phoneNumber}
-                                onChange={(e) => setPhoneNumber(e.target.value)}
-                                className="bg-background/80 font-mono"
-                              />
-                            </div>
-                          </div>
-
-                          <Button type="submit" disabled={loading || !phoneNumber} className="w-full font-semibold rounded-xl shadow-md">
-                            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Phone className="h-4 w-4 mr-2" />}
-                            Send Verification Code
-                          </Button>
-                        </form>
-                      ) : (
-                        /* OTP VERIFICATION VIEW */
-                        <form onSubmit={handleVerifyPhoneOtp} className="space-y-4 animate-in fade-in duration-300">
-                          <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-2">
-                              <Phone className="h-4 w-4 text-primary shrink-0" />
-                              <span>Code for <strong>{countryCode} {phoneNumber}</strong></span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setOtpSent(false)}
-                              className="text-primary font-semibold hover:underline"
-                            >
-                              Change
-                            </button>
-                          </div>
-
-                          <div>
-                            <Label className="flex items-center gap-2 mb-2"><KeyRound className="h-4 w-4 text-primary" /> 6-Digit OTP Code</Label>
-                            <Input
-                              type="text"
-                              inputMode="numeric"
-                              maxLength={6}
-                              placeholder="123456"
-                              required
-                              value={otpToken}
-                              onChange={(e) => setOtpToken(e.target.value.replace(/\D/g, ""))}
-                              className="bg-background/80 text-center font-mono text-lg tracking-widest"
-                            />
-                          </div>
-
-                          <Button type="submit" disabled={loading || otpToken.length !== 6} className="w-full font-semibold rounded-xl shadow-md">
-                            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-                            Verify & Sign In
-                          </Button>
-
-                          <div className="text-center pt-1">
-                            <button
-                              type="button"
-                              disabled={resendTimer > 0 || loading}
-                              onClick={handleSendPhoneOtp}
-                              className="text-xs text-muted-foreground hover:text-primary disabled:opacity-50 flex items-center justify-center gap-1 mx-auto cursor-pointer"
-                            >
-                              <RotateCcw className="h-3 w-3" />
-                              {resendTimer > 0 ? `Resend OTP in ${resendTimer}s` : "Resend OTP Code"}
-                            </button>
-                          </div>
-                        </form>
-                      )}
+                /* EMAIL LOGIN: EMAIL + PASSWORD */
+                <form onSubmit={handleEmailLogin} className="space-y-4">
+                  <div>
+                    <Label className="text-xs font-medium mb-1.5 block">Email Address</Label>
+                    <div className="relative">
+                      <Input
+                        type="email"
+                        placeholder="you@gmail.com"
+                        required
+                        value={loginEmail}
+                        onChange={(e) => setLoginEmail(e.target.value)}
+                        className="bg-background/80 pr-10 rounded-xl text-sm"
+                      />
+                      <Mail className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <Label className="text-xs font-medium">Password</Label>
+                      <button
+                        type="button"
+                        onClick={() => setForgotPasswordOpen(true)}
+                        className="text-xs text-primary font-semibold hover:underline cursor-pointer"
+                      >
+                        Forgot Password?
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <Input
+                        type={showLoginPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        required
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        className="bg-background/80 pr-10 rounded-xl text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowLoginPassword(!showLoginPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <Button type="submit" disabled={loading} className="w-full rounded-xl font-semibold shadow-md mt-2">
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
+                    Log In with Email
+                  </Button>
+                </form>
+              ) : (
+                /* PHONE LOGIN: ONLY TWILIO SMS OTP */
+                <div className="space-y-4">
+                  {!otpSent ? (
+                    <form onSubmit={handleSendPhoneOtp} className="space-y-4">
+                      <div>
+                        <Label className="text-xs font-medium mb-1.5 block">Mobile Number</Label>
+                        <div className="flex gap-2">
+                          <div className="flex items-center justify-center px-3 rounded-xl border bg-muted/50 font-semibold text-xs text-foreground shrink-0">
+                            +91
+                          </div>
+                          <div className="relative flex-1">
+                            <Input
+                              type="tel"
+                              placeholder="9876543210"
+                              maxLength={10}
+                              required
+                              value={phoneNumber}
+                              onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
+                              className="bg-background/80 rounded-xl text-sm pr-10"
+                            />
+                            <Smartphone className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1">
+                          <ShieldCheck className="h-3 w-3 text-emerald-600" /> A 6-digit verification code will be sent via Twilio SMS.
+                        </p>
+                      </div>
+
+                      <Button
+                        type="submit"
+                        disabled={loading || phoneNumber.length !== 10}
+                        className="w-full rounded-xl font-semibold shadow-md mt-2"
+                      >
+                        {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Phone className="h-4 w-4 mr-2" />}
+                        Send Verification Code
+                      </Button>
+                    </form>
+                  ) : (
+                    <form onSubmit={handleVerifyPhoneOtp} className="space-y-4 animate-in fade-in duration-300">
+                      <div className="text-center p-3 rounded-2xl bg-primary/5 border border-primary/20 space-y-1">
+                        <span className="text-xs text-muted-foreground">Verification code sent to</span>
+                        <div className="font-bold text-sm text-foreground">
+                          +91 {phoneNumber.slice(0, 2)}******{phoneNumber.slice(-2)}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setOtpSent(false)}
+                          className="text-[11px] text-primary hover:underline font-semibold"
+                        >
+                          Change Number
+                        </button>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-xs font-medium block text-center">Enter 6-Digit OTP Code</Label>
+                        <div className="flex justify-center">
+                          <InputOTP maxLength={6} value={otpToken} onChange={setOtpToken}>
+                            <InputOTPGroup className="gap-2">
+                              {[0, 1, 2, 3, 4, 5].map((index) => (
+                                <InputOTPSlot
+                                  key={index}
+                                  index={index}
+                                  className="h-11 w-11 text-base rounded-xl border border-input shadow-sm bg-background/90"
+                                />
+                              ))}
+                            </InputOTPGroup>
+                          </InputOTP>
+                        </div>
+                      </div>
+
+                      <Button
+                        type="submit"
+                        disabled={loading || otpToken.length !== 6}
+                        className="w-full rounded-xl font-semibold shadow-md"
+                      >
+                        {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                        Verify & Log In
+                      </Button>
+
+                      <div className="text-center">
+                        <button
+                          type="button"
+                          disabled={resendTimer > 0 || loading}
+                          onClick={handleSendPhoneOtp}
+                          className="text-xs text-muted-foreground hover:text-primary disabled:opacity-50 flex items-center justify-center gap-1 mx-auto cursor-pointer"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          {resendTimer > 0 ? `Resend OTP in ${resendTimer}s` : "Resend OTP Code"}
+                        </button>
+                      </div>
+                    </form>
                   )}
                 </div>
               )}
@@ -1428,530 +866,267 @@ const Login = () => {
             {/* ------------------------------------------------------------- */}
             {/* TAB: SIGN UP */}
             {/* ------------------------------------------------------------- */}
-            <TabsContent value="signup">
-              {/* Account Type Selector */}
-              <div className="mb-4">
-                <Label className="block mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Account Type</Label>
-                <RadioGroup
-                  value={accountType}
-                  onValueChange={(val: any) => setAccountType(val)}
-                  className="grid grid-cols-3 gap-2"
-                >
-                  <Label
-                    htmlFor="r-ind"
-                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border cursor-pointer text-center text-xs transition-all ${
-                      accountType === "individual" ? "border-primary bg-primary/10 text-primary font-bold shadow-sm" : "border-border hover:bg-muted"
+            <TabsContent value="signup" className="space-y-4 mt-0 focus-visible:outline-none">
+              {/* Persona Selector */}
+              <div>
+                <Label className="text-xs font-medium mb-2 block">Account Type</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAccountType("individual")}
+                    className={`flex flex-col items-center gap-1.5 p-2.5 rounded-2xl border text-xs transition-all ${
+                      accountType === "individual"
+                        ? "border-primary bg-primary/10 text-primary font-bold shadow-sm"
+                        : "border-border hover:bg-muted text-muted-foreground"
                     }`}
                   >
-                    <RadioGroupItem value="individual" id="r-ind" className="sr-only" />
-                    <UserCircle2 className="h-5 w-5 mb-1 text-primary" />
-                    Individual
-                  </Label>
+                    <UserCircle2 className="h-4 w-4" />
+                    <span>Individual</span>
+                  </button>
 
-                  <Label
-                    htmlFor="r-ngo"
-                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border cursor-pointer text-center text-xs transition-all ${
-                      accountType === "ngo" ? "border-primary bg-primary/10 text-primary font-bold shadow-sm" : "border-border hover:bg-muted"
+                  <button
+                    type="button"
+                    onClick={() => setAccountType("ngo")}
+                    className={`flex flex-col items-center gap-1.5 p-2.5 rounded-2xl border text-xs transition-all ${
+                      accountType === "ngo"
+                        ? "border-primary bg-primary/10 text-primary font-bold shadow-sm"
+                        : "border-border hover:bg-muted text-muted-foreground"
                     }`}
                   >
-                    <RadioGroupItem value="ngo" id="r-ngo" className="sr-only" />
-                    <Building2 className="h-5 w-5 mb-1 text-primary" />
-                    NGO / Trust
-                  </Label>
+                    <Building2 className="h-4 w-4" />
+                    <span>NGO / Trust</span>
+                  </button>
 
-                  <Label
-                    htmlFor="r-school"
-                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border cursor-pointer text-center text-xs transition-all ${
-                      accountType === "school_college" ? "border-primary bg-primary/10 text-primary font-bold shadow-sm" : "border-border hover:bg-muted"
+                  <button
+                    type="button"
+                    onClick={() => setAccountType("school_college")}
+                    className={`flex flex-col items-center gap-1.5 p-2.5 rounded-2xl border text-xs transition-all ${
+                      accountType === "school_college"
+                        ? "border-primary bg-primary/10 text-primary font-bold shadow-sm"
+                        : "border-border hover:bg-muted text-muted-foreground"
                     }`}
                   >
-                    <RadioGroupItem value="school_college" id="r-school" className="sr-only" />
-                    <GraduationCap className="h-5 w-5 mb-1 text-primary" />
-                    School / College
-                  </Label>
-                </RadioGroup>
+                    <GraduationCap className="h-4 w-4" />
+                    <span>School / College</span>
+                  </button>
+                </div>
               </div>
 
+              {/* Organization Name (If NGO or College) */}
               {accountType !== "individual" && (
-                <div className="mb-4">
-                  <Label className="flex items-center gap-2 mb-2"><Building2 className="h-4 w-4 text-primary" /> Organization Name</Label>
+                <div>
+                  <Label className="text-xs font-medium mb-1.5 block">
+                    {accountType === "ngo" ? "NGO / Trust Name" : "School / College Name"}
+                  </Label>
                   <Input
-                    placeholder="Sahyadri Environmental Trust"
+                    type="text"
+                    placeholder={accountType === "ngo" ? "Sahyadri Environmental Trust" : "K.T.H.M. College"}
                     required
                     value={orgName}
                     onChange={(e) => setOrgName(e.target.value)}
-                    className="bg-background/80"
+                    className="bg-background/80 rounded-xl text-sm"
                   />
                 </div>
               )}
 
-              {authMethod === "email" ? (
-                /* EMAIL SIGNUP: PASSWORD OR EMAIL OTP */
-                <div className="space-y-4">
-                  <div className="flex items-center justify-center gap-4 text-xs font-semibold pb-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEmailMode("password");
-                        setEmailOtpSent(false);
-                      }}
-                      className={`flex items-center gap-1 pb-1 border-b-2 cursor-pointer transition-all ${
-                        emailMode === "password" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
-                      }`}
-                    >
-                      <Lock className="h-3.5 w-3.5" /> Password
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEmailMode("otp");
-                        setEmailOtpSent(false);
-                      }}
-                      className={`flex items-center gap-1 pb-1 border-b-2 cursor-pointer transition-all ${
-                        emailMode === "otp" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
-                      }`}
-                    >
-                      <KeyRound className="h-3.5 w-3.5" /> Email OTP
-                    </button>
-                  </div>
-
-                  {emailMode === "password" ? (
-                    <form onSubmit={handleEmailSignup} className="space-y-4">
-                      <div>
-                        <Label className="flex items-center gap-2 mb-2"><User className="h-4 w-4 text-primary" /> Full Name</Label>
-                        <Input
-                          placeholder="Rohit Patil"
-                          required
-                          value={signupName}
-                          onChange={(e) => setSignupName(e.target.value)}
-                          className="bg-background/80"
-                        />
-                      </div>
-
-                      <div>
-                        <Label className="flex items-center gap-2 mb-2"><Mail className="h-4 w-4 text-primary" /> Email Address</Label>
-                        <Input
-                          type="email"
-                          placeholder="rohit@gmail.com"
-                          required
-                          value={signupEmail}
-                          onChange={(e) => setSignupEmail(e.target.value)}
-                          className="bg-background/80"
-                        />
-                        {signupEmail.length > 0 && !emailEvaluation.valid && (
-                          <p className="text-[11px] text-rose-500 font-medium mt-1 flex items-center gap-1">
-                            <AlertTriangle className="h-3 w-3 shrink-0" /> {emailEvaluation.reason}
-                          </p>
-                        )}
-                      </div>
-
-                      <div>
-                        <Label className="flex items-center gap-2 mb-2"><Lock className="h-4 w-4 text-primary" /> Password</Label>
-                        <div className="relative">
-                          <Input
-                            type={showSignupPassword ? "text" : "password"}
-                            placeholder="Min 8+ characters"
-                            required
-                            value={signupPassword}
-                            onChange={(e) => setSignupPassword(e.target.value)}
-                            className="bg-background/80 pr-10"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowSignupPassword(!showSignupPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                          >
-                            {showSignupPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Password Strength Checklist */}
-                      {signupPassword.length > 0 && (
-                        <div className="p-3 rounded-xl bg-background/60 border border-primary/15 space-y-2 text-xs">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium text-muted-foreground">Security Strength:</span>
-                            <span className={`font-bold ${passwordEvaluation.score >= 5 ? "text-emerald-600" : passwordEvaluation.score >= 3 ? "text-amber-500" : "text-rose-500"}`}>
-                              {passwordEvaluation.score >= 5 ? "Strong 🟢" : passwordEvaluation.score >= 3 ? "Medium 🟡" : "Weak 🔴"}
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-5 gap-1">
-                            {[1, 2, 3, 4, 5].map((lvl) => (
-                              <div
-                                key={lvl}
-                                className={`h-1.5 rounded-full transition-all duration-300 ${
-                                  lvl <= passwordEvaluation.score
-                                    ? passwordEvaluation.score >= 5
-                                      ? "bg-emerald-500"
-                                      : passwordEvaluation.score >= 3
-                                      ? "bg-amber-500"
-                                      : "bg-rose-500"
-                                    : "bg-muted"
-                                }`}
-                              />
-                            ))}
-                          </div>
-                          <div className="grid grid-cols-2 gap-1.5 pt-1 text-[10px] text-muted-foreground">
-                            <div className={`flex items-center gap-1 ${passwordEvaluation.hasMinLen ? "text-emerald-600 font-semibold" : ""}`}>
-                              {passwordEvaluation.hasMinLen ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />} 8+ Characters
-                            </div>
-                            <div className={`flex items-center gap-1 ${passwordEvaluation.hasUpper ? "text-emerald-600 font-semibold" : ""}`}>
-                              {passwordEvaluation.hasUpper ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />} Uppercase (A-Z)
-                            </div>
-                            <div className={`flex items-center gap-1 ${passwordEvaluation.hasLower ? "text-emerald-600 font-semibold" : ""}`}>
-                              {passwordEvaluation.hasLower ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />} Lowercase (a-z)
-                            </div>
-                            <div className={`flex items-center gap-1 ${passwordEvaluation.hasNumber ? "text-emerald-600 font-semibold" : ""}`}>
-                              {passwordEvaluation.hasNumber ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />} Number (0-9)
-                            </div>
-                            <div className={`flex items-center gap-1 col-span-2 ${passwordEvaluation.hasSpecial ? "text-emerald-600 font-semibold" : ""}`}>
-                              {passwordEvaluation.hasSpecial ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />} Special symbol (!@#$%^&*)
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      <Button
-                        type="submit"
-                        disabled={loading || !passwordEvaluation.isStrong || !emailEvaluation.valid}
-                        className="w-full font-semibold rounded-xl shadow-md"
-                      >
-                        {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                        Create Account with Email
-                      </Button>
-                    </form>
-                  ) : (
-                    /* EMAIL OTP SIGNUP */
-                    !emailOtpSent ? (
-                      <form onSubmit={handleSendEmailOtp} className="space-y-4">
-                        <div>
-                          <Label className="flex items-center gap-2 mb-2"><User className="h-4 w-4 text-primary" /> Full Name</Label>
-                          <Input
-                            placeholder="Rohit Patil"
-                            required
-                            value={signupName}
-                            onChange={(e) => setSignupName(e.target.value)}
-                            className="bg-background/80"
-                          />
-                        </div>
-
-                        <div>
-                          <Label className="flex items-center gap-2 mb-2"><Mail className="h-4 w-4 text-primary" /> Email Address</Label>
-                          <Input
-                            type="email"
-                            placeholder="rohit@gmail.com"
-                            required
-                            value={signupEmail}
-                            onChange={(e) => setSignupEmail(e.target.value)}
-                            className="bg-background/80"
-                          />
-                          {signupEmail.length > 0 && !emailEvaluation.valid && (
-                            <p className="text-[11px] text-rose-500 font-medium mt-1 flex items-center gap-1">
-                              <AlertTriangle className="h-3 w-3 shrink-0" /> {emailEvaluation.reason}
-                            </p>
-                          )}
-                          <p className="text-[11px] text-muted-foreground mt-1.5">
-                            We will send a genuine 6-digit verification code to your email inbox to verify your identity.
-                          </p>
-                        </div>
-
-                        <Button
-                          type="submit"
-                          disabled={loading || signupName.trim().length < 3 || !emailEvaluation.valid}
-                          className="w-full font-semibold rounded-xl shadow-md"
-                        >
-                          {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
-                          Send Email Verification Code
-                        </Button>
-                      </form>
-                    ) : (
-                      /* EMAIL OTP VERIFICATION VIEW */
-                      <form onSubmit={handleVerifyEmailOtp} className="space-y-4 animate-in fade-in duration-300">
-                        <div className="p-3.5 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2">
-                            <Mail className="h-4 w-4 text-primary shrink-0" />
-                            <span>Code for <strong>{signupEmail.trim().toLowerCase()}</strong></span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setEmailOtpSent(false)}
-                            className="text-primary font-semibold hover:underline"
-                          >
-                            Change
-                          </button>
-                        </div>
-
-                        <div>
-                          <Label className="flex items-center gap-2 mb-2"><KeyRound className="h-4 w-4 text-primary" /> 6-Digit Verification Code</Label>
-                          <Input
-                            type="text"
-                            inputMode="numeric"
-                            maxLength={6}
-                            placeholder="123456"
-                            required
-                            value={emailOtpToken}
-                            onChange={(e) => setEmailOtpToken(e.target.value.replace(/\D/g, ""))}
-                            className="bg-background/80 text-center font-mono text-lg tracking-widest"
-                          />
-                        </div>
-
-                        <Button type="submit" disabled={loading || emailOtpToken.length !== 6} className="w-full font-semibold rounded-xl shadow-md">
-                          {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-                          Verify & Create Account
-                        </Button>
-
-                        <div className="text-center pt-1">
-                          <button
-                            type="button"
-                            disabled={resendTimer > 0 || loading}
-                            onClick={handleSendEmailOtp}
-                            className="text-xs text-muted-foreground hover:text-primary disabled:opacity-50 flex items-center justify-center gap-1 mx-auto cursor-pointer"
-                          >
-                            <RotateCcw className="h-3 w-3" />
-                            {resendTimer > 0 ? `Resend Code in ${resendTimer}s` : "Resend Verification Code"}
-                          </button>
-                        </div>
-                      </form>
-                    )
-                  )}
+              {/* Full Name */}
+              <div>
+                <Label className="text-xs font-medium mb-1.5 block">Full Name</Label>
+                <div className="relative">
+                  <Input
+                    type="text"
+                    placeholder="Rohit Patil"
+                    required
+                    value={signupName}
+                    onChange={(e) => setSignupName(e.target.value)}
+                    className="bg-background/80 pr-10 rounded-xl text-sm"
+                  />
+                  <User className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 </div>
-              ) : (
-                /* PHONE SIGNUP: PASSWORD OR SMS OTP */
-                <div className="space-y-4">
-                  <div className="flex items-center justify-center gap-4 text-xs font-semibold pb-1">
-                    <button
-                      type="button"
-                      onClick={() => setPhoneMode("password")}
-                      className={`flex items-center gap-1 pb-1 border-b-2 cursor-pointer transition-all ${
-                        phoneMode === "password" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
-                      }`}
-                    >
-                      <Lock className="h-3.5 w-3.5" /> Mobile + Password
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setPhoneMode("otp"); setOtpSent(false); }}
-                      className={`flex items-center gap-1 pb-1 border-b-2 cursor-pointer transition-all ${
-                        phoneMode === "otp" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
-                      }`}
-                    >
-                      <KeyRound className="h-3.5 w-3.5" /> SMS OTP
-                    </button>
+              </div>
+
+              {authMethod === "email" ? (
+                /* EMAIL SIGNUP: EMAIL + PASSWORD */
+                <form onSubmit={handleEmailSignup} className="space-y-4">
+                  <div>
+                    <Label className="text-xs font-medium mb-1.5 block">Email Address</Label>
+                    <div className="relative">
+                      <Input
+                        type="email"
+                        placeholder="rohit@gmail.com"
+                        required
+                        value={signupEmail}
+                        onChange={(e) => setSignupEmail(e.target.value)}
+                        className="bg-background/80 pr-10 rounded-xl text-sm"
+                      />
+                      <Mail className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    </div>
                   </div>
 
-                  {phoneMode === "password" ? (
-                    /* PHONE + PASSWORD SIGNUP */
-                    <form onSubmit={handlePhonePasswordAuth} className="space-y-4">
-                      <div>
-                        <Label className="flex items-center gap-2 mb-2"><User className="h-4 w-4 text-primary" /> Full Name</Label>
-                        <Input
-                          placeholder="Rohit Patil"
-                          required
-                          value={signupName}
-                          onChange={(e) => setSignupName(e.target.value)}
-                          className="bg-background/80"
-                        />
-                      </div>
+                  <div>
+                    <Label className="text-xs font-medium mb-1.5 block">Create Strong Password</Label>
+                    <div className="relative">
+                      <Input
+                        type={showSignupPassword ? "text" : "password"}
+                        placeholder="Min 8+ characters"
+                        required
+                        value={signupPassword}
+                        onChange={(e) => setSignupPassword(e.target.value)}
+                        className="bg-background/80 pr-10 rounded-xl text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSignupPassword(!showSignupPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showSignupPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
 
-                      <div>
-                        <Label className="flex items-center gap-2 mb-2"><Phone className="h-4 w-4 text-primary" /> Mobile Number</Label>
-                        <div className="flex items-center gap-2">
-                          <span className="px-3 py-2 rounded-xl bg-background/80 border border-primary/20 text-xs font-mono font-bold text-primary">
-                            {countryCode}
-                          </span>
-                          <Input
-                            type="tel"
-                            placeholder="9876543210"
-                            required
-                            value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value)}
-                            className="bg-background/80 font-mono"
+                  {signupPassword.length > 0 && (
+                    <div className="p-3 rounded-xl bg-background/60 border space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-muted-foreground">Strength:</span>
+                        <span className={`font-bold ${passwordEvaluation.score >= 5 ? "text-emerald-600" : passwordEvaluation.score >= 3 ? "text-amber-500" : "text-rose-500"}`}>
+                          {passwordEvaluation.score >= 5 ? "Strong 🔒" : passwordEvaluation.score >= 3 ? "Medium ⚠️" : "Weak ❌"}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-6 gap-1">
+                        {[1, 2, 3, 4, 5, 6].map((lvl) => (
+                          <div
+                            key={lvl}
+                            className={`h-1.5 rounded-full transition-all ${
+                              lvl <= passwordEvaluation.score
+                                ? passwordEvaluation.score >= 5
+                                  ? "bg-emerald-500"
+                                  : passwordEvaluation.score >= 3
+                                  ? "bg-amber-500"
+                                  : "bg-rose-500"
+                                : "bg-muted"
+                            }`}
                           />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <Button
+                    type="submit"
+                    disabled={loading || !passwordEvaluation.isStrong || signupName.trim().length < 3}
+                    className="w-full rounded-xl font-semibold shadow-md mt-2"
+                  >
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                    Create Account with Email
+                  </Button>
+                </form>
+              ) : (
+                /* PHONE SIGNUP: ONLY TWILIO SMS OTP */
+                <div className="space-y-4">
+                  {!otpSent ? (
+                    <form onSubmit={handleSendPhoneOtp} className="space-y-4">
+                      <div>
+                        <Label className="text-xs font-medium mb-1.5 block">Mobile Number</Label>
+                        <div className="flex gap-2">
+                          <div className="flex items-center justify-center px-3 rounded-xl border bg-muted/50 font-semibold text-xs text-foreground shrink-0">
+                            +91
+                          </div>
+                          <div className="relative flex-1">
+                            <Input
+                              type="tel"
+                              placeholder="9876543210"
+                              maxLength={10}
+                              required
+                              value={phoneNumber}
+                              onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
+                              className="bg-background/80 rounded-xl text-sm pr-10"
+                            />
+                            <Smartphone className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          </div>
                         </div>
+                        <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1">
+                          <ShieldCheck className="h-3 w-3 text-emerald-600" /> A 6-digit verification code will be sent via Twilio SMS.
+                        </p>
                       </div>
 
-                      <div>
-                        <Label className="flex items-center gap-2 mb-2"><Lock className="h-4 w-4 text-primary" /> Password</Label>
-                        <div className="relative">
-                          <Input
-                            type={showPhonePassword ? "text" : "password"}
-                            placeholder="Min 8+ strong characters"
-                            required
-                            value={phonePassword}
-                            onChange={(e) => setPhonePassword(e.target.value)}
-                            className="bg-background/80 pr-10"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPhonePassword(!showPhonePassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                          >
-                            {showPhonePassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
+                      <Button
+                        type="submit"
+                        disabled={loading || phoneNumber.length !== 10 || signupName.trim().length < 3}
+                        className="w-full rounded-xl font-semibold shadow-md mt-2"
+                      >
+                        {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Phone className="h-4 w-4 mr-2" />}
+                        Send Verification Code
+                      </Button>
+                    </form>
+                  ) : (
+                    <form onSubmit={handleVerifyPhoneOtp} className="space-y-4 animate-in fade-in duration-300">
+                      <div className="text-center p-3 rounded-2xl bg-primary/5 border border-primary/20 space-y-1">
+                        <span className="text-xs text-muted-foreground">Verification code sent to</span>
+                        <div className="font-bold text-sm text-foreground">
+                          +91 {phoneNumber.slice(0, 2)}******{phoneNumber.slice(-2)}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setOtpSent(false)}
+                          className="text-[11px] text-primary hover:underline font-semibold"
+                        >
+                          Change Number
+                        </button>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-xs font-medium block text-center">Enter 6-Digit OTP Code</Label>
+                        <div className="flex justify-center">
+                          <InputOTP maxLength={6} value={otpToken} onChange={setOtpToken}>
+                            <InputOTPGroup className="gap-2">
+                              {[0, 1, 2, 3, 4, 5].map((index) => (
+                                <InputOTPSlot
+                                  key={index}
+                                  index={index}
+                                  className="h-11 w-11 text-base rounded-xl border border-input shadow-sm bg-background/90"
+                                />
+                              ))}
+                            </InputOTPGroup>
+                          </InputOTP>
                         </div>
                       </div>
 
                       <Button
                         type="submit"
-                        disabled={loading || signupName.trim().length < 3 || !phoneEvaluation.valid || !phonePasswordEvaluation.isStrong}
-                        className="w-full font-semibold rounded-xl shadow-md"
+                        disabled={loading || otpToken.length !== 6}
+                        className="w-full rounded-xl font-semibold shadow-md"
                       >
-                        {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                        Create Account with Mobile
+                        {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                        Verify & Create Account
                       </Button>
-                    </form>
-                  ) : (
-                    /* SMS OTP SIGNUP */
-                    <div className="space-y-4">
-                      <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs flex items-start gap-2.5">
-                        <Info className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
-                        <div>
-                          <p className="font-semibold">SMS Gateway Notice</p>
-                          <p className="text-[11px] leading-relaxed mt-0.5">
-                            Live SMS dispatch requires active carrier credentials (Twilio/MessageBird) in Supabase. You can also register via <strong>Mobile + Password</strong> or switch to <strong>Email OTP</strong> above.
-                          </p>
-                        </div>
+
+                      <div className="text-center">
+                        <button
+                          type="button"
+                          disabled={resendTimer > 0 || loading}
+                          onClick={handleSendPhoneOtp}
+                          className="text-xs text-muted-foreground hover:text-primary disabled:opacity-50 flex items-center justify-center gap-1 mx-auto cursor-pointer"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          {resendTimer > 0 ? `Resend OTP in ${resendTimer}s` : "Resend OTP Code"}
+                        </button>
                       </div>
-
-                      {!otpSent ? (
-                        <form onSubmit={handleSendPhoneOtp} className="space-y-4">
-                          <div>
-                            <Label className="flex items-center gap-2 mb-2"><User className="h-4 w-4 text-primary" /> Full Name</Label>
-                            <Input
-                              placeholder="Rohit Patil"
-                              required
-                              value={signupName}
-                              onChange={(e) => setSignupName(e.target.value)}
-                              className="bg-background/80"
-                            />
-                          </div>
-
-                          <div>
-                            <Label className="flex items-center gap-2 mb-2"><Phone className="h-4 w-4 text-primary" /> Mobile Number</Label>
-                            <div className="flex items-center gap-2">
-                              <span className="px-3 py-2 rounded-xl bg-background/80 border border-primary/20 text-xs font-mono font-bold text-primary">
-                                {countryCode}
-                              </span>
-                              <Input
-                                type="tel"
-                                placeholder="9876543210"
-                                required
-                                value={phoneNumber}
-                                onChange={(e) => setPhoneNumber(e.target.value)}
-                                className="bg-background/80 font-mono"
-                              />
-                            </div>
-                          </div>
-
-                          <Button
-                            type="submit"
-                            disabled={loading || signupName.trim().length < 3 || !phoneEvaluation.valid}
-                            className="w-full font-semibold rounded-xl shadow-md"
-                          >
-                            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Phone className="h-4 w-4 mr-2" />}
-                            Send Verification Code
-                          </Button>
-                        </form>
-                      ) : (
-                        /* OTP VERIFICATION VIEW */
-                        <form onSubmit={handleVerifyPhoneOtp} className="space-y-4 animate-in fade-in duration-300">
-                          <div className="p-3.5 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-2">
-                              <Phone className="h-4 w-4 text-primary shrink-0" />
-                              <span>Code for <strong>{countryCode} {phoneNumber}</strong></span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setOtpSent(false)}
-                              className="text-primary font-semibold hover:underline"
-                            >
-                              Change
-                            </button>
-                          </div>
-
-                          <div>
-                            <Label className="flex items-center gap-2 mb-2"><KeyRound className="h-4 w-4 text-primary" /> 6-Digit OTP Code</Label>
-                            <Input
-                              type="text"
-                              inputMode="numeric"
-                              maxLength={6}
-                              placeholder="123456"
-                              required
-                              value={otpToken}
-                              onChange={(e) => setOtpToken(e.target.value.replace(/\D/g, ""))}
-                              className="bg-background/80 text-center font-mono text-lg tracking-widest"
-                            />
-                          </div>
-
-                          <Button type="submit" disabled={loading || otpToken.length !== 6} className="w-full font-semibold rounded-xl shadow-md">
-                            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-                            Verify & Create Account
-                          </Button>
-
-                          <div className="text-center pt-1">
-                            <button
-                              type="button"
-                              disabled={resendTimer > 0 || loading}
-                              onClick={handleSendPhoneOtp}
-                              className="text-xs text-muted-foreground hover:text-primary disabled:opacity-50 flex items-center justify-center gap-1 mx-auto cursor-pointer"
-                            >
-                              <RotateCcw className="h-3 w-3" />
-                              {resendTimer > 0 ? `Resend OTP in ${resendTimer}s` : "Resend OTP Code"}
-                            </button>
-                          </div>
-                        </form>
-                      )}
-                    </div>
+                    </form>
                   )}
                 </div>
               )}
             </TabsContent>
           </Tabs>
-
-          {/* Social OAuth Divider & Google 1-Click Login */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-primary/15" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Or Continue With</span>
-            </div>
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            disabled={googleLoading || loading}
-            onClick={handleGoogleAuth}
-            className="w-full h-11 rounded-xl border border-primary/20 hover:border-primary/40 bg-background/80 hover:bg-muted/50 font-semibold text-xs gap-3 shadow-sm transition-all"
-            aria-label="Continue with Google"
-          >
-            {googleLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            ) : (
-              <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                />
-              </svg>
-            )}
-            <span>{googleLoading ? "Connecting to Google..." : "Continue with Google"}</span>
-          </Button>
         </div>
-      </motion.div>
+
+        {/* Security Footer */}
+        <div className="text-center mt-6 text-[11px] text-muted-foreground space-y-1">
+          <p className="flex items-center justify-center gap-1 font-medium">
+            <ShieldCheck className="h-3.5 w-3.5 text-primary" /> End-to-End Encrypted Identity & Twilio SMS Verification
+          </p>
+          <p>By continuing, you agree to Green Enlightenment terms and tree stewardship policies.</p>
+        </div>
+      </div>
 
       {/* ------------------------------------------------------------- */}
       {/* DIALOG: FORGOT PASSWORD REQUEST */}
@@ -1959,28 +1134,30 @@ const Login = () => {
       <Dialog open={forgotPasswordOpen} onOpenChange={setForgotPasswordOpen}>
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 font-heading text-lg">
+            <DialogTitle className="flex items-center gap-2 text-base font-bold">
               <KeyRound className="h-5 w-5 text-primary" /> Reset Account Password
             </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              Enter your registered email address and we'll send you a secure link to reset your password.
+            <DialogDescription className="text-xs">
+              Enter your registered email address and we'll send a secure password reset link.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleForgotPassword} className="space-y-4 pt-2">
             <div>
-              <Label className="flex items-center gap-2 mb-2"><Mail className="h-4 w-4 text-primary" /> Registered Email</Label>
+              <Label className="flex items-center gap-2 mb-2 text-xs">
+                <Mail className="h-3.5 w-3.5 text-primary" /> Registered Email
+              </Label>
               <Input
                 type="email"
                 placeholder="you@gmail.com"
                 required
                 value={forgotEmail}
                 onChange={(e) => setForgotEmail(e.target.value)}
-                className="bg-background/80"
+                className="bg-background/80 rounded-xl text-sm"
               />
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-2">
               <Button
                 type="button"
                 variant="ghost"
@@ -1999,257 +1176,6 @@ const Login = () => {
               </Button>
             </div>
           </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* ------------------------------------------------------------- */}
-      {/* DIALOG: GOOGLE CONNECT & DIRECT VERIFICATION */}
-      {/* ------------------------------------------------------------- */}
-      <Dialog open={googleModalOpen} onOpenChange={setGoogleModalOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <div className="flex items-center gap-2 mb-1">
-              <div className="p-2 rounded-xl bg-muted/60 border border-primary/20 shrink-0">
-                <svg className="h-5 w-5" viewBox="0 0 24 24">
-                  <path
-                    fill="#4285F4"
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                  />
-                </svg>
-              </div>
-              <DialogTitle className="font-heading text-lg font-bold">
-                Connect with Google Account
-              </DialogTitle>
-            </div>
-            <DialogDescription className="text-xs text-muted-foreground">
-              Sign in or create your verified Green Enlightenment account using your Google email address.
-            </DialogDescription>
-          </DialogHeader>
-
-          {!googleOtpSent ? (
-            <form onSubmit={handleSendGoogleOtp} className="space-y-4 pt-2">
-              {/* Account Type Selector */}
-              <div>
-                <Label className="block mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Account Role</Label>
-                <RadioGroup
-                  value={googleAccountType}
-                  onValueChange={(val: any) => setGoogleAccountType(val)}
-                  className="grid grid-cols-3 gap-2"
-                >
-                  <Label
-                    htmlFor="g-ind"
-                    className={`flex flex-col items-center justify-center p-2 rounded-xl border cursor-pointer text-center text-xs transition-all ${
-                      googleAccountType === "individual" ? "border-primary bg-primary/10 text-primary font-bold shadow-sm" : "border-border hover:bg-muted"
-                    }`}
-                  >
-                    <RadioGroupItem value="individual" id="g-ind" className="sr-only" />
-                    <UserCircle2 className="h-4 w-4 mb-1 text-primary" />
-                    Individual
-                  </Label>
-
-                  <Label
-                    htmlFor="g-ngo"
-                    className={`flex flex-col items-center justify-center p-2 rounded-xl border cursor-pointer text-center text-xs transition-all ${
-                      googleAccountType === "ngo" ? "border-primary bg-primary/10 text-primary font-bold shadow-sm" : "border-border hover:bg-muted"
-                    }`}
-                  >
-                    <RadioGroupItem value="ngo" id="g-ngo" className="sr-only" />
-                    <Building2 className="h-4 w-4 mb-1 text-primary" />
-                    NGO / Trust
-                  </Label>
-
-                  <Label
-                    htmlFor="g-school"
-                    className={`flex flex-col items-center justify-center p-2 rounded-xl border cursor-pointer text-center text-xs transition-all ${
-                      googleAccountType === "school_college" ? "border-primary bg-primary/10 text-primary font-bold shadow-sm" : "border-border hover:bg-muted"
-                    }`}
-                  >
-                    <RadioGroupItem value="school_college" id="g-school" className="sr-only" />
-                    <GraduationCap className="h-4 w-4 mb-1 text-primary" />
-                    College
-                  </Label>
-                </RadioGroup>
-              </div>
-
-              {googleAccountType !== "individual" && (
-                <div>
-                  <Label className="flex items-center gap-2 mb-1.5 text-xs"><Building2 className="h-3.5 w-3.5 text-primary" /> Organization Name</Label>
-                  <Input
-                    placeholder="e.g. Sahyadri Foundation"
-                    required
-                    value={googleOrgName}
-                    onChange={(e) => setGoogleOrgName(e.target.value)}
-                    className="bg-background/80 text-xs"
-                  />
-                </div>
-              )}
-
-              <div>
-                <Label className="flex items-center gap-2 mb-1.5 text-xs"><User className="h-3.5 w-3.5 text-primary" /> Full Name (Optional)</Label>
-                <Input
-                  placeholder="e.g. Rohit Patil"
-                  value={googleName}
-                  onChange={(e) => setGoogleName(e.target.value)}
-                  className="bg-background/80 text-xs"
-                />
-              </div>
-
-              <div>
-                <Label className="flex items-center gap-2 mb-1.5 text-xs"><Mail className="h-3.5 w-3.5 text-primary" /> Google / Gmail Address</Label>
-                <Input
-                  type="email"
-                  placeholder="name@gmail.com"
-                  required
-                  value={googleEmail}
-                  onChange={(e) => setGoogleEmail(e.target.value)}
-                  className="bg-background/80 text-xs"
-                />
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  We'll send a 6-digit security code directly to this Google inbox to verify your identity.
-                </p>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setGoogleModalOpen(false)}
-                  className="rounded-xl text-xs"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={googleOtpLoading || !googleEmail}
-                  className="rounded-xl text-xs font-semibold"
-                >
-                  {googleOtpLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
-                  Send Google Verification Code
-                </Button>
-              </div>
-            </form>
-          ) : (
-            <form onSubmit={handleVerifyGoogleOtp} className="space-y-4 pt-2 animate-in fade-in duration-300">
-              <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-primary shrink-0" />
-                  <span>Code sent to <strong>{googleEmail.trim().toLowerCase()}</strong></span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setGoogleOtpSent(false)}
-                  className="text-primary font-semibold hover:underline cursor-pointer"
-                >
-                  Change
-                </button>
-              </div>
-
-              <div>
-                <Label className="flex items-center gap-2 mb-2 text-xs"><KeyRound className="h-4 w-4 text-primary" /> 6-Digit Google Security Code</Label>
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  placeholder="123456"
-                  required
-                  value={googleOtpToken}
-                  onChange={(e) => setGoogleOtpToken(e.target.value.replace(/\D/g, ""))}
-                  className="bg-background/80 text-center font-mono text-lg tracking-widest"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setGoogleModalOpen(false)}
-                  className="rounded-xl text-xs"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={googleOtpLoading || googleOtpToken.length !== 6}
-                  className="rounded-xl text-xs font-semibold shadow-md"
-                >
-                  {googleOtpLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-                  Verify & Sign In
-                </Button>
-              </div>
-
-              <div className="text-center pt-1">
-                <button
-                  type="button"
-                  disabled={resendTimer > 0 || googleOtpLoading}
-                  onClick={handleSendGoogleOtp}
-                  className="text-xs text-muted-foreground hover:text-primary disabled:opacity-50 flex items-center justify-center gap-1 mx-auto cursor-pointer"
-                >
-                  <RotateCcw className="h-3 w-3" />
-                  {resendTimer > 0 ? `Resend Code in ${resendTimer}s` : "Resend Verification Code"}
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* Admin Setup Guide & Direct OAuth Launch */}
-          <div className="pt-3 border-t border-primary/10 mt-2 space-y-2">
-            <button
-              type="button"
-              onClick={() => setShowAdminGuide(!showAdminGuide)}
-              className="flex items-center justify-between w-full text-[11px] font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
-            >
-              <span className="flex items-center gap-1.5">
-                <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Supabase OAuth Setup Guide
-              </span>
-              {showAdminGuide ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            </button>
-
-            {showAdminGuide && (
-              <div className="p-3 rounded-xl bg-background/60 border border-primary/15 text-[11px] space-y-2 text-muted-foreground leading-relaxed animate-in fade-in duration-200">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-foreground">To enable 1-click Google OAuth:</span>
-                  <a
-                    href="https://supabase.com/dashboard/project/qvikwdginymvjbrrlvkk/auth/providers"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline font-semibold"
-                  >
-                    Open Supabase Providers <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
-                <ol className="list-decimal list-inside space-y-1">
-                  <li>In Google Cloud Console, create OAuth 2.0 Credentials (Web Application).</li>
-                  <li>In Supabase Dashboard &gt; Authentication &gt; Providers &gt; Google, paste the Client ID and Secret.</li>
-                  <li>Set Callback URL: <code className="font-mono text-[10px] bg-muted px-1 py-0.5 rounded text-foreground">https://qvikwdginymvjbrrlvkk.supabase.co/auth/v1/callback</code></li>
-                </ol>
-                <div className="pt-1">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDirectOAuthRedirect}
-                    disabled={googleLoading}
-                    className="w-full h-8 text-[11px] rounded-lg gap-2"
-                  >
-                    {googleLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
-                    Launch Supabase Google OAuth
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
         </DialogContent>
       </Dialog>
     </div>

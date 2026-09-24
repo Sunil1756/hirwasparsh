@@ -89,12 +89,13 @@ describe("Authentication System & Login Page Verification", () => {
       </QueryClientProvider>
     );
 
-    expect(screen.getByText(/Green Enlightenment/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Green Enlightenment/i)[0]).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Log In/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Sign Up/i })).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/you@gmail\.com/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/••••••••/i)).toBeInTheDocument();
   });
+
 
   it("switches to Sign Up tab and renders registration form with persona options", async () => {
     const queryClient = createQueryClient();
@@ -280,12 +281,7 @@ describe("Authentication System & Login Page Verification", () => {
     });
   });
 
-  it("supports switching to Phone authentication and mobile login", async () => {
-    mockSignInWithPassword.mockResolvedValueOnce({
-      data: { user: { id: "phone-user-456" }, session: {} },
-      error: null,
-    });
-
+  it("supports switching to Phone Number tab and sending Twilio SMS OTP", async () => {
     const queryClient = createQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
@@ -302,27 +298,29 @@ describe("Authentication System & Login Page Verification", () => {
     const phoneBtn = screen.getByRole("button", { name: /Phone Number/i });
     fireEvent.click(phoneBtn);
 
-    const phoneInputs = screen.getAllByPlaceholderText(/9876543210/i);
-    const phoneInput = phoneInputs[0];
-    const passwordInput = screen.getByPlaceholderText(/••••••••/i);
+    const phoneInput = screen.getByPlaceholderText(/9876543210/i);
+    expect(phoneInput).toBeInTheDocument();
 
-    // Use a valid 10-digit mobile number not in the test blacklist
-    fireEvent.change(phoneInput, { target: { value: "9820123456" } });
-    fireEvent.change(passwordInput, { target: { value: "SecurePass123!" } });
+    fireEvent.change(phoneInput, { target: { value: "9270420832" } });
 
-    const submitBtn = screen.getByRole("button", { name: /Log In with Mobile & Password/i });
-    fireEvent.click(submitBtn);
+    const sendOtpBtn = screen.getByRole("button", { name: /Send Verification Code/i });
+    expect(sendOtpBtn).not.toBeDisabled();
+    fireEvent.click(sendOtpBtn);
 
     await waitFor(() => {
-      expect(mockSignInWithPassword).toHaveBeenCalledWith({
-        email: "phone_9820123456@greenenlightenment.org",
-        password: "SecurePass123!",
-      });
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: expect.stringContaining("Twilio OTP Dispatched!"),
+        })
+      );
     });
+
+    // Enter 6-digit OTP and verify
+    expect(await screen.findByText(/Enter 6-Digit OTP Code/i)).toBeInTheDocument();
   });
 
-  it("opens Google Connect modal and initiates Google OAuth redirect", async () => {
-    mockSignInWithOAuth.mockResolvedValueOnce({ error: null });
+  it("opens Forgot Password dialog and dispatches password reset email", async () => {
+    mockResetPasswordForEmail.mockResolvedValueOnce({ error: null });
 
     const queryClient = createQueryClient();
     render(
@@ -337,23 +335,27 @@ describe("Authentication System & Login Page Verification", () => {
       </QueryClientProvider>
     );
 
-    const googleBtn = screen.getByRole("button", { name: /Continue with Google/i });
-    fireEvent.click(googleBtn);
+    const forgotBtn = screen.getByRole("button", { name: /Forgot Password\?/i });
+    fireEvent.click(forgotBtn);
 
-    expect(screen.getByText(/Connect with Google Account/i)).toBeInTheDocument();
+    expect(screen.getByText(/Reset Account Password/i)).toBeInTheDocument();
 
-    const guideToggle = screen.getByRole("button", { name: /Supabase OAuth Setup Guide/i });
-    fireEvent.click(guideToggle);
+    const emailInputs = screen.getAllByPlaceholderText(/you@gmail\.com/i);
+    const modalEmailInput = emailInputs[emailInputs.length - 1];
+    fireEvent.change(modalEmailInput, { target: { value: "adopter@greenenlightenment.org" } });
 
-    const directOAuthBtn = screen.getByRole("button", { name: /Launch Supabase Google OAuth/i });
-    fireEvent.click(directOAuthBtn);
+    const sendLinkBtn = screen.getByRole("button", { name: /Send Reset Link/i });
+    fireEvent.click(sendLinkBtn);
+
 
     await waitFor(() => {
-      expect(mockSignInWithOAuth).toHaveBeenCalledWith(
+      expect(mockResetPasswordForEmail).toHaveBeenCalledWith(
+        "adopter@greenenlightenment.org",
         expect.objectContaining({
-          provider: "google",
+          redirectTo: expect.stringContaining("/login?type=recovery"),
         })
       );
     });
   });
 });
+
