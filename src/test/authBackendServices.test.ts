@@ -151,6 +151,19 @@ describe("Authentication & Authorization Backend Services", () => {
         })
       );
     });
+
+    it("resolves email identifiers and mobile phone numbers for password login", async () => {
+      const { resolveLoginEmail } = await import("@/services/otpService");
+      
+      // Standard email
+      const emailResult = await resolveLoginEmail("test.user@gmail.com");
+      expect(emailResult).toBe("test.user@gmail.com");
+
+      // Phone number
+      mockInvoke.mockResolvedValueOnce({ data: { success: true, email: "resolved.phone@domain.com" } });
+      const phoneResult = await resolveLoginEmail("9820011223");
+      expect(phoneResult).toBe("resolved.phone@domain.com");
+    });
   });
 
   describe("2. RBAC Roles, Permissions Matrix & Hierarchy", () => {

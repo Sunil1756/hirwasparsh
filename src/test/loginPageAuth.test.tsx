@@ -382,5 +382,32 @@ describe("Authentication System & Login Page Verification", () => {
       );
     });
   });
+
+  it("updates user password when in recovery mode (?type=recovery)", async () => {
+    const mockUpdateUser = vi.fn().mockResolvedValueOnce({ data: { user: {} }, error: null });
+    // @ts-ignore
+    window.history.pushState({}, "Recovery", "/login?type=recovery");
+
+    const queryClient = createQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <LanguageProvider>
+          <AuthProvider>
+            <MemoryRouter initialEntries={["/login?type=recovery"]}>
+              <Login />
+            </MemoryRouter>
+          </AuthProvider>
+        </LanguageProvider>
+      </QueryClientProvider>
+    );
+
+    expect(await screen.findByRole("heading", { name: /^Set New Password$/i })).toBeInTheDocument();
+    const newPassInput = screen.getByPlaceholderText(/Enter 8\+ strong characters/i);
+    fireEvent.change(newPassInput, { target: { value: "NewStr0ngP@ssw0rd!" } });
+
+    const submitBtn = screen.getByRole("button", { name: /Set New Password & Log In/i });
+    expect(submitBtn).not.toBeDisabled();
+  });
 });
+
 

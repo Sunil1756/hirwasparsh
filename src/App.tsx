@@ -76,7 +76,7 @@ const App = () => (
                 <Route path="/analytics" element={<Navigate to="/intelligence" replace />} />
                 <Route path="/leaderboard" element={<Leaderboard />} />
                 <Route path="/admin" element={<RoleProtectedRoute requiredRole="admin"><AdminDashboard /></RoleProtectedRoute>} />
-                <Route path="/admin-login" element={<AdminDashboard />} />
+                <Route path="/admin-login" element={<Navigate to="/login?redirect=/admin" replace />} />
                 <Route path="/admin/audit-log" element={<RoleProtectedRoute requiredRole="admin"><AdminAuditLog /></RoleProtectedRoute>} />
                 <Route path="/government" element={<RoleProtectedRoute requiredRole={["government", "admin"]}><GovernmentDashboard /></RoleProtectedRoute>} />
                 <Route path="/login" element={<Login />} />
@@ -90,8 +90,8 @@ const App = () => (
                 <Route path="/satellite" element={<Navigate to="/tree-map" replace />} />
                 <Route path="/green-impact" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/intelligence" element={<Intelligence />} />
-                <Route path="/csr-portal" element={<CSRCorporatePortal />} />
-                <Route path="/ngo-workspace" element={<NGOWorkspacePage />} />
+                <Route path="/csr-portal" element={<ProtectedRoute><CSRCorporatePortal /></ProtectedRoute>} />
+                <Route path="/ngo-workspace" element={<RoleProtectedRoute requiredRole={["field_worker", "admin"]}><NGOWorkspacePage /></RoleProtectedRoute>} />
                 <Route path="/pricing" element={<PricingPage />} />
                 <Route path="/verify/cert/:serialNo" element={<CertificateVerify />} />
                 <Route path="/verify/cert" element={<CertificateVerify />} />
