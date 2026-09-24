@@ -99,10 +99,22 @@ describe("Phase 3 Task 12 — Real Project Management System & Lifecycle State M
       expect(result.success).toBe(true);
       expect(result.project).toBeDefined();
       if (result.project) {
+        // 1. Create project & 2. Project name
         expect(result.project.name).toBe("Sahyadri Sacred Grove Restoration");
+        // 3. Description
+        expect(result.project.description).toBe("Restoring native endemic tree biodiversity in Pune district");
+        // 4. Organization
         expect(result.project.organization_id).toBe("org-uuid-101");
-        expect(result.project.status).toBe("draft");
+        // 5. Start date
+        expect(result.project.start_date).toBe("2026-10-01");
+        // 6. Target trees
         expect(result.project.target_trees).toBe(5000);
+        // 7. Location
+        expect(result.project.location_name).toBe("Pune, Maharashtra");
+        // 8. Status
+        expect(result.project.status).toBe("draft");
+        // 9. Project owner
+        expect(result.project.created_by).toBe("user-uuid-999");
       }
       expect(mockProjectInsert).toHaveBeenCalled();
       expect(mockAuditInsert).toHaveBeenCalled();

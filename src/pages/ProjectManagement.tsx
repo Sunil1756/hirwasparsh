@@ -565,16 +565,29 @@ export const ProjectManagement: React.FC = () => {
                     </Badge>
                   </div>
 
-                  {/* Project Title & Location */}
+                  {/* Project Title & Organization */}
                   <div>
                     <h3 className="text-lg font-heading font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1">
                       {project.name}
                     </h3>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
-                      <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
-                      <span className="truncate">{project.location_name || "Location coordinates set"}</span>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
+                      <div className="flex items-center gap-1">
+                        <Building2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <span className="truncate">{project.organization_name || (project.organization_id ? "Institutional Org" : "Personal / Individual")}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <span className="truncate">{project.location_name || "Coordinates set"}</span>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Description snippet */}
+                  {project.description && (
+                    <p className="text-xs text-muted-foreground/90 line-clamp-2 italic">
+                      "{project.description}"
+                    </p>
+                  )}
 
                   {/* Metrics Badges */}
                   <div className="grid grid-cols-2 gap-2 p-2.5 rounded-2xl bg-muted/30 border border-border/20 text-xs">
@@ -623,9 +636,14 @@ export const ProjectManagement: React.FC = () => {
 
                 {/* Footer Action */}
                 <div className="mt-5 pt-4 border-t border-border/30 flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-muted-foreground">
-                    Start: {project.start_date || "Immediate"}
-                  </span>
+                  <div className="space-y-0.5">
+                    <span className="text-[11px] text-muted-foreground block">
+                      Start: <strong>{project.start_date || "Immediate"}</strong>
+                    </span>
+                    <span className="text-[10px] text-muted-foreground/80 block">
+                      Owner: {project.created_by ? (user?.id === project.created_by ? "You (Owner)" : `${project.created_by.slice(0, 8)}...`) : "Platform"}
+                    </span>
+                  </div>
                   <Button
                     size="sm"
                     variant="outline"
@@ -887,6 +905,62 @@ export const ProjectManagement: React.FC = () => {
 
                 {/* TAB 1: OVERVIEW */}
                 <TabsContent value="overview" className="space-y-4 pt-4">
+                  {/* Core 9 Key Attributes Summary */}
+                  <div className="rounded-2xl bg-muted/20 border border-border/30 p-4 space-y-3">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Plantation Project Metadata
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <span className="text-muted-foreground block text-[11px]">Project Name:</span>
+                        <span className="font-semibold text-foreground text-sm">{projectDetails.name}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-[11px]">Organization:</span>
+                        <span className="font-semibold text-foreground">
+                          {projectDetails.organization_name || (projectDetails.organization_id ? "Linked Organization" : "Personal / Individual Project")}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-[11px]">Location / Territorial Zone:</span>
+                        <span className="font-semibold text-foreground">
+                          {projectDetails.location_name || "Territorial Coordinates Set"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-[11px]">Project Owner / Creator:</span>
+                        <span className="font-semibold text-foreground font-mono">
+                          {projectDetails.created_by ? (user?.id === projectDetails.created_by ? "You (Owner & Creator)" : projectDetails.created_by) : "Platform Admin"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-[11px]">Start Date:</span>
+                        <span className="font-semibold text-foreground">{projectDetails.start_date || "Immediate"}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-[11px]">Target Trees / Saplings:</span>
+                        <span className="font-semibold text-foreground">{projectDetails.target_trees.toLocaleString()} Trees</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-[11px]">Project Status:</span>
+                        <Badge variant="outline" className={`text-[11px] gap-1 px-2 py-0.5 mt-0.5 border ${STATUS_CONFIG[projectDetails.status].badgeClass}`}>
+                          {STATUS_CONFIG[projectDetails.status].label}
+                        </Badge>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-[11px]">Project Classification:</span>
+                        <span className="font-semibold capitalize text-foreground">{projectDetails.project_type.replace(/_/g, " ")}</span>
+                      </div>
+                    </div>
+
+                    {projectDetails.description && (
+                      <div className="pt-2 border-t border-border/20 text-xs text-muted-foreground">
+                        <span className="text-foreground font-semibold block mb-0.5">Description:</span>
+                        <p>{projectDetails.description}</p>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="p-3 rounded-2xl bg-muted/30 border border-border/20">
                       <span className="text-[10px] text-muted-foreground block">Target Saplings</span>
@@ -913,13 +987,6 @@ export const ProjectManagement: React.FC = () => {
                       </span>
                     </div>
                   </div>
-
-                  {projectDetails.description && (
-                    <div className="p-4 rounded-2xl bg-muted/20 border border-border/30 text-xs text-muted-foreground space-y-1">
-                      <span className="font-semibold text-foreground block">Project Overview</span>
-                      <p>{projectDetails.description}</p>
-                    </div>
-                  )}
 
                   {/* Species List */}
                   <div className="space-y-2">

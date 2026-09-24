@@ -174,6 +174,8 @@ export interface Project {
   reviewed_at?: string | null;
   verification_notes?: string | null;
   created_by?: string | null;
+  organization_name?: string | null;
+  created_by_name?: string | null;
   created_at: string;
   updated_at: string;
 }
