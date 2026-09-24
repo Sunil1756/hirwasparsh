@@ -95,6 +95,55 @@ export const ALLOWED_STATUS_TRANSITIONS: Record<ProjectStatus, ProjectStatus[]> 
 
 export const projectService = {
   /**
+   * Helper to check if actor has permissions to manage a project
+   * (Project Owner/Creator, Org Admin/Manager/Owner, or Platform Superadmin)
+   */
+  async checkCanManageProject(projectId: string, actorId: string): Promise<boolean> {
+    if (!actorId) return false;
+
+    try {
+      // 1. Fetch project owner & org
+      const { data: project } = await supabase
+        .from("projects" as any)
+        .select("created_by, organization_id")
+        .eq("id", projectId)
+        .maybeSingle();
+
+      if (!project) return false;
+      if (project.created_by === actorId) return true;
+
+      // 2. If organization_id is present, check org membership role
+      if (project.organization_id) {
+        const { data: member } = await supabase
+          .from("organization_members" as any)
+          .select("member_role, status")
+          .eq("organization_id", project.organization_id)
+          .eq("user_id", actorId)
+          .maybeSingle();
+
+        if (member && member.status === "active" && ["owner", "admin", "manager"].includes(member.member_role)) {
+          return true;
+        }
+      }
+
+      // 3. Platform Admin check
+      const { data: profile } = await supabase
+        .from("profiles" as any)
+        .select("role")
+        .eq("id", actorId)
+        .maybeSingle();
+
+      if (profile && profile.role === "admin") {
+        return true;
+      }
+
+      return false;
+    } catch {
+      return false;
+    }
+  },
+
+  /**
    * 1. CREATE PROJECT
    * Creates a master afforestation project linked to an organization or authenticated user
    */

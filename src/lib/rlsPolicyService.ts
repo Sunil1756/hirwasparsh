@@ -1,4 +1,4 @@
-﻿import {
+import {
   UserProfile,
   Organization,
   OrganizationMember,
@@ -120,6 +120,50 @@ export const rlsPolicyService = {
   },
 
   /**
+   * Evaluates permission to manage project boundaries
+   */
+  canManageBoundary(project: Project, context: SecurityContext): boolean {
+    return this.canManageProject(project, context);
+  },
+
+  /**
+   * Evaluates access to multi-tenant storage files
+   * e.g., organizations/{orgId}/..., projects/{projectId}/..., users/{userId}/...
+   */
+  canAccessStoragePath(
+    bucketName: string,
+    storagePath: string,
+    context: SecurityContext,
+    resourceMetadata?: {
+      organization_id?: string | null;
+      project_id?: string | null;
+      user_id?: string | null;
+      is_public?: boolean;
+    }
+  ): boolean {
+    if (resourceMetadata?.is_public) return true;
+    if (!context.user) return false;
+    if (this.isAdmin(context)) return true;
+    if (resourceMetadata?.user_id && resourceMetadata.user_id === context.user.id) return true;
+    if (resourceMetadata?.organization_id && this.isOrgMember(resourceMetadata.organization_id, context)) return true;
+
+    // Path-based tenant isolation checks
+    if (storagePath.startsWith("organizations/")) {
+      const parts = storagePath.split("/");
+      const targetOrgId = parts[1];
+      return Boolean(targetOrgId && this.isOrgMember(targetOrgId, context));
+    }
+
+    if (storagePath.startsWith("users/")) {
+      const parts = storagePath.split("/");
+      const targetUserId = parts[1];
+      return targetUserId === context.user.id;
+    }
+
+    return false;
+  },
+
+  /**
    * Evaluates access to immutable platform audit logs
    */
   canReadAuditLogs(context: SecurityContext): boolean {
@@ -133,3 +177,4 @@ export const rlsPolicyService = {
     return false;
   },
 };
+

@@ -268,24 +268,33 @@ export const dashboardDataService = {
 
       if (orgErr || !org) return null;
 
-      const [projectsRes, membersRes, treesRes, boundariesRes] = await Promise.all([
-        supabase.from("projects" as any).select("id, status, target_trees, planted_trees").eq("organization_id", organizationId),
+      const [projectsRes, membersRes, treesRes] = await Promise.all([
+        supabase.from("projects" as any).select("id, status, target_trees, planted_trees, target_area_hectares").eq("organization_id", organizationId),
         supabase.from("organization_members" as any).select("id, status").eq("organization_id", organizationId),
         supabase.from("trees" as any).select("id, status").eq("organization_id", organizationId),
-        supabase.from("project_boundaries" as any).select("id, area_hectares"),
       ]);
 
       const projects = projectsRes.data || [];
       const members = membersRes.data || [];
       const trees = (treesRes.data || []) as Array<{ id: string; status: string }>;
-      const boundaries = boundariesRes.data || [];
+      const projectIds = projects.map((p: any) => p.id);
+
+      let totalHectares = 0;
+      if (projectIds.length > 0) {
+        const { data: boundariesData } = await supabase
+          .from("project_boundaries" as any)
+          .select("id, area_hectares")
+          .in("project_id", projectIds);
+        
+        const boundaries = boundariesData || [];
+        totalHectares = Number(boundaries.reduce((sum: number, b: any) => sum + (Number(b.area_hectares) || 0), 0).toFixed(3));
+      }
 
       const activeProjectsCount = projects.filter((p: any) => p.status === "active").length;
       const totalTargetTrees = projects.reduce((sum: number, p: any) => sum + (p.target_trees || 0), 0);
       const totalPlantedTrees = trees.length;
       const totalAliveTrees = trees.filter((t) => t.status === "alive" || t.status === "thriving").length;
       const survivalRate = totalPlantedTrees > 0 ? Math.round((totalAliveTrees / totalPlantedTrees) * 100) : 100;
-      const totalHectares = Number(boundaries.reduce((sum: number, b: any) => sum + (Number(b.area_hectares) || 0), 0).toFixed(3));
 
       return {
         organizationId,

@@ -255,7 +255,9 @@ describe("Phase 3 Task 13 — Real Project Dashboard & Platform Data Integration
         }
         if (table === "project_boundaries") {
           return {
-            select: vi.fn().mockResolvedValue({ data: mockBoundaries, error: null }),
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockResolvedValue({ data: mockBoundaries, error: null }),
+            }),
           };
         }
         return { select: vi.fn() };
