@@ -201,9 +201,11 @@ export interface ProjectBoundary {
   updated_at: string;
 }
 
-// 6. Tree / Core Tree Data Model (Phase 4 Task 15)
+// 6. Tree / Core Tree Data Model (Phase 4 Task 15 & Task 18)
 export interface Tree {
-  id: string; // 1. Tree ID
+  id: string; // 1. Tree ID (UUID)
+  tree_code?: string | null; // Unique GE Tree Code (e.g. GE-2026-000001)
+  qr_token?: string | null; // Cryptographic QR Token
   project_id?: string | null; // 2. Project ID
   species: string; // 3. Species
   plantation_date: string; // 4. Plantation date (YYYY-MM-DD or ISO)
@@ -245,6 +247,7 @@ export interface Tree {
 // Tree Data Model Creation Input
 export interface CreateTreeInput {
   id?: string; // Optional client-generated UUID
+  tree_code?: string | null; // Optional pre-allocated Green Enlightenment Tree Code (GE-YYYY-XXXXXX)
   project_id?: string | null; // 2. Project ID
   species: string; // 3. Species (Required)
   plantation_date?: string; // 4. Plantation date (Defaults to CURRENT_DATE)

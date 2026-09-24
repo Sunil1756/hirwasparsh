@@ -19,6 +19,8 @@ import { VernacularVoiceAssistant } from "@/components/VernacularVoiceAssistant"
 import { validateGpsCoordinates, syncCoordinateSatelliteTelemetry } from "@/lib/geospatialSatelliteService";
 import { GpsLocationCapture } from "@/components/GpsLocationCapture";
 import { useGpsRegistration } from "@/hooks/useGpsRegistration";
+import { treeRegistrationService } from "@/services/treeRegistrationService";
+import { TreeIdCertificateCard } from "@/components/TreeIdCertificateCard";
 
 type NearbyTree = {
   id: string; tree_name: string; species: string; user_id: string;
@@ -60,6 +62,8 @@ const PlantTree = () => {
 
   const [currentStep, setCurrentStep] = useState<PhotoStep>("before");
   const [submitted, setSubmitted] = useState(false);
+  const [registeredTreeCode, setRegisteredTreeCode] = useState<string | null>(null);
+  const [registeredTree, setRegisteredTree] = useState<any | null>(null);
   const [verifyResult, setVerifyResult] = useState<{ status: string; score: number; flagged_reason?: string | null; breakdown?: any } | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [location, setLocation] = useState("");
@@ -415,10 +419,15 @@ const PlantTree = () => {
         uploadSelfie(selfiePhoto, `${authUserId}/${ts}_selfie.jpg`),
       ]);
 
+      setSubmitStage("Allocating Unique Green Enlightenment Tree Code (GE-YYYY-NNNNNN)...");
+      const nextTreeCode = await treeRegistrationService.fetchNextTreeCode();
+
       setSubmitStage("Registering on Data Spine...");
       const { data: tree, error: insertError } = await supabase
         .from("trees")
         .insert({
+          tree_code: nextTreeCode,
+          qr_token: `ge_qr_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
           tree_name: treeName,
           species,
           plantation_date: plantationDate,
@@ -455,6 +464,8 @@ const PlantTree = () => {
       if (insertError) throw insertError;
 
       if (tree) {
+        setRegisteredTreeCode((tree as any).tree_code || nextTreeCode);
+        setRegisteredTree(tree);
         // Asynchronously sync Sentinel-2 satellite baseline for the newly planted GPS coordinate
         if (latitude != null && longitude != null) {
           syncCoordinateSatelliteTelemetry(latitude, longitude, (tree as any).id).catch(() => {});
@@ -661,9 +672,9 @@ const PlantTree = () => {
           : "⚠️ Flagged for Manual Review";
 
     return (
-      <div className="min-h-screen pt-24 flex items-center justify-center px-4">
+      <div className="min-h-screen pt-24 pb-12 flex items-center justify-center px-4">
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-          className="glass-card rounded-2xl p-10 text-center max-w-md w-full">
+          className="glass-card rounded-2xl p-6 sm:p-10 text-center max-w-lg w-full space-y-6">
           {verifying ? (
             <Loader2 className="h-16 w-16 text-primary mx-auto mb-4 animate-spin" />
           ) : (
@@ -671,16 +682,26 @@ const PlantTree = () => {
           )}
           <h2 className="font-heading text-2xl font-bold mb-2">{statusLabel}</h2>
 
+          {registeredTreeCode && (
+            <div className="text-left">
+              <TreeIdCertificateCard
+                treeCode={registeredTreeCode}
+                tree={registeredTree || { species, plantation_date: plantationDate, latitude: latitude || undefined, longitude: longitude || undefined }}
+                photoUrl={afterPreview}
+              />
+            </div>
+          )}
+
           {!verifying && verifyResult && (
-            <div className="my-6">
+            <div className="my-4">
               <div className="text-sm text-muted-foreground mb-1">AI Verification Score</div>
-              <div className={`font-heading text-5xl font-bold ${ringColor}`}>{score}<span className="text-2xl text-muted-foreground">/100</span></div>
+              <div className={`font-heading text-4xl font-bold ${ringColor}`}>{score}<span className="text-xl text-muted-foreground">/100</span></div>
               <div className="mt-2 text-xs text-muted-foreground">
                 {isRejected
                   ? "Score below 50% — submission rejected, no points awarded."
                   : isVerified
-                    ? "Score ≥ 75% — awaiting final admin approval to credit +10 points."
-                    : "Score 50–74% — admin will review manually."}
+                    ? "Score ≥ 70% — auto-approved by AI! Eco-Points credited."
+                    : "Score 50–69% — admin will review manually."}
               </div>
               {verifyResult.flagged_reason && (
                 <div className="mt-3 text-xs bg-muted/50 rounded-lg p-2 text-muted-foreground">{verifyResult.flagged_reason}</div>
@@ -688,11 +709,6 @@ const PlantTree = () => {
             </div>
           )}
 
-          {!verifying && !isRejected && (
-            <p className="text-muted-foreground text-sm mb-4">
-              <strong>Points are credited only after admin approval.</strong>
-            </p>
-          )}
           <Button className="w-full" onClick={() => window.location.reload()}>Submit Another Plantation</Button>
         </motion.div>
       </div>
