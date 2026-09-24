@@ -10,8 +10,19 @@ export interface UploadResult {
   path: string;
   url: string;
   bucket: StorageBucketType;
-  sha256_hash?: string;
+  sha256_hash: string;
   size_bytes: number;
+  db_record_id?: string;
+}
+
+export interface UploadOptions {
+  uploader_id?: string;
+  caption?: string;
+  latitude?: number;
+  longitude?: number;
+  altitude_m?: number;
+  exif_timestamp?: string;
+  persist_to_database?: boolean;
 }
 
 export const STORAGE_LIMITS = {
@@ -82,9 +93,9 @@ export const secureStorageService = {
   },
 
   /**
-   * Uploads user profile avatar to public 'avatars' bucket
+   * Uploads user profile avatar to public 'avatars' bucket and updates public.profiles
    */
-  async uploadAvatar(userId: string, file: File | Blob): Promise<UploadResult> {
+  async uploadAvatar(userId: string, file: File | Blob, persistToDb = true): Promise<UploadResult> {
     const validation = this.validateFile(file, "avatars");
     if (!validation.valid) throw new Error(validation.error);
 
@@ -92,14 +103,21 @@ export const secureStorageService = {
     const path = `profiles/${userId}/avatar_${Date.now()}.${ext}`;
     const hash = await this.computeSha256(file);
 
-    const { error } = await supabase.storage.from("avatars").upload(path, file, {
+    const { error: storageErr } = await supabase.storage.from("avatars").upload(path, file, {
       upsert: true,
       contentType: file.type || "image/jpeg",
     });
 
-    if (error) throw new Error(`Avatar upload failed: ${error.message}`);
+    if (storageErr) throw new Error(`Avatar upload failed: ${storageErr.message}`);
 
     const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+
+    if (persistToDb) {
+      await supabase
+        .from("profiles" as any)
+        .update({ avatar_url: urlData.publicUrl, updated_at: new Date().toISOString() })
+        .eq("id", userId);
+    }
 
     return {
       bucket: "avatars",
@@ -111,24 +129,61 @@ export const secureStorageService = {
   },
 
   /**
-   * Uploads individual tree photo to public 'treebank' bucket
+   * Uploads individual tree photo to public 'treebank' bucket and creates a real tree_photos audit record
    */
-  async uploadTreePhoto(treeId: string, file: File | Blob, prefix = "tree"): Promise<UploadResult> {
+  async uploadTreePhoto(
+    treeId: string,
+    file: File | Blob,
+    options: UploadOptions = {}
+  ): Promise<UploadResult> {
     const validation = this.validateFile(file, "treebank");
     if (!validation.valid) throw new Error(validation.error);
 
     const ext = (file as File).name ? (file as File).name.split(".").pop() : "jpg";
     const hash = await this.computeSha256(file);
-    const path = `trees/${treeId}/${prefix}_${Date.now()}_${hash.substring(0, 8)}.${ext}`;
+    const path = `trees/${treeId}/tree_${Date.now()}_${hash.substring(0, 8)}.${ext}`;
 
-    const { error } = await supabase.storage.from("treebank").upload(path, file, {
+    const { error: storageErr } = await supabase.storage.from("treebank").upload(path, file, {
       upsert: true,
       contentType: file.type || "image/jpeg",
     });
 
-    if (error) throw new Error(`Tree photo upload failed: ${error.message}`);
+    if (storageErr) throw new Error(`Tree photo upload failed: ${storageErr.message}`);
 
     const { data: urlData } = supabase.storage.from("treebank").getPublicUrl(path);
+
+    let dbRecordId: string | undefined;
+    if (options.persist_to_database !== false) {
+      // 1. Insert into tree_photos table
+      const { data: photoRecord } = await supabase
+        .from("tree_photos" as any)
+        .insert({
+          tree_id: treeId,
+          uploader_id: options.uploader_id || null,
+          photo_url: urlData.publicUrl,
+          evidence_type: "growth_photo",
+          caption: options.caption || "Individual tree photo submission",
+          latitude: options.latitude || null,
+          longitude: options.longitude || null,
+          altitude_m: options.altitude_m || null,
+          exif_timestamp: options.exif_timestamp || new Date().toISOString(),
+          sha256_hash: hash,
+          storage_bucket: "treebank",
+          storage_path: path,
+        })
+        .select("id")
+        .maybeSingle();
+
+      if (photoRecord?.id) {
+        dbRecordId = photoRecord.id;
+      }
+
+      // 2. Update the tree's primary photo URL
+      await supabase
+        .from("trees" as any)
+        .update({ photo_url: urlData.publicUrl, photo_hash: hash, updated_at: new Date().toISOString() })
+        .eq("id", treeId);
+    }
 
     return {
       bucket: "treebank",
@@ -136,16 +191,18 @@ export const secureStorageService = {
       url: urlData.publicUrl,
       sha256_hash: hash,
       size_bytes: file.size,
+      db_record_id: dbRecordId,
     };
   },
 
   /**
-   * Uploads audit evidence (inspections, drone, selfies) to private 'evidence' bucket
+   * Uploads audit evidence (inspections, drone, selfies) to private 'evidence' bucket and persists real database record
    */
   async uploadEvidence(
     targetId: string,
     file: File | Blob,
-    evidenceType: string
+    evidenceType: string,
+    options: UploadOptions = {}
   ): Promise<UploadResult> {
     const validation = this.validateFile(file, "evidence");
     if (!validation.valid) throw new Error(validation.error);
@@ -154,29 +211,58 @@ export const secureStorageService = {
     const hash = await this.computeSha256(file);
     const path = `evidence/${targetId}/${evidenceType}/${Date.now()}_${hash.substring(0, 8)}.${ext}`;
 
-    const { error } = await supabase.storage.from("evidence").upload(path, file, {
+    const { error: storageErr } = await supabase.storage.from("evidence").upload(path, file, {
       upsert: true,
       contentType: file.type || "image/jpeg",
     });
 
-    if (error) throw new Error(`Evidence upload failed: ${error.message}`);
+    if (storageErr) throw new Error(`Evidence upload failed: ${storageErr.message}`);
+
+    let dbRecordId: string | undefined;
+    if (options.persist_to_database !== false) {
+      const { data: record } = await supabase
+        .from("tree_photos" as any)
+        .insert({
+          tree_id: targetId.startsWith("tree") ? targetId : null,
+          project_id: !targetId.startsWith("tree") ? targetId : null,
+          uploader_id: options.uploader_id || null,
+          photo_url: path, // Private asset stores path
+          evidence_type: evidenceType,
+          caption: options.caption || `Field evidence: ${evidenceType}`,
+          latitude: options.latitude || null,
+          longitude: options.longitude || null,
+          altitude_m: options.altitude_m || null,
+          exif_timestamp: options.exif_timestamp || new Date().toISOString(),
+          sha256_hash: hash,
+          storage_bucket: "evidence",
+          storage_path: path,
+        })
+        .select("id")
+        .maybeSingle();
+
+      if (record?.id) {
+        dbRecordId = record.id;
+      }
+    }
 
     return {
       bucket: "evidence",
       path,
-      url: path, // Private bucket: url is path until signed URL requested
+      url: path,
       sha256_hash: hash,
       size_bytes: file.size,
+      db_record_id: dbRecordId,
     };
   },
 
   /**
-   * Uploads project documents (KML, DPR, MOU) to private 'project-documents' bucket
+   * Uploads project documents (KML, DPR, MOU) to private 'project-documents' bucket and creates database record
    */
   async uploadProjectDocument(
     projectId: string,
     file: File | Blob,
-    documentType: string
+    documentType: string,
+    options: UploadOptions = {}
   ): Promise<UploadResult> {
     const validation = this.validateFile(file, "project-documents");
     if (!validation.valid) throw new Error(validation.error);
@@ -185,12 +271,34 @@ export const secureStorageService = {
     const hash = await this.computeSha256(file);
     const path = `projects/${projectId}/${documentType}/${Date.now()}_${filename}`;
 
-    const { error } = await supabase.storage.from("project-documents").upload(path, file, {
+    const { error: storageErr } = await supabase.storage.from("project-documents").upload(path, file, {
       upsert: true,
       contentType: file.type || "application/pdf",
     });
 
-    if (error) throw new Error(`Project document upload failed: ${error.message}`);
+    if (storageErr) throw new Error(`Project document upload failed: ${storageErr.message}`);
+
+    let dbRecordId: string | undefined;
+    if (options.persist_to_database !== false) {
+      const { data: record } = await supabase
+        .from("tree_photos" as any)
+        .insert({
+          project_id: projectId,
+          uploader_id: options.uploader_id || null,
+          photo_url: path,
+          evidence_type: documentType === "kml_boundary" ? "kml_document" : "soil_sample",
+          caption: options.caption || `Project document: ${filename}`,
+          sha256_hash: hash,
+          storage_bucket: "project-documents",
+          storage_path: path,
+        })
+        .select("id")
+        .maybeSingle();
+
+      if (record?.id) {
+        dbRecordId = record.id;
+      }
+    }
 
     return {
       bucket: "project-documents",
@@ -198,6 +306,7 @@ export const secureStorageService = {
       url: path,
       sha256_hash: hash,
       size_bytes: file.size,
+      db_record_id: dbRecordId,
     };
   },
 
@@ -217,10 +326,13 @@ export const secureStorageService = {
   },
 
   /**
-   * Removes a file from storage
+   * Removes a file from storage and cleans up associated tree_photos records
    */
   async deleteFile(bucket: StorageBucketType, paths: string[]): Promise<boolean> {
     const { error } = await supabase.storage.from(bucket).remove(paths);
+    if (!error) {
+      await supabase.from("tree_photos" as any).delete().in("storage_path", paths);
+    }
     return !error;
   },
 };
