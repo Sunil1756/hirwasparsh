@@ -260,8 +260,41 @@ serve(async (req) => {
       );
     }
 
+    // -------------------------------------------------------------
+    // ACTION: RESOLVE EMAIL BY PHONE
+    // -------------------------------------------------------------
+    if (action === "resolve-email-by-phone") {
+      const cleanPhone = cleanRecipient.replace(/\D/g, "").slice(-10);
+      const formatted = `+91${cleanPhone}`;
+
+      try {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("id")
+          .or(`phone.eq.${formatted},phone.eq.${cleanPhone}`)
+          .maybeSingle();
+
+        if (profile?.id) {
+          const { data: userData } = await supabase.auth.admin.getUserById(profile.id);
+          if (userData?.user?.email) {
+            return new Response(
+              JSON.stringify({ success: true, email: userData.user.email }),
+              { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+        }
+      } catch (lookupErr) {
+        console.warn("Lookup profile error:", lookupErr);
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, email: `phone_${cleanPhone}@sms.hirwasparsh.internal` }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
-      JSON.stringify({ success: false, error: "Invalid action. Use 'send' or 'verify'." }),
+      JSON.stringify({ success: false, error: "Invalid action. Use 'send', 'verify', or 'resolve-email-by-phone'." }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {

@@ -8,6 +8,7 @@ export interface SendOtpParams {
     full_name?: string;
     organization_name?: string | null;
     account_type?: string;
+    email?: string;
   };
 }
 
@@ -20,6 +21,7 @@ export interface VerifyOtpParams {
     full_name?: string;
     organization_name?: string | null;
     account_type?: string;
+    email?: string;
   };
 }
 
@@ -99,7 +101,7 @@ export async function sendOtpCode(params: SendOtpParams): Promise<OtpResponse> {
         maskedRecipient: masked,
       };
     } else {
-      // 2. Phone / SMS Channel: Dispatch via Twilio Gateway Edge Function
+      // Phone / SMS Channel: Dispatch via Twilio Gateway Edge Function
       const formattedPhone = cleanRecipient.startsWith("+")
         ? cleanRecipient
         : `+91${cleanRecipient.replace(/\D/g, "").slice(-10)}`;
@@ -162,67 +164,27 @@ export async function verifyOtpCode(params: VerifyOtpParams): Promise<OtpRespons
         ? cleanRecipient
         : `+91${cleanRecipient.replace(/\D/g, "").slice(-10)}`;
       const digits = formattedPhone.replace(/\D/g, "").slice(-10);
-      const syntheticEmail = `phone_${digits}@sms.hirwasparsh.internal`;
-      const deterministicPassword = `TwilioSecure_${digits}_Hirwasparsh2026!`;
 
-      // 1. Validate challenge via Edge function if available
+      // Validate challenge via Edge function (Twilio Verify / DB challenge)
       try {
-        await supabase.functions.invoke("send-otp", {
+        const { data: edgeData, error: edgeError } = await supabase.functions.invoke("send-otp", {
           body: { action: "verify", recipient: formattedPhone, code: cleanToken, purpose },
         });
-      } catch (_) {
-        // Continue
-      }
 
-      // 2. Sign in or Sign up the user session in Supabase GoTrue Auth
-      let authUser: any = null;
-
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: syntheticEmail,
-        password: deterministicPassword,
-      });
-
-      if (!signInError && signInData?.user) {
-        authUser = signInData.user;
-      } else {
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: syntheticEmail,
-          password: deterministicPassword,
-          options: {
-            data: {
-              full_name: metadata?.full_name || `User ${digits.slice(-4)}`,
-              phone: formattedPhone,
-              account_type: metadata?.account_type || "individual",
-              organization_name: metadata?.organization_name || null,
-            },
-          },
-        });
-
-        if (signUpError && !signUpData?.user) {
+        if (edgeError || (edgeData && edgeData.success === false)) {
           return {
             success: false,
-            message: signUpError.message || "Failed to initialize mobile session.",
-            error: signUpError.message,
+            message: edgeData?.reason || "Incorrect verification code. Please check your SMS.",
+            error: edgeData?.reason,
           };
         }
-
-        authUser = signUpData?.user;
-      }
-
-      // 3. Upsert profile in Supabase profiles table
-      if (authUser?.id) {
-        await supabase.from("profiles").upsert({
-          id: authUser.id,
-          full_name: metadata?.full_name || `User ${digits.slice(-4)}`,
-          organization_name: metadata?.organization_name || null,
-          role: metadata?.account_type || "individual",
-        });
+      } catch (edgeErr) {
+        console.warn("Verify OTP edge warning:", edgeErr);
       }
 
       return {
         success: true,
-        message: "Mobile verified successfully via Twilio OTP! Welcome.",
-        user: authUser,
+        message: "Mobile phone number verified successfully via Twilio OTP!",
       };
     } else {
       // Email OTP verification
@@ -262,4 +224,55 @@ export async function verifyOtpCode(params: VerifyOtpParams): Promise<OtpRespons
       error: err.message,
     };
   }
+}
+
+/**
+ * Resolves a login identifier (email or mobile phone number) to the account email
+ */
+export async function resolveLoginEmail(identifier: string): Promise<string> {
+  const clean = identifier.trim().toLowerCase();
+  if (clean.includes("@")) {
+    return clean;
+  }
+
+  const digits = clean.replace(/\D/g, "").slice(-10);
+  if (!digits || digits.length < 10) {
+    return clean;
+  }
+
+  const formattedPhone = `+91${digits}`;
+
+  try {
+    // 1. Ask edge function if it can resolve the registered email for this phone
+    const { data: edgeData } = await supabase.functions.invoke("send-otp", {
+      body: { action: "resolve-email-by-phone", recipient: formattedPhone },
+    });
+
+    if (edgeData?.email) {
+      return edgeData.email;
+    }
+  } catch (_) {
+    // Fallback
+  }
+
+  // 2. Query profiles table by phone if available
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id")
+      .or(`phone.eq.${formattedPhone},phone.eq.${digits}`)
+      .maybeSingle();
+
+    if (profile?.id) {
+      const { data: userData } = await supabase.auth.admin?.getUserById(profile.id) || {};
+      if (userData?.user?.email) {
+        return userData.user.email;
+      }
+    }
+  } catch (_) {
+    // Fallback
+  }
+
+  // 3. Fallback to synthetic email format if phone-only registration was used
+  return `phone_${digits}@sms.hirwasparsh.internal`;
 }
