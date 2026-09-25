@@ -22,6 +22,11 @@ import {
   Globe,
   Activity,
   AlertTriangle,
+  Building2,
+  FolderKanban,
+  RotateCcw,
+  Clock,
+  CalendarDays,
 } from "lucide-react";
 import {
   RealTreeFeature,
@@ -37,7 +42,7 @@ import {
   BoundingBox,
   LatLngTuple,
 } from "@/lib/gisMapFoundation";
-import { SurvivalStatus } from "@/types/coreDatabase";
+import { SurvivalStatus, MonitoringStatus, TreeStatus } from "@/types/coreDatabase";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,22 +79,52 @@ function TreeCoordinateFlyNavigator({
   return null;
 }
 
+// Bounding Box Auto-Fitter
+function TreeBoundingBoxFitter({
+  bounds,
+  triggerCount,
+}: {
+  bounds: BoundingBox | null;
+  triggerCount: number;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (triggerCount === 0 || !bounds) return;
+    if (map && typeof map.fitBounds === "function") {
+      map.fitBounds(
+        [
+          [bounds.minLat, bounds.minLng],
+          [bounds.maxLat, bounds.maxLng],
+        ],
+        { padding: [50, 50], maxZoom: 16 }
+      );
+    }
+  }, [bounds, triggerCount]);
+
+  return null;
+}
+
 export interface TreeMapViewerProps {
-  initialTreeId?: string;
   projectId?: string;
-  onSelectTree?: (tree: RealTreeFeature | null) => void;
+  organizationId?: string;
+  initialTreeId?: string;
+  defaultBasemap?: BasemapProviderId;
   height?: string | number;
   className?: string;
   showFiltersSidebar?: boolean;
+  onSelectTree?: (tree: RealTreeFeature | null) => void;
 }
 
 export const TreeMapViewer: React.FC<TreeMapViewerProps> = ({
-  initialTreeId,
   projectId,
-  onSelectTree,
-  height = "700px",
+  organizationId,
+  initialTreeId,
+  defaultBasemap = "google_satellite",
+  height = "750px",
   className = "",
   showFiltersSidebar = true,
+  onSelectTree,
 }) => {
   const [data, setData] = useState<TreeMapDataResponse>({
     trees: [],
@@ -100,43 +135,73 @@ export const TreeMapViewer: React.FC<TreeMapViewerProps> = ({
     damagedCount: 0,
     deadCount: 0,
     needsReviewCount: 0,
+    upToDateCount: 0,
+    dueSoonCount: 0,
+    overdueCount: 0,
+    criticalOverdueCount: 0,
     overallBoundingBox: null,
     centroid: [19.7515, 75.7139],
     speciesList: [],
+    organizationsList: [],
+    projectsList: [],
+    activeFilterCount: 0,
   });
 
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [scopeFilter, setScopeFilter] = useState<"all" | "individual" | "institutional">("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [stageFilter, setStageFilter] = useState<string>("all");
+
+  // 6 Core Filter Dimensions
+  const [selectedOrg, setSelectedOrg] = useState<string>(organizationId || "all");
+  const [selectedProj, setSelectedProj] = useState<string>(projectId || "all");
   const [speciesFilter, setSpeciesFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [monitoringFilter, setMonitoringFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
+  const [customStartDate, setCustomStartDate] = useState<string>("");
+  const [customEndDate, setCustomEndDate] = useState<string>("");
+
+  // Extra secondary filters
+  const [scopeFilter, setScopeFilter] = useState<"all" | "individual" | "institutional">("all");
   const [showAccuracyRings, setShowAccuracyRings] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const [selectedTreeId, setSelectedTreeId] = useState<string | null>(initialTreeId || null);
   const [flyCoord, setFlyCoord] = useState<LatLngTuple | null>(null);
   const [flyTrigger, setFlyTrigger] = useState(0);
+  const [fitTrigger, setFitTrigger] = useState(0);
 
-  // Load Tree Map Data
+  // Load Tree Map Data with All 6 Filters
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetchRealTreeMapData({
-        scope: scopeFilter,
-        survivalStatus: statusFilter as any,
-        growthStage: stageFilter as any,
+        organizationId: selectedOrg,
+        projectId: selectedProj,
         species: speciesFilter,
+        survivalStatus: statusFilter as any,
+        monitoringStatus: monitoringFilter as any,
         dateWindow: dateFilter as any,
+        startDate: customStartDate || undefined,
+        endDate: customEndDate || undefined,
+        scope: scopeFilter,
         searchQuery,
-        projectId,
       });
       setData(response);
     } finally {
       setIsLoading(false);
     }
-  }, [scopeFilter, statusFilter, stageFilter, speciesFilter, dateFilter, searchQuery, projectId]);
+  }, [
+    selectedOrg,
+    selectedProj,
+    speciesFilter,
+    statusFilter,
+    monitoringFilter,
+    dateFilter,
+    customStartDate,
+    customEndDate,
+    scopeFilter,
+    searchQuery,
+  ]);
 
   useEffect(() => {
     loadData();
@@ -160,6 +225,19 @@ export const TreeMapViewer: React.FC<TreeMapViewerProps> = ({
     [onSelectTree]
   );
 
+  const handleResetFilters = useCallback(() => {
+    setSelectedOrg("all");
+    setSelectedProj("all");
+    setSpeciesFilter("all");
+    setStatusFilter("all");
+    setMonitoringFilter("all");
+    setDateFilter("all");
+    setCustomStartDate("");
+    setCustomEndDate("");
+    setScopeFilter("all");
+    setSearchQuery("");
+  }, []);
+
   const handleCopyCoordinates = useCallback((lat: number, lng: number, id: string) => {
     const formatted = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
     navigator.clipboard.writeText(formatted);
@@ -168,23 +246,88 @@ export const TreeMapViewer: React.FC<TreeMapViewerProps> = ({
     setTimeout(() => setCopiedId(null), 2000);
   }, []);
 
+  // Compute Active Filter Count
+  const totalActiveFilters = useMemo(() => {
+    let count = 0;
+    if (selectedOrg !== "all") count++;
+    if (selectedProj !== "all") count++;
+    if (speciesFilter !== "all") count++;
+    if (statusFilter !== "all") count++;
+    if (monitoringFilter !== "all") count++;
+    if (dateFilter !== "all") count++;
+    if (searchQuery.trim()) count++;
+    if (scopeFilter !== "all") count++;
+    return count;
+  }, [selectedOrg, selectedProj, speciesFilter, statusFilter, monitoringFilter, dateFilter, searchQuery, scopeFilter]);
+
+  // Memoized Leaflet DivIcons
+  const treeIcons = useMemo(() => {
+    const iconMap = new Map<string, L.DivIcon>();
+    for (const tree of data.trees) {
+      const isSelected = tree.id === selectedTreeId;
+      const html = getTreeDivIconHtml(tree, isSelected);
+      const icon = L.divIcon({
+        className: "custom-tree-marker",
+        html,
+        iconSize: isSelected ? [28, 28] : [22, 22],
+        iconAnchor: isSelected ? [14, 14] : [11, 11],
+        popupAnchor: [0, -12],
+      });
+      iconMap.set(tree.id, icon);
+    }
+    return iconMap;
+  }, [data.trees, selectedTreeId]);
+
+  const cssHeight = typeof height === "number" ? `${height}px` : height;
+
   return (
     <div className={`flex flex-col ${showFiltersSidebar ? "lg:flex-row" : ""} gap-4 ${className}`}>
       {/* Search & Filter Sidebar */}
       {showFiltersSidebar && (
-        <aside className="w-full lg:w-96 flex flex-col gap-3 shrink-0">
+        <aside className="w-full lg:w-[420px] flex flex-col gap-3 shrink-0">
           <div className="glass-card rounded-2xl p-4 border border-border/70 shadow-sm space-y-3.5">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-border/50 pb-2.5">
               <div className="flex items-center gap-2">
-                <TreePine className="h-5 w-5 text-primary" />
-                <h3 className="font-heading font-bold text-base text-foreground">
-                  Tree Registry GIS
-                </h3>
+                <div className="p-2 bg-primary/10 rounded-xl text-primary border border-primary/20">
+                  <TreePine className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-sm text-foreground flex items-center gap-1.5">
+                    Tree Registry GIS
+                    {totalActiveFilters > 0 && (
+                      <Badge variant="secondary" className="text-[10px] bg-primary/15 text-primary border-primary/30">
+                        {totalActiveFilters} active
+                      </Badge>
+                    )}
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground">Multi-Dimensional Geospatial MRV</p>
+                </div>
               </div>
-              <Badge variant="outline" className="bg-primary/10 border-primary/20 text-xs">
-                {data.totalTrees} Trees
-              </Badge>
+              <div className="flex items-center gap-1.5">
+                {totalActiveFilters > 0 && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleResetFilters}
+                    className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    title="Reset All Filters"
+                  >
+                    <RotateCcw className="w-3 h-3 mr-1" />
+                    Reset
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setFitTrigger((c) => c + 1)}
+                  className="h-7 px-2 text-xs rounded-lg border-border/60"
+                  title="Fit Visible Markers"
+                >
+                  <Compass className="w-3 h-3 mr-1 text-primary" />
+                  Fit
+                </Button>
+              </div>
             </div>
 
             {/* Real-time Coordinate & Text Search Box */}
@@ -192,86 +335,193 @@ export const TreeMapViewer: React.FC<TreeMapViewerProps> = ({
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 placeholder="Search by code, species, or lat, lng..."
-                className="pl-9 h-9 text-xs rounded-xl"
+                className="pl-9 h-8 text-xs rounded-xl bg-background/70 border-border/60"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
-            {/* Scope Filter */}
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 block">
-                Planted Domain
-              </label>
-              <Select value={scopeFilter} onValueChange={(v: any) => setScopeFilter(v)}>
-                <SelectTrigger className="h-8 text-xs rounded-lg">
-                  <SelectValue placeholder="All Domains" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">🌐 All Plantations ({data.totalTrees})</SelectItem>
-                  <SelectItem value="individual">🌿 Individual Plantations</SelectItem>
-                  <SelectItem value="institutional">🏢 Institutional & Plots</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {/* 6-DIMENSION FILTER CONTROLS */}
+            <div className="space-y-2.5">
+              {/* Filter 1 & 2: Organization & Project */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
+                    <Building2 className="w-3 h-3 text-primary" />
+                    Organization
+                  </label>
+                  <Select value={selectedOrg} onValueChange={setSelectedOrg}>
+                    <SelectTrigger className="h-8 text-xs rounded-lg bg-background/60">
+                      <SelectValue placeholder="All Organizations" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Organizations</SelectItem>
+                      {data.organizationsList.map((org) => (
+                        <SelectItem key={org.id} value={org.id}>
+                          {org.name} ({org.treeCount})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            {/* Survival Status & Growth Stage */}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 block">
-                  Survival Status
-                </label>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="h-8 text-xs rounded-lg">
-                    <SelectValue placeholder="All Statuses" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="ALIVE">🟢 Alive ({data.aliveCount})</SelectItem>
-                    <SelectItem value="STRESSED">🟡 Stressed ({data.stressedCount})</SelectItem>
-                    <SelectItem value="DAMAGED">🟠 Damaged ({data.damagedCount})</SelectItem>
-                    <SelectItem value="DEAD">🔴 Dead ({data.deadCount})</SelectItem>
-                    <SelectItem value="NEEDS_REVIEW">🟣 Review ({data.needsReviewCount})</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
+                    <FolderKanban className="w-3 h-3 text-primary" />
+                    Project
+                  </label>
+                  <Select value={selectedProj} onValueChange={setSelectedProj}>
+                    <SelectTrigger className="h-8 text-xs rounded-lg bg-background/60">
+                      <SelectValue placeholder="All Projects" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Projects</SelectItem>
+                      {data.projectsList.map((proj) => (
+                        <SelectItem key={proj.id} value={proj.id}>
+                          {proj.name} ({proj.treeCount})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 block">
-                  Growth Stage
-                </label>
-                <Select value={stageFilter} onValueChange={setStageFilter}>
-                  <SelectTrigger className="h-8 text-xs rounded-lg">
-                    <SelectValue placeholder="All Stages" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Stages</SelectItem>
-                    <SelectItem value="sapling">🌱 Sapling (&lt;100 cm)</SelectItem>
-                    <SelectItem value="young">🌿 Young (100–300 cm)</SelectItem>
-                    <SelectItem value="mature">🌳 Mature (300+ cm)</SelectItem>
-                  </SelectContent>
-                </Select>
+              {/* Filter 3 & 4: Species & Tree Status */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
+                    <TreePine className="w-3 h-3 text-primary" />
+                    Species
+                  </label>
+                  <Select value={speciesFilter} onValueChange={setSpeciesFilter}>
+                    <SelectTrigger className="h-8 text-xs rounded-lg bg-background/60">
+                      <SelectValue placeholder="All Species" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      <SelectItem value="all">All Species ({data.speciesList.length})</SelectItem>
+                      {data.speciesList.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
+                    <Activity className="w-3 h-3 text-primary" />
+                    Tree Status
+                  </label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="h-8 text-xs rounded-lg bg-background/60">
+                      <SelectValue placeholder="All Statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="ALIVE">🟢 Alive ({data.aliveCount})</SelectItem>
+                      <SelectItem value="STRESSED">🟡 Stressed ({data.stressedCount})</SelectItem>
+                      <SelectItem value="DAMAGED">🟠 Damaged ({data.damagedCount})</SelectItem>
+                      <SelectItem value="DEAD">🔴 Dead ({data.deadCount})</SelectItem>
+                      <SelectItem value="NEEDS_REVIEW">🟣 Review ({data.needsReviewCount})</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+
+              {/* Filter 5 & 6: Monitoring Status & Date Window */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-primary" />
+                    Monitoring Status
+                  </label>
+                  <Select value={monitoringFilter} onValueChange={setMonitoringFilter}>
+                    <SelectTrigger className="h-8 text-xs rounded-lg bg-background/60">
+                      <SelectValue placeholder="All Cadence" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Cadence</SelectItem>
+                      <SelectItem value="up_to_date">✅ Up to Date ({data.upToDateCount})</SelectItem>
+                      <SelectItem value="due_soon">⏳ Due Soon ({data.dueSoonCount})</SelectItem>
+                      <SelectItem value="overdue">⚠️ Overdue ({data.overdueCount})</SelectItem>
+                      <SelectItem value="critical_overdue">🚨 Critical ({data.criticalOverdueCount})</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
+                    <CalendarDays className="w-3 h-3 text-primary" />
+                    Date Window
+                  </label>
+                  <Select value={dateFilter} onValueChange={setDateFilter}>
+                    <SelectTrigger className="h-8 text-xs rounded-lg bg-background/60">
+                      <SelectValue placeholder="All Time" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Time</SelectItem>
+                      <SelectItem value="7d">Past 7 Days</SelectItem>
+                      <SelectItem value="30d">Past 30 Days</SelectItem>
+                      <SelectItem value="90d">Past 90 Days</SelectItem>
+                      <SelectItem value="1y">Past 1 Year</SelectItem>
+                      <SelectItem value="custom">📅 Custom Range...</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Custom Date Inputs if 'custom' is active */}
+              {dateFilter === "custom" && (
+                <div className="p-2.5 bg-muted/40 rounded-xl border border-border/50 grid grid-cols-2 gap-2 animate-in fade-in">
+                  <div>
+                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground block mb-0.5">Start Date</span>
+                    <Input
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      className="h-7 text-xs rounded-lg bg-background"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground block mb-0.5">End Date</span>
+                    <Input
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      className="h-7 text-xs rounded-lg bg-background"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Native Species Filter */}
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 block">
-                Tree Species
-              </label>
-              <Select value={speciesFilter} onValueChange={setSpeciesFilter}>
-                <SelectTrigger className="h-8 text-xs rounded-lg">
-                  <SelectValue placeholder="All Species" />
-                </SelectTrigger>
-                <SelectContent className="max-h-60">
-                  <SelectItem value="all">All Planted Species ({data.speciesList.length})</SelectItem>
-                  {data.speciesList.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Quick Metrics Strip */}
+            <div className="grid grid-cols-4 gap-1.5 pt-2 border-t border-border/50 text-center">
+              <div className="p-1.5 rounded-lg bg-muted/40">
+                <span className="text-[9px] text-muted-foreground block">Total</span>
+                <span className="font-bold text-xs text-foreground">{data.totalTrees}</span>
+              </div>
+              <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                <span className="text-[9px] text-emerald-600 dark:text-emerald-400 block">Alive</span>
+                <span className="font-bold text-xs text-emerald-700 dark:text-emerald-300">{data.aliveCount}</span>
+              </div>
+              <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                <span className="text-[9px] text-amber-600 dark:text-amber-400 block">Stressed</span>
+                <span className="font-bold text-xs text-amber-700 dark:text-amber-300">{data.stressedCount}</span>
+              </div>
+              <div className="p-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20">
+                <span className="text-[9px] text-rose-600 dark:text-rose-400 block">Overdue</span>
+                <span className="font-bold text-xs text-rose-700 dark:text-rose-300">{data.overdueCount + data.criticalOverdueCount}</span>
+              </div>
             </div>
 
             {/* Accuracy Rings Toggle */}
@@ -287,11 +537,17 @@ export const TreeMapViewer: React.FC<TreeMapViewerProps> = ({
             </div>
           </div>
 
-          {/* Real Tree Items List with GPS Coordinates */}
-          <div className="flex-1 max-h-[380px] lg:max-h-[360px] overflow-y-auto space-y-2 pr-1">
+          {/* Filtered Trees List Drawer */}
+          <div className="flex-1 max-h-[340px] overflow-y-auto space-y-2 pr-1">
             {data.trees.length === 0 ? (
-              <div className="glass-card rounded-2xl p-6 text-center text-muted-foreground text-xs">
-                No matching trees with real GPS coordinates found.
+              <div className="glass-card rounded-2xl p-6 text-center text-muted-foreground text-xs space-y-2">
+                <TreePine className="w-8 h-8 text-muted-foreground/40 mx-auto" />
+                <p>No trees matching the active 6-filter criteria.</p>
+                {totalActiveFilters > 0 && (
+                  <Button size="sm" variant="outline" onClick={handleResetFilters} className="h-7 text-xs">
+                    Clear Filters
+                  </Button>
+                )}
               </div>
             ) : (
               data.trees.map((t) => {
@@ -324,24 +580,31 @@ export const TreeMapViewer: React.FC<TreeMapViewerProps> = ({
                         </p>
                       </div>
 
-                      <Badge
-                        variant="secondary"
-                        className="text-[9px] uppercase font-bold shrink-0"
-                        style={{ color: statusColor, borderColor: statusColor + "40" }}
-                      >
-                        {t.survivalStatus}
-                      </Badge>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge
+                          variant="secondary"
+                          className="text-[9px] uppercase font-bold shrink-0"
+                          style={{ color: statusColor, borderColor: statusColor + "40" }}
+                        >
+                          {t.survivalStatus}
+                        </Badge>
+                        {t.monitoringStatus && (
+                          <span className="text-[9px] text-muted-foreground capitalize">
+                            {t.monitoringStatus.replace("_", " ")}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Geodetic Coordinates Pill */}
                     <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-muted-foreground bg-muted/60 px-2 py-1 rounded-lg">
-                      <span className="flex items-center gap-1">
+                      <span className="flex items-center gap-1 truncate">
                         <MapPin className="h-3 w-3 text-primary shrink-0" />
                         {t.latitude.toFixed(6)}°, {t.longitude.toFixed(6)}°
                       </span>
-                      {t.heightCm && (
-                        <span className="font-sans font-semibold text-foreground">
-                          {t.heightCm} cm
+                      {t.organizationName && (
+                        <span className="font-sans text-[9px] text-muted-foreground truncate max-w-[110px]">
+                          {t.organizationName}
                         </span>
                       )}
                     </div>
@@ -353,162 +616,138 @@ export const TreeMapViewer: React.FC<TreeMapViewerProps> = ({
         </aside>
       )}
 
-      {/* Main Map Viewport */}
-      <main className="flex-1 relative rounded-2xl overflow-hidden shadow-lg border border-border/70">
+      {/* Main Map Canvas */}
+      <div className="flex-1 relative rounded-2xl overflow-hidden border border-border/80 shadow-xl bg-slate-950 min-h-[550px]" style={{ height: cssHeight }}>
         <GisMapContainer
-          center={selectedTree ? [selectedTree.latitude, selectedTree.longitude] : data.centroid}
-          zoom={selectedTree ? 17 : data.trees.length > 0 ? 9 : 7}
-          height={height}
-          fitBounds={data.overallBoundingBox}
+          defaultCenter={data.centroid}
+          defaultZoom={12}
+          defaultBasemap={defaultBasemap}
           className="w-full h-full"
+          showBasemapControl={true}
+          showScaleControl={true}
+          showCoordinatesControl={true}
         >
-          {/* Smooth Coordinate Fly Controller */}
-          <TreeCoordinateFlyNavigator
-            targetCoord={flyCoord}
-            zoom={17}
-            triggerCount={flyTrigger}
-          />
+          {/* Controllers */}
+          <TreeCoordinateFlyNavigator targetCoord={flyCoord} zoom={18} triggerCount={flyTrigger} />
+          <TreeBoundingBoxFitter bounds={data.overallBoundingBox} triggerCount={fitTrigger} />
 
-          {/* Real Tree Markers & Accuracy Circles */}
-          {data.trees.map((t) => {
-            const isSelected = t.id === selectedTreeId;
-            const statusColor = getTreeMarkerGlowColor(t.survivalStatus, t.verificationStatus);
-            const { decimal, dms, googleMapsUrl } = formatTreeCoordinates(t.latitude, t.longitude);
+          {/* Accuracy Buffer Circles */}
+          {showAccuracyRings &&
+            data.trees.map((tree) => {
+              if (!tree.gpsAccuracyMeters) return null;
+              const color = getTreeMarkerGlowColor(tree.survivalStatus, tree.verificationStatus);
+              return (
+                <Circle
+                  key={`acc-${tree.id}`}
+                  center={[tree.latitude, tree.longitude]}
+                  radius={tree.gpsAccuracyMeters}
+                  pathOptions={{
+                    color,
+                    fillColor: color,
+                    fillOpacity: 0.12,
+                    weight: 1,
+                    dashArray: "3, 3",
+                  }}
+                />
+              );
+            })}
 
-            const treeIcon = L.divIcon({
-              className: "real-tree-pin",
-              html: getTreeDivIconHtml(t, isSelected),
-              iconSize: [isSelected ? 28 : 22, isSelected ? 28 : 22],
-              iconAnchor: [isSelected ? 14 : 11, isSelected ? 14 : 11],
-              popupAnchor: [0, -12],
-            });
+          {/* Real Tree Markers */}
+          {data.trees.map((tree) => {
+            const icon = treeIcons.get(tree.id);
+            if (!icon) return null;
 
             return (
-              <React.Fragment key={t.id}>
-                {/* GPS Accuracy Buffer Circle */}
-                {showAccuracyRings && (
-                  <Circle
-                    center={[t.latitude, t.longitude]}
-                    radius={t.gpsAccuracyMeters || 5.0}
-                    pathOptions={{
-                      color: statusColor,
-                      fillColor: statusColor,
-                      fillOpacity: isSelected ? 0.25 : 0.1,
-                      weight: isSelected ? 2 : 1,
-                      dashArray: "3, 3",
-                    }}
-                  />
-                )}
+              <Marker
+                key={tree.id}
+                position={[tree.latitude, tree.longitude]}
+                icon={icon}
+                eventHandlers={{
+                  click: () => handleSelectTree(tree),
+                }}
+              >
+                <Popup className="real-tree-popup">
+                  <div className="p-3 min-w-[260px] max-w-[320px] font-sans text-slate-800">
+                    <div className="flex items-center justify-between border-b pb-2 mb-2">
+                      <div>
+                        <h4 className="font-bold text-sm text-emerald-900 leading-tight">
+                          {tree.treeName}
+                        </h4>
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          {tree.treeCode || tree.id}
+                        </span>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] font-bold"
+                        style={{
+                          borderColor: getTreeMarkerGlowColor(tree.survivalStatus, tree.verificationStatus),
+                          color: getTreeMarkerGlowColor(tree.survivalStatus, tree.verificationStatus),
+                        }}
+                      >
+                        {tree.survivalStatus}
+                      </Badge>
+                    </div>
 
-                {/* Tree Marker Pin */}
-                <Marker
-                  position={[t.latitude, t.longitude]}
-                  icon={treeIcon}
-                  eventHandlers={{
-                    click: () => handleSelectTree(t),
-                  }}
-                >
-                  <Popup className="real-tree-popup">
-                    <div className="p-1 min-w-[240px] max-w-[280px] space-y-2 text-foreground">
-                      {/* Photo Thumbnail */}
-                      {t.photoUrl && (
-                        <div className="relative rounded-xl overflow-hidden border border-border/60 shadow-sm h-32 w-full">
-                          <img
-                            src={t.photoUrl}
-                            alt={t.treeName}
-                            className="w-full h-full object-cover"
-                          />
-                          <Badge
-                            className="absolute bottom-1.5 left-1.5 text-[9px] font-bold shadow-md"
-                            style={{ backgroundColor: statusColor, color: "#ffffff" }}
-                          >
-                            {t.survivalStatus}
-                          </Badge>
+                    <div className="space-y-1 text-xs">
+                      <div className="italic text-slate-700">{tree.species}</div>
+                      {tree.organizationName && (
+                        <div className="text-[11px] text-slate-600">
+                          Org: <span className="font-medium text-slate-800">{tree.organizationName}</span>
                         </div>
                       )}
-
-                      <div className="border-b pb-1.5">
-                        <div className="flex items-start justify-between gap-1">
-                          <h4 className="font-heading font-bold text-sm text-foreground leading-tight">
-                            {t.treeName}
-                          </h4>
-                          {t.treeCode && (
-                            <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 shrink-0 font-mono">
-                              {t.treeCode}
-                            </Badge>
-                          )}
+                      {tree.projectName && (
+                        <div className="text-[11px] text-slate-600">
+                          Project: <span className="font-medium text-slate-800">{tree.projectName}</span>
                         </div>
-                        <p className="text-[11px] text-muted-foreground italic mt-0.5">
-                          {t.species}
-                        </p>
-                      </div>
-
-                      {/* Real GPS Telemetry Box */}
-                      <div className="p-2 rounded-xl bg-muted/60 space-y-1.5 text-[11px] font-mono">
-                        <div className="flex items-center justify-between text-muted-foreground">
-                          <span className="flex items-center gap-1 font-bold text-foreground">
-                            <MapPin className="h-3 w-3 text-primary" />
-                            GPS Coordinates
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyCoordinates(t.latitude, t.longitude, t.id)}
-                            className="text-primary hover:underline flex items-center gap-0.5 text-[10px]"
-                          >
-                            {copiedId === t.id ? (
-                              <Check className="h-3 w-3 text-emerald-500" />
-                            ) : (
-                              <Copy className="h-3 w-3" />
-                            )}
-                            {copiedId === t.id ? "Copied" : "Copy"}
-                          </button>
-                        </div>
-                        <div className="text-foreground font-semibold">{decimal}</div>
-                        <div className="text-[10px] text-muted-foreground">{dms}</div>
-
-                        <div className="flex items-center justify-between pt-1 border-t border-border/40 text-[10px]">
-                          <span>Accuracy: ±{t.gpsAccuracyMeters}m</span>
-                          {t.elevationMeters && <span>Elev: {t.elevationMeters}m</span>}
-                        </div>
-                      </div>
-
-                      {/* Biometrics */}
-                      <div className="grid grid-cols-2 gap-1.5 text-xs">
-                        {t.heightCm && (
-                          <div className="p-1.5 rounded-lg bg-muted/40">
-                            <div className="text-[10px] text-muted-foreground">Height</div>
-                            <div className="font-bold text-foreground">{t.heightCm} cm</div>
-                          </div>
-                        )}
-                        {t.dbhCm && (
-                          <div className="p-1.5 rounded-lg bg-muted/40">
-                            <div className="text-[10px] text-muted-foreground">DBH</div>
-                            <div className="font-bold text-foreground">{t.dbhCm} cm</div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Deep Links */}
-                      <div className="flex items-center justify-between pt-1">
-                        <a
-                          href={googleMapsUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-0.5"
-                        >
-                          <Navigation className="h-3 w-3 text-primary" /> Google Maps
-                        </a>
-
-                        <Link to={`/tree/${t.id}`}>
-                          <Button size="sm" className="h-7 text-xs font-semibold gap-1">
-                            Digital Passport <ExternalLink className="h-3 w-3" />
-                          </Button>
-                        </Link>
+                      )}
+                      <div className="text-[11px] text-slate-600">
+                        Monitoring: <span className="font-medium text-slate-800 capitalize">{tree.monitoringStatus?.replace("_", " ") || "Up to date"}</span>
                       </div>
                     </div>
-                  </Popup>
-                </Marker>
-              </React.Fragment>
+
+                    {/* Geodetic Coordinates Section */}
+                    <div className="mt-2.5 pt-2 border-t text-[11px] text-slate-600 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">Coordinates:</span>
+                        <span className="font-mono text-slate-800 text-[10px]">
+                          {tree.latitude.toFixed(6)}°, {tree.longitude.toFixed(6)}°
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">GPS Accuracy:</span>
+                        <span className="font-semibold text-emerald-700">±{tree.gpsAccuracyMeters}m</span>
+                      </div>
+                    </div>
+
+                    {/* Quick Action Buttons */}
+                    <div className="mt-3 pt-2 border-t flex items-center justify-between gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleCopyCoordinates(tree.latitude, tree.longitude, tree.id)}
+                        className="h-7 text-[10px] px-2 flex-1"
+                      >
+                        {copiedId === tree.id ? (
+                          <Check className="w-3 h-3 mr-1 text-emerald-600" />
+                        ) : (
+                          <Copy className="w-3 h-3 mr-1 text-slate-500" />
+                        )}
+                        {copiedId === tree.id ? "Copied" : "Copy GPS"}
+                      </Button>
+                      <a
+                        href={formatTreeCoordinates(tree.latitude, tree.longitude).googleMapsUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center justify-center h-7 text-[10px] px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-medium"
+                      >
+                        <ExternalLink className="w-3 h-3 mr-1" />
+                        Google Maps
+                      </a>
+                    </div>
+                  </div>
+                </Popup>
+              </Marker>
             );
           })}
         </GisMapContainer>
@@ -575,9 +814,9 @@ export const TreeMapViewer: React.FC<TreeMapViewerProps> = ({
                   </Link>
                   <Button
                     variant="ghost"
-                    size="icon"
+                    size="sm"
                     onClick={() => setSelectedTreeId(null)}
-                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -586,7 +825,7 @@ export const TreeMapViewer: React.FC<TreeMapViewerProps> = ({
             </div>
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 };
