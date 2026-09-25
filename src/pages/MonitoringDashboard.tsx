@@ -57,6 +57,7 @@ import { MonitoringScheduleConsole } from "@/components/monitoring/MonitoringSch
 import { MonitoringTaskConsole } from "@/components/monitoring/MonitoringTaskConsole";
 import { NotificationCenterConsole } from "@/components/monitoring/NotificationCenterConsole";
 import { AlertManagementConsole } from "@/components/monitoring/AlertManagementConsole";
+import { EscalationWorkflowConsole } from "@/components/monitoring/EscalationWorkflowConsole";
 import {
   monitoringDashboardService,
   DashboardTreeItem,
@@ -360,6 +361,10 @@ export const MonitoringDashboard: React.FC = () => {
             <AlertTriangle className="h-3.5 w-3.5" />
             <span>Anomaly Alerts (Task 49)</span>
           </TabsTrigger>
+          <TabsTrigger value="escalations" className="text-xs gap-1.5 data-[state=active]:bg-purple-600 data-[state=active]:text-white">
+            <ShieldAlert className="h-3.5 w-3.5" />
+            <span>Escalations (Task 50)</span>
+          </TabsTrigger>
           <TabsTrigger value="requiring_monitoring" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Calendar className="h-3.5 w-3.5" />
             <span>Requiring Monitoring</span>
@@ -428,6 +433,13 @@ export const MonitoringDashboard: React.FC = () => {
         {/* ==================================================================== */}
         <TabsContent value="alerts" className="space-y-4">
           <AlertManagementConsole />
+        </TabsContent>
+
+        {/* ==================================================================== */}
+        {/* TAB: Multi-Tier Escalations & SLA Management (Task 50) */}
+        {/* ==================================================================== */}
+        <TabsContent value="escalations" className="space-y-4">
+          <EscalationWorkflowConsole />
         </TabsContent>
 
         {/* ==================================================================== */}
