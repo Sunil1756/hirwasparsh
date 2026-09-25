@@ -16,6 +16,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
   AlertTriangle,
+  Bell,
   Calendar,
   Camera,
   CheckCircle2,
@@ -54,6 +55,7 @@ import { SurvivalVerificationModal } from "@/components/SurvivalVerificationModa
 import { EvidenceAuditInspectorModal } from "@/components/EvidenceAuditInspectorModal";
 import { MonitoringScheduleConsole } from "@/components/monitoring/MonitoringScheduleConsole";
 import { MonitoringTaskConsole } from "@/components/monitoring/MonitoringTaskConsole";
+import { NotificationCenterConsole } from "@/components/monitoring/NotificationCenterConsole";
 import {
   monitoringDashboardService,
   DashboardTreeItem,
@@ -349,6 +351,10 @@ export const MonitoringDashboard: React.FC = () => {
             <ClipboardList className="h-3.5 w-3.5" />
             <span>Due & Overdue Tasks (Task 47)</span>
           </TabsTrigger>
+          <TabsTrigger value="notifications" className="text-xs gap-1.5 data-[state=active]:bg-amber-600 data-[state=active]:text-white">
+            <Bell className="h-3.5 w-3.5" />
+            <span>Alerts & Notifications (Task 48)</span>
+          </TabsTrigger>
           <TabsTrigger value="requiring_monitoring" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Calendar className="h-3.5 w-3.5" />
             <span>Requiring Monitoring</span>
@@ -403,6 +409,13 @@ export const MonitoringDashboard: React.FC = () => {
         {/* ==================================================================== */}
         <TabsContent value="work_orders" className="space-y-4">
           <MonitoringTaskConsole />
+        </TabsContent>
+
+        {/* ==================================================================== */}
+        {/* TAB: Alerts & Multi-Channel Notifications (Task 48) */}
+        {/* ==================================================================== */}
+        <TabsContent value="notifications" className="space-y-4">
+          <NotificationCenterConsole />
         </TabsContent>
 
         {/* ==================================================================== */}
