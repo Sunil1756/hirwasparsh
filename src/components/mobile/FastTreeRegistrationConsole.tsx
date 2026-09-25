@@ -35,6 +35,8 @@ import {
   FastRegistrationSession,
 } from "@/services/fastTreeRegistrationService";
 import { toast } from "sonner";
+import { FieldCameraViewfinder } from "./FieldCameraViewfinder";
+import { HardwarePermissionModal } from "./HardwarePermissionModal";
 
 export interface FastTreeRegistrationConsoleProps {
   currentLocation: { lat: number; lng: number; accuracy: number } | null;
@@ -74,6 +76,8 @@ export const FastTreeRegistrationConsole: React.FC<FastTreeRegistrationConsolePr
   const [tagId, setTagId] = useState("");
   const [notes, setNotes] = useState("");
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [isViewfinderOpen, setIsViewfinderOpen] = useState(false);
+  const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
 
   // UI States
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -473,22 +477,44 @@ export const FastTreeRegistrationConsole: React.FC<FastTreeRegistrationConsolePr
 
               {/* Quick Photo Snap */}
               <div className="space-y-1.5 bg-card p-3 rounded-2xl border border-border/70 shadow-sm flex flex-col justify-between">
-                <Label className="text-xs font-bold text-muted-foreground flex items-center gap-1">
-                  <Camera className="h-3.5 w-3.5 text-primary" /> Sapling Photo
-                </Label>
-                <label className="flex items-center justify-center gap-2 p-2 border border-dashed border-border rounded-xl cursor-pointer bg-muted/40 hover:bg-muted/70 transition-colors h-9">
-                  <Camera className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground truncate font-medium">
-                    {photoPreview ? "Photo Added ✓" : "Snap Quick Photo"}
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handlePhotoCapture}
-                    className="hidden"
-                  />
-                </label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold text-muted-foreground flex items-center gap-1">
+                    <Camera className="h-3.5 w-3.5 text-primary" /> Sapling Photo
+                  </Label>
+                  {photoPreview && (
+                    <button
+                      onClick={() => setPhotoPreview(null)}
+                      className="text-[10px] text-rose-500 hover:underline"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="flex gap-1.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsViewfinderOpen(true)}
+                    className="flex-1 h-9 px-2 text-xs font-semibold rounded-xl bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 flex items-center justify-center gap-1.5"
+                    data-testid="open-camera-viewfinder-btn"
+                  >
+                    <Camera className="h-3.5 w-3.5" />
+                    <span className="truncate">{photoPreview ? "Retake Photo" : "Live Viewfinder"}</span>
+                  </Button>
+                  <label
+                    title="Upload or Native File Camera"
+                    className="flex items-center justify-center p-2 border border-border rounded-xl cursor-pointer bg-muted/40 hover:bg-muted/70 transition-colors h-9 w-9 shrink-0"
+                  >
+                    <UploadCloud className="h-3.5 w-3.5 text-muted-foreground" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handlePhotoCapture}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -702,6 +728,25 @@ export const FastTreeRegistrationConsole: React.FC<FastTreeRegistrationConsolePr
           </Button>
         </div>
       )}
+      {/* Live Camera Viewfinder Modal */}
+      <FieldCameraViewfinder
+        isOpen={isViewfinderOpen}
+        onClose={() => setIsViewfinderOpen(false)}
+        onCapture={(dataUrl) => {
+          setPhotoPreview(dataUrl);
+          toast.success("Geotagged ground truth photo captured!");
+        }}
+        currentLocation={currentLocation}
+        treeCode={session.streakCount > 0 ? `GE-PLANT-#${session.streakCount + 1}` : undefined}
+        species={selectedSpecies}
+        onOpenPermissionGuide={() => setIsPermissionModalOpen(true)}
+      />
+
+      {/* Hardware Permission & Recovery Guide */}
+      <HardwarePermissionModal
+        isOpen={isPermissionModalOpen}
+        onClose={() => setIsPermissionModalOpen(false)}
+      />
     </div>
   );
 };

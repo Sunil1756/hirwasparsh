@@ -42,6 +42,8 @@ import { Link } from "react-router-dom";
 import { MobileFieldInterface } from "@/components/mobile/MobileFieldInterface";
 import { FastTreeRegistrationConsole } from "@/components/mobile/FastTreeRegistrationConsole";
 import { FastObservationConsole } from "@/components/mobile/FastObservationConsole";
+import { HardwarePermissionSentinel } from "@/components/mobile/HardwarePermissionSentinel";
+import { HardwarePermissionModal } from "@/components/mobile/HardwarePermissionModal";
 import { Smartphone, Monitor } from "lucide-react";
 
 export default function FieldWorkerDashboard() {
@@ -52,6 +54,7 @@ export default function FieldWorkerDashboard() {
   const [isMobileMode, setIsMobileMode] = useState(false);
   const [fastRegisterModalOpen, setFastRegisterModalOpen] = useState(false);
   const [fastObservationModalOpen, setFastObservationModalOpen] = useState(false);
+  const [permissionModalOpen, setPermissionModalOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("demo-project-dev-001");
   const [offlineCount, setOfflineCount] = useState<number>(0);
@@ -248,6 +251,10 @@ export default function FieldWorkerDashboard() {
             </div>
 
             <div className="flex items-center gap-2">
+              <HardwarePermissionSentinel
+                onOpenModal={() => setPermissionModalOpen(true)}
+              />
+
               <Button
                 variant="outline"
                 size="sm"
@@ -664,6 +671,12 @@ export default function FieldWorkerDashboard() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Hardware Permissions Modal */}
+      <HardwarePermissionModal
+        isOpen={permissionModalOpen}
+        onClose={() => setPermissionModalOpen(false)}
+      />
     </div>
   );
 }

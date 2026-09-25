@@ -39,6 +39,8 @@ import { FieldWaypointCompass, WaypointTarget } from "./FieldWaypointCompass";
 import { RapidFieldActionDrawer } from "./RapidFieldActionDrawer";
 import { FastTreeRegistrationConsole } from "./FastTreeRegistrationConsole";
 import { FastObservationConsole } from "./FastObservationConsole";
+import { HardwarePermissionSentinel } from "./HardwarePermissionSentinel";
+import { HardwarePermissionModal } from "./HardwarePermissionModal";
 import { getOfflineTreeQueue, syncOfflineTreesWithSupabase } from "@/lib/offlineSyncService";
 import { getQueuedOfflineFieldReportsCount, syncQueuedOfflineFieldReports } from "@/lib/fieldReportBackendService";
 import { toast } from "sonner";
@@ -69,6 +71,7 @@ export const MobileFieldInterface: React.FC<MobileFieldInterfaceProps> = ({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<"plant" | "audit">("plant");
   const [selectedWaypoint, setSelectedWaypoint] = useState<WaypointTarget | null>(null);
+  const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
 
   // Quick Compartment Vitality Tally state
   const [tallyAlive, setTallyAlive] = useState(88);
@@ -198,6 +201,9 @@ export const MobileFieldInterface: React.FC<MobileFieldInterfaceProps> = ({
             <MapPin className="w-3 h-3 text-primary" />
             ±{currentLocation?.accuracy ? currentLocation.accuracy.toFixed(1) : "3.2"}m
           </Badge>
+
+          {/* Hardware Permission Sentinel Pill */}
+          <HardwarePermissionSentinel onOpenModal={() => setIsPermissionModalOpen(true)} />
         </div>
 
         {/* Action Icons */}
@@ -263,6 +269,28 @@ export const MobileFieldInterface: React.FC<MobileFieldInterfaceProps> = ({
                 className="w-full bg-white text-emerald-800 hover:bg-white/90 text-xs font-bold h-9 rounded-xl shadow-md"
               >
                 Launch Fast Registration Mode →
+              </Button>
+            </div>
+
+            {/* Field Hardware Sensor Readiness Bar */}
+            <div className="bg-card rounded-2xl p-3 border border-border/80 flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-primary/10 text-primary rounded-xl">
+                  <ShieldCheck className="h-4 w-4" />
+                </div>
+                <div>
+                  <span className="font-bold text-xs text-foreground block">Sensor Readiness</span>
+                  <p className="text-[10px] text-muted-foreground">GPS lock & Field Camera status</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsPermissionModalOpen(true)}
+                className="h-7 px-2.5 text-xs font-semibold rounded-lg border-primary/30 text-primary hover:bg-primary/10"
+                data-testid="open-sensor-readiness-btn"
+              >
+                Inspect Sensors →
               </Button>
             </div>
 
@@ -570,6 +598,12 @@ export const MobileFieldInterface: React.FC<MobileFieldInterfaceProps> = ({
         onClose={() => setDrawerOpen(false)}
         currentLocation={currentLocation}
         projectId={projectId}
+      />
+
+      {/* 5. HARDWARE PERMISSION & DIAGNOSTICS MODAL */}
+      <HardwarePermissionModal
+        isOpen={isPermissionModalOpen}
+        onClose={() => setIsPermissionModalOpen(false)}
       />
     </div>
   );

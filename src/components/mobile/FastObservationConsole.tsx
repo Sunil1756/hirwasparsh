@@ -20,6 +20,7 @@ import {
   Search,
   Check,
   Zap,
+  UploadCloud,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +37,8 @@ import {
   ProximityTargetTree,
 } from "@/services/fastObservationService";
 import { toast } from "sonner";
+import { FieldCameraViewfinder } from "./FieldCameraViewfinder";
+import { HardwarePermissionModal } from "./HardwarePermissionModal";
 
 export interface FastObservationConsoleProps {
   currentLocation: { lat: number; lng: number; accuracy: number } | null;
@@ -138,6 +141,8 @@ export const FastObservationConsole: React.FC<FastObservationConsoleProps> = ({
   const [selectedThreats, setSelectedThreats] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [isViewfinderOpen, setIsViewfinderOpen] = useState(false);
+  const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sunlightMode, setSunlightMode] = useState(false);
   const [activeTab, setActiveTab] = useState<"observe" | "radar" | "log">("observe");
@@ -572,22 +577,35 @@ export const FastObservationConsole: React.FC<FastObservationConsoleProps> = ({
                 <Camera className="h-4 w-4 text-primary" />
                 <div>
                   <span className="text-xs font-bold text-foreground">Inspection Photo Evidence</span>
-                  <p className="text-[10px] text-muted-foreground">Optional photo timestamp proof</p>
+                  <p className="text-[10px] text-muted-foreground">Geotagged ground truth photo proof</p>
                 </div>
               </div>
-              <label className="flex items-center gap-1.5 px-3 py-1.5 border border-dashed border-border rounded-xl cursor-pointer bg-muted/40 hover:bg-muted/70 transition-colors">
-                <Camera className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground truncate font-medium">
-                  {photoPreview ? "Photo Added ✓" : "Snap Photo"}
-                </span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handlePhotoCapture}
-                  className="hidden"
-                />
-              </label>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsViewfinderOpen(true)}
+                  className="h-8 px-2.5 text-xs font-semibold rounded-xl bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 flex items-center gap-1"
+                  data-testid="open-obs-viewfinder-btn"
+                >
+                  <Camera className="h-3.5 w-3.5" />
+                  <span>{photoPreview ? "Retake" : "Viewfinder"}</span>
+                </Button>
+                <label
+                  title="Upload from File"
+                  className="flex items-center justify-center p-2 border border-border rounded-xl cursor-pointer bg-muted/40 hover:bg-muted/70 transition-colors h-8 w-8"
+                >
+                  <UploadCloud className="h-3.5 w-3.5 text-muted-foreground" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handlePhotoCapture}
+                    className="hidden"
+                  />
+                </label>
+              </div>
             </div>
           </div>
         )}
@@ -741,6 +759,25 @@ export const FastObservationConsole: React.FC<FastObservationConsoleProps> = ({
           </div>
         </div>
       )}
+      {/* Live Camera Viewfinder Modal */}
+      <FieldCameraViewfinder
+        isOpen={isViewfinderOpen}
+        onClose={() => setIsViewfinderOpen(false)}
+        onCapture={(dataUrl) => {
+          setPhotoPreview(dataUrl);
+          toast.success("Inspection photo evidence attached!");
+        }}
+        currentLocation={currentLocation}
+        treeCode={targetTree.treeCode}
+        species={targetTree.species}
+        onOpenPermissionGuide={() => setIsPermissionModalOpen(true)}
+      />
+
+      {/* Hardware Permission & Recovery Guide */}
+      <HardwarePermissionModal
+        isOpen={isPermissionModalOpen}
+        onClose={() => setIsPermissionModalOpen(false)}
+      />
     </div>
   );
 };
