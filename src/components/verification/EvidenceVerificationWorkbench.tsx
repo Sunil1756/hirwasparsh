@@ -42,6 +42,7 @@ import { DuplicateEvidenceInspectorModal } from "./DuplicateEvidenceInspectorMod
 import { DuplicatePhotoScanner } from "./DuplicatePhotoScanner";
 import { SpatiotemporalAnomalyScanner } from "./SpatiotemporalAnomalyScanner";
 import { ReviewerApprovalConsole } from "./ReviewerApprovalConsole";
+import { AuditLogConsole } from "./AuditLogConsole";
 import { SpatiotemporalConsistencyModal } from "./SpatiotemporalConsistencyModal";
 import {
   spatiotemporalConsistencyService,
@@ -57,7 +58,7 @@ export const EvidenceVerificationWorkbench: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeReceipt, setActiveReceipt] = useState<VerificationReceipt | null>(null);
   const [inspectingCollision, setInspectingCollision] = useState<EvidenceCollision | null>(null);
-  const [viewMode, setViewMode] = useState<"queue" | "duplicate_scanner" | "spatiotemporal_scanner" | "approval_console">("queue");
+  const [viewMode, setViewMode] = useState<"queue" | "duplicate_scanner" | "spatiotemporal_scanner" | "approval_console" | "audit_logs">("queue");
   const [inspectingSpatiotemporalReport, setInspectingSpatiotemporalReport] = useState<SpatiotemporalAuditReport | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [showRejectDialog, setShowRejectDialog] = useState(false);
@@ -245,7 +246,7 @@ export const EvidenceVerificationWorkbench: React.FC = () => {
             <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
               Evidence Verification Workbench
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/30 font-semibold font-mono">
-                Phase 8 • Tasks 40, 41, 42 & 43
+                Phase 8 • Tasks 40, 41, 42, 43 & 44
               </span>
             </h2>
             <p className="text-xs text-zinc-400">
@@ -279,6 +280,17 @@ export const EvidenceVerificationWorkbench: React.FC = () => {
             <span>{viewMode === "approval_console" ? "Back to Claims Queue" : "Approval Console"}</span>
           </button>
 
+          <button
+            onClick={() => setViewMode(viewMode === "audit_logs" ? "queue" : "audit_logs")}
+            className={"inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors border " + (
+              viewMode === "audit_logs"
+                ? "bg-purple-950/80 text-purple-300 border-purple-500/40 shadow-md"
+                : "bg-zinc-800 hover:bg-zinc-700 text-purple-300 border-zinc-700"
+            )}
+          >
+            <FileCheck className="w-3.5 h-3.5 text-purple-400" />
+            <span>{viewMode === "audit_logs" ? "Back to Claims Queue" : "Audit Logs"}</span>
+          </button>
           <button
             onClick={() => setViewMode(viewMode === "spatiotemporal_scanner" ? "queue" : "spatiotemporal_scanner")}
             className={"inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors border " + (
@@ -320,6 +332,8 @@ export const EvidenceVerificationWorkbench: React.FC = () => {
         <SpatiotemporalAnomalyScanner />
       ) : viewMode === "approval_console" ? (
         <ReviewerApprovalConsole />
+      ) : viewMode === "audit_logs" ? (
+        <AuditLogConsole />
       ) : (
         <>
           {/* Action Success Toast */}
