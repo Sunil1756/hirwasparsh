@@ -35,6 +35,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { TreeObservation, TreePhoto, MonitoringStatus } from "@/types/coreDatabase";
 import { CreateObservationModal } from "@/components/CreateObservationModal";
+import { SurvivalStatusBadge } from "@/components/SurvivalStatusBadge";
 import { monitoringEventService } from "@/services/monitoringEventService";
 
 export interface UnifiedTimelineEvent {
@@ -213,7 +214,23 @@ export const TreeMonitoringHistoryTimeline: React.FC<TreeMonitoringHistoryTimeli
   }, [treeId, plantationDate, initialPhotoUrl, observations, photos, healthUpdates, growthUpdates]);
 
   const getStatusBadge = (status?: string | null) => {
-    switch (status?.toLowerCase()) {
+    if (!status) return null;
+    const lower = status.toLowerCase();
+    if (lower === "needs_review") {
+      return (
+        <Badge className="bg-purple-600/20 text-purple-300 border-purple-500/30 text-[10px]">
+          <ShieldAlert className="w-3 h-3 mr-1" /> Needs Review
+        </Badge>
+      );
+    }
+    if (lower === "unknown") {
+      return (
+        <Badge variant="outline" className="text-muted-foreground text-[10px]">
+          Unknown
+        </Badge>
+      );
+    }
+    switch (lower) {
       case "thriving":
       case "healthy":
         return (
@@ -250,7 +267,9 @@ export const TreeMonitoringHistoryTimeline: React.FC<TreeMonitoringHistoryTimeli
           </Badge>
         );
       default:
-        return null;
+        return (
+          <SurvivalStatusBadge status={status} size="sm" />
+        );
     }
   };
 

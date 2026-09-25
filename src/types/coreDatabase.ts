@@ -69,6 +69,20 @@ export type TreeStatus =
   | 'dead'
   | 'replaced';
 
+export type SurvivalStatus =
+  | 'ALIVE'
+  | 'STRESSED'
+  | 'DAMAGED'
+  | 'DEAD'
+  | 'UNKNOWN'
+  | 'NEEDS_REVIEW';
+
+export type SurvivalVerificationSource =
+  | 'field_observation'
+  | 'forester_audit'
+  | 'admin_override'
+  | 'initial_planting';
+
 export type MonitoringStatus =
   | 'up_to_date'
   | 'due_soon'
@@ -254,6 +268,14 @@ export interface Tree {
   next_monitoring_date?: string | null;
   last_monitored_at?: string | null;
   monitoring_status?: MonitoringStatus;
+  survival_status?: SurvivalStatus;
+  ai_suggested_status?: SurvivalStatus | string | null;
+  ai_status_confidence?: number | null;
+  ai_status_rationale?: string | null;
+  status_verified_by?: string | null;
+  status_verified_at?: string | null;
+  status_verification_source?: SurvivalVerificationSource | null;
+  status_verification_notes?: string | null;
   updated_at: string;
 }
 
@@ -498,6 +520,56 @@ export interface MonitoringComplianceStats {
   overdueCount: number;
   criticalOverdueCount: number;
   complianceRatePct: number;
+}
+
+// Survival Status & Human-in-the-Loop (HITL) Verification Models (Phase 5 Task 23)
+export interface AiSurvivalAssessment {
+  suggestedStatus: SurvivalStatus;
+  confidence: number; // 0 to 100
+  rationale: string;
+  source: 'gemini_vision' | 'sentinel2_ndvi' | 'multisource_fusion';
+  detectedSymptoms?: string[];
+  photoUrl?: string | null;
+}
+
+export interface StatusVerificationInput {
+  treeId: string;
+  verifiedStatus: SurvivalStatus;
+  reviewerId: string;
+  reviewerName?: string | null;
+  reviewerRole?: string | null;
+  verificationSource: SurvivalVerificationSource;
+  notes?: string | null;
+  photoUrl?: string | null;
+}
+
+export interface StatusTransitionAuditRecord {
+  id: string;
+  treeId: string;
+  previousStatus: SurvivalStatus | string | null;
+  newStatus: SurvivalStatus;
+  changedBy: string | null;
+  changedByName?: string | null;
+  verificationSource: SurvivalVerificationSource | string;
+  aiConfidence?: number | null;
+  aiSuggestedStatus?: string | null;
+  photoUrl?: string | null;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export interface ProjectSurvivalRateMetrics {
+  totalTrees: number;
+  aliveCount: number;
+  stressedCount: number;
+  damagedCount: number;
+  deadCount: number;
+  unknownCount: number;
+  needsReviewCount: number;
+  survivalRatePct: number; // ALIVE / (total - UNKNOWN) * 100
+  retentionRatePct: number; // (ALIVE + STRESSED + DAMAGED) / (total - UNKNOWN) * 100
+  verifiedCount: number;
+  pendingReviewCount: number;
 }
 
 // 9. Monitoring Task

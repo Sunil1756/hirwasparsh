@@ -52,7 +52,10 @@ import { VernacularVoiceAssistant } from "@/components/VernacularVoiceAssistant"
 import { TreeNdviSatelliteViewer } from "@/components/TreeNdviSatelliteViewer";
 import { TreeMonitoringHistoryTimeline } from "@/components/TreeMonitoringHistoryTimeline";
 import { CreateObservationModal } from "@/components/CreateObservationModal";
+import { SurvivalStatusBadge } from "@/components/SurvivalStatusBadge";
+import { SurvivalVerificationModal } from "@/components/SurvivalVerificationModal";
 import { monitoringEventService } from "@/services/monitoringEventService";
+import { survivalStatusService } from "@/services/survivalStatusService";
 import { TreeObservation, TreePhoto } from "@/types/coreDatabase";
 
 const healthStatusBadge = (status?: string | null) => {
@@ -113,6 +116,7 @@ const TreeProfile = () => {
   const [copiedId, setCopiedId] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [isObsModalOpen, setIsObsModalOpen] = useState(false);
+  const [isSurvivalModalOpen, setIsSurvivalModalOpen] = useState(false);
 
   // 1. Fetch Tree by either UUID or human-readable tree_code (e.g. GE-2026-000001)
   const { data: tree, isLoading } = useQuery({
@@ -250,7 +254,7 @@ const TreeProfile = () => {
     },
   });
 
-  const handleObservationAdded = () => {
+  const handleDataRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["tree", id] });
     queryClient.invalidateQueries({ queryKey: ["tree-observations", treeRealId] });
     queryClient.invalidateQueries({ queryKey: ["tree-photos", treeRealId] });
@@ -348,6 +352,8 @@ const TreeProfile = () => {
     status: tree.status,
   });
 
+  const currentSurvivalStatus = survivalStatusService.normalizeSurvivalStatus(tree.survival_status || tree.status);
+
   const bandColor =
     score >= 80 ? "#10b981" : score >= 60 ? "#3b82f6" : score >= 40 ? "#f59e0b" : "#ef4444";
 
@@ -376,6 +382,15 @@ const TreeProfile = () => {
                 {copiedLink ? "Link Copied" : "Share"}
               </Button>
               <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsSurvivalModalOpen(true)}
+                className="text-xs h-7 gap-1 px-2.5 border-primary/30 text-primary hover:bg-primary/10"
+              >
+                <ShieldCheck className="h-3.5 w-3.5" />
+                <span>Verify Status</span>
+              </Button>
+              <Button
                 onClick={() => setIsObsModalOpen(true)}
                 size="sm"
                 className="text-xs h-7 gap-1 px-2.5 bg-primary text-primary-foreground"
@@ -385,6 +400,39 @@ const TreeProfile = () => {
               </Button>
             </div>
           </div>
+
+          {/* NEEDS_REVIEW Alert Banner if AI flagged uncertainty or mortality conflict */}
+          {currentSurvivalStatus === "NEEDS_REVIEW" && (
+            <div className="p-4 rounded-2xl border bg-purple-500/15 border-purple-500/30 text-purple-200 flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <ShieldAlert className="h-6 w-6 text-purple-400 shrink-0 mt-0.5 animate-pulse" />
+                <div className="space-y-1">
+                  <div className="font-heading font-bold text-sm text-foreground flex items-center gap-2">
+                    <span>Survival Status Needs Human Verification</span>
+                    <Badge className="bg-purple-600 text-white text-[10px]">Action Required</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {tree.ai_status_rationale || "AI telemetry detected potential health regression or uncertainty. Please verify ground truth."}
+                  </p>
+                  {tree.ai_suggested_status && (
+                    <div className="pt-1 font-mono text-xs text-purple-300 flex items-center gap-2">
+                      <span>AI Proposed: <strong>{tree.ai_suggested_status}</strong></span>
+                      {tree.ai_status_confidence && (
+                        <span>({tree.ai_status_confidence}% confidence)</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => setIsSurvivalModalOpen(true)}
+                className="shrink-0 bg-purple-600 hover:bg-purple-700 text-white text-xs gap-1"
+              >
+                <Check className="h-3.5 w-3.5" /> Sign Off
+              </Button>
+            </div>
+          )}
 
           {/* Overdue Alert Banner if tree requires immediate monitoring */}
           {schedule.isOverdue && (
@@ -440,7 +488,8 @@ const TreeProfile = () => {
                     </div>
                   )}
 
-                  <div className="absolute top-3 left-3">
+                  <div className="absolute top-3 left-3 flex flex-col gap-1">
+                    <SurvivalStatusBadge status={currentSurvivalStatus} size="sm" />
                     {healthStatusBadge(tree.status)}
                   </div>
 
@@ -597,6 +646,30 @@ const TreeProfile = () => {
                     <div className="min-w-0">
                       <div className="text-[11px] text-muted-foreground uppercase font-semibold">Tree Identifier</div>
                       <div className="text-sm font-mono font-bold text-foreground truncate">{displayTreeId}</div>
+                    </div>
+                  </div>
+
+                  {/* Verified Survival Status */}
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-card/60 border border-border/60">
+                    <ShieldCheck className="h-5 w-5 text-primary shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[11px] text-muted-foreground uppercase font-semibold">Certified Survival Status</div>
+                      <div className="mt-1 flex items-center justify-between gap-2">
+                        <SurvivalStatusBadge
+                          status={currentSurvivalStatus}
+                          verificationSource={tree.status_verification_source}
+                          showSource={true}
+                          size="sm"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsSurvivalModalOpen(true)}
+                          className="text-[10px] h-6 px-1.5 text-primary hover:bg-primary/10"
+                        >
+                          Update
+                        </Button>
+                      </div>
                     </div>
                   </div>
 
@@ -892,7 +965,7 @@ const TreeProfile = () => {
                 photos={photos}
                 healthUpdates={healthUpdates}
                 growthUpdates={growthUpdates}
-                onObservationAdded={handleObservationAdded}
+                onObservationAdded={handleDataRefresh}
               />
             </div>
           </div>
@@ -909,7 +982,22 @@ const TreeProfile = () => {
         plantationDate={tree.plantation_date}
         currentHeightCm={tree.height_cm}
         currentDbhCm={tree.dbh_cm}
-        onSuccess={handleObservationAdded}
+        onSuccess={handleDataRefresh}
+      />
+
+      {/* Survival Status Verification Modal (Human-in-the-Loop) */}
+      <SurvivalVerificationModal
+        isOpen={isSurvivalModalOpen}
+        onClose={() => setIsSurvivalModalOpen(false)}
+        treeId={treeRealId || ""}
+        treeCode={tree.tree_code}
+        species={tree.species}
+        currentSurvivalStatus={currentSurvivalStatus}
+        aiSuggestedStatus={tree.ai_suggested_status}
+        aiConfidence={tree.ai_status_confidence}
+        aiRationale={tree.ai_status_rationale}
+        photoUrl={tree.photo_url}
+        onSuccess={handleDataRefresh}
       />
     </div>
   );
