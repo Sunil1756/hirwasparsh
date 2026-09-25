@@ -51,6 +51,7 @@ import { SurvivalStatusBadge } from "@/components/SurvivalStatusBadge";
 import { CreateObservationModal } from "@/components/CreateObservationModal";
 import { SurvivalVerificationModal } from "@/components/SurvivalVerificationModal";
 import { EvidenceAuditInspectorModal } from "@/components/EvidenceAuditInspectorModal";
+import { MonitoringScheduleConsole } from "@/components/monitoring/MonitoringScheduleConsole";
 import {
   monitoringDashboardService,
   DashboardTreeItem,
@@ -338,6 +339,10 @@ export const MonitoringDashboard: React.FC = () => {
       {/* Main Tabs Navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-card/70 border border-border p-1 rounded-xl flex flex-wrap gap-1">
+          <TabsTrigger value="schedules" className="text-xs gap-1.5 data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
+            <Calendar className="h-3.5 w-3.5" />
+            <span>Automated Schedules (Task 46)</span>
+          </TabsTrigger>
           <TabsTrigger value="requiring_monitoring" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Calendar className="h-3.5 w-3.5" />
             <span>Requiring Monitoring</span>
@@ -379,6 +384,13 @@ export const MonitoringDashboard: React.FC = () => {
             )}
           </TabsTrigger>
         </TabsList>
+
+        {/* ==================================================================== */}
+        {/* TAB: Automated Monitoring Schedules & Recurrence Engine (Task 46) */}
+        {/* ==================================================================== */}
+        <TabsContent value="schedules" className="space-y-4">
+          <MonitoringScheduleConsole />
+        </TabsContent>
 
         {/* ==================================================================== */}
         {/* TAB 1: Trees Requiring Monitoring */}
