@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield,
+  ShieldCheck,
   TreePine,
   Users,
   CheckCircle2,
@@ -33,6 +34,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EvidenceVerificationWorkbench } from "@/components/verification/EvidenceVerificationWorkbench";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -594,8 +596,12 @@ export default function AdminDashboard() {
           </div>
 
           {/* Main Tabs Interface */}
-          <Tabs defaultValue="review" className="space-y-6">
-            <TabsList className="bg-muted/80 p-1 rounded-2xl border border-primary/20 w-fit">
+          <Tabs defaultValue="evidence" className="space-y-6">
+            <TabsList className="bg-muted/80 p-1 rounded-2xl border border-primary/20 w-fit flex-wrap">
+              <TabsTrigger value="evidence" className="rounded-xl text-xs sm:text-sm font-semibold gap-2">
+                <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                Evidence Verification
+              </TabsTrigger>
               <TabsTrigger value="review" className="rounded-xl text-xs sm:text-sm font-semibold gap-2">
                 <Inbox className="h-4 w-4" />
                 Manual Review Queue ({pendingCount})
@@ -613,6 +619,11 @@ export default function AdminDashboard() {
                 Government & ESG Telemetry
               </TabsTrigger>
             </TabsList>
+
+            {/* TAB 0: Evidence Verification Workbench (Task 40) */}
+            <TabsContent value="evidence" className="space-y-4">
+              <EvidenceVerificationWorkbench />
+            </TabsContent>
 
             {/* TAB 1: Manual Review Queue (< 70% Score) */}
             <TabsContent value="review" className="space-y-4">
