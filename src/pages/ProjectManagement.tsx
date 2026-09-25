@@ -40,6 +40,7 @@ import {
 import { organizationService } from "@/services/organizationService";
 import BoundaryDrawMap from "@/components/BoundaryDrawMap";
 import { ProjectMapViewer } from "@/components/gis/ProjectMapViewer";
+import { BoundarySystemMapViewer } from "@/components/gis/BoundarySystemMapViewer";
 import { Map as MapIcon, LayoutGrid } from "lucide-react";
 import { LatLngPoint } from "@/lib/projectOnboardingService";
 import { toast } from "sonner";
@@ -122,7 +123,7 @@ export const ProjectManagement: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
-  const [viewMode, setViewMode] = useState<"grid" | "gis_map">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "gis_map" | "boundary_system">("grid");
 
   // Selected project modal state
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -531,13 +532,25 @@ export const ProjectManagement: React.FC = () => {
               }`}
             >
               <MapIcon className="h-3.5 w-3.5" />
-              GIS Map
+              Project Map
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("boundary_system")}
+              className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                viewMode === "boundary_system"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Layers className="h-3.5 w-3.5" />
+              Boundary System (3-Way)
             </button>
           </div>
         </div>
       </div>
 
-      {/* Projects View (Grid or Interactive GIS Map) */}
+      {/* Projects View (Grid or Interactive GIS Map or 3-Way Boundary System) */}
       {viewMode === "gis_map" ? (
         <div className="animate-in fade-in duration-200">
           <ProjectMapViewer
@@ -547,6 +560,13 @@ export const ProjectManagement: React.FC = () => {
               }
             }}
             height="700px"
+          />
+        </div>
+      ) : viewMode === "boundary_system" ? (
+        <div className="animate-in fade-in duration-200">
+          <BoundarySystemMapViewer
+            projectId={selectedProjectId || filteredProjects[0]?.id || "proj-pune-western-ghats"}
+            height="720px"
           />
         </div>
       ) : isLoading ? (
