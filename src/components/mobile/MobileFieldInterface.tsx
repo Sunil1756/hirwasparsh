@@ -36,6 +36,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FieldWaypointCompass, WaypointTarget } from "./FieldWaypointCompass";
 import { RapidFieldActionDrawer } from "./RapidFieldActionDrawer";
+import { FastTreeRegistrationConsole } from "./FastTreeRegistrationConsole";
 import { getOfflineTreeQueue, syncOfflineTreesWithSupabase } from "@/lib/offlineSyncService";
 import { getQueuedOfflineFieldReportsCount, syncQueuedOfflineFieldReports } from "@/lib/fieldReportBackendService";
 import { toast } from "sonner";
@@ -60,7 +61,8 @@ export const MobileFieldInterface: React.FC<MobileFieldInterfaceProps> = ({
   const [offlineQueueCount, setOfflineQueueCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Drawer Modals
+  // Drawer Modals & Fast Console
+  const [isFastPlantOpen, setIsFastPlantOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<"plant" | "audit">("plant");
   const [selectedWaypoint, setSelectedWaypoint] = useState<WaypointTarget | null>(null);
@@ -147,6 +149,16 @@ export const MobileFieldInterface: React.FC<MobileFieldInterfaceProps> = ({
     },
   ];
 
+  if (isFastPlantOpen) {
+    return (
+      <FastTreeRegistrationConsole
+        currentLocation={currentLocation}
+        projectId={projectId}
+        onClose={() => setIsFastPlantOpen(false)}
+      />
+    );
+  }
+
   return (
     <div
       className={`flex flex-col min-h-screen bg-background text-foreground transition-colors ${
@@ -216,6 +228,31 @@ export const MobileFieldInterface: React.FC<MobileFieldInterfaceProps> = ({
       <main className="flex-1 p-4 pb-28 space-y-4 max-w-xl mx-auto w-full">
         {activeTab === "tasks" && (
           <div className="space-y-3.5" data-testid="mobile-tasks-view">
+            {/* Quick Fast Tree Registration Action Card */}
+            <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 rounded-2xl p-4 text-white shadow-lg space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-white/20 rounded-xl backdrop-blur-md">
+                    <TreePine className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm leading-tight">Fast Tree Registration</h3>
+                    <p className="text-[11px] text-white/80">Sub-5s streak planting & spacing radar</p>
+                  </div>
+                </div>
+                <Badge className="bg-white/20 text-white border-0 text-[10px] font-mono">
+                  Sub-5s
+                </Badge>
+              </div>
+              <Button
+                data-testid="start-fast-registration-btn"
+                onClick={() => setIsFastPlantOpen(true)}
+                className="w-full bg-white text-emerald-800 hover:bg-white/90 text-xs font-bold h-9 rounded-xl shadow-md"
+              >
+                Launch Fast Registration Mode →
+              </Button>
+            </div>
+
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="font-heading font-bold text-base text-foreground">Assigned Field Tasks</h2>
@@ -453,12 +490,10 @@ export const MobileFieldInterface: React.FC<MobileFieldInterfaceProps> = ({
         {/* Center Floating Action Button (FAB) */}
         <div className="relative -top-5">
           <button
-            onClick={() => {
-              setDrawerMode("plant");
-              setDrawerOpen(true);
-            }}
+            data-testid="fab-fast-plant"
+            onClick={() => setIsFastPlantOpen(true)}
             className="w-14 h-14 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white shadow-xl flex flex-col items-center justify-center border-4 border-background active:scale-95 transition-transform"
-            title="Rapid Plant Sapling"
+            title="Fast Tree Registration"
           >
             <TreePine className="h-6 w-6" />
           </button>

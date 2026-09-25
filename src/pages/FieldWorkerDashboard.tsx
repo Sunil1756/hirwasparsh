@@ -19,6 +19,7 @@ import {
   Navigation,
   FileSpreadsheet,
   Layers,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +39,7 @@ import {
 import { RiskAlertNotificationBanner } from "@/components/RiskAlertNotificationBanner";
 import { Link } from "react-router-dom";
 import { MobileFieldInterface } from "@/components/mobile/MobileFieldInterface";
+import { FastTreeRegistrationConsole } from "@/components/mobile/FastTreeRegistrationConsole";
 import { Smartphone, Monitor } from "lucide-react";
 
 export default function FieldWorkerDashboard() {
@@ -46,6 +48,7 @@ export default function FieldWorkerDashboard() {
   const queryClient = useQueryClient();
 
   const [isMobileMode, setIsMobileMode] = useState(false);
+  const [fastRegisterModalOpen, setFastRegisterModalOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("demo-project-dev-001");
   const [offlineCount, setOfflineCount] = useState<number>(0);
@@ -249,6 +252,14 @@ export default function FieldWorkerDashboard() {
                 className="gap-1.5 text-xs font-semibold rounded-xl border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
               >
                 <Smartphone className="h-3.5 w-3.5" /> Mobile Field Mode
+              </Button>
+
+              <Button
+                data-testid="desktop-fast-register-btn"
+                onClick={() => setFastRegisterModalOpen(true)}
+                className="gap-1.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md"
+              >
+                <Zap className="h-4 w-4" /> Fast Tree Register
               </Button>
 
               <Button
@@ -606,6 +617,24 @@ export default function FieldWorkerDashboard() {
           setOfflineCount(getOfflineTreeQueue().length);
         }}
       />
+
+      {/* Fast Tree Registration Fullscreen Overlay Modal */}
+      <AnimatePresence>
+        {fastRegisterModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-background/95 backdrop-blur-md overflow-y-auto"
+          >
+            <FastTreeRegistrationConsole
+              currentLocation={userLocation}
+              projectId={selectedProjectId}
+              onClose={() => setFastRegisterModalOpen(false)}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
