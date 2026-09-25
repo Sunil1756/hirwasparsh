@@ -19,6 +19,7 @@ import {
   Calendar,
   Camera,
   CheckCircle2,
+  ClipboardList,
   Clock,
   Download,
   Droplets,
@@ -52,6 +53,7 @@ import { CreateObservationModal } from "@/components/CreateObservationModal";
 import { SurvivalVerificationModal } from "@/components/SurvivalVerificationModal";
 import { EvidenceAuditInspectorModal } from "@/components/EvidenceAuditInspectorModal";
 import { MonitoringScheduleConsole } from "@/components/monitoring/MonitoringScheduleConsole";
+import { MonitoringTaskConsole } from "@/components/monitoring/MonitoringTaskConsole";
 import {
   monitoringDashboardService,
   DashboardTreeItem,
@@ -343,6 +345,10 @@ export const MonitoringDashboard: React.FC = () => {
             <Calendar className="h-3.5 w-3.5" />
             <span>Automated Schedules (Task 46)</span>
           </TabsTrigger>
+          <TabsTrigger value="work_orders" className="text-xs gap-1.5 data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+            <ClipboardList className="h-3.5 w-3.5" />
+            <span>Due & Overdue Tasks (Task 47)</span>
+          </TabsTrigger>
           <TabsTrigger value="requiring_monitoring" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Calendar className="h-3.5 w-3.5" />
             <span>Requiring Monitoring</span>
@@ -390,6 +396,13 @@ export const MonitoringDashboard: React.FC = () => {
         {/* ==================================================================== */}
         <TabsContent value="schedules" className="space-y-4">
           <MonitoringScheduleConsole />
+        </TabsContent>
+
+        {/* ==================================================================== */}
+        {/* TAB: Due & Overdue Work Orders & SLA Engine (Task 47) */}
+        {/* ==================================================================== */}
+        <TabsContent value="work_orders" className="space-y-4">
+          <MonitoringTaskConsole />
         </TabsContent>
 
         {/* ==================================================================== */}
