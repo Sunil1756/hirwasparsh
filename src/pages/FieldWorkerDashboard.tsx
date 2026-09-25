@@ -37,12 +37,15 @@ import {
 } from "@/lib/fieldReportBackendService";
 import { RiskAlertNotificationBanner } from "@/components/RiskAlertNotificationBanner";
 import { Link } from "react-router-dom";
+import { MobileFieldInterface } from "@/components/mobile/MobileFieldInterface";
+import { Smartphone, Monitor } from "lucide-react";
 
 export default function FieldWorkerDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const [isMobileMode, setIsMobileMode] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("demo-project-dev-001");
   const [offlineCount, setOfflineCount] = useState<number>(0);
@@ -191,6 +194,30 @@ export default function FieldWorkerDashboard() {
       ? ((livingCount + 0.5 * stressedCount) / totalTreesEvaluated) * 100
       : 100;
 
+  if (isMobileMode) {
+    return (
+      <div className="min-h-screen pt-16 bg-background">
+        <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2 flex items-center justify-between">
+          <span className="text-xs font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+            <Smartphone className="h-4 w-4" /> Mobile Field Mode Active
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setIsMobileMode(false)}
+            className="h-7 text-xs rounded-lg border-amber-500/40 text-amber-800 dark:text-amber-200"
+          >
+            <Monitor className="h-3.5 w-3.5 mr-1" /> Desktop View
+          </Button>
+        </div>
+        <MobileFieldInterface
+          currentLocation={userLocation}
+          projectId={selectedProjectId}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen pt-24 pb-16 bg-gradient-to-b from-background via-amber-500/[0.02] to-background">
       <div className="container mx-auto px-4 max-w-7xl">
@@ -215,6 +242,15 @@ export default function FieldWorkerDashboard() {
             </div>
 
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsMobileMode(true)}
+                className="gap-1.5 text-xs font-semibold rounded-xl border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+              >
+                <Smartphone className="h-3.5 w-3.5" /> Mobile Field Mode
+              </Button>
+
               <Button
                 onClick={() => setWizardOpen(true)}
                 className="gap-2 rounded-xl text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white shadow-md"
