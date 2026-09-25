@@ -41,6 +41,7 @@ import { ClaimVerificationReceiptModal } from "./ClaimVerificationReceiptModal";
 import { DuplicateEvidenceInspectorModal } from "./DuplicateEvidenceInspectorModal";
 import { DuplicatePhotoScanner } from "./DuplicatePhotoScanner";
 import { SpatiotemporalAnomalyScanner } from "./SpatiotemporalAnomalyScanner";
+import { ReviewerApprovalConsole } from "./ReviewerApprovalConsole";
 import { SpatiotemporalConsistencyModal } from "./SpatiotemporalConsistencyModal";
 import {
   spatiotemporalConsistencyService,
@@ -56,7 +57,7 @@ export const EvidenceVerificationWorkbench: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeReceipt, setActiveReceipt] = useState<VerificationReceipt | null>(null);
   const [inspectingCollision, setInspectingCollision] = useState<EvidenceCollision | null>(null);
-  const [viewMode, setViewMode] = useState<"queue" | "duplicate_scanner" | "spatiotemporal_scanner">("queue");
+  const [viewMode, setViewMode] = useState<"queue" | "duplicate_scanner" | "spatiotemporal_scanner" | "approval_console">("queue");
   const [inspectingSpatiotemporalReport, setInspectingSpatiotemporalReport] = useState<SpatiotemporalAuditReport | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [showRejectDialog, setShowRejectDialog] = useState(false);
@@ -244,7 +245,7 @@ export const EvidenceVerificationWorkbench: React.FC = () => {
             <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
               Evidence Verification Workbench
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/30 font-semibold font-mono">
-                Phase 8 • Tasks 40, 41 & 42
+                Phase 8 • Tasks 40, 41, 42 & 43
               </span>
             </h2>
             <p className="text-xs text-zinc-400">
@@ -264,6 +265,18 @@ export const EvidenceVerificationWorkbench: React.FC = () => {
           >
             <Fingerprint className="w-3.5 h-3.5 text-rose-400" />
             <span>{viewMode === "duplicate_scanner" ? "Back to Claims Queue" : "Duplicate Scanner"}</span>
+          </button>
+
+          <button
+            onClick={() => setViewMode(viewMode === "approval_console" ? "queue" : "approval_console")}
+            className={"inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors border " + (
+              viewMode === "approval_console"
+                ? "bg-emerald-950/80 text-emerald-300 border-emerald-500/40 shadow-md"
+                : "bg-zinc-800 hover:bg-zinc-700 text-emerald-300 border-zinc-700"
+            )}
+          >
+            <User className="w-3.5 h-3.5 text-emerald-400" />
+            <span>{viewMode === "approval_console" ? "Back to Claims Queue" : "Approval Console"}</span>
           </button>
 
           <button
@@ -305,6 +318,8 @@ export const EvidenceVerificationWorkbench: React.FC = () => {
         <DuplicatePhotoScanner />
       ) : viewMode === "spatiotemporal_scanner" ? (
         <SpatiotemporalAnomalyScanner />
+      ) : viewMode === "approval_console" ? (
+        <ReviewerApprovalConsole />
       ) : (
         <>
           {/* Action Success Toast */}
