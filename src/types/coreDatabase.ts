@@ -89,7 +89,11 @@ export type TreeHealthStatus =
   | 'moderate'
   | 'critical'
   | 'dead'
-  | 'recovering';
+  | 'recovering'
+  | 'thriving'
+  | 'stressed'
+  | 'diseased'
+  | 'replaced';
 
 export type TaskType =
   | 'growth_audit'
@@ -308,27 +312,139 @@ export interface TreePhoto {
   created_at: string;
 }
 
-// 8. Tree Observation / Biometrics
+// 8. Tree Observation / Biometrics & Living Monitoring History (Phase 5 Task 21)
 export interface TreeObservation {
-  id: string;
-  tree_id: string;
-  observer_id?: string | null;
-  task_id?: string | null;
-  observation_date: string;
+  id: string; // 1. Observation ID (UUID)
+  tree_id: string; // 1. Tree ID (UUID)
+  observer_id?: string | null; // 2. Observer UUID
+  observer_name?: string | null; // Observer Name
+  observer_role?: string | null; // Observer Role / Designation
+  task_id?: string | null; // Optional Task Link
+  observation_date: string; // 3. Date / Time (ISO 8601)
+  observed_at?: string | null; // Date / Time alias
+
+  // 4. Location if required
+  latitude?: number | null;
+  longitude?: number | null;
+  elevation_m?: number | null;
+  gps_accuracy_meters?: number | null;
+  location_name?: string | null;
+
+  // 5. Condition & Biometrics
+  health_status: TreeHealthStatus; // Primary condition ('healthy', 'thriving', 'stressed', 'diseased', 'dead', 'recovering', 'replaced')
+  condition?: string | null; // Condition alias
   height_cm?: number | null;
   canopy_width_cm?: number | null;
   dbh_cm?: number | null;
-  health_status: TreeHealthStatus;
-  condition_notes?: string | null;
+  foliage_density_pct?: number | null;
   pest_disease_detected?: boolean | null;
+  pest_types?: string[] | null;
   disease_description?: string | null;
+  treatment_applied?: string | null;
+
+  // 6. Notes & Recommendations
+  condition_notes?: string | null;
+  notes?: string | null; // Notes alias
+  care_recommendations?: string | null;
+
+  // 7. Evidence & Photos
   photo_url?: string | null;
+  evidence_type?: EvidenceType | string | null;
+  sha256_hash?: string | null;
+  photo_ids?: string[] | null;
+
+  // 8. Status & Verification
+  verification_status: VerificationStatus; // 'pending' | 'verified' | 'flagged' | 'rejected'
+  status?: string | null; // Status alias
+  verified_by?: string | null;
+  verified_at?: string | null;
+  verification_notes?: string | null;
+
+  // AI & Ecosystem Metrics
   ai_health_score?: number | null;
   ai_diagnosis_json?: Record<string, any> | null;
   co2_sequestered_kg?: number | null;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface CreateObservationInput {
+  tree_id: string; // 1. Tree ID (Required)
+  observer_id?: string | null; // 2. Observer UUID
+  observer_name?: string | null;
+  observer_role?: string | null;
+  observation_date?: string; // 3. Date / Time (Defaults to current timestamp)
+  observed_at?: string;
+
+  // 4. Location if required
   latitude?: number | null;
   longitude?: number | null;
-  created_at: string;
+  elevation_m?: number | null;
+  gps_accuracy_meters?: number | null;
+  location_name?: string | null;
+
+  // 5. Condition & Biometrics
+  health_status?: TreeHealthStatus; // Defaults to 'healthy'
+  condition?: string | null;
+  height_cm?: number | null;
+  canopy_width_cm?: number | null;
+  dbh_cm?: number | null;
+  foliage_density_pct?: number | null;
+  pest_disease_detected?: boolean | null;
+  pest_types?: string[] | null;
+  disease_description?: string | null;
+  treatment_applied?: string | null;
+
+  // 6. Notes
+  condition_notes?: string | null;
+  notes?: string | null;
+  care_recommendations?: string | null;
+
+  // 7. Evidence
+  photo_url?: string | null;
+  evidence_type?: EvidenceType | string | null;
+  sha256_hash?: string | null;
+
+  // 8. Status
+  verification_status?: VerificationStatus;
+  status?: string | null;
+
+  // AI Metrics
+  ai_health_score?: number | null;
+  ai_diagnosis_json?: Record<string, any> | null;
+  co2_sequestered_kg?: number | null;
+}
+
+export interface ObservationValidationResult {
+  isValid: boolean;
+  errors: string[];
+  normalizedData?: {
+    tree_id: string;
+    observer_id: string | null;
+    observer_name: string | null;
+    observation_date: string;
+    latitude: number | null;
+    longitude: number | null;
+    health_status: TreeHealthStatus;
+    height_cm: number | null;
+    dbh_cm: number | null;
+    canopy_width_cm: number | null;
+    condition_notes: string | null;
+    photo_url: string | null;
+    verification_status: VerificationStatus;
+  };
+}
+
+export interface ObservationSummaryStats {
+  totalObservations: number;
+  latestObservationDate: string | null;
+  latestHealthStatus: TreeHealthStatus | null;
+  initialHeightCm: number | null;
+  currentHeightCm: number | null;
+  growthDeltaCm: number;
+  averageAnnualGrowthRateCm: number;
+  pestIssuesCount: number;
+  verifiedObservationsCount: number;
 }
 
 // 9. Monitoring Task
