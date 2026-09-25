@@ -83,4 +83,9 @@ describe("PHASE 9 TASK 48 — MonitoringNotificationService & Alert Engine", () 
     expect(kpis.deliverySuccessRate).toBeGreaterThanOrEqual(0);
     expect(kpis.deliverySuccessRate).toBeLessThanOrEqual(100);
   });
+
+  it("7. Safely requests browser notification permissions without crashing in headless/test runtimes", async () => {
+    const perm = await monitoringNotificationService.requestBrowserNotificationPermission();
+    expect(["granted", "denied", "default", "unsupported"]).toContain(perm);
+  });
 });
