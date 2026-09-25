@@ -621,3 +621,144 @@ export interface AuditLog {
   user_agent?: string | null;
   created_at: string;
 }
+
+// ====================================================================
+// Evidence History & 5W Auditable Provenance Models (Phase 5 Task 24)
+// ====================================================================
+
+export type GeofenceStatus = 'within_bounds' | 'boundary_warning' | 'out_of_bounds';
+
+export interface AuditableEvidenceWho {
+  observerId: string | null;
+  observerName: string;
+  observerRole: string;
+  organizationId?: string | null;
+  organizationName?: string | null;
+  verifiedById?: string | null;
+  verifiedByName?: string | null;
+}
+
+export interface AuditableEvidenceWhen {
+  eventTimestamp: string;
+  exifTimestamp?: string | null;
+  createdAt: string;
+}
+
+export interface AuditableEvidenceWhat {
+  eventType: string;
+  survivalStatus: SurvivalStatus;
+  healthStatus: TreeHealthStatus | string;
+  heightCm?: number | null;
+  dbhCm?: number | null;
+  canopyWidthCm?: number | null;
+  heightDeltaCm?: number | null;
+  dbhDeltaCm?: number | null;
+  pestDiseaseDetected?: boolean | null;
+  diseaseDescription?: string | null;
+  treatmentApplied?: string | null;
+  notes?: string | null;
+}
+
+export interface AuditableEvidenceWhere {
+  latitude: number | null;
+  longitude: number | null;
+  elevationM?: number | null;
+  gpsAccuracyM?: number | null;
+  locationName?: string | null;
+  distanceFromBaselineM?: number | null;
+  geofenceStatus: GeofenceStatus;
+}
+
+export interface AuditableEvidenceMedia {
+  photoUrl: string | null;
+  secondaryPhotoUrls?: string[];
+  evidenceType: EvidenceType | string;
+  sha256Hash?: string | null;
+  deviceFingerprint?: string | null;
+  verificationStatus: VerificationStatus;
+}
+
+export interface AuditableEvidenceRecord {
+  id: string;
+  treeId: string;
+  observationId?: string | null;
+  who: AuditableEvidenceWho;
+  when: AuditableEvidenceWhen;
+  what: AuditableEvidenceWhat;
+  where: AuditableEvidenceWhere;
+  evidence: AuditableEvidenceMedia;
+  // Raw db attributes convenience mirror
+  observer_name?: string;
+  observer_role?: string;
+  event_timestamp?: string;
+  exif_timestamp?: string | null;
+  survival_status?: SurvivalStatus;
+  health_status?: string;
+  height_cm?: number | null;
+  dbh_cm?: number | null;
+  canopy_width_cm?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  distance_from_baseline_meters?: number | null;
+  geofence_status?: GeofenceStatus;
+  photo_url?: string | null;
+  sha256_hash?: string | null;
+  verification_status?: VerificationStatus;
+}
+
+export interface CreateAuditableEvidenceInput {
+  treeId: string;
+  observationId?: string | null;
+  observerId?: string | null;
+  observerName?: string;
+  observerRole?: string;
+  organizationId?: string | null;
+  verifiedById?: string | null;
+  verifiedByName?: string | null;
+  eventTimestamp?: string;
+  exifTimestamp?: string | null;
+  eventType?: string;
+  survivalStatus?: SurvivalStatus;
+  healthStatus?: TreeHealthStatus | string;
+  heightCm?: number | null;
+  dbhCm?: number | null;
+  canopyWidthCm?: number | null;
+  heightDeltaCm?: number | null;
+  dbhDeltaCm?: number | null;
+  pestDiseaseDetected?: boolean;
+  diseaseDescription?: string | null;
+  treatmentApplied?: string | null;
+  notes?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  elevationM?: number | null;
+  gpsAccuracyM?: number | null;
+  locationName?: string | null;
+  distanceFromBaselineM?: number | null;
+  baselineLatitude?: number | null;
+  baselineLongitude?: number | null;
+  photoUrl?: string | null;
+  secondaryPhotoUrls?: string[];
+  evidenceType?: EvidenceType | string;
+  sha256Hash?: string | null;
+  deviceFingerprint?: string | null;
+  verificationStatus?: VerificationStatus;
+}
+
+export interface AuditableEvidenceSummary {
+  treeId: string;
+  totalEvidenceRecords: number;
+  verifiedCount: number;
+  flaggedCount: number;
+  withinBoundsCount: number;
+  boundaryWarningCount: number;
+  outOfBoundsCount: number;
+  geofenceCompliancePct: number;
+  integrityVerifiedCount: number;
+  earliestRecordTimestamp?: string | null;
+  latestRecordTimestamp?: string | null;
+  latestHeightCm?: number | null;
+  latestDbhCm?: number | null;
+  latestSurvivalStatus: SurvivalStatus;
+  records: AuditableEvidenceRecord[];
+}

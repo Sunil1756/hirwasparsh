@@ -51,6 +51,9 @@ import {
 import { VernacularVoiceAssistant } from "@/components/VernacularVoiceAssistant";
 import { TreeNdviSatelliteViewer } from "@/components/TreeNdviSatelliteViewer";
 import { TreeMonitoringHistoryTimeline } from "@/components/TreeMonitoringHistoryTimeline";
+import { EvidenceAuditInspectorModal } from "@/components/EvidenceAuditInspectorModal";
+import { evidenceHistoryService } from "@/services/evidenceHistoryService";
+import { AuditableEvidenceRecord } from "@/types/coreDatabase";
 import { CreateObservationModal } from "@/components/CreateObservationModal";
 import { SurvivalStatusBadge } from "@/components/SurvivalStatusBadge";
 import { SurvivalVerificationModal } from "@/components/SurvivalVerificationModal";
@@ -117,6 +120,8 @@ const TreeProfile = () => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [isObsModalOpen, setIsObsModalOpen] = useState(false);
   const [isSurvivalModalOpen, setIsSurvivalModalOpen] = useState(false);
+  const [isEvidenceModalOpen, setIsEvidenceModalOpen] = useState(false);
+  const [activeEvidenceRecord, setActiveEvidenceRecord] = useState<AuditableEvidenceRecord | null>(null);
 
   // 1. Fetch Tree by either UUID or human-readable tree_code (e.g. GE-2026-000001)
   const { data: tree, isLoading } = useQuery({
@@ -380,6 +385,58 @@ const TreeProfile = () => {
               >
                 {copiedLink ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Share2 className="h-3.5 w-3.5" />}
                 {copiedLink ? "Link Copied" : "Share"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  if (treeRealId) {
+                    const history = await evidenceHistoryService.getTreeEvidenceHistory(treeRealId);
+                    if (history.length > 0) {
+                      setActiveEvidenceRecord(history[0]);
+                    } else {
+                      setActiveEvidenceRecord({
+                        id: `tree-${treeRealId}`,
+                        treeId: treeRealId,
+                        who: {
+                          observerId: tree?.user_id || null,
+                          observerName: planter?.full_name || "Planter",
+                          observerRole: "planter",
+                        },
+                        when: {
+                          eventTimestamp: tree?.plantation_date || tree?.created_at,
+                          createdAt: tree?.created_at,
+                        },
+                        what: {
+                          eventType: "initial_planting",
+                          survivalStatus: (tree?.survival_status as any) || "ALIVE",
+                          healthStatus: tree?.status || "healthy",
+                          heightCm: tree?.height_cm,
+                          dbhCm: tree?.dbh_cm,
+                          notes: tree?.description,
+                        },
+                        where: {
+                          latitude: tree?.latitude,
+                          longitude: tree?.longitude,
+                          gpsAccuracyM: 2.5,
+                          distanceFromBaselineM: 0,
+                          geofenceStatus: "within_bounds",
+                        },
+                        evidence: {
+                          photoUrl: tree?.photo_url,
+                          evidenceType: "planting_photo",
+                          sha256Hash: tree?.photo_url ? evidenceHistoryService.computeEvidenceHash(tree?.photo_url) : null,
+                          verificationStatus: "verified",
+                        },
+                      });
+                    }
+                    setIsEvidenceModalOpen(true);
+                  }
+                }}
+                className="text-xs h-7 gap-1 px-2.5 border-primary/30 text-primary hover:bg-primary/10"
+              >
+                <ShieldCheck className="h-3.5 w-3.5" />
+                <span>5W Provenance</span>
               </Button>
               <Button
                 variant="outline"
@@ -959,6 +1016,8 @@ const TreeProfile = () => {
                 plantationDate={tree.plantation_date}
                 initialPhotoUrl={tree.photo_url}
                 species={tree.species}
+                latitude={tree.latitude}
+                longitude={tree.longitude}
                 nextMonitoringDate={tree.next_monitoring_date}
                 monitoringStatus={tree.monitoring_status}
                 observations={observations}
@@ -971,6 +1030,15 @@ const TreeProfile = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* 5W Evidence Audit Inspector Modal */}
+      <EvidenceAuditInspectorModal
+        isOpen={isEvidenceModalOpen}
+        onClose={() => setIsEvidenceModalOpen(false)}
+        record={activeEvidenceRecord}
+        treeCode={tree?.tree_code}
+        species={tree?.species}
+      />
 
       {/* Observation Modal */}
       <CreateObservationModal

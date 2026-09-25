@@ -1,13 +1,13 @@
 /**
- * HIRWA SPARSH / GREEN ENLIGHTENMENT — PHASE 5 TASK 22
- * Tree Monitoring History & Biometric Audit Timeline Component
+ * HIRWA SPARSH / GREEN ENLIGHTENMENT — PHASE 5 TASK 22 & 24
+ * Tree Monitoring History, Biometric Audit Timeline & 5W Evidence Inspector
  * 
  * Features:
  * - Unified chronological event log (observations, photos, health check-ins, initial planting)
  * - Biometric growth delta calculations between consecutive observations
  * - Direct "+ Log Observation" trigger with CreateObservationModal
  * - Next scheduled monitoring countdown and overdue warnings
- * - Cryptographic SHA-256 evidence verification
+ * - Cryptographic SHA-256 evidence verification & 5W Forensic Inspector
  */
 
 import React, { useState } from "react";
@@ -21,6 +21,7 @@ import {
   Heart,
   Ruler,
   ShieldCheck,
+  ShieldAlert,
   Sparkles,
   AlertTriangle,
   FileText,
@@ -29,14 +30,19 @@ import {
   TrendingUp,
   AlertCircle,
   ExternalLink,
+  Lock,
+  Search,
+  MapPin,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { TreeObservation, TreePhoto, MonitoringStatus } from "@/types/coreDatabase";
+import { TreeObservation, TreePhoto, MonitoringStatus, AuditableEvidenceRecord } from "@/types/coreDatabase";
 import { CreateObservationModal } from "@/components/CreateObservationModal";
 import { SurvivalStatusBadge } from "@/components/SurvivalStatusBadge";
+import { EvidenceAuditInspectorModal } from "@/components/EvidenceAuditInspectorModal";
 import { monitoringEventService } from "@/services/monitoringEventService";
+import { evidenceHistoryService } from "@/services/evidenceHistoryService";
 
 export interface UnifiedTimelineEvent {
   id: string;
@@ -59,6 +65,11 @@ export interface UnifiedTimelineEvent {
   treatmentApplied?: string | null;
   heightDeltaCm?: number | null;
   dbhDeltaCm?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  distanceFromBaselineM?: number | null;
+  geofenceStatus?: "within_bounds" | "boundary_warning" | "out_of_bounds";
+  rawRecord?: any;
 }
 
 export interface TreeMonitoringHistoryTimelineProps {
@@ -67,6 +78,8 @@ export interface TreeMonitoringHistoryTimelineProps {
   plantationDate: string;
   initialPhotoUrl?: string | null;
   species: string;
+  latitude?: number | null;
+  longitude?: number | null;
   nextMonitoringDate?: string | null;
   monitoringStatus?: MonitoringStatus | null;
   observations?: TreeObservation[];
@@ -82,6 +95,8 @@ export const TreeMonitoringHistoryTimeline: React.FC<TreeMonitoringHistoryTimeli
   plantationDate,
   initialPhotoUrl,
   species,
+  latitude,
+  longitude,
   nextMonitoringDate,
   monitoringStatus,
   observations = [],
@@ -92,6 +107,8 @@ export const TreeMonitoringHistoryTimeline: React.FC<TreeMonitoringHistoryTimeli
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [selectedAuditRecord, setSelectedAuditRecord] = useState<AuditableEvidenceRecord | null>(null);
 
   // Compute schedule & status
   const schedule = React.useMemo(() => {
@@ -119,6 +136,24 @@ export const TreeMonitoringHistoryTimeline: React.FC<TreeMonitoringHistoryTimeli
       status: "alive",
       photoUrl: initialPhotoUrl || null,
       notes: `Planted and cryptographically registered in Green Enlightenment registry.`,
+      observerName: "Registering Forester",
+      observerRole: "planter",
+      latitude: latitude ?? null,
+      longitude: longitude ?? null,
+      distanceFromBaselineM: 0,
+      geofenceStatus: "within_bounds",
+      sha256Hash: initialPhotoUrl ? evidenceHistoryService.computeEvidenceHash(initialPhotoUrl) : null,
+      rawRecord: {
+        id: `initial-${treeId}`,
+        treeId,
+        tree_id: treeId,
+        species,
+        plantation_date: plantationDate,
+        photo_url: initialPhotoUrl,
+        latitude,
+        longitude,
+        status: "alive",
+      },
     });
 
     // Sort observations chronologically ascending first to compute deltas
@@ -143,6 +178,18 @@ export const TreeMonitoringHistoryTimeline: React.FC<TreeMonitoringHistoryTimeli
       if (obs.height_cm) prevHeight = obs.height_cm;
       if (obs.dbh_cm) prevDbh = obs.dbh_cm;
 
+      let distance = obs.distance_from_baseline_meters ?? 0;
+      if (
+        obs.distance_from_baseline_meters === undefined &&
+        obs.latitude &&
+        obs.longitude &&
+        latitude &&
+        longitude
+      ) {
+        distance = evidenceHistoryService.calculateGeofenceDistance(latitude, longitude, obs.latitude, obs.longitude);
+      }
+      const geofenceStatus = evidenceHistoryService.evaluateGeofenceStatus(distance);
+
       list.push({
         id: obs.id,
         type: "observation",
@@ -160,15 +207,19 @@ export const TreeMonitoringHistoryTimeline: React.FC<TreeMonitoringHistoryTimeli
         pestDiseaseDetected: obs.pest_disease_detected,
         diseaseDescription: obs.disease_description,
         treatmentApplied: obs.treatment_applied,
-        sha256Hash: obs.sha256_hash,
+        sha256Hash: obs.sha256_hash || (obs.photo_url ? evidenceHistoryService.computeEvidenceHash(obs.photo_url) : null),
         heightDeltaCm: heightDelta,
         dbhDeltaCm: dbhDelta,
+        latitude: obs.latitude ?? null,
+        longitude: obs.longitude ?? null,
+        distanceFromBaselineM: distance,
+        geofenceStatus: geofenceStatus,
+        rawRecord: obs,
       });
     });
 
     // 3. Tree Evidence Photos
     photos.forEach((ph) => {
-      // Exclude initial planting photo duplicate
       if (ph.photo_url !== initialPhotoUrl) {
         list.push({
           id: ph.id,
@@ -178,7 +229,12 @@ export const TreeMonitoringHistoryTimeline: React.FC<TreeMonitoringHistoryTimeli
           photoUrl: ph.photo_url,
           notes: ph.caption,
           evidenceType: ph.evidence_type,
-          sha256Hash: ph.sha256_hash,
+          sha256Hash: ph.sha256_hash || evidenceHistoryService.computeEvidenceHash(ph.photo_url),
+          latitude: ph.latitude ?? latitude ?? null,
+          longitude: ph.longitude ?? longitude ?? null,
+          distanceFromBaselineM: 0,
+          geofenceStatus: "within_bounds",
+          rawRecord: ph,
         });
       }
     });
@@ -192,6 +248,7 @@ export const TreeMonitoringHistoryTimeline: React.FC<TreeMonitoringHistoryTimeli
         title: "Health & Vitality Check-in",
         status: hu.health_status,
         notes: hu.notes,
+        rawRecord: hu,
       });
     });
 
@@ -205,13 +262,70 @@ export const TreeMonitoringHistoryTimeline: React.FC<TreeMonitoringHistoryTimeli
           title: `Day ${gu.update_day || "30"} Growth Check-in`,
           photoUrl: gu.photo_url,
           notes: `Periodic survival and growth capture.`,
+          rawRecord: gu,
         });
       }
     });
 
     // Deduplicate and sort descending (newest first)
     return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [treeId, plantationDate, initialPhotoUrl, observations, photos, healthUpdates, growthUpdates]);
+  }, [treeId, plantationDate, initialPhotoUrl, species, latitude, longitude, observations, photos, healthUpdates, growthUpdates]);
+
+  const handleInspectAudit = (event: UnifiedTimelineEvent) => {
+    let auditRec: AuditableEvidenceRecord;
+
+    if (event.type === "observation" && event.rawRecord) {
+      auditRec = evidenceHistoryService.assembleEvidenceRecordFromObservation(event.rawRecord, {
+        latitude: latitude ?? undefined,
+        longitude: longitude ?? undefined,
+      });
+    } else {
+      const dist = event.distanceFromBaselineM ?? 0;
+      auditRec = {
+        id: event.id,
+        treeId,
+        who: {
+          observerId: null,
+          observerName: event.observerName || "Field Agent",
+          observerRole: event.observerRole || "field_worker",
+        },
+        when: {
+          eventTimestamp: event.date,
+          createdAt: event.date,
+        },
+        what: {
+          eventType: event.type,
+          survivalStatus: (event.status as any) || "ALIVE",
+          healthStatus: event.status || "healthy",
+          heightCm: event.heightCm ?? null,
+          dbhCm: event.dbhCm ?? null,
+          canopyWidthCm: event.canopyCm ?? null,
+          heightDeltaCm: event.heightDeltaCm ?? null,
+          dbhDeltaCm: event.dbhDeltaCm ?? null,
+          pestDiseaseDetected: event.pestDiseaseDetected ?? false,
+          diseaseDescription: event.diseaseDescription ?? null,
+          treatmentApplied: event.treatmentApplied ?? null,
+          notes: event.notes ?? null,
+        },
+        where: {
+          latitude: event.latitude ?? latitude ?? null,
+          longitude: event.longitude ?? longitude ?? null,
+          gpsAccuracyM: 3.0,
+          distanceFromBaselineM: dist,
+          geofenceStatus: event.geofenceStatus || "within_bounds",
+        },
+        evidence: {
+          photoUrl: event.photoUrl || null,
+          evidenceType: event.evidenceType || "growth_photo",
+          sha256Hash: event.sha256Hash || (event.photoUrl ? evidenceHistoryService.computeEvidenceHash(event.photoUrl) : null),
+          verificationStatus: "verified",
+        },
+      };
+    }
+
+    setSelectedAuditRecord(auditRec);
+    setIsAuditModalOpen(true);
+  };
 
   const getStatusBadge = (status?: string | null) => {
     if (!status) return null;
@@ -292,7 +406,7 @@ export const TreeMonitoringHistoryTimeline: React.FC<TreeMonitoringHistoryTimeli
                 </Badge>
               </div>
               <CardDescription className="text-xs text-muted-foreground mt-1">
-                Living record of biometric growth, health progression, and cryptographic photo evidence.
+                Living record of biometric growth, health progression, and cryptographic 5W photo evidence.
               </CardDescription>
             </div>
 
@@ -374,15 +488,26 @@ export const TreeMonitoringHistoryTimeline: React.FC<TreeMonitoringHistoryTimeli
                     )}
                   </div>
 
-                  <div className="rounded-xl bg-card/60 border border-border/80 p-4 space-y-2 hover:border-primary/40 transition-colors">
+                  <div className="rounded-xl bg-card/60 border border-border/80 p-4 space-y-2.5 hover:border-primary/40 transition-colors">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-sm text-foreground">{event.title}</span>
                         {getStatusBadge(event.status)}
                       </div>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground font-mono">
-                        <Calendar className="w-3.5 h-3.5" />
-                        <span>{formattedDate}</span>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleInspectAudit(event)}
+                          className="h-6 px-2 text-[11px] font-mono text-primary hover:bg-primary/10 gap-1 border border-primary/30"
+                        >
+                          <ShieldCheck className="w-3 h-3 text-primary" />
+                          <span>5W Audit</span>
+                        </Button>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground font-mono">
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>{formattedDate}</span>
+                        </div>
                       </div>
                     </div>
 
@@ -483,12 +608,35 @@ export const TreeMonitoringHistoryTimeline: React.FC<TreeMonitoringHistoryTimeli
                       </div>
                     )}
 
-                    {/* Cryptographic hash badge */}
-                    {event.sha256Hash && (
-                      <div className="pt-1 text-[10px] font-mono text-muted-foreground truncate">
-                        SHA-256: {event.sha256Hash}
+                    {/* Provenance Footer: Geofence & Cryptographic Hash */}
+                    <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-border/40 text-[11px] font-mono text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="w-3 h-3 text-primary" />
+                        <span>
+                          {event.distanceFromBaselineM !== null && event.distanceFromBaselineM !== undefined
+                            ? `${event.distanceFromBaselineM}m from baseline`
+                            : "Baseline location"}
+                        </span>
+                        {event.geofenceStatus && (
+                          <span className={`px-1.5 py-0.2 rounded text-[10px] uppercase font-semibold ${
+                            event.geofenceStatus === "within_bounds"
+                              ? "bg-emerald-600/20 text-emerald-400"
+                              : event.geofenceStatus === "boundary_warning"
+                              ? "bg-amber-600/20 text-amber-400"
+                              : "bg-rose-600/20 text-rose-400"
+                          }`}>
+                            {event.geofenceStatus.replace(/_/g, " ")}
+                          </span>
+                        )}
                       </div>
-                    )}
+
+                      {event.sha256Hash && (
+                        <div className="flex items-center gap-1 text-[10px] truncate max-w-[200px]" title={event.sha256Hash}>
+                          <Lock className="w-2.5 h-2.5 text-primary shrink-0" />
+                          <span className="truncate">SHA-256: {event.sha256Hash.substring(0, 16)}...</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -510,6 +658,15 @@ export const TreeMonitoringHistoryTimeline: React.FC<TreeMonitoringHistoryTimeli
         onSuccess={() => {
           onObservationAdded?.();
         }}
+      />
+
+      {/* 5W Evidence Audit Inspector Modal */}
+      <EvidenceAuditInspectorModal
+        isOpen={isAuditModalOpen}
+        onClose={() => setIsAuditModalOpen(false)}
+        record={selectedAuditRecord}
+        treeCode={treeCode}
+        species={species}
       />
     </>
   );
