@@ -46,6 +46,7 @@ const Navbar = () => {
     { to: "/ngo-workspace", label: "NGO Command Center" },
     { to: "/pricing", label: "Institutional Pricing" },
     { to: "/scouting", label: "Field Ground Scouting" },
+    { to: "/monitoring", label: "Surveillance & Monitoring" },
   ];
 
   const navLinks = [...primaryLinks, ...b2bLinks, ...communityLinks];

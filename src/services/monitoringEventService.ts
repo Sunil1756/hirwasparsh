@@ -181,6 +181,7 @@ export const monitoringEventService = {
       lastMonitoredAt,
       nextMonitoringDate: targetNextDate,
       daysRemaining: evaluation.daysRemaining,
+      daysOverdue: evaluation.daysOverdue,
       monitoringStatus: evaluation.status,
       intervalDays: calc.intervalDays,
       stageLabel: calc.stageLabel,
