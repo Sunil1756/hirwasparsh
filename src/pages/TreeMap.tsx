@@ -43,6 +43,7 @@ import L from "leaflet";
 import { FieldScoutingModule } from "@/components/FieldScoutingModule";
 import { ModuleASatelliteEngine } from "@/components/ModuleASatelliteEngine";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { BASEMAP_PROVIDERS, BasemapProviderId } from "@/lib/gisMapFoundation";
 
 // Glowing pulse marker via DivIcon
 const makeGlowIcon = (color: string) =>
@@ -61,24 +62,8 @@ const rejectedIcon = makeGlowIcon("#ef4444");
 const getIcon = (status: string) =>
   status === "verified" ? verifiedIcon : status === "rejected" ? rejectedIcon : pendingIcon;
 
-// Map tile layer options
-const BASEMAP_TILES = {
-  satellite: {
-    name: "Satellite (ESRI)",
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    attribution: "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community",
-  },
-  osm: {
-    name: "Standard OpenStreetMap",
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution: "&copy; OpenStreetMap contributors",
-  },
-  topo: {
-    name: "Topographic Relief",
-    url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
-    attribution: "Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap",
-  },
-};
+// Basemap layer options loaded from centralized GIS Map Foundation
+const BASEMAP_TILES = BASEMAP_PROVIDERS;
 
 const fetchTrees = async () => {
   const { data, error } = await supabase
@@ -110,7 +95,7 @@ const TreeMap = () => {
   const [stageFilter, setStageFilter] = useState("all");
   const [speciesFilter, setSpeciesFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
-  const [basemap, setBasemap] = useState<"satellite" | "osm" | "topo">("satellite");
+  const [basemap, setBasemap] = useState<BasemapProviderId>("satellite");
   const [showProximityRings, setShowProximityRings] = useState(true);
 
   const { data: trees = [], isLoading } = useQuery({
@@ -446,8 +431,11 @@ const TreeMap = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="satellite">🛰️ High-Res Satellite (ESRI)</SelectItem>
+                      <SelectItem value="satellite_hybrid">🛰️ Satellite + Road Labels</SelectItem>
                       <SelectItem value="osm">🗺️ Standard Street Map (OSM)</SelectItem>
-                      <SelectItem value="topo">⛰️ Topographic Elevation Map</SelectItem>
+                      <SelectItem value="carto_dark">🌙 CartoDB Dark Matter (High Contrast)</SelectItem>
+                      <SelectItem value="carto_light">☀️ CartoDB Positron (Clean Light)</SelectItem>
+                      <SelectItem value="topo">⛰️ Topographic Relief (OpenTopoMap)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
