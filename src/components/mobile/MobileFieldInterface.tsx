@@ -31,6 +31,7 @@ import {
   Flame,
   Activity,
   ArrowRightLeft,
+  Smartphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +45,7 @@ import { HardwarePermissionSentinel } from "./HardwarePermissionSentinel";
 import { HardwarePermissionModal } from "./HardwarePermissionModal";
 import { NetworkQualitySentinel } from "./NetworkQualitySentinel";
 import { OfflineNetworkDrawer } from "./OfflineNetworkDrawer";
+import { FieldTestSimulationSuite } from "./FieldTestSimulationSuite";
 import { useSyncConflicts } from "@/hooks/useSyncConflicts";
 import { offlineSyncManager } from "@/services/offlineSyncManager";
 import { networkQualityService } from "@/services/networkQualityService";
@@ -82,6 +84,7 @@ export const MobileFieldInterface: React.FC<MobileFieldInterfaceProps> = ({
   const [selectedWaypoint, setSelectedWaypoint] = useState<WaypointTarget | null>(null);
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
   const [isOfflineDrawerOpen, setIsOfflineDrawerOpen] = useState(false);
+  const [isFieldTestOpen, setIsFieldTestOpen] = useState(false);
 
   // Quick Compartment Vitality Tally state
   const [tallyAlive, setTallyAlive] = useState(88);
@@ -323,6 +326,28 @@ export const MobileFieldInterface: React.FC<MobileFieldInterfaceProps> = ({
                 data-testid="open-sensor-readiness-btn"
               >
                 Inspect Sensors →
+              </Button>
+            </div>
+
+                        {/* Field Test Simulation Suite Action Card */}
+            <div className="bg-card rounded-2xl p-3 border border-emerald-500/30 bg-emerald-500/5 flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                  <Smartphone className="h-4 w-4" />
+                </div>
+                <div>
+                  <span className="font-bold text-xs text-foreground block">Field Testing Suite</span>
+                  <p className="text-[10px] text-muted-foreground">Simulate GPS walk, streak & 2G offline</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsFieldTestOpen(true)}
+                className="h-7 px-2.5 text-xs font-semibold rounded-lg border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10"
+                data-testid="open-field-test-suite-btn"
+              >
+                Launch Suite →
               </Button>
             </div>
 
@@ -653,6 +678,14 @@ export const MobileFieldInterface: React.FC<MobileFieldInterfaceProps> = ({
       <OfflineNetworkDrawer
         isOpen={isOfflineDrawerOpen}
         onClose={() => setIsOfflineDrawerOpen(false)}
+      />
+
+      {/* 7. FIELD TEST SIMULATION SUITE */}
+      <FieldTestSimulationSuite
+        isOpen={isFieldTestOpen}
+        onClose={() => setIsFieldTestOpen(false)}
+        currentLocation={currentLocation}
+        projectId={projectId}
       />
     </div>
   );

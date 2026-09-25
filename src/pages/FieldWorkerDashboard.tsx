@@ -46,6 +46,7 @@ import { HardwarePermissionSentinel } from "@/components/mobile/HardwarePermissi
 import { HardwarePermissionModal } from "@/components/mobile/HardwarePermissionModal";
 import { NetworkQualitySentinel } from "@/components/mobile/NetworkQualitySentinel";
 import { OfflineNetworkDrawer } from "@/components/mobile/OfflineNetworkDrawer";
+import { FieldTestSimulationSuite } from "@/components/mobile/FieldTestSimulationSuite";
 import { useSyncConflicts } from "@/hooks/useSyncConflicts";
 import { Smartphone, Monitor, ArrowRightLeft } from "lucide-react";
 
@@ -59,6 +60,7 @@ export default function FieldWorkerDashboard() {
   const [fastObservationModalOpen, setFastObservationModalOpen] = useState(false);
   const [permissionModalOpen, setPermissionModalOpen] = useState(false);
   const [offlineDrawerOpen, setOfflineDrawerOpen] = useState(false);
+  const [fieldTestModalOpen, setFieldTestModalOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("demo-project-dev-001");
   const [offlineCount, setOfflineCount] = useState<number>(0);
@@ -638,6 +640,15 @@ export default function FieldWorkerDashboard() {
                       <FileSpreadsheet className="h-3.5 w-3.5 text-primary" /> Bulk GPS CSV Import
                     </Button>
                   </Link>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setFieldTestModalOpen(true)}
+                    className="w-full justify-start text-xs rounded-xl gap-2 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10"
+                    data-testid="desktop-open-field-test-suite-btn"
+                  >
+                    <Smartphone className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> Mobile Field Test Suite
+                  </Button>
                 </div>
               </div>
             </div>
@@ -702,6 +713,14 @@ export default function FieldWorkerDashboard() {
       <OfflineNetworkDrawer
         isOpen={offlineDrawerOpen}
         onClose={() => setOfflineDrawerOpen(false)}
+      />
+
+      {/* Field Test Simulation Suite Modal */}
+      <FieldTestSimulationSuite
+        isOpen={fieldTestModalOpen}
+        onClose={() => setFieldTestModalOpen(false)}
+        currentLocation={userLocation}
+        projectId={selectedProjectId}
       />
     </div>
   );
