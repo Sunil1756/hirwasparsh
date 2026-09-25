@@ -15,7 +15,7 @@ describe("Evidence Verification Workbench Component (Task 40)", () => {
     render(<EvidenceVerificationWorkbench />);
 
     expect(screen.getByText("Evidence Verification Workbench")).toBeDefined();
-    expect(screen.getByText("Task 40 • Phase 8")).toBeDefined();
+    expect(screen.getByText(/Phase 8 • Tasks 40 & 41/i)).toBeDefined();
     expect(screen.getByText("Queue Total")).toBeDefined();
     expect(screen.getByText("Verified & Sealed")).toBeDefined();
     expect(screen.getByText("High-Trust Ready")).toBeDefined();
@@ -54,7 +54,7 @@ describe("Evidence Verification Workbench Component (Task 40)", () => {
     expect(screen.getByText("Automated Multi-Check Screening Matrix")).toBeDefined();
     expect(screen.getByText("Geodetic Geofence Boundary")).toBeDefined();
     expect(screen.getByText("EXIF & Geodetic Watermark Authenticity")).toBeDefined();
-    expect(screen.getByText("SHA-256 Photo Deduplication")).toBeDefined();
+    expect(screen.getByText(/SHA-256.*Deduplication/i)).toBeDefined();
     expect(screen.getByText("Silvicultural Growth Physics Delta")).toBeDefined();
     expect(screen.getByText("Botanical AI Species & Canopy Matching")).toBeDefined();
   });
