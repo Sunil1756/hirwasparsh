@@ -39,6 +39,8 @@ import {
 } from "@/services/projectService";
 import { organizationService } from "@/services/organizationService";
 import BoundaryDrawMap from "@/components/BoundaryDrawMap";
+import { ProjectMapViewer } from "@/components/gis/ProjectMapViewer";
+import { Map as MapIcon, LayoutGrid } from "lucide-react";
 import { LatLngPoint } from "@/lib/projectOnboardingService";
 import { toast } from "sonner";
 
@@ -120,6 +122,7 @@ export const ProjectManagement: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"grid" | "gis_map">("grid");
 
   // Selected project modal state
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -504,11 +507,49 @@ export const ProjectManagement: React.FC = () => {
               ))}
             </SelectContent>
           </Select>
+
+          <div className="flex items-center p-1 rounded-xl bg-background/80 border border-border/40">
+            <button
+              type="button"
+              onClick={() => setViewMode("grid")}
+              className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                viewMode === "grid"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              Cards
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("gis_map")}
+              className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                viewMode === "gis_map"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <MapIcon className="h-3.5 w-3.5" />
+              GIS Map
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Projects Grid */}
-      {isLoading ? (
+      {/* Projects View (Grid or Interactive GIS Map) */}
+      {viewMode === "gis_map" ? (
+        <div className="animate-in fade-in duration-200">
+          <ProjectMapViewer
+            onSelectProject={(proj) => {
+              if (proj) {
+                loadProjectDetails(proj.id);
+              }
+            }}
+            height="700px"
+          />
+        </div>
+      ) : isLoading ? (
         <div className="py-20 flex flex-col items-center justify-center space-y-3">
           <RefreshCw className="h-8 w-8 animate-spin text-primary" />
           <p className="text-sm text-muted-foreground">Loading projects and spatial registries...</p>
