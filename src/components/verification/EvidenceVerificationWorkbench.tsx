@@ -40,6 +40,12 @@ import {
 import { ClaimVerificationReceiptModal } from "./ClaimVerificationReceiptModal";
 import { DuplicateEvidenceInspectorModal } from "./DuplicateEvidenceInspectorModal";
 import { DuplicatePhotoScanner } from "./DuplicatePhotoScanner";
+import { SpatiotemporalAnomalyScanner } from "./SpatiotemporalAnomalyScanner";
+import { SpatiotemporalConsistencyModal } from "./SpatiotemporalConsistencyModal";
+import {
+  spatiotemporalConsistencyService,
+  SpatiotemporalAuditReport,
+} from "../../services/spatiotemporalConsistencyService";
 
 export const EvidenceVerificationWorkbench: React.FC = () => {
   const [claims, setClaims] = useState<PlantationClaim[]>([]);
@@ -50,7 +56,8 @@ export const EvidenceVerificationWorkbench: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeReceipt, setActiveReceipt] = useState<VerificationReceipt | null>(null);
   const [inspectingCollision, setInspectingCollision] = useState<EvidenceCollision | null>(null);
-  const [showScannerView, setShowScannerView] = useState(false);
+  const [viewMode, setViewMode] = useState<"queue" | "duplicate_scanner" | "spatiotemporal_scanner">("queue");
+  const [inspectingSpatiotemporalReport, setInspectingSpatiotemporalReport] = useState<SpatiotemporalAuditReport | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [reAuditNotes, setReAuditNotes] = useState("");
@@ -237,26 +244,38 @@ export const EvidenceVerificationWorkbench: React.FC = () => {
             <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
               Evidence Verification Workbench
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/30 font-semibold font-mono">
-                Phase 8 • Tasks 40 & 41
+                Phase 8 • Tasks 40, 41 & 42
               </span>
             </h2>
             <p className="text-xs text-zinc-400">
-              Multi-check automated screening, perceptual dHash deduplication, silvicultural growth delta, and cryptographic proof sealing.
+              Automated multi-check screening, perceptual dHash deduplication, kinematic spatiotemporal physics, and cryptographic proof sealing.
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
           <button
-            onClick={() => setShowScannerView(!showScannerView)}
+            onClick={() => setViewMode(viewMode === "duplicate_scanner" ? "queue" : "duplicate_scanner")}
             className={"inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors border " + (
-              showScannerView
+              viewMode === "duplicate_scanner"
                 ? "bg-rose-950/80 text-rose-300 border-rose-500/40 shadow-md"
                 : "bg-zinc-800 hover:bg-zinc-700 text-rose-300 border-zinc-700"
             )}
           >
             <Fingerprint className="w-3.5 h-3.5 text-rose-400" />
-            <span>{showScannerView ? "Back to Claims Queue" : "Duplicate Scanner"}</span>
+            <span>{viewMode === "duplicate_scanner" ? "Back to Claims Queue" : "Duplicate Scanner"}</span>
+          </button>
+
+          <button
+            onClick={() => setViewMode(viewMode === "spatiotemporal_scanner" ? "queue" : "spatiotemporal_scanner")}
+            className={"inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors border " + (
+              viewMode === "spatiotemporal_scanner"
+                ? "bg-amber-950/80 text-amber-300 border-amber-500/40 shadow-md"
+                : "bg-zinc-800 hover:bg-zinc-700 text-amber-300 border-zinc-700"
+            )}
+          >
+            <Clock className="w-3.5 h-3.5 text-amber-400" />
+            <span>{viewMode === "spatiotemporal_scanner" ? "Back to Claims Queue" : "Spatiotemporal Scanner"}</span>
           </button>
 
           <button
@@ -281,9 +300,11 @@ export const EvidenceVerificationWorkbench: React.FC = () => {
         </div>
       </div>
 
-      {/* Embedded Duplicate Photo Scanner View Toggle */}
-      {showScannerView ? (
+      {/* View Mode Switching */}
+      {viewMode === "duplicate_scanner" ? (
         <DuplicatePhotoScanner />
+      ) : viewMode === "spatiotemporal_scanner" ? (
+        <SpatiotemporalAnomalyScanner />
       ) : (
         <>
           {/* Action Success Toast */}

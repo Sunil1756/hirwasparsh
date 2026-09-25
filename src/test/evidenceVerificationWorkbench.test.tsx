@@ -15,7 +15,7 @@ describe("Evidence Verification Workbench Component (Task 40)", () => {
     render(<EvidenceVerificationWorkbench />);
 
     expect(screen.getByText("Evidence Verification Workbench")).toBeDefined();
-    expect(screen.getByText(/Phase 8 • Tasks 40 & 41/i)).toBeDefined();
+    expect(screen.getByText(/Phase 8/i)).toBeDefined();
     expect(screen.getByText("Queue Total")).toBeDefined();
     expect(screen.getByText("Verified & Sealed")).toBeDefined();
     expect(screen.getByText("High-Trust Ready")).toBeDefined();
