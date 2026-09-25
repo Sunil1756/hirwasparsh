@@ -58,6 +58,7 @@ import { MonitoringTaskConsole } from "@/components/monitoring/MonitoringTaskCon
 import { NotificationCenterConsole } from "@/components/monitoring/NotificationCenterConsole";
 import { AlertManagementConsole } from "@/components/monitoring/AlertManagementConsole";
 import { EscalationWorkflowConsole } from "@/components/monitoring/EscalationWorkflowConsole";
+import { MonitoringAnalyticsConsole } from "@/components/monitoring/MonitoringAnalyticsConsole";
 import {
   monitoringDashboardService,
   DashboardTreeItem,
@@ -391,9 +392,9 @@ export const MonitoringDashboard: React.FC = () => {
             </Badge>
           </TabsTrigger>
 
-          <TabsTrigger value="analytics" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+          <TabsTrigger value="analytics" className="text-xs gap-1.5 data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
             <TrendingUp className="h-3.5 w-3.5" />
-            <span>Survival Statistics</span>
+            <span>Monitoring Analytics (Task 51)</span>
           </TabsTrigger>
 
           <TabsTrigger value="needs_review" className="text-xs gap-1.5 data-[state=active]:bg-purple-600 data-[state=active]:text-white">
@@ -691,9 +692,11 @@ export const MonitoringDashboard: React.FC = () => {
         </TabsContent>
 
         {/* ==================================================================== */}
-        {/* TAB 4: Survival Statistics & Analytics */}
+        {/* TAB 4: Survival Statistics & Monitoring Analytics (Task 51) */}
         {/* ==================================================================== */}
         <TabsContent value="analytics" className="space-y-6">
+          <MonitoringAnalyticsConsole />
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* 6-Status Breakdown Card */}
             <Card className="glass-card rounded-2xl border-border p-6 space-y-4">
