@@ -56,6 +56,7 @@ import { EvidenceAuditInspectorModal } from "@/components/EvidenceAuditInspector
 import { MonitoringScheduleConsole } from "@/components/monitoring/MonitoringScheduleConsole";
 import { MonitoringTaskConsole } from "@/components/monitoring/MonitoringTaskConsole";
 import { NotificationCenterConsole } from "@/components/monitoring/NotificationCenterConsole";
+import { AlertManagementConsole } from "@/components/monitoring/AlertManagementConsole";
 import {
   monitoringDashboardService,
   DashboardTreeItem,
@@ -353,7 +354,11 @@ export const MonitoringDashboard: React.FC = () => {
           </TabsTrigger>
           <TabsTrigger value="notifications" className="text-xs gap-1.5 data-[state=active]:bg-amber-600 data-[state=active]:text-white">
             <Bell className="h-3.5 w-3.5" />
-            <span>Alerts & Notifications (Task 48)</span>
+            <span>Notifications (Task 48)</span>
+          </TabsTrigger>
+          <TabsTrigger value="alerts" className="text-xs gap-1.5 data-[state=active]:bg-rose-600 data-[state=active]:text-white">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            <span>Anomaly Alerts (Task 49)</span>
           </TabsTrigger>
           <TabsTrigger value="requiring_monitoring" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Calendar className="h-3.5 w-3.5" />
@@ -416,6 +421,13 @@ export const MonitoringDashboard: React.FC = () => {
         {/* ==================================================================== */}
         <TabsContent value="notifications" className="space-y-4">
           <NotificationCenterConsole />
+        </TabsContent>
+
+        {/* ==================================================================== */}
+        {/* TAB: Biometric & Satellite Anomaly Alert Engine (Task 49) */}
+        {/* ==================================================================== */}
+        <TabsContent value="alerts" className="space-y-4">
+          <AlertManagementConsole />
         </TabsContent>
 
         {/* ==================================================================== */}
