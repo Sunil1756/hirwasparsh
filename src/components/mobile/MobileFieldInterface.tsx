@@ -41,6 +41,10 @@ import { FastTreeRegistrationConsole } from "./FastTreeRegistrationConsole";
 import { FastObservationConsole } from "./FastObservationConsole";
 import { HardwarePermissionSentinel } from "./HardwarePermissionSentinel";
 import { HardwarePermissionModal } from "./HardwarePermissionModal";
+import { NetworkQualitySentinel } from "./NetworkQualitySentinel";
+import { OfflineNetworkDrawer } from "./OfflineNetworkDrawer";
+import { offlineSyncManager } from "@/services/offlineSyncManager";
+import { networkQualityService } from "@/services/networkQualityService";
 import { getOfflineTreeQueue, syncOfflineTreesWithSupabase } from "@/lib/offlineSyncService";
 import { getQueuedOfflineFieldReportsCount, syncQueuedOfflineFieldReports } from "@/lib/fieldReportBackendService";
 import { toast } from "sonner";
@@ -72,6 +76,7 @@ export const MobileFieldInterface: React.FC<MobileFieldInterfaceProps> = ({
   const [drawerMode, setDrawerMode] = useState<"plant" | "audit">("plant");
   const [selectedWaypoint, setSelectedWaypoint] = useState<WaypointTarget | null>(null);
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
+  const [isOfflineDrawerOpen, setIsOfflineDrawerOpen] = useState(false);
 
   // Quick Compartment Vitality Tally state
   const [tallyAlive, setTallyAlive] = useState(88);
@@ -185,16 +190,8 @@ export const MobileFieldInterface: React.FC<MobileFieldInterfaceProps> = ({
       {/* 1. TOP MOBILE TELEMETRY & STATUS BAR */}
       <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b border-border/70 px-4 py-2.5 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">
-          {/* Online/Offline Status */}
-          {isOnline ? (
-            <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px] px-2 py-0.5 flex items-center gap-1 font-semibold">
-              <Wifi className="w-3 h-3" /> Online
-            </Badge>
-          ) : (
-            <Badge className="bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-[10px] px-2 py-0.5 flex items-center gap-1 font-semibold">
-              <WifiOff className="w-3 h-3" /> Offline Mode
-            </Badge>
-          )}
+          {/* Real-time Network Quality Sentinel (4G / 2G Data Saver / Offline) */}
+          <NetworkQualitySentinel onOpenDrawer={() => setIsOfflineDrawerOpen(true)} />
 
           {/* GPS Accuracy Pill */}
           <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-primary/30 text-primary flex items-center gap-1 font-mono">
@@ -516,14 +513,25 @@ export const MobileFieldInterface: React.FC<MobileFieldInterfaceProps> = ({
                 </div>
               </div>
 
-              <Button
-                onClick={handleSyncAll}
-                disabled={isSyncing || !isOnline || offlineQueueCount === 0}
-                className="w-full h-11 text-xs font-bold bg-primary text-primary-foreground rounded-xl"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 mr-2 ${isSyncing ? "animate-spin" : ""}`} />
-                {isOnline ? "Sync All Pending Records Now" : "Connect to Network to Sync"}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setIsOfflineDrawerOpen(true)}
+                  variant="outline"
+                  className="flex-1 h-11 text-xs font-bold rounded-xl border-primary/30 text-primary"
+                  data-testid="open-offline-manager-btn"
+                >
+                  Manage Offline Cache →
+                </Button>
+                <Button
+                  onClick={handleSyncAll}
+                  disabled={isSyncing || !isOnline || offlineQueueCount === 0}
+                  className="flex-1 h-11 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl"
+                  data-testid="sync-pending-records-btn"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 mr-2 ${isSyncing ? "animate-spin" : ""}`} />
+                  {isOnline ? "Sync All Now" : "Offline Mode"}
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -604,6 +612,12 @@ export const MobileFieldInterface: React.FC<MobileFieldInterfaceProps> = ({
       <HardwarePermissionModal
         isOpen={isPermissionModalOpen}
         onClose={() => setIsPermissionModalOpen(false)}
+      />
+
+      {/* 6. OFFLINE & POOR-NETWORK DRAWER */}
+      <OfflineNetworkDrawer
+        isOpen={isOfflineDrawerOpen}
+        onClose={() => setIsOfflineDrawerOpen(false)}
       />
     </div>
   );

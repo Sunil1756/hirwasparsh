@@ -704,18 +704,25 @@ export async function processFieldReportSubmissionWorkflow(
 // ---------------------------------------------------------------------------
 
 /**
- * Returns the count of pending offline field reports.
+ * Returns all pending offline field reports.
  */
-export function getQueuedOfflineFieldReportsCount(): number {
+export function getQueuedOfflineFieldReports(): FieldReportInput[] {
   try {
     if (typeof window !== "undefined" && window.localStorage) {
       const saved = window.localStorage.getItem(OFFLINE_FIELD_AUDIT_QUEUE_KEY);
       if (saved) {
-        return JSON.parse(saved).length;
+        return JSON.parse(saved);
       }
     }
   } catch {}
-  return inMemoryOfflineQueue.length;
+  return inMemoryOfflineQueue;
+}
+
+/**
+ * Returns the count of pending offline field reports.
+ */
+export function getQueuedOfflineFieldReportsCount(): number {
+  return getQueuedOfflineFieldReports().length;
 }
 
 /**

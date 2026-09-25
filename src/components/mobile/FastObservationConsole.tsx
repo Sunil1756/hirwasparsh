@@ -39,6 +39,9 @@ import {
 import { toast } from "sonner";
 import { FieldCameraViewfinder } from "./FieldCameraViewfinder";
 import { HardwarePermissionModal } from "./HardwarePermissionModal";
+import { NetworkQualitySentinel } from "./NetworkQualitySentinel";
+import { OfflineNetworkDrawer } from "./OfflineNetworkDrawer";
+import { networkQualityService } from "@/services/networkQualityService";
 
 export interface FastObservationConsoleProps {
   currentLocation: { lat: number; lng: number; accuracy: number } | null;
@@ -143,6 +146,7 @@ export const FastObservationConsole: React.FC<FastObservationConsoleProps> = ({
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isViewfinderOpen, setIsViewfinderOpen] = useState(false);
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
+  const [isOfflineDrawerOpen, setIsOfflineDrawerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sunlightMode, setSunlightMode] = useState(false);
   const [activeTab, setActiveTab] = useState<"observe" | "radar" | "log">("observe");
@@ -181,11 +185,12 @@ export const FastObservationConsole: React.FC<FastObservationConsoleProps> = ({
     );
   };
 
-  const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setPhotoPreview(url);
+      const compressed = await networkQualityService.adaptivelyCompressImage(file);
+      setPhotoPreview(compressed.dataUrl);
+      toast.info(`Photo compressed for ${compressed.config.description}`);
     }
   };
 
@@ -268,7 +273,8 @@ export const FastObservationConsole: React.FC<FastObservationConsoleProps> = ({
         className}
     >
       <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b border-border/80 px-4 py-2.5 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <NetworkQualitySentinel onOpenDrawer={() => setIsOfflineDrawerOpen(true)} compact />
           <div className="w-8 h-8 rounded-xl bg-amber-600/20 text-amber-600 flex items-center justify-center font-bold">
             <Activity className="h-5 w-5" />
           </div>
@@ -777,6 +783,12 @@ export const FastObservationConsole: React.FC<FastObservationConsoleProps> = ({
       <HardwarePermissionModal
         isOpen={isPermissionModalOpen}
         onClose={() => setIsPermissionModalOpen(false)}
+      />
+
+      {/* Offline & Poor Network Drawer */}
+      <OfflineNetworkDrawer
+        isOpen={isOfflineDrawerOpen}
+        onClose={() => setIsOfflineDrawerOpen(false)}
       />
     </div>
   );

@@ -44,6 +44,8 @@ import { FastTreeRegistrationConsole } from "@/components/mobile/FastTreeRegistr
 import { FastObservationConsole } from "@/components/mobile/FastObservationConsole";
 import { HardwarePermissionSentinel } from "@/components/mobile/HardwarePermissionSentinel";
 import { HardwarePermissionModal } from "@/components/mobile/HardwarePermissionModal";
+import { NetworkQualitySentinel } from "@/components/mobile/NetworkQualitySentinel";
+import { OfflineNetworkDrawer } from "@/components/mobile/OfflineNetworkDrawer";
 import { Smartphone, Monitor } from "lucide-react";
 
 export default function FieldWorkerDashboard() {
@@ -55,6 +57,7 @@ export default function FieldWorkerDashboard() {
   const [fastRegisterModalOpen, setFastRegisterModalOpen] = useState(false);
   const [fastObservationModalOpen, setFastObservationModalOpen] = useState(false);
   const [permissionModalOpen, setPermissionModalOpen] = useState(false);
+  const [offlineDrawerOpen, setOfflineDrawerOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("demo-project-dev-001");
   const [offlineCount, setOfflineCount] = useState<number>(0);
@@ -251,6 +254,9 @@ export default function FieldWorkerDashboard() {
             </div>
 
             <div className="flex items-center gap-2">
+              <NetworkQualitySentinel
+                onOpenDrawer={() => setOfflineDrawerOpen(true)}
+              />
               <HardwarePermissionSentinel
                 onOpenModal={() => setPermissionModalOpen(true)}
               />
@@ -676,6 +682,12 @@ export default function FieldWorkerDashboard() {
       <HardwarePermissionModal
         isOpen={permissionModalOpen}
         onClose={() => setPermissionModalOpen(false)}
+      />
+
+      {/* Offline & Poor Network Drawer */}
+      <OfflineNetworkDrawer
+        isOpen={offlineDrawerOpen}
+        onClose={() => setOfflineDrawerOpen(false)}
       />
     </div>
   );

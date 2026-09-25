@@ -37,6 +37,9 @@ import {
 import { toast } from "sonner";
 import { FieldCameraViewfinder } from "./FieldCameraViewfinder";
 import { HardwarePermissionModal } from "./HardwarePermissionModal";
+import { NetworkQualitySentinel } from "./NetworkQualitySentinel";
+import { OfflineNetworkDrawer } from "./OfflineNetworkDrawer";
+import { networkQualityService } from "@/services/networkQualityService";
 
 export interface FastTreeRegistrationConsoleProps {
   currentLocation: { lat: number; lng: number; accuracy: number } | null;
@@ -78,6 +81,7 @@ export const FastTreeRegistrationConsole: React.FC<FastTreeRegistrationConsolePr
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isViewfinderOpen, setIsViewfinderOpen] = useState(false);
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
+  const [isOfflineDrawerOpen, setIsOfflineDrawerOpen] = useState(false);
 
   // UI States
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -115,11 +119,12 @@ export const FastTreeRegistrationConsole: React.FC<FastTreeRegistrationConsolePr
     }
   };
 
-  const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setPhotoPreview(url);
+      const compressed = await networkQualityService.adaptivelyCompressImage(file);
+      setPhotoPreview(compressed.dataUrl);
+      toast.info(`Photo compressed for ${compressed.config.description}`);
     }
   };
 
@@ -249,7 +254,8 @@ export const FastTreeRegistrationConsole: React.FC<FastTreeRegistrationConsolePr
         </div>
 
         {/* Right controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <NetworkQualitySentinel onOpenDrawer={() => setIsOfflineDrawerOpen(true)} compact />
           <Button
             variant="ghost"
             size="sm"
@@ -746,6 +752,12 @@ export const FastTreeRegistrationConsole: React.FC<FastTreeRegistrationConsolePr
       <HardwarePermissionModal
         isOpen={isPermissionModalOpen}
         onClose={() => setIsPermissionModalOpen(false)}
+      />
+
+      {/* Offline & Poor Network Drawer */}
+      <OfflineNetworkDrawer
+        isOpen={isOfflineDrawerOpen}
+        onClose={() => setIsOfflineDrawerOpen(false)}
       />
     </div>
   );
