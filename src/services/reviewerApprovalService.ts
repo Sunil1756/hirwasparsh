@@ -304,8 +304,16 @@ export class ReviewerApprovalService {
     this.notify();
   }
 
+  public resetClaims(): void {
+    this.resetToDefaults();
+  }
+
   public getAllClaims(): ApprovalClaim[] {
     return [...this.claims];
+  }
+
+  public getClaimsSync(): ApprovalClaim[] {
+    return this.getAllClaims();
   }
 
   public getClaimById(id: string): ApprovalClaim | undefined {

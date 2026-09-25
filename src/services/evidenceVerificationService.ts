@@ -643,6 +643,10 @@ class EvidenceVerificationService {
     return newClaim;
   }
 
+  public resetState(): void {
+    this.resetToDefaults();
+  }
+
   public subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
     return () => {
