@@ -145,6 +145,7 @@ export const TreeMapViewer: React.FC<TreeMapViewerProps> = ({
     organizationsList: [],
     projectsList: [],
     activeFilterCount: 0,
+    isFromDatabase: false,
   });
 
   const [isLoading, setIsLoading] = useState(true);

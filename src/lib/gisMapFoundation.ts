@@ -411,3 +411,131 @@ export function validateAndSanitizeGeoJson(raw: any): {
 
   return { isValid: false, type: raw.type || "unknown", featureCount: 0, error: "Unsupported GeoJSON structure" };
 }
+
+/**
+ * Checks if a coordinate point [lat, lng] lies inside a BoundingBox.
+ */
+export function isPointInBoundingBox(point: LatLngTuple, bbox: BoundingBox): boolean {
+  if (!isValidCoordinate(point[0], point[1])) return false;
+  return (
+    point[0] >= bbox.minLat &&
+    point[0] <= bbox.maxLat &&
+    point[1] >= bbox.minLng &&
+    point[1] <= bbox.maxLng
+  );
+}
+
+/**
+ * Checks if two bounding boxes intersect.
+ */
+export function doBoundingBoxesIntersect(a: BoundingBox, b: BoundingBox): boolean {
+  return !(
+    a.maxLat < b.minLat ||
+    a.minLat > b.maxLat ||
+    a.maxLng < b.minLng ||
+    a.minLng > b.maxLng
+  );
+}
+
+/**
+ * Generates an approximated circular polygon ring of coordinates for a GPS accuracy buffer.
+ */
+export function calculateGpsAccuracyCircle(
+  center: LatLngTuple,
+  radiusMeters: number,
+  steps = 32
+): LatLngTuple[] {
+  if (!isValidCoordinate(center[0], center[1]) || radiusMeters <= 0) return [];
+  const coords: LatLngTuple[] = [];
+  const lat = center[0];
+  const lng = center[1];
+
+  // Approximate degrees conversion: 1 deg lat = 111,320m; 1 deg lng = 111,320m * cos(lat)
+  const latDelta = radiusMeters / 111320;
+  const lngDelta = radiusMeters / (111320 * Math.cos((lat * Math.PI) / 180));
+
+  for (let i = 0; i < steps; i++) {
+    const angle = (i * 2 * Math.PI) / steps;
+    const pLat = Number((lat + latDelta * Math.sin(angle)).toFixed(6));
+    const pLng = Number((lng + lngDelta * Math.cos(angle)).toFixed(6));
+    coords.push([pLat, pLng]);
+  }
+  return coords;
+}
+
+export interface SpatialCluster<T> {
+  id: string;
+  gridKey: string;
+  centroid: LatLngTuple;
+  count: number;
+  items: T[];
+  boundingBox: BoundingBox;
+}
+
+/**
+ * High-performance spatial grid clustering algorithm.
+ * Groups arbitrary georeferenced items into discrete spatial grid cells.
+ */
+export function clusterPointsBySpatialGrid<T>(
+  items: T[],
+  getCoord: (item: T) => LatLngTuple,
+  gridSizeDeg = 0.05
+): SpatialCluster<T>[] {
+  const gridMap = new Map<string, { items: T[]; sumLat: number; sumLng: number; coords: LatLngTuple[] }>();
+
+  for (const item of items) {
+    const coord = getCoord(item);
+    if (!isValidCoordinate(coord[0], coord[1])) continue;
+
+    const gridX = Math.floor(coord[1] / gridSizeDeg);
+    const gridY = Math.floor(coord[0] / gridSizeDeg);
+    const key = `${gridY}:${gridX}`;
+
+    let cell = gridMap.get(key);
+    if (!cell) {
+      cell = { items: [], sumLat: 0, sumLng: 0, coords: [] };
+      gridMap.set(key, cell);
+    }
+    cell.items.push(item);
+    cell.sumLat += coord[0];
+    cell.sumLng += coord[1];
+    cell.coords.push(coord);
+  }
+
+  const clusters: SpatialCluster<T>[] = [];
+  let clusterIdx = 1;
+
+  for (const [key, cell] of gridMap.entries()) {
+    const count = cell.items.length;
+    const centroid: LatLngTuple = [
+      Number((cell.sumLat / count).toFixed(6)),
+      Number((cell.sumLng / count).toFixed(6)),
+    ];
+    const boundingBox = computeBoundingBox(cell.coords) || {
+      minLat: centroid[0],
+      minLng: centroid[1],
+      maxLat: centroid[0],
+      maxLng: centroid[1],
+    };
+
+    clusters.push({
+      id: `cluster-${clusterIdx++}`,
+      gridKey: key,
+      centroid,
+      count,
+      items: cell.items,
+      boundingBox,
+    });
+  }
+
+  return clusters;
+}
+
+/**
+ * Resolves basemap tile URL with failover support.
+ */
+export function getBasemapTileConfig(providerId: BasemapProviderId): BasemapProviderConfig {
+  const config = BASEMAP_PROVIDERS[providerId] || BASEMAP_PROVIDERS.osm;
+  return config;
+}
+
