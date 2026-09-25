@@ -30,12 +30,13 @@ import {
   Compass,
   UserCheck,
   ShieldAlert,
+  PlusCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useRef, useState } from "react";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
@@ -50,6 +51,8 @@ import {
 import { VernacularVoiceAssistant } from "@/components/VernacularVoiceAssistant";
 import { TreeNdviSatelliteViewer } from "@/components/TreeNdviSatelliteViewer";
 import { TreeMonitoringHistoryTimeline } from "@/components/TreeMonitoringHistoryTimeline";
+import { CreateObservationModal } from "@/components/CreateObservationModal";
+import { monitoringEventService } from "@/services/monitoringEventService";
 import { TreeObservation, TreePhoto } from "@/types/coreDatabase";
 
 const healthStatusBadge = (status?: string | null) => {
@@ -105,9 +108,11 @@ const healthStatusBadge = (status?: string | null) => {
 
 const TreeProfile = () => {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
   const qrRef = useRef<HTMLDivElement>(null);
   const [copiedId, setCopiedId] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [isObsModalOpen, setIsObsModalOpen] = useState(false);
 
   // 1. Fetch Tree by either UUID or human-readable tree_code (e.g. GE-2026-000001)
   const { data: tree, isLoading } = useQuery({
@@ -245,6 +250,12 @@ const TreeProfile = () => {
     },
   });
 
+  const handleObservationAdded = () => {
+    queryClient.invalidateQueries({ queryKey: ["tree", id] });
+    queryClient.invalidateQueries({ queryKey: ["tree-observations", treeRealId] });
+    queryClient.invalidateQueries({ queryKey: ["tree-photos", treeRealId] });
+  };
+
   const displayTreeId = tree?.tree_code || tree?.id || id;
   const profileUrl = `${window.location.origin}/tree/${displayTreeId}`;
 
@@ -298,204 +309,232 @@ const TreeProfile = () => {
     return (
       <div className="min-h-screen pt-24 flex items-center justify-center">
         <div className="text-center space-y-4">
-          <TreePine className="h-16 w-16 text-muted-foreground mx-auto mb-2" />
-          <h2 className="font-heading text-2xl font-bold">Tree Not Found</h2>
-          <p className="text-muted-foreground text-sm max-w-sm mx-auto">
-            No Green Enlightenment tree found matching identifier <span className="font-mono font-semibold">{id}</span>.
+          <TreePine className="h-16 w-16 text-muted-foreground mx-auto" />
+          <h1 className="text-2xl font-heading font-bold text-foreground">Tree Record Not Found</h1>
+          <p className="text-muted-foreground max-w-md">
+            The tree record with identifier <span className="font-mono text-foreground font-semibold">{id}</span> was not found in the Green Enlightenment Registry.
           </p>
-          <Link to="/tree-map">
-            <Button variant="outline">Back to Tree Map</Button>
+          <Link to="/map">
+            <Button className="mt-2">Browse All Trees</Button>
           </Link>
         </div>
       </div>
     );
   }
 
-  // ---- Intelligence layer ----
-  const treeAny = tree as any;
-  const beforeUrl: string | null = treeAny.before_photo_url || null;
-  const selfieUrl: string | null = treeAny.selfie_photo_url || null;
-  const latestGrowthPhoto = [...growthUpdates].reverse().find((g) => g.photo_url)?.photo_url;
-  const afterUrl = latestGrowthPhoto || tree.photo_url;
-  const showSlider = !!(beforeUrl && afterUrl && beforeUrl !== afterUrl);
+  // Intelligence calculations
+  const ageM = treeAgeMonths(tree.plantation_date);
+  const daysPlanted = Math.max(1, Math.floor((Date.now() - new Date(tree.plantation_date).getTime()) / (1000 * 60 * 60 * 24)));
+  const { score, band, reasons } = computeHealthScore({
+    status: tree.status,
+    height_cm: tree.height_cm,
+    plantation_date: tree.plantation_date,
+    verification_status: tree.verification_status,
+    ai_confidence: tree.ai_confidence,
+  });
+  const impact = computeImpact(tree.species, tree.height_cm, ageM);
+  const care = careTips(tree.species, tree.status);
+  const natives = nearbyNativeSuggestions(tree.species);
 
-  const { score, band, reasons } = computeHealthScore(tree as any, healthUpdates as any, growthUpdates as any);
-  const impact = computeImpact(tree as any);
-  const care = careTips(tree as any);
-  const natives = nearbyNativeSuggestions(tree.location || "");
-  const ageM = treeAgeMonths(tree as any);
-  const daysPlanted = Math.max(
-    0,
-    Math.floor((Date.now() - new Date(tree.plantation_date).getTime()) / (1000 * 60 * 60 * 24))
-  );
+  // Monitoring Schedule & Overdue Assessment
+  const schedule = monitoringEventService.getTreeMonitoringSchedule({
+    id: tree.id,
+    tree_code: tree.tree_code,
+    species: tree.species,
+    plantation_date: tree.plantation_date,
+    last_monitored_at: tree.last_monitored_at,
+    next_monitoring_date: tree.next_monitoring_date,
+    monitoring_status: tree.monitoring_status,
+    status: tree.status,
+  });
 
   const bandColor =
-    band === "excellent"
-      ? "hsl(142 71% 45%)"
-      : band === "good"
-      ? "hsl(88 60% 45%)"
-      : band === "fair"
-      ? "hsl(38 92% 50%)"
-      : "hsl(0 84% 60%)";
-
-  const handleSharePassport = () => {
-    if (navigator.share) {
-      navigator
-        .share({
-          title: `${tree?.tree_name || tree?.species || "Tree"} — Green Enlightenment Passport`,
-          text: `Track the growth and verifiable carbon impact of ${tree?.tree_name || tree?.species} (${tree?.tree_code || tree?.id}) on Green Enlightenment!`,
-          url: profileUrl,
-        })
-        .catch(() => {});
-    } else {
-      handleCopyLink();
-    }
-  };
+    score >= 80 ? "#10b981" : score >= 60 ? "#3b82f6" : score >= 40 ? "#f59e0b" : "#ef4444";
 
   return (
-    <div className="min-h-screen pt-24 pb-16 bg-background/50">
-      <div className="container mx-auto px-4 max-w-5xl space-y-8">
-        {/* Top Breadcrumb & Quick Info Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border/60">
-          <div className="flex flex-wrap items-center gap-3">
-            <Link to="/tree-map" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
-              <Compass className="w-3.5 h-3.5" /> Tree Map
-            </Link>
-            <span className="text-muted-foreground/40">/</span>
-            {project && (
-              <>
-                <span className="text-xs text-muted-foreground">{project.name}</span>
-                <span className="text-muted-foreground/40">/</span>
-              </>
-            )}
-            <div className="flex items-center gap-1.5 bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-full text-xs font-mono font-semibold text-primary">
-              <Tag className="w-3.5 h-3.5" />
-              <span>{displayTreeId}</span>
-              <button
-                onClick={handleCopyTreeId}
-                className="ml-1 hover:text-primary-foreground focus:outline-none"
-                title="Copy Tree ID"
-                aria-label="Copy Tree ID"
+    <div className="min-h-screen pt-20 pb-16 bg-background">
+      <div className="container mx-auto px-4 max-w-6xl">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+          {/* Breadcrumb / Top Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground border-b border-border/60 pb-3">
+            <div className="flex items-center gap-2">
+              <Link to="/dashboard" className="hover:text-foreground">Dashboard</Link>
+              <span>/</span>
+              <Link to="/map" className="hover:text-foreground">Trees</Link>
+              <span>/</span>
+              <span className="text-foreground font-mono font-medium">{displayTreeId}</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCopyLink}
+                className="text-xs h-7 gap-1 px-2.5"
               >
-                {copiedId ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-              </button>
+                {copiedLink ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Share2 className="h-3.5 w-3.5" />}
+                {copiedLink ? "Link Copied" : "Share"}
+              </Button>
+              <Button
+                onClick={() => setIsObsModalOpen(true)}
+                size="sm"
+                className="text-xs h-7 gap-1 px-2.5 bg-primary text-primary-foreground"
+              >
+                <PlusCircle className="h-3.5 w-3.5" />
+                <span>Log Observation</span>
+              </Button>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {healthStatusBadge(tree.status || "alive")}
-
-            {tree.verification_status === "verified" ? (
-              <Badge className="bg-emerald-600/20 text-emerald-400 border-emerald-500/30 gap-1">
-                <ShieldCheck className="h-3 w-3" /> Verified
-              </Badge>
-            ) : (
-              <Badge variant="secondary" className="gap-1 text-xs capitalize">
-                <Clock className="h-3 w-3" /> {tree.verification_status || "Pending"}
-              </Badge>
-            )}
-
-            {tree.admin_status && (
-              <Badge
-                variant="outline"
-                className={`gap-1 text-xs capitalize ${
-                  tree.admin_status === "approved"
-                    ? "border-emerald-500/40 text-emerald-400"
-                    : tree.admin_status === "rejected"
-                    ? "border-rose-500/40 text-rose-400"
-                    : "text-muted-foreground"
-                }`}
+          {/* Overdue Alert Banner if tree requires immediate monitoring */}
+          {schedule.isOverdue && (
+            <div className={`p-4 rounded-2xl border flex items-start justify-between gap-4 ${
+              schedule.isCritical
+                ? "bg-rose-500/15 border-rose-500/30 text-rose-300"
+                : "bg-amber-500/15 border-amber-500/30 text-amber-300"
+            }`}>
+              <div className="flex items-start gap-3">
+                <ShieldAlert className="h-6 w-6 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <div className="font-heading font-bold text-sm text-foreground flex items-center gap-2">
+                    <span>{schedule.isCritical ? "CRITICAL: Monitoring Severely Overdue" : "Monitoring Overdue Warning"}</span>
+                    <Badge className="bg-rose-600 text-white text-[10px]">
+                      {schedule.daysOverdue} Days Overdue
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    This tree was due for field biometric observation on{" "}
+                    <span className="font-semibold text-foreground">
+                      {new Date(schedule.nextMonitoringDate).toLocaleDateString()}
+                    </span>. Please conduct an on-site audit to maintain MRV carbon verification and health tracking.
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => setIsObsModalOpen(true)}
+                className="shrink-0 bg-primary text-primary-foreground text-xs"
               >
-                <FileCheck className="h-3 w-3" /> Admin {tree.admin_status}
-              </Badge>
-            )}
-          </div>
-        </div>
+                Audit Now
+              </Button>
+            </div>
+          )}
 
-        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Left Column: Photo Evidence + Digital Tree Passport */}
+          {/* Main Grid: Left Column Photo & QR, Right Column Details */}
+          <div className="grid md:grid-cols-3 gap-6">
+            {/* Left Column: Photo, Status, QR Card */}
             <div className="space-y-6">
-              {/* Photo Evidence / Before-After Slider */}
-              <div className="space-y-2">
-                {showSlider ? (
-                  <BeforeAfterSlider
-                    beforeUrl={beforeUrl!}
-                    afterUrl={afterUrl!}
-                    beforeLabel="Planted"
-                    afterLabel="Latest"
-                  />
-                ) : tree.photo_url ? (
-                  <div className="relative rounded-2xl overflow-hidden aspect-square border border-border shadow-md bg-muted/20 group">
+              {/* Photo & Status Card */}
+              <div className="glass-card rounded-2xl p-4 border border-border space-y-4">
+                <div className="relative aspect-square rounded-xl overflow-hidden bg-muted/30 border border-border">
+                  {tree.photo_url ? (
                     <img
                       src={tree.photo_url}
                       alt={tree.tree_name || tree.species}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-cover"
                     />
-                    <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] text-white font-medium flex items-center gap-1.5 border border-white/10">
-                      <Camera className="w-3 h-3 text-emerald-400" /> Initial Photo Evidence
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground">
+                      <TreePine className="h-16 w-16 opacity-30 mb-2" />
+                      <span className="text-xs">No Photo Recorded</span>
                     </div>
+                  )}
+
+                  <div className="absolute top-3 left-3">
+                    {healthStatusBadge(tree.status)}
                   </div>
-                ) : (
-                  <div className="w-full rounded-2xl bg-muted/50 aspect-square flex flex-col items-center justify-center text-muted-foreground border border-border/80">
-                    <TreePine className="h-16 w-16 mb-2 opacity-50" />
-                    <span className="text-xs">No initial photo registered</span>
+
+                  {tree.verification_status && (
+                    <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                      <Badge className="bg-slate-900/80 backdrop-blur-md border border-white/10 text-white text-[10px] gap-1">
+                        <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                        {tree.verification_status}
+                      </Badge>
+                      {tree.admin_status && (
+                        <Badge className="bg-slate-900/80 backdrop-blur-md border border-white/10 text-white text-[10px]">
+                          Admin {tree.admin_status}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Planter Selfie Evidence if available */}
+                {tree.selfie_photo_url && (
+                  <div className="space-y-2 pt-2 border-t border-border/50">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <UserCheck className="h-3.5 w-3.5 text-primary" /> Planter Selfie Evidence
+                    </span>
+                    <div className="rounded-xl overflow-hidden aspect-video border border-border bg-muted/30">
+                      <img src={tree.selfie_photo_url} alt="Planter selfie" className="w-full h-full object-cover" />
+                    </div>
                   </div>
                 )}
 
-                {/* Planter Selfie Evidence Thumbnail if available */}
-                {selfieUrl && (
-                  <div className="p-3 rounded-xl bg-card border border-border/70 flex items-center gap-3">
-                    <img
-                      src={selfieUrl}
-                      alt="Planter verification selfie"
-                      className="w-12 h-12 rounded-lg object-cover border border-border shrink-0"
+                {/* Before / After Slider if both exist */}
+                {tree.before_photo_url && tree.photo_url && (
+                  <div className="space-y-2 pt-2 border-t border-border/50">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Camera className="h-3.5 w-3.5 text-primary" /> Visual Growth Progression
+                    </span>
+                    <BeforeAfterSlider
+                      beforeSrc={tree.before_photo_url}
+                      afterSrc={tree.photo_url}
+                      beforeLabel="Planting"
+                      afterLabel="Current"
+                      className="rounded-xl overflow-hidden aspect-video border border-border"
                     />
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold flex items-center gap-1 text-foreground">
-                        <UserCheck className="w-3.5 h-3.5 text-primary" /> Planter Selfie Evidence
-                      </div>
-                      <p className="text-[11px] text-muted-foreground truncate">
-                        Ground-truth planter biometric proof
-                      </p>
-                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Digital Tree Passport & Cryptographic QR */}
-              <div className="glass-card rounded-2xl p-6 text-center space-y-4 border border-border shadow-lg">
-                <div className="space-y-1">
-                  <h3 className="font-heading font-semibold text-base flex items-center justify-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-primary" /> Digital Tree Passport
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    Verifiable cryptographic MRV on-chain registry certificate
-                  </p>
-                </div>
-
-                <div ref={qrRef} className="inline-block bg-white p-3 rounded-xl shadow-inner border border-border/50">
-                  <QRCodeSVG value={profileUrl} size={160} level="H" includeMargin={false} />
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-xs font-mono font-semibold text-primary">{displayTreeId}</div>
-                  <p className="text-[10px] font-mono text-muted-foreground break-all">{profileUrl}</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <Button variant="outline" size="sm" className="gap-1.5 text-xs rounded-xl" onClick={downloadQR}>
-                    <Download className="h-3.5 w-3.5" /> QR Code
-                  </Button>
-                  <Button variant="outline" size="sm" className="gap-1.5 text-xs rounded-xl" onClick={handleSharePassport}>
-                    {copiedLink ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Share2 className="h-3.5 w-3.5" />} Share
+              {/* QR Code & Certificate Card */}
+              <div className="glass-card rounded-2xl p-5 border border-border space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileCheck className="h-4 w-4 text-primary" />
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Digital Tree Passport & Physical QR
+                    </span>
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={downloadQR} title="Download QR">
+                    <Download className="h-3.5 w-3.5" />
                   </Button>
                 </div>
 
-                <div className="pt-2 space-y-2">
-                  <Link to={`/growth-updates?tree=${treeRealId}`} className="block">
-                    <Button size="sm" className="w-full gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-md">
-                      <Camera className="h-3.5 w-3.5" /> 30-Day Growth Check-in
+                <div ref={qrRef} className="flex flex-col items-center justify-center p-3 rounded-xl bg-white border border-border shadow-inner">
+                  <QRCodeSVG
+                    value={profileUrl}
+                    size={160}
+                    level="H"
+                    includeMargin={true}
+                  />
+                  <div className="text-[10px] font-mono text-slate-800 font-bold mt-1 text-center">
+                    {displayTreeId}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-2 rounded-xl bg-muted/40 border border-border text-xs">
+                  <div className="min-w-0 pr-2">
+                    <div className="text-[10px] text-muted-foreground uppercase font-semibold">Tree Code</div>
+                    <div className="font-mono font-bold text-foreground truncate">{displayTreeId}</div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCopyTreeId}
+                    aria-label="Copy Tree ID"
+                    className="h-7 text-xs px-2 shrink-0 gap-1"
+                  >
+                    {copiedId ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                    {copiedId ? "Copied" : "Copy"}
+                  </Button>
+                </div>
+
+                <div className="space-y-1.5 pt-1">
+                  <Link to={`/tree-certificate/${treeRealId}`} className="block">
+                    <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs">
+                      <FileCheck className="h-3.5 w-3.5 text-primary" /> Official Provenance Certificate
                     </Button>
                   </Link>
 
@@ -647,6 +686,73 @@ const TreeProfile = () => {
                 )}
               </div>
 
+              {/* Monitoring Schedule & Survival Assurance Card */}
+              <div className="glass-card rounded-2xl p-6 border border-border shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-primary" />
+                    <h2 className="font-heading text-lg font-semibold">Monitoring Schedule & Survival Protocol</h2>
+                  </div>
+                  <Badge
+                    className={`text-xs capitalize font-semibold ${
+                      schedule.monitoringStatus === "critical_overdue"
+                        ? "bg-rose-600 text-white"
+                        : schedule.monitoringStatus === "overdue"
+                        ? "bg-amber-600 text-white"
+                        : schedule.monitoringStatus === "due_soon"
+                        ? "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
+                        : "bg-emerald-600/20 text-emerald-400 border-emerald-500/30"
+                    }`}
+                  >
+                    {schedule.monitoringStatus.replace(/_/g, " ")}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="p-3 rounded-xl bg-card/60 border border-border/80">
+                    <span className="text-[10px] text-muted-foreground uppercase font-semibold">Next Inspection</span>
+                    <div className="text-sm font-semibold text-foreground mt-0.5">
+                      {new Date(schedule.nextMonitoringDate).toLocaleDateString(undefined, {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-card/60 border border-border/80">
+                    <span className="text-[10px] text-muted-foreground uppercase font-semibold">Interval & Stage</span>
+                    <div className="text-sm font-semibold text-foreground mt-0.5 truncate">
+                      Every {schedule.intervalDays}d ({schedule.stageLabel})
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-card/60 border border-border/80">
+                    <span className="text-[10px] text-muted-foreground uppercase font-semibold">Status Timeline</span>
+                    <div className={`text-sm font-semibold mt-0.5 ${
+                      schedule.isCritical ? "text-rose-400" : schedule.isOverdue ? "text-amber-400" : "text-emerald-400"
+                    }`}>
+                      {schedule.isOverdue
+                        ? `${schedule.daysOverdue} days overdue`
+                        : schedule.daysRemaining === 0
+                        ? "Due today"
+                        : `Due in ${schedule.daysRemaining} days`}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 text-xs text-muted-foreground leading-relaxed flex items-center justify-between gap-3">
+                  <span>{schedule.rationale}</span>
+                  <Button
+                    onClick={() => setIsObsModalOpen(true)}
+                    size="sm"
+                    className="shrink-0 text-xs h-7 gap-1"
+                  >
+                    <PlusCircle className="h-3 w-3" /> Log Inspection
+                  </Button>
+                </div>
+              </div>
+
               {/* AI Health Score Gauge */}
               <div className="glass-card rounded-2xl p-6 border border-border shadow-sm">
                 <div className="flex items-center justify-between mb-4">
@@ -776,21 +882,37 @@ const TreeProfile = () => {
               {/* Unified Monitoring History & Audit Timeline */}
               <TreeMonitoringHistoryTimeline
                 treeId={treeRealId || ""}
+                treeCode={tree.tree_code}
                 plantationDate={tree.plantation_date}
                 initialPhotoUrl={tree.photo_url}
                 species={tree.species}
+                nextMonitoringDate={tree.next_monitoring_date}
+                monitoringStatus={tree.monitoring_status}
                 observations={observations}
                 photos={photos}
                 healthUpdates={healthUpdates}
                 growthUpdates={growthUpdates}
+                onObservationAdded={handleObservationAdded}
               />
             </div>
           </div>
         </motion.div>
       </div>
+
+      {/* Observation Modal */}
+      <CreateObservationModal
+        isOpen={isObsModalOpen}
+        onClose={() => setIsObsModalOpen(false)}
+        treeId={treeRealId || ""}
+        treeCode={tree.tree_code}
+        species={tree.species}
+        plantationDate={tree.plantation_date}
+        currentHeightCm={tree.height_cm}
+        currentDbhCm={tree.dbh_cm}
+        onSuccess={handleObservationAdded}
+      />
     </div>
   );
 };
 
 export default TreeProfile;
-

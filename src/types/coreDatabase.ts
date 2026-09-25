@@ -69,6 +69,12 @@ export type TreeStatus =
   | 'dead'
   | 'replaced';
 
+export type MonitoringStatus =
+  | 'up_to_date'
+  | 'due_soon'
+  | 'overdue'
+  | 'critical_overdue';
+
 export type VerificationStatus = 'pending' | 'verified' | 'flagged' | 'rejected';
 export type AdminStatus = 'pending' | 'approved' | 'rejected';
 export type PlantingType = 'individual' | 'institutional' | 'community' | 'drive';
@@ -245,6 +251,9 @@ export interface Tree {
   device_fingerprint?: string | null;
   photo_hash?: string | null;
   exif_timestamp?: string | null;
+  next_monitoring_date?: string | null;
+  last_monitored_at?: string | null;
+  monitoring_status?: MonitoringStatus;
   updated_at: string;
 }
 
@@ -445,6 +454,50 @@ export interface ObservationSummaryStats {
   averageAnnualGrowthRateCm: number;
   pestIssuesCount: number;
   verifiedObservationsCount: number;
+}
+
+// Monitoring Schedule & Status Model (Phase 5 Task 22)
+export interface MonitoringSchedule {
+  treeId: string;
+  treeCode?: string | null;
+  species: string;
+  plantationDate: string;
+  lastMonitoredAt: string | null;
+  nextMonitoringDate: string;
+  daysRemaining: number;
+  monitoringStatus: MonitoringStatus;
+  intervalDays: number;
+  stageLabel: string;
+  rationale: string;
+  isOverdue: boolean;
+  isCritical: boolean;
+}
+
+export interface OverdueTreeRecord {
+  id: string;
+  tree_code?: string | null;
+  species: string;
+  location?: string | null;
+  project_id?: string | null;
+  project_name?: string | null;
+  plantation_date: string;
+  last_monitored_at?: string | null;
+  next_monitoring_date: string;
+  monitoring_status: MonitoringStatus;
+  days_overdue: number;
+  health_status: TreeHealthStatus | TreeStatus;
+  height_cm?: number | null;
+  photo_url?: string | null;
+  assigned_worker_id?: string | null;
+}
+
+export interface MonitoringComplianceStats {
+  totalTrees: number;
+  upToDateCount: number;
+  dueSoonCount: number;
+  overdueCount: number;
+  criticalOverdueCount: number;
+  complianceRatePct: number;
 }
 
 // 9. Monitoring Task
