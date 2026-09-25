@@ -30,6 +30,7 @@ import {
   Trash2,
   Flame,
   Activity,
+  ArrowRightLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +44,7 @@ import { HardwarePermissionSentinel } from "./HardwarePermissionSentinel";
 import { HardwarePermissionModal } from "./HardwarePermissionModal";
 import { NetworkQualitySentinel } from "./NetworkQualitySentinel";
 import { OfflineNetworkDrawer } from "./OfflineNetworkDrawer";
+import { useSyncConflicts } from "@/hooks/useSyncConflicts";
 import { offlineSyncManager } from "@/services/offlineSyncManager";
 import { networkQualityService } from "@/services/networkQualityService";
 import { getOfflineTreeQueue, syncOfflineTreesWithSupabase } from "@/lib/offlineSyncService";
@@ -68,6 +70,9 @@ export const MobileFieldInterface: React.FC<MobileFieldInterfaceProps> = ({
   const [language, setLanguage] = useState<"en" | "mr" | "hi">("en");
   const [offlineQueueCount, setOfflineQueueCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
+
+  // Sync Conflict Tracking
+  const { pendingConflictCount } = useSyncConflicts();
 
   // Drawer Modals & Fast Consoles
   const [isFastPlantOpen, setIsFastPlantOpen] = useState(false);
@@ -242,6 +247,36 @@ export const MobileFieldInterface: React.FC<MobileFieldInterfaceProps> = ({
 
       {/* 2. MAIN SCROLLABLE CONTENT BODY */}
       <main className="flex-1 p-4 pb-28 space-y-4 max-w-xl mx-auto w-full">
+        {/* Sync Conflict Warning Banner */}
+        {pendingConflictCount > 0 && (
+          <div
+            data-testid="sync-conflict-banner"
+            className="p-3.5 bg-amber-500/15 border border-amber-500/30 rounded-2xl flex items-center justify-between gap-3 text-amber-900 dark:text-amber-100 shadow-sm"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="p-2 bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl shrink-0">
+                <ArrowRightLeft className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold font-heading truncate">
+                  {pendingConflictCount} Sync Conflict{pendingConflictCount > 1 ? "s" : ""} Staged
+                </div>
+                <div className="text-[10px] text-muted-foreground truncate">
+                  Divergent field records require resolution before cloud push.
+                </div>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsOfflineDrawerOpen(true)}
+              className="h-7 text-xs font-semibold rounded-xl border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 shrink-0"
+            >
+              Resolve
+            </Button>
+          </div>
+        )}
+
         {activeTab === "tasks" && (
           <div className="space-y-3.5" data-testid="mobile-tasks-view">
             {/* Quick Fast Tree Registration Action Card */}

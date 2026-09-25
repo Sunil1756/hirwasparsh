@@ -46,7 +46,8 @@ import { HardwarePermissionSentinel } from "@/components/mobile/HardwarePermissi
 import { HardwarePermissionModal } from "@/components/mobile/HardwarePermissionModal";
 import { NetworkQualitySentinel } from "@/components/mobile/NetworkQualitySentinel";
 import { OfflineNetworkDrawer } from "@/components/mobile/OfflineNetworkDrawer";
-import { Smartphone, Monitor } from "lucide-react";
+import { useSyncConflicts } from "@/hooks/useSyncConflicts";
+import { Smartphone, Monitor, ArrowRightLeft } from "lucide-react";
 
 export default function FieldWorkerDashboard() {
   const { user } = useAuth();
@@ -63,6 +64,8 @@ export default function FieldWorkerDashboard() {
   const [offlineCount, setOfflineCount] = useState<number>(0);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+
+  const { pendingConflictCount } = useSyncConflicts();
 
   // Vitality Quick Calculator state
   const [livingCount, setLivingCount] = useState<number>(95);
@@ -260,6 +263,17 @@ export default function FieldWorkerDashboard() {
               <HardwarePermissionSentinel
                 onOpenModal={() => setPermissionModalOpen(true)}
               />
+
+              {pendingConflictCount > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setOfflineDrawerOpen(true)}
+                  className="gap-1.5 text-xs font-semibold rounded-xl border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 animate-pulse"
+                >
+                  <ArrowRightLeft className="h-3.5 w-3.5" /> {pendingConflictCount} Conflict{pendingConflictCount > 1 ? "s" : ""}
+                </Button>
+              )}
 
               <Button
                 variant="outline"

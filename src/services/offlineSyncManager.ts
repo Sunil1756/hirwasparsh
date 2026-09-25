@@ -1,14 +1,15 @@
 /**
- * HIRWA SPARSH / GREEN ENLIGHTENMENT — PHASE 7 TASK 37
- * Unified Multi-Entity Offline Storage & Synchronization Manager
+ * HIRWA SPARSH / GREEN ENLIGHTENMENT — PHASE 7 TASK 37 & 38
+ * Unified Multi-Entity Offline Storage & Synchronization Manager with Conflict Resolution
  *
  * Capabilities:
  * 1. Unified Multi-Entity Priority Queue (Trees, Observations, Spot Audits, Photos)
  * 2. Idempotency Key Tracking (Prevents duplicate cloud inserts on network retry)
  * 3. Exponential Backoff with Jitter for Failed Sync Items
- * 4. Seamless Integration with Supabase and legacy offline queues
- * 5. Persistent Storage Lock & Quota Telemetry (navigator.storage.estimate)
- * 6. Background Auto-Sync Engine with Network Sentinel Listener
+ * 4. Conflict Interception & Safe Staging (Detects server divergence & avoids destructive overwrites)
+ * 5. Seamless Integration with Supabase and legacy offline queues
+ * 6. Persistent Storage Lock & Quota Telemetry (navigator.storage.estimate)
+ * 7. Background Auto-Sync Engine with Network Sentinel Listener
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -19,10 +20,16 @@ import {
   syncQueuedOfflineFieldReports,
 } from "@/lib/fieldReportBackendService";
 import { networkQualityService } from "./networkQualityService";
+import {
+  syncConflictService,
+  SyncConflict,
+  ConflictResolutionPlan,
+  ConflictEntityType,
+} from "./syncConflictService";
 
 export type SyncEntityType = "tree" | "observation" | "field_report" | "photo";
 
-export type SyncItemStatus = "pending" | "syncing" | "failed" | "synced";
+export type SyncItemStatus = "pending" | "syncing" | "failed" | "synced" | "conflict";
 
 export interface SyncQueueItem {
   localId: string;
@@ -37,15 +44,18 @@ export interface SyncQueueItem {
   lastAttemptAt?: string;
   lastError?: string;
   syncStatus: SyncItemStatus;
+  conflictId?: string;
 }
 
 export interface SyncSummary {
   total: number;
   syncedCount: number;
   failedCount: number;
+  conflictCount: number;
   syncedEntities: Record<SyncEntityType, number>;
   errors: string[];
   executionTimeMs: number;
+  conflicts?: SyncConflict[];
 }
 
 export interface StorageQuotaReport {
@@ -188,9 +198,9 @@ export const offlineSyncManager = {
   },
 
   /**
-   * 6. SYNC A SINGLE ITEM WITH SUPABASE
+   * 6. SYNC A SINGLE ITEM WITH SUPABASE & CONFLICT DETECTION
    */
-  async syncItem(localId: string): Promise<{ success: boolean; error?: string }> {
+  async syncItem(localId: string): Promise<{ success: boolean; isConflict?: boolean; conflictId?: string; error?: string }> {
     const queue = this.getQueue();
     const item = queue.find((i) => i.localId === localId);
     if (!item) return { success: false, error: "Item not found in queue" };
@@ -215,6 +225,51 @@ export const offlineSyncManager = {
           notes: item.payload.notes ? `${item.payload.notes} (Synced from Rural Offline Queue)` : "Synced from Rural Offline Queue",
         };
 
+        // Check for existing server record collision / duplicate identifier
+        const existingTreeId = item.payload.id || item.payload.tree_id;
+        if (existingTreeId) {
+          try {
+            const { data: serverTree } = await supabase
+              .from("trees")
+              .select("*")
+              .eq("id", existingTreeId)
+              .maybeSingle();
+
+            if (serverTree) {
+              const conflictCheck = syncConflictService.detectConflict(
+                item.payload,
+                serverTree,
+                "tree"
+              );
+
+              if (conflictCheck.hasConflict) {
+                const registeredConflict = syncConflictService.registerConflict({
+                  localId: item.localId,
+                  entityType: "tree",
+                  entityId: existingTreeId,
+                  title: item.title,
+                  subtitle: `Conflict on Tree ${serverTree.tree_name || existingTreeId}`,
+                  localItem: item.payload,
+                  serverItem: serverTree,
+                });
+
+                item.syncStatus = "conflict";
+                item.conflictId = registeredConflict.conflictId;
+                this.persistQueue(queue);
+
+                return {
+                  success: false,
+                  isConflict: true,
+                  conflictId: registeredConflict.conflictId,
+                  error: "Divergent tree record detected on server. Conflict registered for resolution.",
+                };
+              }
+            }
+          } catch {
+            // Ignore pre-check network errors and attempt insert
+          }
+        }
+
         const { error } = await supabase.from("trees").insert(payload);
         if (error) throw error;
       } else if (item.entityType === "observation") {
@@ -231,6 +286,51 @@ export const offlineSyncManager = {
           photo_url: item.payload.photo_url || null,
           created_at: item.createdAt,
         };
+
+        // If observation targets an existing tree, verify tree status divergence
+        if (payload.tree_id) {
+          try {
+            const { data: targetTree } = await supabase
+              .from("trees")
+              .select("id, tree_name, health_status, status, height_cm, notes, updated_at")
+              .eq("id", payload.tree_id)
+              .maybeSingle();
+
+            if (targetTree && targetTree.health_status && targetTree.health_status !== payload.health_status) {
+              // Server tree condition differs from local observation
+              const conflictCheck = syncConflictService.detectConflict(
+                payload,
+                targetTree,
+                "observation"
+              );
+
+              if (conflictCheck.hasConflict) {
+                const registeredConflict = syncConflictService.registerConflict({
+                  localId: item.localId,
+                  entityType: "observation",
+                  entityId: payload.tree_id,
+                  title: item.title,
+                  subtitle: `Observation on ${targetTree.tree_name || "Tree"}: Local (${payload.health_status}) vs Cloud (${targetTree.health_status})`,
+                  localItem: payload,
+                  serverItem: targetTree,
+                });
+
+                item.syncStatus = "conflict";
+                item.conflictId = registeredConflict.conflictId;
+                this.persistQueue(queue);
+
+                return {
+                  success: false,
+                  isConflict: true,
+                  conflictId: registeredConflict.conflictId,
+                  error: "Observation condition conflicts with current cloud tree record.",
+                };
+              }
+            }
+          } catch {
+            // Ignore pre-check
+          }
+        }
 
         const { error } = await supabase.from("monitoring_events" as any).insert(payload);
         if (error) throw error;
@@ -256,7 +356,42 @@ export const offlineSyncManager = {
   },
 
   /**
-   * 7. SYNC ALL QUEUED RECORDS (UNIFIED + LEGACY QUEUES)
+   * 7. RESOLVE CONFLICT AND SYNC RESOLVED ITEM
+   */
+  async resolveAndSyncItem(
+    localId: string,
+    plan: ConflictResolutionPlan
+  ): Promise<{ success: boolean; error?: string }> {
+    const queue = this.getQueue();
+    const item = queue.find((i) => i.localId === localId);
+    if (!item) return { success: false, error: "Item not found in queue" };
+
+    if (!item.conflictId) {
+      return this.syncItem(localId);
+    }
+
+    try {
+      const resolution = await syncConflictService.resolveConflict(item.conflictId, plan);
+      if (!resolution.success) {
+        throw new Error(resolution.error || "Failed to resolve conflict");
+      }
+
+      // Update item payload with resolved state
+      item.payload = resolution.resolvedPayload;
+      item.syncStatus = "pending";
+      item.conflictId = undefined;
+      this.persistQueue(queue);
+
+      // Re-attempt sync with resolved payload
+      const syncRes = await this.syncItem(localId);
+      return syncRes;
+    } catch (err: any) {
+      return { success: false, error: err?.message || "Failed to resolve and sync item" };
+    }
+  },
+
+  /**
+   * 8. SYNC ALL QUEUED RECORDS (UNIFIED + LEGACY QUEUES)
    */
   async syncAll(options?: {
     onProgress?: (synced: number, total: number) => void;
@@ -269,6 +404,7 @@ export const offlineSyncManager = {
         total: this.getTotalPendingCount(),
         syncedCount: 0,
         failedCount: 0,
+        conflictCount: syncConflictService.getPendingCount(),
         syncedEntities: { tree: 0, observation: 0, field_report: 0, photo: 0 },
         errors: ["Cannot sync while device is offline."],
         executionTimeMs: 0,
@@ -282,6 +418,7 @@ export const offlineSyncManager = {
     const total = items.length + legacyTrees.length + legacyReports.length;
     let syncedCount = 0;
     let failedCount = 0;
+    let conflictCount = 0;
     const errors: string[] = [];
     const syncedEntities: Record<SyncEntityType, number> = {
       tree: 0,
@@ -292,16 +429,23 @@ export const offlineSyncManager = {
 
     // 1. Sync unified queue items
     for (const item of [...items]) {
+      if (item.syncStatus === "conflict") {
+        conflictCount++;
+        continue;
+      }
+
       const res = await this.syncItem(item.localId);
       if (res.success) {
         syncedCount++;
         syncedEntities[item.entityType] = (syncedEntities[item.entityType] || 0) + 1;
+      } else if (res.isConflict) {
+        conflictCount++;
       } else {
         failedCount++;
         if (res.error) errors.push(`${item.title}: ${res.error}`);
       }
       if (options?.onProgress) {
-        options.onProgress(syncedCount + failedCount, total);
+        options.onProgress(syncedCount + failedCount + conflictCount, total);
       }
     }
 
@@ -345,18 +489,22 @@ export const offlineSyncManager = {
       // Ignore
     }
 
+    const pendingConflicts = syncConflictService.getConflicts({ status: "pending" });
+
     return {
       total,
       syncedCount,
       failedCount,
+      conflictCount: conflictCount + pendingConflicts.length,
       syncedEntities,
       errors,
       executionTimeMs: Date.now() - startTime,
+      conflicts: pendingConflicts,
     };
   },
 
   /**
-   * 8. STORAGE QUOTA & PERSISTENCE REPORT
+   * 9. STORAGE QUOTA & PERSISTENCE REPORT
    */
   async getStorageQuotaReport(): Promise<StorageQuotaReport> {
     if (typeof navigator === "undefined" || !navigator.storage || !navigator.storage.estimate) {
@@ -402,7 +550,7 @@ export const offlineSyncManager = {
   },
 
   /**
-   * 9. BACKGROUND AUTO-SYNC ON RECONNECTION
+   * 10. BACKGROUND AUTO-SYNC ON RECONNECTION
    */
   initAutoSyncListener(onSyncComplete?: (summary: SyncSummary) => void): () => void {
     if (typeof window === "undefined") return () => {};
