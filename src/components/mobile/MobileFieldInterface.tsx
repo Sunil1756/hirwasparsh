@@ -29,6 +29,7 @@ import {
   Globe,
   Trash2,
   Flame,
+  Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,7 @@ import { Label } from "@/components/ui/label";
 import { FieldWaypointCompass, WaypointTarget } from "./FieldWaypointCompass";
 import { RapidFieldActionDrawer } from "./RapidFieldActionDrawer";
 import { FastTreeRegistrationConsole } from "./FastTreeRegistrationConsole";
+import { FastObservationConsole } from "./FastObservationConsole";
 import { getOfflineTreeQueue, syncOfflineTreesWithSupabase } from "@/lib/offlineSyncService";
 import { getQueuedOfflineFieldReportsCount, syncQueuedOfflineFieldReports } from "@/lib/fieldReportBackendService";
 import { toast } from "sonner";
@@ -61,8 +63,9 @@ export const MobileFieldInterface: React.FC<MobileFieldInterfaceProps> = ({
   const [offlineQueueCount, setOfflineQueueCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Drawer Modals & Fast Console
+  // Drawer Modals & Fast Consoles
   const [isFastPlantOpen, setIsFastPlantOpen] = useState(false);
+  const [isFastObservationOpen, setIsFastObservationOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<"plant" | "audit">("plant");
   const [selectedWaypoint, setSelectedWaypoint] = useState<WaypointTarget | null>(null);
@@ -159,6 +162,16 @@ export const MobileFieldInterface: React.FC<MobileFieldInterfaceProps> = ({
     );
   }
 
+  if (isFastObservationOpen) {
+    return (
+      <FastObservationConsole
+        currentLocation={currentLocation}
+        projectId={projectId}
+        onClose={() => setIsFastObservationOpen(false)}
+      />
+    );
+  }
+
   return (
     <div
       className={`flex flex-col min-h-screen bg-background text-foreground transition-colors ${
@@ -250,6 +263,31 @@ export const MobileFieldInterface: React.FC<MobileFieldInterfaceProps> = ({
                 className="w-full bg-white text-emerald-800 hover:bg-white/90 text-xs font-bold h-9 rounded-xl shadow-md"
               >
                 Launch Fast Registration Mode →
+              </Button>
+            </div>
+
+            {/* Quick Fast Tree Observation Action Card */}
+            <div className="bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 rounded-2xl p-4 text-white shadow-lg space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-white/20 rounded-xl backdrop-blur-md">
+                    <Activity className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm leading-tight">Fast Tree Observation</h3>
+                    <p className="text-[11px] text-white/80">Sub-3s health audit, proximity lock & threat tags</p>
+                  </div>
+                </div>
+                <Badge className="bg-white/20 text-white border-0 text-[10px] font-mono">
+                  1-Tap
+                </Badge>
+              </div>
+              <Button
+                data-testid="start-fast-observation-btn"
+                onClick={() => setIsFastObservationOpen(true)}
+                className="w-full bg-white text-amber-900 hover:bg-white/90 text-xs font-bold h-9 rounded-xl shadow-md"
+              >
+                Launch Fast Observation Mode →
               </Button>
             </div>
 

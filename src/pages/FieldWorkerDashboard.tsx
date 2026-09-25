@@ -20,6 +20,7 @@ import {
   FileSpreadsheet,
   Layers,
   Zap,
+  Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +41,7 @@ import { RiskAlertNotificationBanner } from "@/components/RiskAlertNotificationB
 import { Link } from "react-router-dom";
 import { MobileFieldInterface } from "@/components/mobile/MobileFieldInterface";
 import { FastTreeRegistrationConsole } from "@/components/mobile/FastTreeRegistrationConsole";
+import { FastObservationConsole } from "@/components/mobile/FastObservationConsole";
 import { Smartphone, Monitor } from "lucide-react";
 
 export default function FieldWorkerDashboard() {
@@ -49,6 +51,7 @@ export default function FieldWorkerDashboard() {
 
   const [isMobileMode, setIsMobileMode] = useState(false);
   const [fastRegisterModalOpen, setFastRegisterModalOpen] = useState(false);
+  const [fastObservationModalOpen, setFastObservationModalOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("demo-project-dev-001");
   const [offlineCount, setOfflineCount] = useState<number>(0);
@@ -263,8 +266,16 @@ export default function FieldWorkerDashboard() {
               </Button>
 
               <Button
+                data-testid="desktop-fast-observation-btn"
+                onClick={() => setFastObservationModalOpen(true)}
+                className="gap-1.5 rounded-xl text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white shadow-md"
+              >
+                <Activity className="h-4 w-4" /> Fast Tree Audit
+              </Button>
+
+              <Button
                 onClick={() => setWizardOpen(true)}
-                className="gap-2 rounded-xl text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white shadow-md"
+                className="gap-2 rounded-xl text-xs font-semibold bg-primary hover:bg-primary/90 text-white shadow-md"
               >
                 <Camera className="h-4 w-4" /> Start 5% Spot Audit
               </Button>
@@ -631,6 +642,24 @@ export default function FieldWorkerDashboard() {
               currentLocation={userLocation}
               projectId={selectedProjectId}
               onClose={() => setFastRegisterModalOpen(false)}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Fast Tree Observation Fullscreen Overlay Modal */}
+      <AnimatePresence>
+        {fastObservationModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-background/95 backdrop-blur-md overflow-y-auto"
+          >
+            <FastObservationConsole
+              currentLocation={userLocation}
+              projectId={selectedProjectId}
+              onClose={() => setFastObservationModalOpen(false)}
             />
           </motion.div>
         )}
