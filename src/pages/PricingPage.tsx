@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { AiModelTrainingAndSubscriptionHUD } from "@/components/ai/AiModelTrainingAndSubscriptionHUD";
 
 export default function PricingPage() {
   const [billingCycle, setBillingCycle] = useState<"annual" | "monthly">("annual");
@@ -203,6 +204,9 @@ export default function PricingPage() {
           );
         })}
       </div>
+
+      {/* Dedicated AI Model Subscriptions, Marketplace & Vertex SFT Training Studio */}
+      <AiModelTrainingAndSubscriptionHUD className="my-8" />
 
       {/* Sovereign & State Forest Department Banner */}
       <div className="p-6 sm:p-8 rounded-3xl border border-primary/20 bg-gradient-to-r from-purple-500/10 via-background to-primary/10 flex flex-wrap items-center justify-between gap-6">

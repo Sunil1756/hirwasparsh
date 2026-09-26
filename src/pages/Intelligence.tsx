@@ -15,6 +15,7 @@ import { PredictiveRiskAlertsConsole } from "@/components/PredictiveRiskAlertsCo
 import { AiRequirementsSpecificationHUD } from "@/components/ai/AiRequirementsSpecificationHUD";
 import { AiModelSelectionHUD } from "@/components/ai/AiModelSelectionHUD";
 import { GreenEnlightenmentAiStudioHUD } from "@/components/ai/GreenEnlightenmentAiStudioHUD";
+import { AiModelTrainingAndSubscriptionHUD } from "@/components/ai/AiModelTrainingAndSubscriptionHUD";
 
 const COLORS = ["#1B5E20", "#4CAF50", "#81C784", "#A5D6A7", "#C8E6C9"];
 
@@ -316,6 +317,9 @@ const Intelligence = () => {
 
         {/* Master Green Enlightenment Botanical AI Model Engine & Studio */}
         <GreenEnlightenmentAiStudioHUD className="mb-8" />
+
+        {/* Master AI Model Training, Subscription & Marketplace Engine */}
+        <AiModelTrainingAndSubscriptionHUD className="mb-8" />
 
         {/* ML Predictive Threat Radar & 90-Day NDVI Forecaster */}
         <PredictiveRiskAlertsConsole plotName="Statewide Agroforestry Threat Radar" />
