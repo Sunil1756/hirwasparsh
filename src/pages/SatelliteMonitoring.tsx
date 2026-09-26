@@ -21,6 +21,7 @@ import { DataSourceAuditView } from "@/components/DataSourceAuditView";
 import { MultiSourceSurvivalScoreCard } from "@/components/MultiSourceSurvivalScoreCard";
 import { PredictiveRiskAlertsConsole } from "@/components/PredictiveRiskAlertsConsole";
 import { ProjectSatelliteBoundaryHUD } from "@/components/gis/ProjectSatelliteBoundaryHUD";
+import { SatelliteDataIngestionConsole } from "@/components/gis/SatelliteDataIngestionConsole";
 import { projectMapService, ProjectMapFeature } from "@/services/projectMapService";
 import { getNdviColor } from "@/lib/remoteSensing";
 
@@ -328,9 +329,10 @@ const SatelliteMonitoring = () => {
             )}
           </div>
 
-          {/* Project Satellite Boundary HUD (Live STAC & Microclimate) */}
+          {/* Project Satellite Boundary HUD & Ingestion Suite */}
           {selectedProject && (
-            <div className="mb-8">
+            <div className="space-y-6 mb-8">
+              <SatelliteDataIngestionConsole projectId={selectedProject.id} />
               <ProjectSatelliteBoundaryHUD project={selectedProject} />
             </div>
           )}
