@@ -26,6 +26,7 @@ import { SatellitePreProcessingHUD } from "@/components/gis/SatellitePreProcessi
 import { SatelliteVegetationIndicatorsHUD } from "@/components/gis/SatelliteVegetationIndicatorsHUD";
 import { SatelliteTimeSeriesHUD } from "@/components/gis/SatelliteTimeSeriesHUD";
 import { EnterpriseSatelliteDashboard } from "@/components/gis/EnterpriseSatelliteDashboard";
+import { SatelliteFieldValidationHUD } from "@/components/gis/SatelliteFieldValidationHUD";
 import { projectMapService, ProjectMapFeature } from "@/services/projectMapService";
 import { getNdviColor } from "@/lib/remoteSensing";
 
@@ -333,9 +334,10 @@ const SatelliteMonitoring = () => {
             )}
           </div>
 
-          {/* Master Enterprise Satellite Remote Sensing Suite (Task 53-59) */}
+          {/* Master Enterprise Satellite Remote Sensing Suite (Task 53-60) */}
           {selectedProject && (
             <div className="space-y-6 mb-8">
+              <SatelliteFieldValidationHUD projectId={selectedProject.id} />
               <EnterpriseSatelliteDashboard projectId={selectedProject.id} />
               <SatelliteTimeSeriesHUD projectId={selectedProject.id} />
               <SatelliteVegetationIndicatorsHUD projectId={selectedProject.id} />
