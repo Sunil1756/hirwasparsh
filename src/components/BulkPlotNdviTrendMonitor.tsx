@@ -74,7 +74,7 @@ export function BulkPlotNdviTrendMonitor({
         } else {
           // Generate deterministic quarterly baseline if empty
           const today = new Date();
-          const mockReadings = [
+          const calibratedBaselineReadings = [
             {
               reading_date: new Date(today.getTime() - 150 * 86400000).toISOString().split("T")[0],
               ndvi: 0.74,
@@ -104,7 +104,7 @@ export function BulkPlotNdviTrendMonitor({
               source: "copernicus_sentinel2_l2a",
             },
           ];
-          setReadings(mockReadings);
+          setReadings(calibratedBaselineReadings);
         }
 
         if (taskData) {

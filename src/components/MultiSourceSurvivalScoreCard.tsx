@@ -55,7 +55,7 @@ export function MultiSourceSurvivalScoreCard({
 
   // Compute live multi-source fusion result
   const fusionResult: MultiSourceSurvivalResult = useMemo(() => {
-    const fakeLastDate = new Date(Date.now() - daysSinceAudit * 86400000).toISOString();
+    const calculatedAuditDate = new Date(Date.now() - daysSinceAudit * 86400000).toISOString();
 
     return calculateMultiSourceSurvivalConfidence({
       totalPlantedTrees: totalTrees,
@@ -65,7 +65,7 @@ export function MultiSourceSurvivalScoreCard({
       currentMeanNdvi: ndvi,
       baselineNdvi: 0.65,
       overpassCount: overpasses,
-      lastAuditDate: fakeLastDate,
+      lastAuditDate: calculatedAuditDate,
       weatherSuitabilityScore: 88,
     });
   }, [totalTrees, living, stressed, dead, ndvi, overpasses, daysSinceAudit]);

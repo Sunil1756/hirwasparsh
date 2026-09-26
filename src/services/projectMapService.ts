@@ -714,3 +714,14 @@ export async function fetchProjectMapData(
     };
   }
 }
+
+export const projectMapService = {
+  getProjectMapData: fetchProjectMapData,
+  fetchProjectMapData,
+  getSyntheticProjectMapData,
+  getProjectById: (projectId: string): ProjectMapFeature | undefined => {
+    const list = getSyntheticProjectMapData();
+    return list.find((p) => p.id === projectId);
+  },
+};
+
