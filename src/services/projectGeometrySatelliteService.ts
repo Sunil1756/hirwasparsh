@@ -124,7 +124,16 @@ export class ProjectGeometrySatelliteService {
       return [18.5204, 73.8567];
     }
 
-    const outerRing = rings[0];
+    let outerRing = rings[0];
+    // If closed polygon (first == last), ignore the duplicate closing point
+    if (
+      outerRing.length > 3 &&
+      outerRing[0][0] === outerRing[outerRing.length - 1][0] &&
+      outerRing[0][1] === outerRing[outerRing.length - 1][1]
+    ) {
+      outerRing = outerRing.slice(0, outerRing.length - 1);
+    }
+
     let sumLat = 0;
     let sumLng = 0;
 

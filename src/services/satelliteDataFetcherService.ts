@@ -195,7 +195,7 @@ export class SatelliteDataFetcherService {
 
     // Try Primary: Element84 Earth Search AWS STAC
     try {
-      const items = await this.executeStacRequest(this.earthSearchStacUrl, payload, 3500);
+      const items = await this.executeStacRequest(this.earthSearchStacUrl, payload, 8000);
       if (items.length > 0) {
         return items;
       }
@@ -209,7 +209,7 @@ export class SatelliteDataFetcherService {
         ...payload,
         collections: ["sentinel-2-l2a"],
       };
-      const items = await this.executeStacRequest(this.planetaryComputerStacUrl, pcPayload, 3500);
+      const items = await this.executeStacRequest(this.planetaryComputerStacUrl, pcPayload, 8000);
       if (items.length > 0) {
         return items;
       }
@@ -223,23 +223,32 @@ export class SatelliteDataFetcherService {
   private async executeStacRequest(
     url: string,
     payload: any,
-    timeoutMs: number = 3000
+    timeoutMs: number = 8000
   ): Promise<STACItem[]> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let signal: any = undefined;
+    if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+      try {
+        signal = AbortSignal.timeout(timeoutMs);
+      } catch (e) {
+        // Fallback
+      }
+    }
 
     try {
-      const res = await fetch(url, {
+      const fetchOptions: RequestInit = {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/geo+json, application/json",
         },
         body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
+      };
 
-      clearTimeout(timer);
+      if (signal) {
+        fetchOptions.signal = signal;
+      }
+
+      const res = await fetch(url, fetchOptions);
 
       if (!res.ok) {
         throw new Error(`STAC endpoint ${url} returned status ${res.status}`);
@@ -248,7 +257,6 @@ export class SatelliteDataFetcherService {
       const json = await res.json();
       return (json.features || []) as STACItem[];
     } catch (err) {
-      clearTimeout(timer);
       throw err;
     }
   }
@@ -285,11 +293,21 @@ export class SatelliteDataFetcherService {
       url.searchParams.set("timezone", "auto");
       url.searchParams.set("forecast_days", "1");
 
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 3000);
+      let signal: any = undefined;
+      if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+        try {
+          signal = AbortSignal.timeout(6000);
+        } catch (e) {
+          // Fallback
+        }
+      }
 
-      const res = await fetch(url.toString(), { signal: controller.signal });
-      clearTimeout(timer);
+      const fetchOptions: RequestInit = {};
+      if (signal) {
+        fetchOptions.signal = signal;
+      }
+
+      const res = await fetch(url.toString(), fetchOptions);
 
       if (res.ok) {
         const json = await res.json();

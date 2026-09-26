@@ -114,7 +114,7 @@ describe("PHASE 10 TASK 54 — Project Geometry & Cadastral Boundary Remote Sens
       // Agro-Climatic correlation
       expect(telemetry.agroWeather).toBeDefined();
       expect(telemetry.agroWeather.soilMoisture0to7cmPct).toBeGreaterThan(0);
-    });
+    }, 25000);
 
     it("computes 12-month historical NDVI and carbon accrual trajectory for project boundary", async () => {
       const trajectory = await service.fetchProjectNdviTrajectory("proj-sahayadri", 12);
