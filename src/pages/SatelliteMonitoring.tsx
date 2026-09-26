@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Satellite, MapPin, TreePine, AlertTriangle, Loader2, Layers, Filter, Compass, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Popup, Polygon, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet.heat";
@@ -20,6 +20,8 @@ import { GeminiApiKeyModal } from "@/components/GeminiApiKeyModal";
 import { DataSourceAuditView } from "@/components/DataSourceAuditView";
 import { MultiSourceSurvivalScoreCard } from "@/components/MultiSourceSurvivalScoreCard";
 import { PredictiveRiskAlertsConsole } from "@/components/PredictiveRiskAlertsConsole";
+import { ProjectSatelliteBoundaryHUD } from "@/components/gis/ProjectSatelliteBoundaryHUD";
+import { projectMapService, ProjectMapFeature } from "@/services/projectMapService";
 import { getNdviColor } from "@/lib/remoteSensing";
 
 // Maharashtra center and bounds
@@ -79,6 +81,7 @@ const MapController = ({ center }: { center: [number, number] }) => {
 
 const SatelliteMonitoring = () => {
   const [districtFilter, setDistrictFilter] = useState("all");
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"markers" | "heatmap">("markers");
   const [spectralLayer, setSpectralLayer] = useState<"rgb" | "ndvi" | "ndre" | "ndwi">("ndvi");
   const [mapCenter, setMapCenter] = useState<[number, number]>(MH_CENTER);
@@ -95,6 +98,23 @@ const SatelliteMonitoring = () => {
       return data;
     },
   });
+
+  const { data: projectMapData } = useQuery({
+    queryKey: ["satellite-project-map-data"],
+    queryFn: () => projectMapService.getProjectMapData(),
+  });
+
+  const selectedProject = projectMapData?.projects.find((p) => p.id === selectedProjectId) || null;
+
+  const handleProjectSelect = (projId: string) => {
+    setSelectedProjectId(projId);
+    if (projId !== "all") {
+      const targetProj = projectMapData?.projects.find((p) => p.id === projId);
+      if (targetProj && targetProj.centroid) {
+        setMapCenter(targetProj.centroid);
+      }
+    }
+  };
 
   const handleDistrictChange = (dist: string) => {
     setDistrictFilter(dist);
@@ -146,7 +166,7 @@ const SatelliteMonitoring = () => {
                 </h1>
               </div>
               <p className="text-sm text-muted-foreground">
-                High-resolution satellite telemetry, spectral NDVI canopy analysis, and microclimate intelligence (inspired by Map My Crop).
+                High-resolution Sentinel-2 Level-2A STAC telemetry, cadastral boundary spectral analysis, and Open-Meteo microclimate feeds.
               </p>
             </div>
 
@@ -163,6 +183,22 @@ const SatelliteMonitoring = () => {
 
           {/* Map Controls */}
           <div className="flex flex-wrap items-center gap-3 mb-6">
+            {/* Project Cadastral Boundary Filter */}
+            <Select value={selectedProjectId} onValueChange={handleProjectSelect}>
+              <SelectTrigger className="w-64 rounded-xl border-primary/30 bg-primary/5">
+                <TreePine className="h-4 w-4 mr-2 text-primary" />
+                <SelectValue placeholder="Select Project Boundary" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Institutional Projects</SelectItem>
+                {projectMapData?.projects.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name} ({p.actualAreaHectares || p.targetAreaHectares} ha)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Select value={districtFilter} onValueChange={handleDistrictChange}>
               <SelectTrigger className="w-52 rounded-xl">
                 <Filter className="h-4 w-4 mr-2 text-primary" />
@@ -266,9 +302,38 @@ const SatelliteMonitoring = () => {
                     );
                   })
                 )}
+                {/* Render Selected Project Polygon Boundaries on Leaflet */}
+                {selectedProject && selectedProject.boundaries && selectedProject.boundaries.map((b) => (
+                  <Polygon
+                    key={b.id}
+                    positions={b.coordinates}
+                    pathOptions={{
+                      color: "#10b981",
+                      fillColor: "#10b981",
+                      fillOpacity: 0.25,
+                      weight: 2.5,
+                      dashArray: "4 4",
+                    }}
+                  >
+                    <Popup>
+                      <div className="text-xs space-y-1">
+                        <strong className="text-foreground">{selectedProject.name}</strong>
+                        <div className="text-muted-foreground">{b.boundaryName} ({b.areaHectares} ha)</div>
+                        <div className="font-mono text-emerald-600 font-bold">Sentinel-2 Ingestion Active</div>
+                      </div>
+                    </Popup>
+                  </Polygon>
+                ))}
               </MapContainer>
             )}
           </div>
+
+          {/* Project Satellite Boundary HUD (Live STAC & Microclimate) */}
+          {selectedProject && (
+            <div className="mb-8">
+              <ProjectSatelliteBoundaryHUD project={selectedProject} />
+            </div>
+          )}
 
           {/* Map My Crop Advanced Modules Grid */}
           <div className="grid lg:grid-cols-2 gap-6 mb-8">

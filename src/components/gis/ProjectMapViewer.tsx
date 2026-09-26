@@ -20,6 +20,7 @@ import {
   Sparkles,
   X,
   Maximize2,
+  Satellite,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
@@ -30,6 +31,7 @@ import {
   getBoundaryStyle,
   getProjectMarkerHtml,
 } from "@/services/projectMapService";
+import { ProjectSatelliteBoundaryHUD } from "@/components/gis/ProjectSatelliteBoundaryHUD";
 import { GisMapContainer } from "@/components/gis/GisMapContainer";
 import {
   BasemapProviderId,
@@ -110,6 +112,7 @@ export const ProjectMapViewer: React.FC<ProjectMapViewerProps> = ({
     initialProjectId || null
   );
   const [selectedCompartmentId, setSelectedCompartmentId] = useState<string | null>(null);
+  const [isSatelliteHudOpen, setIsSatelliteHudOpen] = useState(false);
 
   // Layer Visibility Toggles
   const [showPlantingZones, setShowPlantingZones] = useState(true);
@@ -634,6 +637,14 @@ export const ProjectMapViewer: React.FC<ProjectMapViewerProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsSatelliteHudOpen(true)}
+                    className="h-8 text-xs font-semibold gap-1.5 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
+                  >
+                    <Satellite className="h-3.5 w-3.5" /> Satellite STAC
+                  </Button>
                   <Link to={`/projects/${selectedProject.id}`}>
                     <Button size="sm" className="h-8 text-xs font-semibold gap-1.5">
                       Open Project <ExternalLink className="h-3 w-3" />
@@ -649,6 +660,23 @@ export const ProjectMapViewer: React.FC<ProjectMapViewerProps> = ({
                   </Button>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Project Satellite Boundary HUD Modal */}
+        {selectedProject && isSatelliteHudOpen && (
+          <div className="fixed inset-0 z-[2000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto relative animate-in fade-in zoom-in-95 duration-200">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsSatelliteHudOpen(false)}
+                className="absolute right-4 top-4 z-10 text-white hover:bg-white/10"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              <ProjectSatelliteBoundaryHUD project={selectedProject} />
             </div>
           </div>
         )}
