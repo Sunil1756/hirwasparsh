@@ -33,6 +33,7 @@ import {
   SftTrainingJob,
   SftTrainingHyperparameters,
 } from "../../services/aiModelTrainingAndSubscriptionService";
+import { EnterpriseAiCheckoutModal } from "./EnterpriseAiCheckoutModal";
 
 interface AiModelTrainingAndSubscriptionHUDProps {
   className?: string;
@@ -65,6 +66,7 @@ export const AiModelTrainingAndSubscriptionHUD: React.FC<AiModelTrainingAndSubsc
   // Notification / Receipt message state
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<boolean>(false);
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState<boolean>(false);
 
   const handleSwitchPlan = (planId: string) => {
     const updated = aiModelTrainingAndSubscriptionService.updateSubscriptionPlan(planId, subscriptionState.billingCycle);
@@ -141,6 +143,15 @@ export const AiModelTrainingAndSubscriptionHUD: React.FC<AiModelTrainingAndSubsc
 
         {/* Global Action / Status Pills */}
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsCheckoutModalOpen(true)}
+            data-testid="open-checkout-modal-header-btn"
+            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-lg shadow-emerald-950/60 flex items-center gap-1.5 transition-all"
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Buy Advanced Version ($299/mo)</span>
+          </button>
+
           <span className="px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-mono text-emerald-400 flex items-center gap-1.5">
             <Zap className="w-3.5 h-3.5 text-amber-400" />
             Credit: ${subscriptionState.tokenCreditBalanceUsd.toFixed(2)} USD
@@ -641,6 +652,16 @@ export const AiModelTrainingAndSubscriptionHUD: React.FC<AiModelTrainingAndSubsc
           </div>
         </div>
       )}
+
+      {/* Enterprise Checkout & Instant Activation Modal */}
+      <EnterpriseAiCheckoutModal
+        isOpen={isCheckoutModalOpen}
+        onClose={() => setIsCheckoutModalOpen(false)}
+        onSuccess={(result) => {
+          setSubscriptionState(aiModelTrainingAndSubscriptionService.getCurrentSubscriptionState());
+          setNotificationMsg(`Enterprise AI Activated! License: ${result.licenseKey}`);
+        }}
+      />
     </div>
   );
 };
