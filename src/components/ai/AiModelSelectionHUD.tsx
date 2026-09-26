@@ -17,10 +17,14 @@ import {
   ArrowRight,
   Database,
   Sliders,
+  Award,
+  Flame,
 } from "lucide-react";
 import {
   aiModelSelectionService,
   DomainModelSelectionPackage,
+  AiModelTier,
+  CustomModelBlueprint,
 } from "../../services/aiModelSelectionService";
 import { AiApplicationDomain } from "../../services/aiRequirementsService";
 
@@ -31,12 +35,15 @@ interface AiModelSelectionHUDProps {
 export const AiModelSelectionHUD: React.FC<AiModelSelectionHUDProps> = ({ className = "" }) => {
   const matrix = aiModelSelectionService.getModelSelectionMatrix();
   const summary = aiModelSelectionService.getArchitecturalDecisionSummary();
+  const customBlueprint: CustomModelBlueprint = aiModelSelectionService.getCustomModelBlueprint();
 
   const [activeTab, setActiveTab] = useState<AiApplicationDomain>("species_assistance");
+  const [selectedTier, setSelectedTier] = useState<AiModelTier>("standard_flash");
   const [isOfflineSimulated, setIsOfflineSimulated] = useState<boolean>(false);
+  const [showCustomBlueprint, setShowCustomBlueprint] = useState<boolean>(false);
 
   const activePackage: DomainModelSelectionPackage = matrix[activeTab];
-  const routingPlan = aiModelSelectionService.routeInference(activeTab, isOfflineSimulated);
+  const routingPlan = aiModelSelectionService.routeInference(activeTab, isOfflineSimulated, selectedTier);
 
   return (
     <div
@@ -72,23 +79,151 @@ export const AiModelSelectionHUD: React.FC<AiModelSelectionHUDProps> = ({ classN
         </div>
       </div>
 
-      {/* 2. CUSTOM TRAINING DECISION GATE SUMMARY CALLOUT */}
-      <div
-        className="p-4 bg-indigo-950/30 border-b border-indigo-500/30 flex items-start gap-3 text-xs text-indigo-200"
-        data-testid="custom-training-gate-banner"
-      >
-        <Scale className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
-        <div className="space-y-1">
-          <strong className="text-white block text-sm font-semibold">
-            Custom Training Decision Gate Assessment:
-          </strong>
-          <p className="leading-relaxed opacity-90">
-            {summary.customTrainingGateConclusion}
-          </p>
+      {/* 2. THREE-TIER MODEL UPGRADE & STRATEGY SELECTOR */}
+      <div className="p-4 bg-slate-950 border-b border-slate-800 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs font-semibold text-white flex items-center gap-1.5">
+            <Sliders className="w-3.5 h-3.5 text-indigo-400" />
+            Active AI Intelligence Tier (Upgrade / Model Strategy):
+          </span>
+          <button
+            onClick={() => setShowCustomBlueprint(!showCustomBlueprint)}
+            data-testid="toggle-blueprint-btn"
+            className="text-xs font-mono text-purple-400 hover:text-purple-300 flex items-center gap-1 underline underline-offset-2"
+          >
+            <Brain className="w-3.5 h-3.5" />
+            {showCustomBlueprint ? "Hide Custom Model Blueprint" : "View Custom Model Fine-Tuning Blueprint"}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Tier 1: Standard Flash */}
+          <button
+            onClick={() => setSelectedTier("standard_flash")}
+            data-testid="tier-standard-btn"
+            className={`p-3 rounded-xl text-left border transition-all ${
+              selectedTier === "standard_flash"
+                ? "bg-indigo-950/60 border-indigo-400 text-white shadow-lg shadow-indigo-950/50"
+                : "bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <div className="flex justify-between items-center text-xs mb-1">
+              <strong className="font-bold flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5 text-amber-400" /> Standard Tier
+              </strong>
+              <span className="text-[10px] font-mono text-emerald-400">$0.15 / 1k</span>
+            </div>
+            <p className="text-[11px] text-slate-400 line-clamp-2">
+              Google Gemini 2.5 Flash + Edge WASM algorithms. Ultra-fast, highly cost-effective for 95% of field workflows.
+            </p>
+          </button>
+
+          {/* Tier 2: Advanced Pro (Paid Premium) */}
+          <button
+            onClick={() => setSelectedTier("advanced_pro")}
+            data-testid="tier-pro-btn"
+            className={`p-3 rounded-xl text-left border transition-all ${
+              selectedTier === "advanced_pro"
+                ? "bg-purple-950/60 border-purple-400 text-white shadow-lg shadow-purple-950/50"
+                : "bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <div className="flex justify-between items-center text-xs mb-1">
+              <strong className="font-bold flex items-center gap-1.5 text-purple-300">
+                <Award className="w-3.5 h-3.5 text-purple-400" /> Advanced Pro (Paid)
+              </strong>
+              <span className="text-[10px] font-mono text-purple-400">$1.25 / 1k</span>
+            </div>
+            <p className="text-[11px] text-slate-400 line-clamp-2">
+              Google Gemini 2.5 Pro with Deep Reasoning & Thinking Mode. Microscopic pathology, hybrid dispute resolution, and Verra audits.
+            </p>
+          </button>
+
+          {/* Tier 3: Custom Green Enlightenment */}
+          <button
+            onClick={() => setSelectedTier("custom_green_enlightenment")}
+            data-testid="tier-custom-btn"
+            className={`p-3 rounded-xl text-left border transition-all ${
+              selectedTier === "custom_green_enlightenment"
+                ? "bg-emerald-950/60 border-emerald-400 text-white shadow-lg shadow-emerald-950/50"
+                : "bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <div className="flex justify-between items-center text-xs mb-1">
+              <strong className="font-bold flex items-center gap-1.5 text-emerald-300">
+                <Brain className="w-3.5 h-3.5 text-emerald-400" /> Custom GE-BioVision
+              </strong>
+              <span className="text-[10px] font-mono text-emerald-400">Proprietary</span>
+            </div>
+            <p className="text-[11px] text-slate-400 line-clamp-2">
+              Supervised Fine-Tuned (SFT) on Vertex AI with BioCLIP contrastive temporal tree re-ID over 5-year growth epochs.
+            </p>
+          </button>
         </div>
       </div>
 
-      {/* 3. DOMAIN NAVIGATION TABS */}
+      {/* 3. CUSTOM MODEL BLUEPRINT CARD (WHEN ACTIVE OR TOGGLED) */}
+      {(showCustomBlueprint || selectedTier === "custom_green_enlightenment") && (
+        <div className="p-4 sm:p-6 bg-gradient-to-b from-purple-950/30 to-slate-950 border-b border-purple-500/30 space-y-4" data-testid="custom-blueprint-card">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px] font-mono font-bold">
+                  {customBlueprint.codename}
+                </span>
+                <h3 className="text-base font-bold text-white">
+                  {customBlueprint.modelName} — Fine-Tuning Specification & Blueprint
+                </h3>
+              </div>
+              <p className="text-xs text-slate-300 mt-1">
+                Base Architecture: <span className="font-mono text-purple-300">{customBlueprint.baseArchitecture}</span>
+              </p>
+            </div>
+
+            <div className="flex gap-2 text-xs font-mono">
+              <div className="px-3 py-1 rounded-lg bg-slate-900 border border-slate-700">
+                <span className="text-slate-400">Compute Cost: </span>
+                <strong className="text-emerald-400">~${customBlueprint.estimatedTrainingComputeCostUsd}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-4 text-xs">
+            <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1.5">
+              <strong className="text-purple-300 block font-semibold">Specialized Objectives:</strong>
+              <ul className="space-y-1 text-[11px] text-slate-400 list-disc list-inside">
+                {customBlueprint.specializedObjectives.map((obj, i) => (
+                  <li key={i} className="text-slate-300">{obj}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1.5">
+              <strong className="text-purple-300 block font-semibold">Dataset & Training Architecture:</strong>
+              <div className="space-y-1 text-[11px] text-slate-300 font-mono">
+                <div>Sample Count: <span className="text-emerald-400">{customBlueprint.datasetRequirements.minimumSampleCount.toLocaleString()} photos</span></div>
+                <div>Taxa Classes: <span className="text-cyan-400">{customBlueprint.datasetRequirements.classesCovered} Western Ghats species</span></div>
+                <div>Synthetic Ratio: <span className="text-amber-400">{customBlueprint.datasetRequirements.syntheticAugmentationRatio}</span></div>
+                <div>Infra: <span className="text-slate-400 font-sans">{customBlueprint.trainingInfrastructure}</span></div>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1.5">
+              <strong className="text-purple-300 block font-semibold">Loss Functions & Audit Trail:</strong>
+              <div className="space-y-1 text-[11px] text-slate-300">
+                {customBlueprint.lossFunctions.map((lf, i) => (
+                  <div key={i} className="font-mono text-indigo-300 text-[10px]">• {lf}</div>
+                ))}
+                <div className="pt-2 border-t border-slate-800 text-[10px] text-slate-400 font-mono">
+                  {customBlueprint.carbonAuditCompliance}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. DOMAIN NAVIGATION TABS */}
       <div className="p-2 border-b border-slate-800 bg-slate-950/60 overflow-x-auto">
         <div className="flex items-center gap-2 min-w-max">
           <button
@@ -158,7 +293,7 @@ export const AiModelSelectionHUD: React.FC<AiModelSelectionHUDProps> = ({ classN
         </div>
       </div>
 
-      {/* 4. DOMAIN SPECIFIC SELECTION CARD */}
+      {/* 5. DOMAIN SPECIFIC SELECTION CARD */}
       <div className="p-4 sm:p-6 space-y-6">
         {/* Domain Rationale Banner */}
         <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
@@ -324,7 +459,7 @@ export const AiModelSelectionHUD: React.FC<AiModelSelectionHUDProps> = ({ classN
         </div>
       </div>
 
-      {/* 5. INTERACTIVE LIVE INFERENCE ROUTING SIMULATOR */}
+      {/* 6. INTERACTIVE LIVE INFERENCE ROUTING SIMULATOR */}
       <div className="p-4 sm:p-6 border-t border-slate-800 bg-slate-950/80 space-y-4" data-testid="routing-simulator">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -379,7 +514,7 @@ export const AiModelSelectionHUD: React.FC<AiModelSelectionHUDProps> = ({ classN
         </div>
       </div>
 
-      {/* 6. FOOTER COMPLIANCE LINK */}
+      {/* 7. FOOTER COMPLIANCE LINK */}
       <div className="p-4 border-t border-slate-800 bg-slate-950/60 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-indigo-400" />

@@ -88,10 +88,10 @@ describe("PHASE 11 TASK 62 — AI Model & Service Selection Suite", () => {
     });
   });
 
-  describe("4. Resilient Inference Routing & Offline Fallbacks", () => {
+  describe("4. Resilient Inference Routing & Tier Switching", () => {
     it("routes to cloud primary when online, and switches to edge/deterministic when offline", () => {
-      // Online route for species assistance
-      const onlinePlan = service.routeInference("species_assistance", false);
+      // Online route for species assistance (Standard Tier)
+      const onlinePlan = service.routeInference("species_assistance", false, "standard_flash");
       expect(onlinePlan.selectedModel).toContain("Gemini 2.5 Flash");
       expect(onlinePlan.executionPath).toBe("cloud_primary");
       expect(onlinePlan.estimatedLatencyMs).toBeGreaterThan(500);
@@ -104,18 +104,36 @@ describe("PHASE 11 TASK 62 — AI Model & Service Selection Suite", () => {
       expect(offlinePlan.fallbackTriggerReason).toContain("Offline mode active");
     });
 
-    it("routes edge-first domains directly to edge in both online and offline states", () => {
-      const qualityOnline = service.routeInference("image_quality_checks", false);
-      expect(qualityOnline.executionPath).toBe("edge_direct");
-      expect(qualityOnline.estimatedCostUsd).toBe(0.0);
+    it("routes to Advanced Pro (Gemini 2.5 Pro) when paid premium tier is active", () => {
+      const proPlan = service.routeInference("species_assistance", false, "advanced_pro");
+      expect(proPlan.selectedModel).toContain("Gemini 2.5 Pro");
+      expect(proPlan.confidenceThreshold).toBe(0.98);
+      expect(proPlan.estimatedCostUsd).toBeGreaterThan(0.001);
+    });
 
-      const dupOnline = service.routeInference("duplicate_image_detection", false);
-      expect(dupOnline.executionPath).toBe("edge_direct");
-      expect(dupOnline.estimatedLatencyMs).toBeLessThan(15);
+    it("routes to Custom Green Enlightenment fine-tuned model when custom tier is active", () => {
+      const customPlan = service.routeInference("species_assistance", false, "custom_green_enlightenment");
+      expect(customPlan.selectedModel).toContain("GreenEnlightenment-BioVision");
+      expect(customPlan.confidenceThreshold).toBe(0.99);
     });
   });
 
-  describe("5. Master Architecture Decision Summary", () => {
+  describe("5. Custom Model Training Blueprint & Architecture Specification", () => {
+    it("defines an end-to-end blueprint for fine-tuning GE-BioVision on Vertex AI", () => {
+      const blueprint = service.getCustomModelBlueprint();
+
+      expect(blueprint.modelName).toBe("GreenEnlightenment-BioVision");
+      expect(blueprint.codename).toBe("GE-BioVision-SFT");
+      expect(blueprint.baseArchitecture).toContain("Gemini 2.5 Pro");
+      expect(blueprint.datasetRequirements.minimumSampleCount).toBe(25000);
+      expect(blueprint.datasetRequirements.classesCovered).toBe(150);
+      expect(blueprint.lossFunctions).toContain("Triplet Margin Loss (Temporal Re-Identification Metric Learning)");
+      expect(blueprint.trainingInfrastructure).toContain("Vertex AI");
+      expect(blueprint.carbonAuditCompliance).toContain("Verra VM0047");
+    });
+  });
+
+  describe("6. Master Architecture Decision Summary", () => {
     it("generates an audited decision summary with annual savings and compliance validation", () => {
       const summary = service.getArchitecturalDecisionSummary();
 

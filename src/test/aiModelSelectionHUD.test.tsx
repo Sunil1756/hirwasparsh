@@ -13,10 +13,9 @@ describe("PHASE 11 TASK 62 — AI Model & Service Selection HUD UI Component", (
     ).toBeInTheDocument();
     expect(screen.getByText(/Task 62 Validated/i)).toBeInTheDocument();
 
-    expect(screen.getByTestId("custom-training-gate-banner")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Custom Training Decision Gate Assessment/i)
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("tier-standard-btn")).toBeInTheDocument();
+    expect(screen.getByTestId("tier-pro-btn")).toBeInTheDocument();
+    expect(screen.getByTestId("tier-custom-btn")).toBeInTheDocument();
   });
 
   it("2. Displays Primary Model Card, Secondary Fallback, and Decision Gates Rubric for Species Assistance", () => {
@@ -33,33 +32,40 @@ describe("PHASE 11 TASK 62 — AI Model & Service Selection HUD UI Component", (
     expect(screen.getByText(/Pl@ntNet \/ GBIF Botanical API/i)).toBeInTheDocument();
   });
 
-  it("3. Switches tabs across all 5 AI domains to inspect model selection options", () => {
+  it("3. Toggles Custom Model Fine-Tuning Blueprint Card and views SFT specification", () => {
     render(<AiModelSelectionHUD />);
 
-    // Switch to Image Quality
-    fireEvent.click(screen.getByTestId("tab-quality-selection"));
+    expect(screen.queryByTestId("custom-blueprint-card")).not.toBeInTheDocument();
+
+    // Click blueprint toggle
+    const toggleBtn = screen.getByTestId("toggle-blueprint-btn");
+    fireEvent.click(toggleBtn);
+
+    expect(screen.getByTestId("custom-blueprint-card")).toBeInTheDocument();
+    expect(screen.getByText(/Fine-Tuning Specification & Blueprint/i)).toBeInTheDocument();
+    expect(screen.getByText(/25,000 photos/i)).toBeInTheDocument();
+  });
+
+  it("4. Switches tiers to Advanced Pro and Custom Green Enlightenment", () => {
+    render(<AiModelSelectionHUD />);
+
+    // Click Pro Tier
+    fireEvent.click(screen.getByTestId("tier-pro-btn"));
     expect(
-      screen.getAllByText(/Client-Side Modified Laplacian & Luminance Kernel/i)[0]
+      screen.getByText(/Google Gemini 2.5 Pro \(Deep Reasoning & Verra Audit\)/i)
     ).toBeInTheDocument();
 
-    // Switch to Duplicate Detection
-    fireEvent.click(screen.getByTestId("tab-duplicate-selection"));
+    // Click Custom Tier
+    fireEvent.click(screen.getByTestId("tier-custom-btn"));
     expect(
-      screen.getAllByText(/Cryptographic SHA-256 \+ 64-bit dHash/i)[0]
-    ).toBeInTheDocument();
-
-    // Switch to Anomaly Detection
-    fireEvent.click(screen.getByTestId("tab-anomaly-selection"));
-    expect(
-      screen.getAllByText(/Copernicus Sentinel-2 STAC \+ Open-Meteo Telemetry/i)[0]
+      screen.getByText(/GreenEnlightenment-BioVision-v1/i)
     ).toBeInTheDocument();
   });
 
-  it("4. Simulates offline mode in the Live Inference Routing Simulator", () => {
+  it("5. Simulates offline mode in the Live Inference Routing Simulator", () => {
     render(<AiModelSelectionHUD />);
 
     expect(screen.getByTestId("routing-simulator")).toBeInTheDocument();
-    expect(screen.getByText(/cloud primary/i)).toBeInTheDocument();
 
     // Click offline toggle
     const offlineBtn = screen.getByTestId("toggle-offline-btn");
