@@ -22,6 +22,7 @@ import { MultiSourceSurvivalScoreCard } from "@/components/MultiSourceSurvivalSc
 import { PredictiveRiskAlertsConsole } from "@/components/PredictiveRiskAlertsConsole";
 import { ProjectSatelliteBoundaryHUD } from "@/components/gis/ProjectSatelliteBoundaryHUD";
 import { SatelliteDataIngestionConsole } from "@/components/gis/SatelliteDataIngestionConsole";
+import { SatellitePreProcessingHUD } from "@/components/gis/SatellitePreProcessingHUD";
 import { projectMapService, ProjectMapFeature } from "@/services/projectMapService";
 import { getNdviColor } from "@/lib/remoteSensing";
 
@@ -329,9 +330,10 @@ const SatelliteMonitoring = () => {
             )}
           </div>
 
-          {/* Project Satellite Boundary HUD & Ingestion Suite */}
+          {/* Project Satellite Boundary HUD, Ingestion & Pre-Processing Suite */}
           {selectedProject && (
             <div className="space-y-6 mb-8">
+              <SatellitePreProcessingHUD projectId={selectedProject.id} />
               <SatelliteDataIngestionConsole projectId={selectedProject.id} />
               <ProjectSatelliteBoundaryHUD project={selectedProject} />
             </div>
