@@ -42,15 +42,22 @@ jobs:
       - name: Typecheck TypeScript Codebase
         run: npx tsc --noEmit
 
+      - name: Verify Linux Case-Sensitive Imports
+        run: node scripts/verify-case-sensitive-imports.cjs
+
       - name: Run Full Vitest Test Suites
         run: npm test -- --run
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://hirwasparsh-project.supabase.co' }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholderKeyForClientSafeInit' }}
 
+      - name: Production Build Verification
+        run: npm run build
+
   deploy:
     name: Deploy to Vercel
     needs: quality-gate
+    if: ${{ secrets.VERCEL_TOKEN != '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
