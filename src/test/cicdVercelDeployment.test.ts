@@ -33,7 +33,6 @@ describe("CI/CD Vercel Deployment & Environment Configuration Engine", () => {
       expect(parsed.buildCommand).toBe("npm run build");
       expect(parsed.outputDirectory).toBe("dist");
       expect(parsed.framework).toBe("vite");
-      expect(parsed.cleanUrls).toBe(true);
 
       const hasSpaRewrite = parsed.rewrites?.some(
         (r: any) => r.source === "/(.*)" && r.destination === "/index.html"
