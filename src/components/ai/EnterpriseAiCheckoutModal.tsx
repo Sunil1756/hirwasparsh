@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ShieldCheck,
   CreditCard,
@@ -18,6 +18,8 @@ import {
   Award,
   FileText,
   BadgePercent,
+  Settings,
+  Landmark,
 } from "lucide-react";
 import {
   aiPaymentAndActivationService,
@@ -26,6 +28,7 @@ import {
   EnterpriseActivationResult,
 } from "../../services/aiPaymentAndActivationService";
 import { aiModelTrainingAndSubscriptionService } from "../../services/aiModelTrainingAndSubscriptionService";
+import { realRazorpayPaymentService, CreatedOrder } from "../../services/realRazorpayPaymentService";
 
 interface EnterpriseAiCheckoutModalProps {
   isOpen: boolean;
@@ -41,12 +44,13 @@ export const EnterpriseAiCheckoutModal: React.FC<EnterpriseAiCheckoutModalProps>
   initialTier = "enterprise_dedicated_annual",
 }) => {
   const [selectedTier, setSelectedTier] = useState<EnterpriseTierSelection>(initialTier);
-  const [currency, setCurrency] = useState<"USD" | "INR">("USD");
-  const [gateway, setGateway] = useState<PaymentGatewayType>("credit_card");
+  const [currency, setCurrency] = useState<"USD" | "INR">("INR");
+  const [gateway, setGateway] = useState<PaymentGatewayType>("razorpay_upi");
 
   // Form fields
   const [billingName, setBillingName] = useState<string>("Dr. Sameer Patil");
   const [billingEmail, setBillingEmail] = useState<string>("sameer.patil@agroforestry-mrv.org");
+  const [billingPhone, setBillingPhone] = useState<string>("+91 98220 12345");
   const [organizationName, setOrganizationName] = useState<string>("Maharashtra Agroforestry Foundation");
   const [cardNumber, setCardNumber] = useState<string>("4242 •••• •••• 4242");
   const [cardExpiry, setCardExpiry] = useState<string>("08/29");
@@ -55,10 +59,18 @@ export const EnterpriseAiCheckoutModal: React.FC<EnterpriseAiCheckoutModalProps>
   const [poNumber, setPoNumber] = useState<string>("PO-2026-CSR-8812");
   const [gstNumber, setGstNumber] = useState<string>("27AAACH7409R1ZZ");
 
+  // Merchant Settlement Settings Drawer
+  const [showMerchantConfig, setShowMerchantConfig] = useState<boolean>(false);
+  const [merchantKeyId, setMerchantKeyId] = useState<string>("");
+
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [processingStage, setProcessingStage] = useState<string>("");
   const [activationResult, setActivationResult] = useState<EnterpriseActivationResult | null>(null);
   const [copiedKey, setCopiedKey] = useState<boolean>(false);
+
+  useEffect(() => {
+    setMerchantKeyId(realRazorpayPaymentService.getRazorpayKeyId());
+  }, []);
 
   if (!isOpen) return null;
 
@@ -68,43 +80,93 @@ export const EnterpriseAiCheckoutModal: React.FC<EnterpriseAiCheckoutModalProps>
   const gst = Math.round(price * 0.18 * 100) / 100;
   const total = Math.round((price + gst) * 100) / 100;
 
+  const handleSaveMerchantKey = () => {
+    realRazorpayPaymentService.setMerchantKeyId(merchantKeyId);
+    setShowMerchantConfig(false);
+  };
+
   const handleProcessPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
-    setProcessingStage("Connecting to Secure Payment Gateway...");
+    setProcessingStage("Creating Cryptographic Order on Razorpay Gateway...");
 
-    setTimeout(() => {
-      setProcessingStage("Authorizing Card / Bank Wire...");
-    }, 600);
+    // 1. Create Order via realRazorpayPaymentService
+    const planMapping =
+      selectedTier === "enterprise_dedicated_annual"
+        ? "csr_enterprise"
+        : selectedTier === "pro_botanical_annual"
+        ? "ngo_pro"
+        : "starter_pilot";
 
-    setTimeout(() => {
-      setProcessingStage("Provisioning Google Cloud Vertex AI TPU v5e Dedicated Endpoint...");
-    }, 1200);
+    const order = await realRazorpayPaymentService.createOrder(
+      planMapping,
+      "annual",
+      currency,
+      {
+        name: billingName,
+        email: billingEmail,
+        phone: billingPhone,
+        organizationName,
+        gstin: gstNumber,
+      },
+      gateway === "corporate_po" ? "corporate_po" : "razorpay"
+    );
 
-    setTimeout(async () => {
-      const result = await aiPaymentAndActivationService.processEnterpriseCheckout(
-        selectedTier,
-        {
-          gateway,
-          billingName,
-          billingEmail,
-          organizationName,
-          gstNumber,
-          upiId: gateway === "razorpay_upi" ? upiId : undefined,
-          poNumber: gateway === "corporate_po" ? poNumber : undefined,
-          cardLast4: "4242",
-          cardBrand: "Visa Enterprise",
-        },
-        currency
-      );
+    // 2. Handle Corporate PO Invoicing
+    if (gateway === "corporate_po") {
+      setProcessingStage("Generating Formal Corporate PO & Tax Invoice...");
+      const poResult = await realRazorpayPaymentService.processCorporatePoOrder(order, poNumber);
 
-      // Upgrade active subscription in global service
+      const mappedActivationResult: EnterpriseActivationResult = {
+        success: true,
+        transactionId: poResult.paymentId,
+        invoiceNumber: poResult.invoiceNumber,
+        tierActivated: selectedTier,
+        licenseKey: poResult.licenseKey,
+        dedicatedVertexEndpointUri: poResult.vertexEndpointUri || "",
+        verraComplianceCertificateNumber: `VERRA-VM0047-${Date.now()}`,
+        unlockedFeatures: currentTierObj.features,
+      };
+
       aiModelTrainingAndSubscriptionService.updateSubscriptionPlan("enterprise_dedicated", "annual");
-
       setIsProcessing(false);
-      setActivationResult(result);
-      if (onSuccess) onSuccess(result);
-    }, 1900);
+      setActivationResult(mappedActivationResult);
+      if (onSuccess) onSuccess(mappedActivationResult);
+      return;
+    }
+
+    // 3. Handle Razorpay Gateway Launch
+    setProcessingStage("Opening Secure Razorpay UPI / Card / NetBanking Gateway...");
+
+    await realRazorpayPaymentService.openRazorpayModal(
+      order,
+      (paymentResult) => {
+        const mappedResult: EnterpriseActivationResult = {
+          success: true,
+          transactionId: paymentResult.paymentId,
+          invoiceNumber: paymentResult.invoiceNumber,
+          tierActivated: selectedTier,
+          licenseKey: paymentResult.licenseKey,
+          dedicatedVertexEndpointUri: paymentResult.vertexEndpointUri || "",
+          verraComplianceCertificateNumber: `VERRA-VM0047-${Date.now()}`,
+          unlockedFeatures: currentTierObj?.features || [
+            "Copernicus Sentinel-2 L2A STAC Overpasses",
+            "Google Gemini 2.5 Botanical Vision AI",
+            "SEBI BRSR Principle 6 Environmental Export",
+            "IPCC Tier-2 Allometric Carbon Ledger",
+          ],
+        };
+
+        aiModelTrainingAndSubscriptionService.updateSubscriptionPlan("enterprise_dedicated", "annual");
+        setIsProcessing(false);
+        setActivationResult(mappedResult);
+        if (onSuccess) onSuccess(mappedResult);
+      },
+      (err) => {
+        console.error("Payment error:", err);
+        setIsProcessing(false);
+      }
+    );
   };
 
   const handleCopyKey = () => {
@@ -135,24 +197,72 @@ export const EnterpriseAiCheckoutModal: React.FC<EnterpriseAiCheckoutModalProps>
           <div>
             {/* Header */}
             <div className="p-6 bg-gradient-to-r from-slate-900 via-emerald-950/60 to-slate-900 border-b border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-inner">
-                  <ShieldCheck className="w-6 h-6" />
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-inner">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xl font-bold text-white">
+                        Upgrade to Advanced Enterprise AI Model
+                      </h2>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                        Live Gateway
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Direct Payout Settlement • Razorpay UPI / Cards / NetBanking • 18% GST Invoicing
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-xl font-bold text-white">
-                      Upgrade to Advanced Enterprise AI Model
-                    </h2>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                      Instant Activation
+
+                {/* Merchant Settings Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setShowMerchantConfig(!showMerchantConfig)}
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+                  title="Configure Razorpay Merchant Key ID & Bank Settlement"
+                >
+                  <Landmark className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Merchant Setup</span>
+                </button>
+              </div>
+
+              {/* Collapsible Merchant Config Drawer */}
+              {showMerchantConfig && (
+                <div className="mt-4 p-4 rounded-2xl bg-slate-950 border border-emerald-500/30 space-y-3 animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-emerald-400 flex items-center gap-1.5">
+                      <Landmark className="w-4 h-4" /> Razorpay Payout Settlement & Merchant Key
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      Funds auto-settle to your registered bank account
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Gemini 2.5 Pro Deep Reasoning • Dedicated Vertex AI TPU v5e Private Endpoint • Verra VM0047 Carbon MRV
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Paste your <strong>Razorpay Key ID</strong> from your Razorpay Dashboard (
+                    <code className="text-emerald-300">rzp_live_...</code> or <code className="text-emerald-300">rzp_test_...</code>
+                    ). All payments made through UPI, GPay, or Cards will flow directly to your business account.
                   </p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={merchantKeyId}
+                      onChange={(e) => setMerchantKeyId(e.target.value)}
+                      placeholder="rzp_live_your_key_id or rzp_test_your_key_id"
+                      className="flex-1 p-2 rounded-xl bg-slate-900 border border-slate-700 font-mono text-xs text-white focus:outline-none focus:border-emerald-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveMerchantKey}
+                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white transition-all shadow"
+                    >
+                      Save Key
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             <form onSubmit={handleProcessPayment} className="p-6 space-y-6">
@@ -160,18 +270,9 @@ export const EnterpriseAiCheckoutModal: React.FC<EnterpriseAiCheckoutModalProps>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                    1. Select Enterprise Edition:
+                    1. Select Subscription Plan:
                   </label>
                   <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-950 border border-slate-800 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setCurrency("USD")}
-                      className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
-                        currency === "USD" ? "bg-emerald-600 text-white" : "text-slate-400 hover:text-white"
-                      }`}
-                    >
-                      USD ($)
-                    </button>
                     <button
                       type="button"
                       onClick={() => setCurrency("INR")}
@@ -180,6 +281,15 @@ export const EnterpriseAiCheckoutModal: React.FC<EnterpriseAiCheckoutModalProps>
                       }`}
                     >
                       INR (₹)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCurrency("USD")}
+                      className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                        currency === "USD" ? "bg-emerald-600 text-white" : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      USD ($)
                     </button>
                   </div>
                 </div>
@@ -222,28 +332,28 @@ export const EnterpriseAiCheckoutModal: React.FC<EnterpriseAiCheckoutModalProps>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <button
                     type="button"
-                    onClick={() => setGateway("credit_card")}
-                    data-testid="gateway-cc-btn"
-                    className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
-                      gateway === "credit_card"
-                        ? "bg-indigo-950 border-indigo-400 text-white"
-                        : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
-                    }`}
-                  >
-                    <CreditCard className="w-4 h-4" /> Credit Card
-                  </button>
-
-                  <button
-                    type="button"
                     onClick={() => setGateway("razorpay_upi")}
                     data-testid="gateway-upi-btn"
                     className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
                       gateway === "razorpay_upi"
-                        ? "bg-indigo-950 border-indigo-400 text-white"
+                        ? "bg-emerald-950 border-emerald-400 text-white shadow-sm"
                         : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
                     }`}
                   >
-                    <QrCode className="w-4 h-4" /> UPI / QR
+                    <QrCode className="w-4 h-4 text-emerald-400" /> Razorpay UPI / QR
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setGateway("credit_card")}
+                    data-testid="gateway-cc-btn"
+                    className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                      gateway === "credit_card"
+                        ? "bg-emerald-950 border-emerald-400 text-white shadow-sm"
+                        : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    <CreditCard className="w-4 h-4 text-indigo-400" /> Credit / Debit Card
                   </button>
 
                   <button
@@ -252,11 +362,11 @@ export const EnterpriseAiCheckoutModal: React.FC<EnterpriseAiCheckoutModalProps>
                     data-testid="gateway-netbanking-btn"
                     className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
                       gateway === "netbanking"
-                        ? "bg-indigo-950 border-indigo-400 text-white"
+                        ? "bg-emerald-950 border-emerald-400 text-white shadow-sm"
                         : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
                     }`}
                   >
-                    <Building2 className="w-4 h-4" /> NetBanking
+                    <Building2 className="w-4 h-4 text-amber-400" /> NetBanking
                   </button>
 
                   <button
@@ -265,21 +375,41 @@ export const EnterpriseAiCheckoutModal: React.FC<EnterpriseAiCheckoutModalProps>
                     data-testid="gateway-po-btn"
                     className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
                       gateway === "corporate_po"
-                        ? "bg-indigo-950 border-indigo-400 text-white"
+                        ? "bg-emerald-950 border-emerald-400 text-white shadow-sm"
                         : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
                     }`}
                   >
-                    <FileText className="w-4 h-4" /> Corporate PO
+                    <FileText className="w-4 h-4 text-purple-400" /> Corporate PO
                   </button>
                 </div>
               </div>
 
               {/* Gateway-specific payment input fields */}
               <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3 text-xs">
+                {gateway === "razorpay_upi" && (
+                  <div className="space-y-2">
+                    <label className="text-slate-400 block mb-1">
+                      Virtual Payment Address (VPA / UPI ID) or Scan QR on next step:
+                    </label>
+                    <input
+                      type="text"
+                      value={upiId}
+                      onChange={(e) => setUpiId(e.target.value)}
+                      data-testid="input-upi-id"
+                      placeholder="username@okhdfcbank or 9876543210@paytm"
+                      className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:border-emerald-500 focus:outline-none"
+                    />
+                    <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Supports Google Pay, PhonePe, Paytm, BHIM UPI & Indian Banks.</span>
+                    </div>
+                  </div>
+                )}
+
                 {gateway === "credit_card" && (
                   <div className="space-y-3">
                     <div>
-                      <label className="text-slate-400 block mb-1">Card Number (Visa / Mastercard / Amex):</label>
+                      <label className="text-slate-400 block mb-1">Card Number (Visa / Mastercard / RuPay / Amex):</label>
                       <input
                         type="text"
                         value={cardNumber}
@@ -311,22 +441,6 @@ export const EnterpriseAiCheckoutModal: React.FC<EnterpriseAiCheckoutModalProps>
                   </div>
                 )}
 
-                {gateway === "razorpay_upi" && (
-                  <div>
-                    <label className="text-slate-400 block mb-1">Virtual Payment Address (VPA / UPI ID):</label>
-                    <input
-                      type="text"
-                      value={upiId}
-                      onChange={(e) => setUpiId(e.target.value)}
-                      data-testid="input-upi-id"
-                      className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:border-emerald-500 focus:outline-none"
-                    />
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      Works with Google Pay, PhonePe, Paytm, BHIM UPI & Indian Banks.
-                    </p>
-                  </div>
-                )}
-
                 {gateway === "corporate_po" && (
                   <div className="space-y-3">
                     <div>
@@ -340,7 +454,7 @@ export const EnterpriseAiCheckoutModal: React.FC<EnterpriseAiCheckoutModalProps>
                       />
                     </div>
                     <div>
-                      <label className="text-slate-400 block mb-1">Organization GSTIN (Optional):</label>
+                      <label className="text-slate-400 block mb-1">Organization GSTIN (for 18% Input Tax Credit):</label>
                       <input
                         type="text"
                         value={gstNumber}
@@ -365,7 +479,7 @@ export const EnterpriseAiCheckoutModal: React.FC<EnterpriseAiCheckoutModalProps>
                 )}
 
                 {/* Organization & Billing Details */}
-                <div className="grid sm:grid-cols-2 gap-3 pt-2 border-t border-slate-800">
+                <div className="grid sm:grid-cols-3 gap-3 pt-2 border-t border-slate-800">
                   <div>
                     <label className="text-slate-400 block mb-1">Authorized Billing Name:</label>
                     <input
@@ -376,11 +490,20 @@ export const EnterpriseAiCheckoutModal: React.FC<EnterpriseAiCheckoutModalProps>
                     />
                   </div>
                   <div>
-                    <label className="text-slate-400 block mb-1">Work Email (for License Delivery):</label>
+                    <label className="text-slate-400 block mb-1">Billing Work Email:</label>
                     <input
                       type="email"
                       value={billingEmail}
                       onChange={(e) => setBillingEmail(e.target.value)}
+                      className="w-full p-2 rounded-lg bg-slate-900 border border-slate-800 text-white focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-400 block mb-1">Mobile (for SMS Receipt):</label>
+                    <input
+                      type="text"
+                      value={billingPhone}
+                      onChange={(e) => setBillingPhone(e.target.value)}
                       className="w-full p-2 rounded-lg bg-slate-900 border border-slate-800 text-white focus:border-emerald-500 focus:outline-none"
                     />
                   </div>
@@ -411,7 +534,7 @@ export const EnterpriseAiCheckoutModal: React.FC<EnterpriseAiCheckoutModalProps>
                   ) : (
                     <>
                       <Lock className="w-4 h-4" />
-                      <span>Authorize & Activate Enterprise Model</span>
+                      <span>Pay & Activate Subscription</span>
                     </>
                   )}
                 </button>
@@ -431,7 +554,7 @@ export const EnterpriseAiCheckoutModal: React.FC<EnterpriseAiCheckoutModalProps>
                 Enterprise AI Model Activated Successfully!
               </h2>
               <p className="text-xs text-slate-400 max-w-md mx-auto">
-                Your dedicated Google Cloud Vertex AI TPU v5e Private Endpoint and Gemini 2.5 Pro Deep Reasoning Engine are live.
+                Payment captured successfully. Your MRV workspace and Gemini 2.5 Pro reasoning engine are active.
               </p>
             </div>
 
@@ -439,7 +562,7 @@ export const EnterpriseAiCheckoutModal: React.FC<EnterpriseAiCheckoutModalProps>
             <div className="p-5 rounded-2xl bg-slate-950 border border-emerald-500/40 space-y-4">
               <div className="flex justify-between items-center text-xs">
                 <span className="text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                  <Award className="w-4 h-4" /> Certified Enterprise License Key:
+                  <Award className="w-4 h-4" /> Certified License Key:
                 </span>
                 <span className="font-mono text-purple-300">{activationResult.transactionId}</span>
               </div>
@@ -476,7 +599,7 @@ export const EnterpriseAiCheckoutModal: React.FC<EnterpriseAiCheckoutModalProps>
                   Activated Sovereign AI Capabilities:
                 </span>
                 <div className="grid sm:grid-cols-2 gap-2 text-xs">
-                  {activationResult.unlockedFeatures.map((f, i) => (
+                  {(activationResult.unlockedFeatures || []).map((f, i) => (
                     <div key={i} className="flex items-center gap-2 text-slate-300">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                       <span className="text-[11px]">{f}</span>
