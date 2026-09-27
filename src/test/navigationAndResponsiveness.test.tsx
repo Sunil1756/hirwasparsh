@@ -95,6 +95,8 @@ describe("Navigation, RBAC Routing & Multi-Device Responsiveness Suite", () => {
       // Click mobile hamburger menu
       fireEvent.click(toggleButton);
       expect(screen.getByText("Main Menu")).toBeDefined();
+      expect(screen.getByText("Institutional & B2B Portals")).toBeDefined();
+      expect(screen.getByText("CSR Carbon & ESG Portal")).toBeDefined();
       expect(screen.getByText("Community & Features")).toBeDefined();
     });
   });
