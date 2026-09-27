@@ -15,7 +15,7 @@ import {
   FileText, Activity, Loader2, Plus, ArrowLeft, ArrowRight, Trash2, CheckCircle2,
   AlertCircle, Download, Sparkles, Navigation, Layers, Grid, Image as ImageIcon,
   Check, ArrowUpRight, Award, QrCode, TrendingUp, SlidersHorizontal, UserCheck,
-  Coins, Globe, Lock, LogIn
+  Coins, Globe, Lock, LogIn, TreePine, Calendar
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
