@@ -41,7 +41,7 @@ describe("PHASE 10 TASK 54 — Live Network Verification: Real Project Boundarie
     const hasNirAsset = Boolean(scene.assets?.nir?.href || scene.assets?.B08?.href || scene.assets?.nir08?.href);
     const hasRedAsset = Boolean(scene.assets?.red?.href || scene.assets?.B04?.href);
     expect(hasNirAsset || hasRedAsset).toBe(true);
-  });
+  }, 30000);
 
   it("2. LIVE NETWORK: Ingests real Open-Meteo Agro-Climatic telemetry for project centroid", async () => {
     const centroid = projectGeometrySatelliteService.computePolygonCentroid(sahayadriPolygon);
@@ -66,7 +66,7 @@ describe("PHASE 10 TASK 54 — Live Network Verification: Real Project Boundarie
     expect(telemetry.relativeHumidityPct).toBeGreaterThan(10);
     expect(telemetry.droughtStressScore).toBeGreaterThanOrEqual(0);
     expect(telemetry.droughtStressScore).toBeLessThanOrEqual(100);
-  });
+  }, 30000);
 
   it("3. INTEGRATION: Full end-to-end pipeline converts project boundary polygon into verified remote-sensing telemetry", async () => {
     const projectTelemetry = await projectGeometrySatelliteService.fetchProjectSatelliteTelemetry(
@@ -97,5 +97,5 @@ describe("PHASE 10 TASK 54 — Live Network Verification: Real Project Boundarie
 
     // Agro-weather attached
     expect(projectTelemetry.agroWeather.soilMoisture0to7cmPct).toBeGreaterThan(0);
-  });
+  }, 30000);
 });

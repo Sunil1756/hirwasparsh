@@ -41,15 +41,7 @@ const Navbar = () => {
     { to: "/contact", label: t.nav_contact },
   ];
 
-  const b2bLinks = [
-    { to: "/csr-portal", label: "CSR Carbon & ESG Portal" },
-    { to: "/ngo-workspace", label: "NGO Command Center" },
-    { to: "/pricing", label: "Institutional Pricing" },
-    { to: "/scouting", label: "Field Ground Scouting" },
-    { to: "/monitoring", label: "Surveillance & Monitoring" },
-  ];
-
-  const navLinks = [...primaryLinks, ...b2bLinks, ...communityLinks];
+  const navLinks = [...primaryLinks, ...communityLinks];
 
   const displayName = (user?.user_metadata?.full_name as string) || user?.email || "";
   const initials =
@@ -150,26 +142,6 @@ const Navbar = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="center" className="w-48 bg-popover z-[60]">
               {communityLinks.map((item) => (
-                <DropdownMenuItem key={item.to} asChild>
-                  <Link to={item.to} className="w-full cursor-pointer text-xs">
-                    {item.label}
-                  </Link>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Institutional / B2B Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-1 px-2 py-1.5 xl:px-3 xl:py-2 rounded-xl text-xs xl:text-[13px] 2xl:text-[14px] font-semibold whitespace-nowrap text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 transition-colors">
-                <span className="xl:hidden">MRV</span>
-                <span className="hidden xl:inline">Institutional MRV</span>
-                <ChevronDown className="h-3 w-3 xl:h-3.5 xl:w-3.5" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" className="w-56 bg-popover z-[60]">
-              {b2bLinks.map((item) => (
                 <DropdownMenuItem key={item.to} asChild>
                   <Link to={item.to} className="w-full cursor-pointer text-xs">
                     {item.label}
@@ -327,24 +299,6 @@ const Navbar = () => {
                   {location.pathname === link.to && (
                     <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                   )}
-                </Link>
-              ))}
-
-              <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 px-3 pt-3 pb-1">
-                Institutional & B2B Portals
-              </div>
-              {b2bLinks.map((link) => (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  onClick={() => setOpen(false)}
-                  className={`px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                    location.pathname === link.to
-                      ? "text-emerald-600 bg-emerald-500/15"
-                      : "text-foreground hover:text-emerald-600 hover:bg-emerald-500/5"
-                  }`}
-                >
-                  {link.label}
                 </Link>
               ))}
 
