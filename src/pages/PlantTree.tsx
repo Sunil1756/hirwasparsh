@@ -450,7 +450,7 @@ const PlantTree = () => {
           photo_hash: photoHash,
           phash: dhashFingerprint || null,
           health_status: "healthy",
-          survival_status: "alive",
+          survival_status: "ALIVE",
           survival_probability_pct: 95.0,
           gps_accuracy_meters: gpsAccuracy ?? 5.0,
           exif_timestamp: new Date().toISOString(),

@@ -102,6 +102,7 @@ END;
 $$;
 
 -- 5. Stored Procedure: find_nearby_trees (Haversine formula)
+DROP FUNCTION IF EXISTS public.find_nearby_trees(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION);
 CREATE OR REPLACE FUNCTION public.find_nearby_trees(
   lat DOUBLE PRECISION,
   lng DOUBLE PRECISION,

@@ -27,12 +27,21 @@ FOR EACH ROW EXECUTE FUNCTION public.guard_challenge_participants_update();
 
 -- 2. plantation_drives: restrict SELECT to authenticated
 DROP POLICY IF EXISTS "Anyone can read drives" ON public.plantation_drives;
+DROP POLICY IF EXISTS "Authenticated users can read drives" ON public.plantation_drives;
 CREATE POLICY "Authenticated users can read drives"
 ON public.plantation_drives FOR SELECT TO authenticated USING (true);
 
 -- 3. Remove trees and growth_updates from Realtime publication
-ALTER PUBLICATION supabase_realtime DROP TABLE public.trees;
-ALTER PUBLICATION supabase_realtime DROP TABLE public.growth_updates;
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'trees') THEN
+    ALTER PUBLICATION supabase_realtime DROP TABLE public.trees;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'growth_updates') THEN
+    ALTER PUBLICATION supabase_realtime DROP TABLE public.growth_updates;
+  END IF;
+END $$;
 
 -- 4. Revoke EXECUTE on SECURITY DEFINER functions from anon and authenticated
 -- Trigger functions don't need direct execute privilege

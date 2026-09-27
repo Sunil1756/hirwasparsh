@@ -3,6 +3,11 @@
 -- Daily Map My Crop Agro-Meteorological Monitoring & Sentinel-2 Pipeline
 -- ====================================================================
 
+CREATE TABLE IF NOT EXISTS public.projects (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT DEFAULT 'Project'
+);
+
 -- 1. Create weather_telemetry table
 CREATE TABLE IF NOT EXISTS public.weather_telemetry (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -157,7 +162,7 @@ BEGIN
         PERFORM cron.schedule(
             'daily-map-my-crop-weather-check',
             '0 4 * * *',
-            $$
+            $cron_job$
             SELECT net.http_post(
                 url := current_setting('app.settings.supabase_url', true) || '/functions/v1/daily-weather-check',
                 headers := jsonb_build_object(
@@ -166,14 +171,14 @@ BEGIN
                 ),
                 body := '{"source":"pg_cron_daily_scheduler"}'::jsonb
             );
-            $$
+            $cron_job$
         );
 
         -- Schedule 2: Daily Bulk Sentinel-2 Satellite Telemetry Ingestion at 05:00 UTC (10:30 AM IST)
         PERFORM cron.schedule(
             'daily-sentinel2-bulk-satellite-update',
             '0 5 * * *',
-            $$
+            $cron_job$
             SELECT net.http_post(
                 url := current_setting('app.settings.supabase_url', true) || '/functions/v1/bulk-satellite-telemetry',
                 headers := jsonb_build_object(
@@ -182,7 +187,7 @@ BEGIN
                 ),
                 body := '{"source":"pg_cron_daily_scheduler","cloud_filter_max_pct":25}'::jsonb
             );
-            $$
+            $cron_job$
         );
     END IF;
 EXCEPTION WHEN OTHERS THEN

@@ -74,8 +74,8 @@ const App = () => (
                 <Route path="/dashboard" element={<CommunityDashboard />} />
                 <Route path="/adopter" element={<RoleProtectedRoute requiredRole={["tree_adopter", "user", "admin"]}><TreeAdopterDashboard /></RoleProtectedRoute>} />
                 <Route path="/my-trees" element={<RoleProtectedRoute requiredRole={["tree_adopter", "user", "admin"]}><TreeAdopterDashboard /></RoleProtectedRoute>} />
-                <Route path="/field-worker" element={<RoleProtectedRoute requiredRole={["field_worker", "admin"]}><FieldWorkerDashboard /></RoleProtectedRoute>} />
-                <Route path="/scouting" element={<RoleProtectedRoute requiredRole={["field_worker", "admin"]}><FieldWorkerDashboard /></RoleProtectedRoute>} />
+                <Route path="/field-worker" element={<ProtectedRoute><FieldWorkerDashboard /></ProtectedRoute>} />
+                <Route path="/scouting" element={<ProtectedRoute><FieldWorkerDashboard /></ProtectedRoute>} />
                 <Route path="/tree-map" element={<TreeMap />} />
                 <Route path="/analytics" element={<Navigate to="/intelligence" replace />} />
                 <Route path="/leaderboard" element={<Leaderboard />} />
@@ -95,7 +95,7 @@ const App = () => (
                 <Route path="/green-impact" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/intelligence" element={<Intelligence />} />
                 <Route path="/csr-portal" element={<ProtectedRoute><CSRCorporatePortal /></ProtectedRoute>} />
-                <Route path="/ngo-workspace" element={<RoleProtectedRoute requiredRole={["field_worker", "admin"]}><NGOWorkspacePage /></RoleProtectedRoute>} />
+                <Route path="/ngo-workspace" element={<ProtectedRoute><NGOWorkspacePage /></ProtectedRoute>} />
                 <Route path="/organization" element={<ProtectedRoute><OrganizationPortal /></ProtectedRoute>} />
                 <Route path="/organization-portal" element={<ProtectedRoute><OrganizationPortal /></ProtectedRoute>} />
                 <Route path="/projects" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />

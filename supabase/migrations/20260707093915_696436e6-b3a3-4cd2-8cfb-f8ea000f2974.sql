@@ -1,6 +1,7 @@
 
 -- 1. growth_updates: restrict to owner + admin/moderator
 DROP POLICY IF EXISTS "Owners admins and approved tree viewers can read growth updates" ON public.growth_updates;
+DROP POLICY IF EXISTS "Owners and staff can read growth updates" ON public.growth_updates;
 CREATE POLICY "Owners and staff can read growth updates"
 ON public.growth_updates
 FOR SELECT
@@ -13,6 +14,7 @@ USING (
 
 -- 2. treebank storage: replace blanket authenticated read with folder-owner + staff
 DROP POLICY IF EXISTS "Authenticated users can read treebank files" ON storage.objects;
+DROP POLICY IF EXISTS "Owners and staff can read treebank files" ON storage.objects;
 CREATE POLICY "Owners and staff can read treebank files"
 ON storage.objects
 FOR SELECT

@@ -1,5 +1,6 @@
 -- 1. Trees: restrict SELECT to authenticated users
 DROP POLICY IF EXISTS "Anyone can view trees" ON public.trees;
+DROP POLICY IF EXISTS "Authenticated users can view trees" ON public.trees;
 CREATE POLICY "Authenticated users can view trees"
 ON public.trees
 FOR SELECT
@@ -8,6 +9,7 @@ USING (true);
 
 -- 2. Growth updates: restrict SELECT to authenticated users
 DROP POLICY IF EXISTS "Anyone can read growth updates" ON public.growth_updates;
+DROP POLICY IF EXISTS "Authenticated users can read growth updates" ON public.growth_updates;
 CREATE POLICY "Authenticated users can read growth updates"
 ON public.growth_updates
 FOR SELECT
@@ -16,6 +18,7 @@ USING (true);
 
 -- 3. Growth updates: prevent farming on other users' trees
 DROP POLICY IF EXISTS "Owners can insert growth updates" ON public.growth_updates;
+DROP POLICY IF EXISTS "Owners can insert growth updates for their own trees" ON public.growth_updates;
 CREATE POLICY "Owners can insert growth updates for their own trees"
 ON public.growth_updates
 FOR INSERT
@@ -36,8 +39,8 @@ ALTER TABLE public.growth_updates
   ADD CONSTRAINT unique_tree_day_user UNIQUE (tree_id, update_day, user_id);
 
 -- 4. User roles: restrictive policy to ensure only admins can insert/modify roles
-CREATE POLICY "Only admins can modify roles (restrictive)"
-ON public.user_roles
+DROP POLICY IF EXISTS "Only admins can modify roles (restrictive)" ON public.user_roles;
+CREATE POLICY "Only admins can modify roles (restrictive)" ON public.user_roles
 AS RESTRICTIVE
 FOR ALL
 TO authenticated

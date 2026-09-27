@@ -1,5 +1,5 @@
 
-CREATE TABLE public.plantation_projects (
+CREATE TABLE IF NOT EXISTS public.plantation_projects (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   project_name text not null,
@@ -28,17 +28,21 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.plantation_projects TO authentica
 GRANT ALL ON public.plantation_projects TO service_role;
 ALTER TABLE public.plantation_projects ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Owners manage their projects" ON public.plantation_projects;
 CREATE POLICY "Owners manage their projects" ON public.plantation_projects
   FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Staff can view all projects" ON public.plantation_projects;
 CREATE POLICY "Staff can view all projects" ON public.plantation_projects
   FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'moderator') OR public.has_role(auth.uid(),'government'));
+DROP POLICY IF EXISTS "Staff can update projects" ON public.plantation_projects;
 CREATE POLICY "Staff can update projects" ON public.plantation_projects
   FOR UPDATE TO authenticated USING (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'moderator'));
 
+DROP TRIGGER IF EXISTS update_plantation_projects_updated_at ON public.plantation_projects;
 CREATE TRIGGER update_plantation_projects_updated_at BEFORE UPDATE ON public.plantation_projects
 FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-CREATE TABLE public.project_evidence (
+CREATE TABLE IF NOT EXISTS public.project_evidence (
   id uuid primary key default gen_random_uuid(),
   project_id uuid not null references public.plantation_projects(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -59,7 +63,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.project_evidence TO authenticated
 GRANT ALL ON public.project_evidence TO service_role;
 ALTER TABLE public.project_evidence ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Owners manage their project evidence" ON public.project_evidence;
 CREATE POLICY "Owners manage their project evidence" ON public.project_evidence
   FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Staff can view project evidence" ON public.project_evidence;
 CREATE POLICY "Staff can view project evidence" ON public.project_evidence
   FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'moderator') OR public.has_role(auth.uid(),'government'));

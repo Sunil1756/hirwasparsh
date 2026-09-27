@@ -1,6 +1,6 @@
 
 -- Plantation Drives table
-CREATE TABLE public.plantation_drives (
+CREATE TABLE IF NOT EXISTS public.plantation_drives (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   event_name text NOT NULL,
   organizer_name text NOT NULL,
@@ -17,12 +17,15 @@ CREATE TABLE public.plantation_drives (
 
 ALTER TABLE public.plantation_drives ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can read drives" ON public.plantation_drives;
 CREATE POLICY "Anyone can read drives" ON public.plantation_drives FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "Authenticated users can create drives" ON public.plantation_drives;
 CREATE POLICY "Authenticated users can create drives" ON public.plantation_drives FOR INSERT TO authenticated WITH CHECK (auth.uid() = created_by);
+DROP POLICY IF EXISTS "Creators can update own drives" ON public.plantation_drives;
 CREATE POLICY "Creators can update own drives" ON public.plantation_drives FOR UPDATE TO authenticated USING (auth.uid() = created_by);
 
 -- Drive participants
-CREATE TABLE public.drive_participants (
+CREATE TABLE IF NOT EXISTS public.drive_participants (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   drive_id uuid NOT NULL REFERENCES public.plantation_drives(id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -32,15 +35,18 @@ CREATE TABLE public.drive_participants (
 
 ALTER TABLE public.drive_participants ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can read participants" ON public.drive_participants;
 CREATE POLICY "Anyone can read participants" ON public.drive_participants FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "Authenticated can join drives" ON public.drive_participants;
 CREATE POLICY "Authenticated can join drives" ON public.drive_participants FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can leave drives" ON public.drive_participants;
 CREATE POLICY "Users can leave drives" ON public.drive_participants FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 -- Add drive_id to trees table
 ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS drive_id uuid REFERENCES public.plantation_drives(id) ON DELETE SET NULL;
 
 -- Tree health updates
-CREATE TABLE public.tree_health_updates (
+CREATE TABLE IF NOT EXISTS public.tree_health_updates (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tree_id uuid NOT NULL REFERENCES public.trees(id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -52,7 +58,9 @@ CREATE TABLE public.tree_health_updates (
 
 ALTER TABLE public.tree_health_updates ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can read health updates" ON public.tree_health_updates;
 CREATE POLICY "Anyone can read health updates" ON public.tree_health_updates FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "Tree owners can add updates" ON public.tree_health_updates;
 CREATE POLICY "Tree owners can add updates" ON public.tree_health_updates FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 
 -- Add ai_detected_species to trees

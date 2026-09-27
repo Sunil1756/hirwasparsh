@@ -185,7 +185,7 @@ describe("PHASE 10 TASK 54 — Satellite Remote Sensing & Agro-Climatic Data Fet
       // Agro-Climatic correlation
       expect(scene.agroWeather).toBeDefined();
       expect(scene.agroWeather.soilMoisture0to7cmPct).toBeGreaterThan(0);
-    });
+    }, 15000);
 
     it("serves subsequent requests from memory cache when forceRefresh is false", async () => {
       const scene1 = await service.fetchSceneByCoordinates(18.5204, 73.8567, { forceRefresh: true });

@@ -35,7 +35,9 @@ CREATE TABLE IF NOT EXISTS public.satellite_overpasses (
 
 -- Enable RLS for satellite_overpasses
 ALTER TABLE public.satellite_overpasses ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can view satellite_overpasses" ON public.satellite_overpasses;
 CREATE POLICY "Anyone can view satellite_overpasses" ON public.satellite_overpasses FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Authenticated users can insert satellite_overpasses" ON public.satellite_overpasses;
 CREATE POLICY "Authenticated users can insert satellite_overpasses" ON public.satellite_overpasses FOR INSERT TO authenticated WITH CHECK (true);
 
 -- 2. Spectral Anomaly Detection & Field Task Automation Table
@@ -59,7 +61,9 @@ CREATE TABLE IF NOT EXISTS public.spectral_anomalies (
 
 -- Enable RLS for spectral_anomalies
 ALTER TABLE public.spectral_anomalies ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can view spectral_anomalies" ON public.spectral_anomalies;
 CREATE POLICY "Anyone can view spectral_anomalies" ON public.spectral_anomalies FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Authenticated users can manage spectral_anomalies" ON public.spectral_anomalies;
 CREATE POLICY "Authenticated users can manage spectral_anomalies" ON public.spectral_anomalies FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- 3. Drone Aerial Surveys Table (Cluster-Level High-Resolution Verification)
@@ -79,7 +83,9 @@ CREATE TABLE IF NOT EXISTS public.drone_surveys (
 
 -- Enable RLS for drone_surveys
 ALTER TABLE public.drone_surveys ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can view drone_surveys" ON public.drone_surveys;
 CREATE POLICY "Anyone can view drone_surveys" ON public.drone_surveys FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Authenticated users can insert drone_surveys" ON public.drone_surveys;
 CREATE POLICY "Authenticated users can insert drone_surveys" ON public.drone_surveys FOR INSERT TO authenticated WITH CHECK (true);
 
 -- 4. Multi-Source Confidence Scores & Verification Tiers Table
@@ -104,7 +110,9 @@ CREATE TABLE IF NOT EXISTS public.confidence_scores (
 
 -- Enable RLS for confidence_scores
 ALTER TABLE public.confidence_scores ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can view confidence_scores" ON public.confidence_scores;
 CREATE POLICY "Anyone can view confidence_scores" ON public.confidence_scores FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Authenticated users can insert confidence_scores" ON public.confidence_scores;
 CREATE POLICY "Authenticated users can insert confidence_scores" ON public.confidence_scores FOR INSERT TO authenticated WITH CHECK (true);
 
 -- 5. Indexes for Fast GIS and Audit Querying

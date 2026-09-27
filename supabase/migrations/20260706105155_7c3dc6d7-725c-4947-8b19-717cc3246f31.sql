@@ -1,6 +1,7 @@
 
 -- tree_adopters: owner + admin/mod only
 DROP POLICY IF EXISTS "Anyone authenticated can read adopters" ON public.tree_adopters;
+DROP POLICY IF EXISTS "Owners and admins can read adopters" ON public.tree_adopters;
 CREATE POLICY "Owners and admins can read adopters"
   ON public.tree_adopters
   FOR SELECT
@@ -13,6 +14,7 @@ CREATE POLICY "Owners and admins can read adopters"
 
 -- growth_updates: owner + admin/mod + viewers of approved trees
 DROP POLICY IF EXISTS "Authenticated users can read growth updates" ON public.growth_updates;
+DROP POLICY IF EXISTS "Owners admins and approved tree viewers can read growth updates" ON public.growth_updates;
 CREATE POLICY "Owners admins and approved tree viewers can read growth updates"
   ON public.growth_updates
   FOR SELECT

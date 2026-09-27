@@ -24,11 +24,13 @@ CREATE INDEX IF NOT EXISTS idx_analytics_category ON public.analytics_events (ev
 ALTER TABLE public.analytics_events ENABLE ROW LEVEL SECURITY;
 
 -- Allow anonymous & authenticated clients to insert analytics events
+DROP POLICY IF EXISTS "Allow public insert to analytics_events" ON public.analytics_events;
 CREATE POLICY "Allow public insert to analytics_events" ON public.analytics_events
   FOR INSERT TO anon, authenticated
   WITH CHECK (true);
 
 -- Admins and Government monitors can view platform analytics events
+DROP POLICY IF EXISTS "Admins can view analytics_events" ON public.analytics_events;
 CREATE POLICY "Admins can view analytics_events" ON public.analytics_events
   FOR SELECT TO authenticated
   USING (

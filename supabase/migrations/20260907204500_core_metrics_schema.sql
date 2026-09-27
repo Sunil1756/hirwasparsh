@@ -89,13 +89,22 @@ ALTER TABLE public.trees ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.verifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.satellite_readings ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow public read on organizations" ON public.organizations;
 CREATE POLICY "Allow public read on organizations" ON public.organizations FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow public read on plots" ON public.plots;
 CREATE POLICY "Allow public read on plots" ON public.plots FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow public read on trees" ON public.trees;
 CREATE POLICY "Allow public read on trees" ON public.trees FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow public read on verifications" ON public.verifications;
 CREATE POLICY "Allow public read on verifications" ON public.verifications FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow public read on satellite_readings" ON public.satellite_readings;
 CREATE POLICY "Allow public read on satellite_readings" ON public.satellite_readings FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Allow auth users to insert plots" ON public.plots;
 CREATE POLICY "Allow auth users to insert plots" ON public.plots FOR INSERT TO authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow auth users to insert trees" ON public.trees;
 CREATE POLICY "Allow auth users to insert trees" ON public.trees FOR INSERT TO authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow auth users to insert verifications" ON public.verifications;
 CREATE POLICY "Allow auth users to insert verifications" ON public.verifications FOR INSERT TO authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow auth users to insert satellite_readings" ON public.satellite_readings;
 CREATE POLICY "Allow auth users to insert satellite_readings" ON public.satellite_readings FOR INSERT TO authenticated WITH CHECK (true);

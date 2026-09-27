@@ -46,6 +46,13 @@ CREATE TABLE IF NOT EXISTS public.notifications (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+ALTER TABLE public.plots ADD COLUMN IF NOT EXISTS location TEXT NOT NULL DEFAULT 'Maharashtra, India';
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS is_read BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS tree_id UUID REFERENCES public.trees(id) ON DELETE SET NULL;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS plot_id UUID;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS type TEXT NOT NULL DEFAULT 'checkin_reminder';
+
 -- Add needs_verification / last_checkin columns to trees table if not present
 DO $$
 BEGIN
@@ -71,15 +78,23 @@ ALTER TABLE public.check_ins ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.field_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow public read on check_ins" ON public.check_ins;
 CREATE POLICY "Allow public read on check_ins" ON public.check_ins FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow public read on field_tasks" ON public.field_tasks;
 CREATE POLICY "Allow public read on field_tasks" ON public.field_tasks FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow public read on notifications" ON public.notifications;
 CREATE POLICY "Allow public read on notifications" ON public.notifications FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Allow public insert on check_ins" ON public.check_ins;
 CREATE POLICY "Allow public insert on check_ins" ON public.check_ins FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow public insert on field_tasks" ON public.field_tasks;
 CREATE POLICY "Allow public insert on field_tasks" ON public.field_tasks FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow public insert on notifications" ON public.notifications;
 CREATE POLICY "Allow public insert on notifications" ON public.notifications FOR INSERT WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Allow public update on field_tasks" ON public.field_tasks;
 CREATE POLICY "Allow public update on field_tasks" ON public.field_tasks FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Allow public update on notifications" ON public.notifications;
 CREATE POLICY "Allow public update on notifications" ON public.notifications FOR UPDATE USING (true);
 
 -- 6. PostgreSQL View: plot_survival_rates

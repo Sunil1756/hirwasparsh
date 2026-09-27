@@ -1,5 +1,5 @@
 
-CREATE TABLE public.admin_audit_log (
+CREATE TABLE IF NOT EXISTS public.admin_audit_log (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tree_id uuid REFERENCES public.trees(id) ON DELETE SET NULL,
   action text NOT NULL,
@@ -15,8 +15,8 @@ GRANT ALL ON public.admin_audit_log TO service_role;
 
 ALTER TABLE public.admin_audit_log ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Admins and moderators can read audit log"
-ON public.admin_audit_log
+DROP POLICY IF EXISTS "Admins and moderators can read audit log" ON public.admin_audit_log;
+CREATE POLICY "Admins and moderators can read audit log" ON public.admin_audit_log
 FOR SELECT
 TO authenticated
 USING (
@@ -24,8 +24,8 @@ USING (
   OR public.has_role(auth.uid(), 'moderator'::app_role)
 );
 
-CREATE INDEX admin_audit_log_created_at_idx ON public.admin_audit_log (created_at DESC);
-CREATE INDEX admin_audit_log_tree_id_idx ON public.admin_audit_log (tree_id);
+CREATE INDEX IF NOT EXISTS admin_audit_log_created_at_idx ON public.admin_audit_log (created_at DESC);
+CREATE INDEX IF NOT EXISTS admin_audit_log_tree_id_idx ON public.admin_audit_log (tree_id);
 
 CREATE OR REPLACE FUNCTION public.log_tree_admin_status_change()
 RETURNS trigger
@@ -49,6 +49,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_log_tree_admin_status_change ON public.trees;
 CREATE TRIGGER trg_log_tree_admin_status_change
 AFTER UPDATE OF admin_status ON public.trees
 FOR EACH ROW

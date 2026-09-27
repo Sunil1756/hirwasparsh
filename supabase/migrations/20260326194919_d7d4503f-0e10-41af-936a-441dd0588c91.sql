@@ -1,6 +1,6 @@
 
 -- Create profiles table
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name TEXT,
   avatar_url TEXT,
@@ -14,11 +14,13 @@ CREATE TABLE public.profiles (
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- Users can read own profile
+DROP POLICY IF EXISTS "Users can read own profile" ON public.profiles;
 CREATE POLICY "Users can read own profile" ON public.profiles
   FOR SELECT TO authenticated
   USING (auth.uid() = id);
 
 -- Users can update own profile
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile" ON public.profiles
   FOR UPDATE TO authenticated
   USING (auth.uid() = id);
@@ -37,8 +39,8 @@ BEGIN
 END;
 $$;
 
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- Trigger to update profile stats when a tree is inserted
@@ -60,6 +62,6 @@ BEGIN
 END;
 $$;
 
-CREATE TRIGGER on_tree_planted
-  AFTER INSERT ON public.trees
+DROP TRIGGER IF EXISTS on_tree_planted ON public.trees;
+CREATE TRIGGER on_tree_planted AFTER INSERT ON public.trees
   FOR EACH ROW EXECUTE FUNCTION public.update_profile_on_tree();

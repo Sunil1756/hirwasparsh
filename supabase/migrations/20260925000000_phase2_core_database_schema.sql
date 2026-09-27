@@ -1,4 +1,4 @@
-﻿-- ====================================================================
+-- ====================================================================
 -- PHASE 2: REAL DATABASE ARCHITECTURE (TASK 7: DATABASE DESIGN)
 -- 11 Core Entities:
 --   1. profiles (users/profiles)
@@ -13,6 +13,61 @@
 --  10. notifications
 --  11. audit_logs
 -- ====================================================================
+
+-- Ensure all columns on existing tables exist
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS full_name TEXT NOT NULL DEFAULT '';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone_number TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS organization_name TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'individual_adopter';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS trees_planted INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS green_points INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT 'Organization';
+ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS type TEXT NOT NULL DEFAULT 'ngo';
+ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS registration_number TEXT;
+ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS contact_email TEXT;
+ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS contact_phone TEXT;
+ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS website TEXT;
+ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS logo_url TEXT;
+ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS is_verified BOOLEAN NOT NULL DEFAULT false;
+
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES public.organizations(id) ON DELETE SET NULL;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT 'Project';
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS project_type TEXT NOT NULL DEFAULT 'community';
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS target_trees INTEGER NOT NULL DEFAULT 100;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS planted_trees INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS target_area_hectares NUMERIC DEFAULT 0;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS location_name TEXT;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS centroid_latitude DOUBLE PRECISION;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS centroid_longitude DOUBLE PRECISION;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS start_date DATE;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS end_date DATE;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS project_id UUID;
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS boundary_id UUID;
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS organization_id UUID;
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS botanical_name TEXT;
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS dbh_cm NUMERIC DEFAULT 0;
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS canopy_radius_cm NUMERIC DEFAULT 0;
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS before_photo_url TEXT;
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS selfie_photo_url TEXT;
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'alive';
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS admin_status TEXT NOT NULL DEFAULT 'pending';
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS health_score NUMERIC DEFAULT 100;
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS planting_type TEXT DEFAULT 'individual';
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS points_awarded INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS device_fingerprint TEXT;
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS photo_hash TEXT;
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS exif_timestamp TIMESTAMPTZ;
+
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS link_url TEXT;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS is_read BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
 
 -- 1. PROFILES (users/profiles)
 CREATE TABLE IF NOT EXISTS public.profiles (

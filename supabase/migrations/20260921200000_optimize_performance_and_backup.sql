@@ -4,6 +4,52 @@
 --          Query Acceleration RPCs, and Automated Data Backup & Recovery Protocols.
 -- ======================================================================================
 
+-- Add prerequisite columns if not exists
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES public.plantation_projects(id) ON DELETE SET NULL;
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS health_status TEXT NOT NULL DEFAULT 'healthy';
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS admin_status TEXT NOT NULL DEFAULT 'pending';
+
+CREATE TABLE IF NOT EXISTS public.satellite_telemetry (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  plot_id UUID,
+  acquisition_date DATE DEFAULT CURRENT_DATE,
+  satellite_source TEXT DEFAULT 'copernicus_sentinel2_l2a',
+  mean_ndvi NUMERIC DEFAULT 0.75,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.field_reports ADD COLUMN IF NOT EXISTS scout_id UUID;
+ALTER TABLE public.field_reports ADD COLUMN IF NOT EXISTS sync_status TEXT DEFAULT 'synced';
+ALTER TABLE public.field_reports ADD COLUMN IF NOT EXISTS tree_id UUID;
+
+CREATE TABLE IF NOT EXISTS public.field_reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tree_id UUID,
+  scout_id UUID,
+  sync_status TEXT DEFAULT 'synced',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.carbon_ledger_entries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID,
+  serial_number TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'individual_adopter';
+
+CREATE TABLE IF NOT EXISTS public.risk_alerts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tree_id UUID,
+  project_id UUID,
+  target_persona TEXT DEFAULT 'field_worker',
+  severity TEXT DEFAULT 'medium',
+  status TEXT DEFAULT 'open',
+  is_read BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- 1. HIGH-PERFORMANCE QUERY OPTIMIZATION INDEXES
 -- Creates B-Tree and composite indexes on frequently filtered & sorted columns.
 
@@ -66,12 +112,14 @@ CREATE TABLE IF NOT EXISTS public.database_backups (
 ALTER TABLE public.database_backups ENABLE ROW LEVEL SECURITY;
 
 -- Admins and Organization Owners can manage backups
+DROP POLICY IF EXISTS "Admins can view all backups" ON public.database_backups;
 CREATE POLICY "Admins can view all backups" ON public.database_backups
   FOR SELECT TO authenticated
   USING (
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'ngo', 'government'))
   );
 
+DROP POLICY IF EXISTS "Admins can create backups" ON public.database_backups;
 CREATE POLICY "Admins can create backups" ON public.database_backups
   FOR INSERT TO authenticated
   WITH CHECK (
@@ -93,6 +141,7 @@ CREATE TABLE IF NOT EXISTS public.disaster_recovery_logs (
 
 ALTER TABLE public.disaster_recovery_logs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Admins can view recovery logs" ON public.disaster_recovery_logs;
 CREATE POLICY "Admins can view recovery logs" ON public.disaster_recovery_logs
   FOR SELECT TO authenticated
   USING (

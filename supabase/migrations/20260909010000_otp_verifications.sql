@@ -20,20 +20,20 @@ CREATE TABLE IF NOT EXISTS public.otp_verifications (
 ALTER TABLE public.otp_verifications ENABLE ROW LEVEL SECURITY;
 
 -- Allow edge functions and server processes full access, restrict public direct reads
-CREATE POLICY "Allow public insert for OTP generation" 
-  ON public.otp_verifications 
+DROP POLICY IF EXISTS "Allow public insert for OTP generation" ON public.otp_verifications;
+CREATE POLICY "Allow public insert for OTP generation" ON public.otp_verifications 
   FOR INSERT 
   TO anon, authenticated 
   WITH CHECK (true);
 
-CREATE POLICY "Allow verification read and update" 
-  ON public.otp_verifications 
+DROP POLICY IF EXISTS "Allow verification read and update" ON public.otp_verifications;
+CREATE POLICY "Allow verification read and update" ON public.otp_verifications 
   FOR SELECT 
   TO anon, authenticated 
   USING (true);
 
-CREATE POLICY "Allow verification update" 
-  ON public.otp_verifications 
+DROP POLICY IF EXISTS "Allow verification update" ON public.otp_verifications;
+CREATE POLICY "Allow verification update" ON public.otp_verifications 
   FOR UPDATE 
   TO anon, authenticated 
   USING (true);

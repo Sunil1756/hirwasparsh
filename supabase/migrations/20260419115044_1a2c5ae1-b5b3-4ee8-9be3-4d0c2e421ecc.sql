@@ -5,8 +5,8 @@ DROP POLICY IF EXISTS "Anonymous can insert trees" ON public.trees;
 -- 2) Replace overly-permissive trees UPDATE policy to prevent self-approval
 DROP POLICY IF EXISTS "Users can update own trees" ON public.trees;
 
-CREATE POLICY "Users can update own trees (non-privileged fields)"
-ON public.trees
+DROP POLICY IF EXISTS "Users can update own trees (non-privileged fields)" ON public.trees;
+CREATE POLICY "Users can update own trees (non-privileged fields)" ON public.trees
 FOR UPDATE
 TO authenticated
 USING (auth.uid() = user_id)
@@ -46,8 +46,8 @@ FOR EACH ROW
 EXECUTE FUNCTION public.guard_tree_privileged_columns();
 
 -- Allow admins/moderators to update any tree
-CREATE POLICY "Admins and moderators can update any tree"
-ON public.trees
+DROP POLICY IF EXISTS "Admins and moderators can update any tree" ON public.trees;
+CREATE POLICY "Admins and moderators can update any tree" ON public.trees
 FOR UPDATE
 TO authenticated
 USING (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'moderator'))
@@ -59,44 +59,44 @@ VALUES ('selfies', 'selfies', false)
 ON CONFLICT (id) DO NOTHING;
 
 -- Storage policies for selfies (private): users manage own folder; admins/mods can read all
-CREATE POLICY "Users can upload own selfies"
-ON storage.objects FOR INSERT
+DROP POLICY IF EXISTS "Users can upload own selfies" ON storage.objects;
+CREATE POLICY "Users can upload own selfies" ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (bucket_id = 'selfies' AND (storage.foldername(name))[1] = auth.uid()::text);
 
-CREATE POLICY "Users can read own selfies"
-ON storage.objects FOR SELECT
+DROP POLICY IF EXISTS "Users can read own selfies" ON storage.objects;
+CREATE POLICY "Users can read own selfies" ON storage.objects FOR SELECT
 TO authenticated
 USING (bucket_id = 'selfies' AND ((storage.foldername(name))[1] = auth.uid()::text
   OR public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'moderator')));
 
-CREATE POLICY "Users can update own selfies"
-ON storage.objects FOR UPDATE
+DROP POLICY IF EXISTS "Users can update own selfies" ON storage.objects;
+CREATE POLICY "Users can update own selfies" ON storage.objects FOR UPDATE
 TO authenticated
 USING (bucket_id = 'selfies' AND (storage.foldername(name))[1] = auth.uid()::text);
 
-CREATE POLICY "Users can delete own selfies"
-ON storage.objects FOR DELETE
+DROP POLICY IF EXISTS "Users can delete own selfies" ON storage.objects;
+CREATE POLICY "Users can delete own selfies" ON storage.objects FOR DELETE
 TO authenticated
 USING (bucket_id = 'selfies' AND (storage.foldername(name))[1] = auth.uid()::text);
 
 -- 4) Lock down the public treebank bucket: scope writes to user's own folder
-CREATE POLICY "Users can upload own treebank files"
-ON storage.objects FOR INSERT
+DROP POLICY IF EXISTS "Users can upload own treebank files" ON storage.objects;
+CREATE POLICY "Users can upload own treebank files" ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (bucket_id = 'treebank' AND (storage.foldername(name))[1] = auth.uid()::text);
 
-CREATE POLICY "Users can update own treebank files"
-ON storage.objects FOR UPDATE
+DROP POLICY IF EXISTS "Users can update own treebank files" ON storage.objects;
+CREATE POLICY "Users can update own treebank files" ON storage.objects FOR UPDATE
 TO authenticated
 USING (bucket_id = 'treebank' AND (storage.foldername(name))[1] = auth.uid()::text);
 
-CREATE POLICY "Users can delete own treebank files"
-ON storage.objects FOR DELETE
+DROP POLICY IF EXISTS "Users can delete own treebank files" ON storage.objects;
+CREATE POLICY "Users can delete own treebank files" ON storage.objects FOR DELETE
 TO authenticated
 USING (bucket_id = 'treebank' AND (storage.foldername(name))[1] = auth.uid()::text);
 
-CREATE POLICY "Public can read treebank files"
-ON storage.objects FOR SELECT
+DROP POLICY IF EXISTS "Public can read treebank files" ON storage.objects;
+CREATE POLICY "Public can read treebank files" ON storage.objects FOR SELECT
 TO public
 USING (bucket_id = 'treebank');

@@ -2,8 +2,8 @@
 -- 1. Tighten trees UPDATE policy: owners cannot touch privileged fields
 DROP POLICY IF EXISTS "Users can update own trees (non-privileged fields)" ON public.trees;
 
-CREATE POLICY "Users can update own trees (non-privileged fields)"
-ON public.trees
+DROP POLICY IF EXISTS "Users can update own trees (non-privileged fields)" ON public.trees;
+CREATE POLICY "Users can update own trees (non-privileged fields)" ON public.trees
 FOR UPDATE
 TO authenticated
 USING (
@@ -27,8 +27,8 @@ EXECUTE FUNCTION public.guard_tree_privileged_columns();
 -- keep leaderboard usable but no longer anonymous
 DROP POLICY IF EXISTS "Anyone can read profiles for leaderboard" ON public.profiles;
 
-CREATE POLICY "Authenticated users can read profiles for leaderboard"
-ON public.profiles
+DROP POLICY IF EXISTS "Authenticated users can read profiles for leaderboard" ON public.profiles;
+CREATE POLICY "Authenticated users can read profiles for leaderboard" ON public.profiles
 FOR SELECT
 TO authenticated
 USING (true);
@@ -52,8 +52,8 @@ END $$;
 
 -- Allow only owners (uploaders) to list their own folder; public files are still
 -- accessible by direct URL via the storage CDN since the bucket is public.
-CREATE POLICY "Owners can list own treebank files"
-ON storage.objects
+DROP POLICY IF EXISTS "Owners can list own treebank files" ON storage.objects;
+CREATE POLICY "Owners can list own treebank files" ON storage.objects
 FOR SELECT
 TO authenticated
 USING (

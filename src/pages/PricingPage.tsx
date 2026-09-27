@@ -1,28 +1,23 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
 import {
   ShieldCheck,
   Check,
-  Sparkles,
   Building2,
-  Trees,
-  Satellite,
-  Bot,
   FileSpreadsheet,
-  Award,
   ArrowRight,
-  HelpCircle,
-  Zap,
+  CreditCard,
+  QrCode,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { AiModelTrainingAndSubscriptionHUD } from "@/components/ai/AiModelTrainingAndSubscriptionHUD";
-import { GeminiProEnterpriseActivationHUD } from "@/components/ai/GeminiProEnterpriseActivationHUD";
+import { EnterpriseAiCheckoutModal } from "@/components/ai/EnterpriseAiCheckoutModal";
 
 export default function PricingPage() {
   const [billingCycle, setBillingCycle] = useState<"annual" | "monthly">("annual");
+  const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
+  const [checkoutTier, setCheckoutTier] = useState<any>("enterprise_dedicated_annual");
 
   const plans = [
     {
@@ -186,31 +181,117 @@ export default function PricingPage() {
                 </CardContent>
               </div>
 
-              <CardFooter className="pt-6">
-                <Button
-                  asChild
-                  variant={plan.highlighted ? "default" : "outline"}
-                  className={`w-full rounded-xl text-xs font-semibold h-10 shadow-sm ${
-                    plan.highlighted
-                      ? "bg-primary hover:bg-primary/90 text-primary-foreground"
-                      : "border-primary/30 hover:bg-primary/10"
-                  }`}
-                >
-                  <Link to={plan.ctaLink}>
-                    {plan.ctaText} <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
-                  </Link>
-                </Button>
+              <CardFooter className="pt-6 flex flex-col gap-2">
+                {price > 0 ? (
+                  <>
+                    <Button
+                      onClick={() => {
+                        setCheckoutTier(plan.id === "csr_enterprise" ? "enterprise_dedicated_annual" : "pro_botanical_annual");
+                        setCheckoutModalOpen(true);
+                      }}
+                      variant={plan.highlighted ? "default" : "outline"}
+                      className={`w-full rounded-xl text-xs font-semibold h-10 shadow-sm gap-2 ${
+                        plan.highlighted
+                          ? "bg-primary hover:bg-primary/90 text-primary-foreground"
+                          : "border-primary/30 hover:bg-primary/10"
+                      }`}
+                    >
+                      <CreditCard className="h-4 w-4" />
+                      Subscribe & Pay with UPI / Card
+                    </Button>
+                    <Button
+                      asChild
+                      variant="ghost"
+                      className="w-full rounded-xl text-xs h-8 text-muted-foreground hover:text-foreground"
+                    >
+                      <Link to={plan.ctaLink}>
+                        Explore Workspace & DPR <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                      </Link>
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="w-full rounded-xl text-xs font-semibold h-10 shadow-sm border-primary/30 hover:bg-primary/10"
+                  >
+                    <Link to={plan.ctaLink}>
+                      {plan.ctaText} <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+                    </Link>
+                  </Button>
+                )}
               </CardFooter>
             </Card>
           );
         })}
       </div>
 
-      {/* Dedicated AI Model Subscriptions, Marketplace & Vertex SFT Training Studio */}
-      <AiModelTrainingAndSubscriptionHUD className="my-8" />
+      {/* Interactive Multi-Gateway Checkout Modal */}
+      <EnterpriseAiCheckoutModal
+        isOpen={checkoutModalOpen}
+        onClose={() => setCheckoutModalOpen(false)}
+        initialTier={checkoutTier}
+      />
 
-      {/* Google Gemini 2.5 Pro Flagship Deep Reasoning & Enterprise MRV Engine */}
-      <GeminiProEnterpriseActivationHUD className="my-8" />
+      {/* Enterprise & Institutional Payment Gateways Breakdown */}
+      <div className="p-6 sm:p-8 rounded-3xl border border-border/50 bg-card/60 backdrop-blur-md space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-border/30 pb-4">
+          <div>
+            <h3 className="font-heading text-lg sm:text-xl font-bold text-foreground flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-emerald-500" />
+              Institutional Payment & Invoicing Gateways
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Secure B2B and institutional billing compliant with Indian commercial tax standards (GST 18%).
+            </p>
+          </div>
+          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-xs px-3 py-1">
+            256-Bit SSL Encrypted
+          </Badge>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="p-4 rounded-2xl bg-muted/40 border border-border/40 space-y-2">
+            <div className="flex items-center gap-2 text-primary font-semibold text-xs">
+              <QrCode className="h-4 w-4" />
+              <span>Razorpay UPI & QR</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Instant activation via Virtual Payment Address (VPA / UPI ID) and dynamic QR codes in INR. Automated 18% GST calculation with downloadable tax invoices.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-muted/40 border border-border/40 space-y-2">
+            <div className="flex items-center gap-2 text-primary font-semibold text-xs">
+              <CreditCard className="h-4 w-4" />
+              <span>Credit & Debit Cards</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Visa, Mastercard, RuPay, and American Express corporate cards accepted with PCI-DSS tokenized security and instant receipt generation.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-muted/40 border border-border/40 space-y-2">
+            <div className="flex items-center gap-2 text-primary font-semibold text-xs">
+              <Building2 className="h-4 w-4" />
+              <span>NetBanking & RTGS/NEFT</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Direct institutional transfers supported across State Bank of India, HDFC Bank, ICICI Bank, Axis Bank, and all major scheduled Indian banks.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-muted/40 border border-border/40 space-y-2">
+            <div className="flex items-center gap-2 text-primary font-semibold text-xs">
+              <FileSpreadsheet className="h-4 w-4" />
+              <span>Corporate PO & Invoicing</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Formal purchase order (PO) generation and 30-day net invoicing for CSR foundations, municipal corporations, and state forest agencies.
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Sovereign & State Forest Department Banner */}
       <div className="p-6 sm:p-8 rounded-3xl border border-primary/20 bg-gradient-to-r from-purple-500/10 via-background to-primary/10 flex flex-wrap items-center justify-between gap-6">

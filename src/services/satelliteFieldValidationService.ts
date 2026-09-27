@@ -233,8 +233,9 @@ export class SatelliteFieldValidationService {
     actionMessage: string;
     discrepancySeverity: "none" | "low" | "medium" | "high";
   } {
-    const isFieldHealthy = ["thriving", "healthy"].includes(tree.status);
-    const isFieldStressed = ["stressed", "diseased", "dead", "replaced"].includes(tree.status);
+    const rawStatus = (tree?.survival_status || tree?.health_status || tree?.status || "healthy").toLowerCase();
+    const isFieldHealthy = ["thriving", "healthy", "alive"].includes(rawStatus);
+    const isFieldStressed = ["stressed", "diseased", "dead", "damaged", "replaced", "needs water"].includes(rawStatus);
     const isSatHigh = pixel.ndvi >= 0.55;
     const isSatLow = pixel.ndvi < 0.40;
     const treeAgeMonths = this.calculateAgeMonths(tree.plantation_date);
@@ -362,7 +363,7 @@ export class SatelliteFieldValidationService {
     tree?: any
   ) {
     const ageMonths = this.calculateAgeMonths(tree?.plantation_date);
-    const status = tree?.status || "healthy";
+    const status = (tree?.survival_status || tree?.health_status || tree?.status || "healthy").toLowerCase();
 
     if (clippedPixels && clippedPixels.length > 0) {
       // Find nearest pixel in raster
@@ -387,7 +388,7 @@ export class SatelliteFieldValidationService {
     }
 
     // Empirical pixel reflectance simulation for validation sample calibration
-    if (status === "dead") {
+    if (status === "dead" || status === "diseased" || status === "damaged") {
       // Understory weed false positive scenario
       return {
         pixelLat: treeLat,
@@ -400,7 +401,7 @@ export class SatelliteFieldValidationService {
       };
     }
 
-    if (status === "healthy" && ageMonths < 24) {
+    if ((status === "healthy" || status === "alive" || status === "thriving") && ageMonths < 24) {
       // Young sapling soil background masking scenario
       return {
         pixelLat: treeLat,
@@ -413,7 +414,7 @@ export class SatelliteFieldValidationService {
       };
     }
 
-    if (status === "stressed") {
+    if (status === "stressed" || status === "needs water") {
       return {
         pixelLat: treeLat,
         pixelLng: treeLng,
@@ -453,13 +454,14 @@ export class SatelliteFieldValidationService {
    */
   private async fetchProjectFieldTrees(projectId: string): Promise<any[]> {
     try {
-      if (supabase && typeof window !== "undefined") {
+      if (supabase && typeof window !== "undefined" && projectId && !projectId.startsWith("test_")) {
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error("Supabase timeout")), 300)
         );
         const fetchPromise = supabase
           .from("trees")
           .select("*")
+          .eq("project_id", projectId)
           .not("latitude", "is", null)
           .not("longitude", "is", null)
           .limit(20);

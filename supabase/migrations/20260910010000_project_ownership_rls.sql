@@ -1,4 +1,4 @@
-﻿-- Migration: Strict Project Ownership & Public Monitoring Access Control RLS
+-- Migration: Strict Project Ownership & Public Monitoring Access Control RLS
 -- Date: 2026-09-10
 -- Description:
 -- 1. Anyone (public & authenticated) can view/SELECT plantation_projects, plots, and project_evidence (for environmental transparency & satellite MRV).
@@ -119,6 +119,8 @@ USING (
       )
   )
 );
+
+ALTER TABLE public.plots ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
 
 -- 3. Enable RLS on plots table
 ALTER TABLE public.plots ENABLE ROW LEVEL SECURITY;

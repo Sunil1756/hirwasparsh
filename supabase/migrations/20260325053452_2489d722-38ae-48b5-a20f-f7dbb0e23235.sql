@@ -1,6 +1,6 @@
 
 -- Create trees table
-CREATE TABLE public.trees (
+CREATE TABLE IF NOT EXISTS public.trees (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users ON DELETE CASCADE,
   tree_name TEXT NOT NULL,
@@ -23,13 +23,17 @@ CREATE TABLE public.trees (
 ALTER TABLE public.trees ENABLE ROW LEVEL SECURITY;
 
 -- Anyone can read trees
+DROP POLICY IF EXISTS "Anyone can view trees" ON public.trees;
 CREATE POLICY "Anyone can view trees" ON public.trees FOR SELECT USING (true);
 
 -- Authenticated users can insert their own trees
+DROP POLICY IF EXISTS "Authenticated users can insert trees" ON public.trees;
 CREATE POLICY "Authenticated users can insert trees" ON public.trees FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 
 -- Users can update their own trees
+DROP POLICY IF EXISTS "Users can update own trees" ON public.trees;
 CREATE POLICY "Users can update own trees" ON public.trees FOR UPDATE TO authenticated USING (auth.uid() = user_id);
 
 -- Allow anonymous inserts (for users not logged in)
+DROP POLICY IF EXISTS "Anonymous can insert trees" ON public.trees;
 CREATE POLICY "Anonymous can insert trees" ON public.trees FOR INSERT TO anon WITH CHECK (user_id IS NULL);

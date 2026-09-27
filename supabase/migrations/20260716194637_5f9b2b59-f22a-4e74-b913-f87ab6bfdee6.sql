@@ -61,17 +61,17 @@ GRANT ALL ON public.notifications TO service_role;
 
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "users read own notifications"
-  ON public.notifications FOR SELECT TO authenticated
+DROP POLICY IF EXISTS "users read own notifications" ON public.notifications;
+CREATE POLICY "users read own notifications" ON public.notifications FOR SELECT TO authenticated
   USING (user_id = auth.uid());
 
-CREATE POLICY "users update own notifications"
-  ON public.notifications FOR UPDATE TO authenticated
+DROP POLICY IF EXISTS "users update own notifications" ON public.notifications;
+CREATE POLICY "users update own notifications" ON public.notifications FOR UPDATE TO authenticated
   USING (user_id = auth.uid())
   WITH CHECK (user_id = auth.uid());
 
-CREATE POLICY "users delete own notifications"
-  ON public.notifications FOR DELETE TO authenticated
+DROP POLICY IF EXISTS "users delete own notifications" ON public.notifications;
+CREATE POLICY "users delete own notifications" ON public.notifications FOR DELETE TO authenticated
   USING (user_id = auth.uid());
 
 CREATE INDEX IF NOT EXISTS notifications_user_created_idx

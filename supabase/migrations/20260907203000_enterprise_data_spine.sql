@@ -22,8 +22,11 @@ CREATE TABLE IF NOT EXISTS public.organizations (
 
 -- Enable RLS for organizations
 ALTER TABLE public.organizations ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can view organizations" ON public.organizations;
 CREATE POLICY "Anyone can view organizations" ON public.organizations FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Authenticated users can insert organizations" ON public.organizations;
 CREATE POLICY "Authenticated users can insert organizations" ON public.organizations FOR INSERT TO authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "Authenticated users can update organizations" ON public.organizations;
 CREATE POLICY "Authenticated users can update organizations" ON public.organizations FOR UPDATE TO authenticated USING (true);
 
 -- 2. Plots / Geofenced Plantation Parcels Table
@@ -51,7 +54,9 @@ CREATE TABLE IF NOT EXISTS public.plots (
 
 -- Enable RLS for plots
 ALTER TABLE public.plots ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can view plots" ON public.plots;
 CREATE POLICY "Anyone can view plots" ON public.plots FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Authenticated users can manage plots" ON public.plots;
 CREATE POLICY "Authenticated users can manage plots" ON public.plots FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- 3. Enhance Trees Table with Spatial & Audit Columns
@@ -144,7 +149,9 @@ CREATE TABLE IF NOT EXISTS public.verifications (
 
 -- Enable RLS for verifications
 ALTER TABLE public.verifications ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can view verifications" ON public.verifications;
 CREATE POLICY "Anyone can view verifications" ON public.verifications FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Authenticated users can insert verifications" ON public.verifications;
 CREATE POLICY "Authenticated users can insert verifications" ON public.verifications FOR INSERT TO authenticated WITH CHECK (true);
 
 -- 5. Real Satellite Telemetry Table (Copernicus Sentinel-2 L2A / Earth Engine)
@@ -178,7 +185,9 @@ CREATE TABLE IF NOT EXISTS public.satellite_telemetry (
 
 -- Enable RLS for satellite_telemetry
 ALTER TABLE public.satellite_telemetry ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can view satellite_telemetry" ON public.satellite_telemetry;
 CREATE POLICY "Anyone can view satellite_telemetry" ON public.satellite_telemetry FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Authenticated users can insert satellite_telemetry" ON public.satellite_telemetry;
 CREATE POLICY "Authenticated users can insert satellite_telemetry" ON public.satellite_telemetry FOR INSERT TO authenticated WITH CHECK (true);
 
 -- 6. Growth Monitoring Logs (Multi-temporal NDVI + Ground Verification check-ins)
@@ -198,7 +207,9 @@ CREATE TABLE IF NOT EXISTS public.growth_monitoring_logs (
 
 -- Enable RLS for growth_monitoring_logs
 ALTER TABLE public.growth_monitoring_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can view growth_monitoring_logs" ON public.growth_monitoring_logs;
 CREATE POLICY "Anyone can view growth_monitoring_logs" ON public.growth_monitoring_logs FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Authenticated users can insert growth_monitoring_logs" ON public.growth_monitoring_logs;
 CREATE POLICY "Authenticated users can insert growth_monitoring_logs" ON public.growth_monitoring_logs FOR INSERT TO authenticated WITH CHECK (true);
 
 -- 7. Performance Indexes

@@ -39,6 +39,17 @@ BEGIN
   END IF;
 END $$;
 
+ALTER TABLE public.trees DROP CONSTRAINT IF EXISTS trees_survival_status_check;
+ALTER TABLE public.trees DROP CONSTRAINT IF EXISTS trees_verification_source_check;
+
+-- Normalize existing tree status values to uppercase before constraint
+UPDATE public.trees 
+SET survival_status = CASE 
+  WHEN UPPER(survival_status) IN ('ALIVE', 'STRESSED', 'DAMAGED', 'DEAD', 'UNKNOWN', 'NEEDS_REVIEW') THEN UPPER(survival_status)
+  ELSE 'ALIVE'
+END
+WHERE survival_status IS NOT NULL;
+
 -- 2. Check constraints for survival_status and verification_source
 ALTER TABLE public.trees DROP CONSTRAINT IF EXISTS trees_survival_status_check;
 ALTER TABLE public.trees ADD CONSTRAINT trees_survival_status_check

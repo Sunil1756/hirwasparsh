@@ -1,8 +1,10 @@
 
 -- 1. Create role enum and user_roles table
-CREATE TYPE public.app_role AS ENUM ('admin', 'moderator', 'user', 'government');
+DO $$ BEGIN
+  CREATE TYPE public.app_role AS ENUM ('admin', 'moderator', 'user', 'government');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE TABLE public.user_roles (
+CREATE TABLE IF NOT EXISTS public.user_roles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   role app_role NOT NULL,
@@ -26,10 +28,12 @@ AS $$
 $$;
 
 -- RLS: anyone can read roles (for UI), only admins can manage
+DROP POLICY IF EXISTS "Users can read own roles" ON public.user_roles;
 CREATE POLICY "Users can read own roles" ON public.user_roles
   FOR SELECT TO authenticated
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Admins can manage roles" ON public.user_roles;
 CREATE POLICY "Admins can manage roles" ON public.user_roles
   FOR ALL TO authenticated
   USING (public.has_role(auth.uid(), 'admin'));
@@ -71,13 +75,13 @@ BEGIN
 END;
 $$;
 
-CREATE TRIGGER on_tree_approved
-  BEFORE UPDATE ON public.trees
+DROP TRIGGER IF EXISTS on_tree_approved ON public.trees;
+CREATE TRIGGER on_tree_approved BEFORE UPDATE ON public.trees
   FOR EACH ROW
   EXECUTE FUNCTION public.award_points_on_approval();
 
 -- 5. Add growth_updates table for 7/30/90 day tracking
-CREATE TABLE public.growth_updates (
+CREATE TABLE IF NOT EXISTS public.growth_updates (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tree_id UUID NOT NULL REFERENCES public.trees(id) ON DELETE CASCADE,
   user_id UUID NOT NULL,
@@ -91,12 +95,18 @@ CREATE TABLE public.growth_updates (
 
 ALTER TABLE public.growth_updates ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can read growth updates" ON public.growth_updates;
 CREATE POLICY "Anyone can read growth updates" ON public.growth_updates
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Owners can insert growth updates" ON public.growth_updates;
 CREATE POLICY "Owners can insert growth updates" ON public.growth_updates
   FOR INSERT TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
 -- Enable realtime for trees so admin sees live updates
-ALTER PUBLICATION supabase_realtime ADD TABLE public.trees;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'trees') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.trees;
+  END IF;
+END $$;

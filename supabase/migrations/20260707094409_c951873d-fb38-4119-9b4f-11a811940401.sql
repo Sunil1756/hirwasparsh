@@ -1,26 +1,32 @@
 
 -- 1. Replace public SELECT policies with authenticated-only
 DROP POLICY IF EXISTS "Anyone can read health updates" ON public.tree_health_updates;
+DROP POLICY IF EXISTS "Authenticated can read health updates" ON public.tree_health_updates;
 CREATE POLICY "Authenticated can read health updates"
   ON public.tree_health_updates FOR SELECT TO authenticated USING (true);
 
 DROP POLICY IF EXISTS "Anyone can read challenges" ON public.challenges;
+DROP POLICY IF EXISTS "Authenticated can read challenges" ON public.challenges;
 CREATE POLICY "Authenticated can read challenges"
   ON public.challenges FOR SELECT TO authenticated USING (true);
 
 DROP POLICY IF EXISTS "Anyone can read participants" ON public.challenge_participants;
+DROP POLICY IF EXISTS "Authenticated can read challenge participants" ON public.challenge_participants;
 CREATE POLICY "Authenticated can read challenge participants"
   ON public.challenge_participants FOR SELECT TO authenticated USING (true);
 
 DROP POLICY IF EXISTS "Anyone can read participants" ON public.drive_participants;
+DROP POLICY IF EXISTS "Authenticated can read drive participants" ON public.drive_participants;
 CREATE POLICY "Authenticated can read drive participants"
   ON public.drive_participants FOR SELECT TO authenticated USING (true);
 
 DROP POLICY IF EXISTS "Anyone can read team members" ON public.team_members;
+DROP POLICY IF EXISTS "Authenticated can read team members" ON public.team_members;
 CREATE POLICY "Authenticated can read team members"
   ON public.team_members FOR SELECT TO authenticated USING (true);
 
 DROP POLICY IF EXISTS "Anyone can read teams" ON public.teams;
+DROP POLICY IF EXISTS "Authenticated can read teams" ON public.teams;
 CREATE POLICY "Authenticated can read teams"
   ON public.teams FOR SELECT TO authenticated USING (true);
 
