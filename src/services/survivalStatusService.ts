@@ -309,16 +309,18 @@ export const survivalStatusService = {
 
       // 3. Write immutable record to tree_status_audit_log
       try {
-        await supabase.from("tree_status_audit_log").insert({
-          tree_id: input.treeId,
-          previous_status: previousStatus,
-          new_status: verifiedStatus,
-          changed_by: input.reviewerId || null,
-          verification_source: input.verificationSource || "field_observation",
-          photo_url: input.photoUrl || null,
-          notes: input.notes || `Verified as ${verifiedStatus} by ${input.reviewerName || input.reviewerRole || "Monitor"}`,
-          created_at: verifiedAt,
-        });
+        await withTimeout(
+          supabase.from("tree_status_audit_log").insert({
+            tree_id: input.treeId,
+            previous_status: previousStatus,
+            new_status: verifiedStatus,
+            changed_by: input.reviewerId || null,
+            verification_source: input.verificationSource || "field_observation",
+            photo_url: input.photoUrl || null,
+            notes: input.notes || `Verified as ${verifiedStatus} by ${input.reviewerName || input.reviewerRole || "Monitor"}`,
+            created_at: verifiedAt,
+          })
+        );
       } catch (auditErr) {
         console.warn("Could not insert status audit log:", auditErr);
       }

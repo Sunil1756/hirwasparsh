@@ -75,7 +75,7 @@ export const AuditLogConsole: React.FC = () => {
 
   const handleVerifyChain = async () => {
     setIsVerifying(true);
-    setTimeout(async () => {
+    try {
       const result = await auditLogService.verifyChainIntegrity();
       setIntegrity(result);
       if (!result.isValid) {
@@ -83,8 +83,9 @@ export const AuditLogConsole: React.FC = () => {
       } else {
         setTamperAlert(null);
       }
+    } finally {
       setIsVerifying(false);
-    }, 400);
+    }
   };
 
   const handleSimulateTamperDrill = () => {

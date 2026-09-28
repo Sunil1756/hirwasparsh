@@ -1835,7 +1835,7 @@ const OrganizationPlantation = () => {
                     boundary,
                     targetTrees: Number(targetTrees) || 100,
                     speciesList: speciesText.split(",").map((s) => s.trim()).filter(Boolean),
-                    evidenceCount: initialSitePhoto ? 1 : (bulkRows.length > 0 ? 1 : 0),
+                    evidenceCount: initialSitePhoto ? 1 : 0,
                     existingProjects: projects,
                   })}
                 />

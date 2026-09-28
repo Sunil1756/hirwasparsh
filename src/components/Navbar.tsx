@@ -42,8 +42,8 @@ const Navbar = () => {
   ];
 
   const b2bLinks = [
-    { to: "/csr-portal", label: "CSR Carbon & ESG Portal" },
-    { to: "/ngo-workspace", label: "NGO Command Center" },
+    { to: "/workspace/ngo", label: "NGO Command Center" },
+    { to: "/portal/csr", label: "CSR Carbon & ESG Portal" },
     { to: "/pricing", label: "Institutional Pricing" },
     { to: "/scouting", label: "Field Ground Scouting" },
     { to: "/monitoring", label: "Surveillance & Monitoring" },
@@ -221,7 +221,17 @@ const Navbar = () => {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link to="/adopter" className="cursor-pointer text-emerald-600 dark:text-emerald-400 font-medium">
+                    <Link to="/workspace/ngo" className="cursor-pointer text-emerald-600 dark:text-emerald-400 font-medium">
+                      <Building2 className="h-4 w-4 mr-2" /> NGO Command Center
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/portal/csr" className="cursor-pointer text-blue-600 dark:text-blue-400 font-medium">
+                      <ShieldCheck className="h-4 w-4 mr-2" /> CSR & ESG Portal
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/adopter" className="cursor-pointer text-teal-600 dark:text-teal-400 font-medium">
                       <Heart className="h-4 w-4 mr-2" /> Adopter Dashboard
                     </Link>
                   </DropdownMenuItem>

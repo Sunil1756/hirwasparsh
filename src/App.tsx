@@ -95,7 +95,9 @@ const App = () => (
                 <Route path="/green-impact" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/intelligence" element={<Intelligence />} />
                 <Route path="/csr-portal" element={<ProtectedRoute><CSRCorporatePortal /></ProtectedRoute>} />
+                <Route path="/portal/csr" element={<ProtectedRoute><CSRCorporatePortal /></ProtectedRoute>} />
                 <Route path="/ngo-workspace" element={<ProtectedRoute><NGOWorkspacePage /></ProtectedRoute>} />
+                <Route path="/workspace/ngo" element={<ProtectedRoute><NGOWorkspacePage /></ProtectedRoute>} />
                 <Route path="/organization" element={<ProtectedRoute><OrganizationPortal /></ProtectedRoute>} />
                 <Route path="/organization-portal" element={<ProtectedRoute><OrganizationPortal /></ProtectedRoute>} />
                 <Route path="/projects" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />
