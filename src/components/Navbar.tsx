@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, LogOut, Shield, Building2, User, Settings, TreePine, Bell, ChevronDown, Compass, Heart } from "lucide-react";
+import { Menu, X, LogOut, Shield, ShieldCheck, Building2, User, Settings, TreePine, Bell, ChevronDown, Compass, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
