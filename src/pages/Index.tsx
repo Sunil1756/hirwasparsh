@@ -123,8 +123,8 @@ const Index = () => {
       <section className="relative flex items-center justify-center overflow-hidden pt-24 md:pt-28 pb-16 md:pb-24 min-h-[calc(100svh-4rem)]">
         <img src={heroBg} alt="Lush green misty mountain valley" className="absolute inset-0 w-full h-full object-cover" width={1920} height={1080} />
         {/* Readability overlay: deep green gradient */}
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,hsl(var(--nature-900)/0.72)_0%,hsl(var(--nature-900)/0.55)_45%,hsl(var(--nature-900)/0.78)_100%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,hsl(var(--nature-900)/0.45)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,hsl(var(--nature-900)/0.62)_0%,hsl(var(--nature-900)/0.45)_45%,hsl(var(--nature-900)/0.68)_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,hsl(var(--nature-900)/0.35)_100%)]" />
         {/* Smooth fade into next section */}
         <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-b from-transparent to-[hsl(var(--muted)/0.5)] pointer-events-none z-[1]" />
 
