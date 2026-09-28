@@ -276,6 +276,38 @@ describe('Phase 5 Task 26 — End-to-End Monitoring Lifecycle Testing', () => {
     });
 
     it('surfaces the monitored tree in the monitoring dashboard data streams', async () => {
+      monitoringDashboardService._setMockTrees([
+        {
+          id: TREE_ID,
+          tree_code: TREE_CODE,
+          species: SPECIES,
+          location: 'Western Ghats Agroforestry Plot',
+          latitude: BASELINE_LAT,
+          longitude: BASELINE_LNG,
+          status: 'healthy',
+          survival_status: 'alive',
+          height_cm: 96.0,
+          dbh_cm: 3.9,
+          created_at: PLANTATION_DATE,
+          planted_at: PLANTATION_DATE,
+          last_monitored_at: new Date().toISOString(),
+          monitoring_interval_days: 60,
+        },
+      ]);
+      monitoringDashboardService._setMockObservations([
+        {
+          id: 'obs-e2e-001',
+          tree_id: TREE_ID,
+          tree_code: TREE_CODE,
+          species: SPECIES,
+          observation_date: new Date().toISOString(),
+          survival_status: 'alive',
+          health_status: 'healthy',
+          height_cm: 96.0,
+          dbh_cm: 3.9,
+        },
+      ]);
+
       const dashboardData = await monitoringDashboardService.getMonitoringDashboardData();
 
       expect(dashboardData.kpis.totalMonitoredTrees).toBeGreaterThan(0);

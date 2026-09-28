@@ -1824,6 +1824,21 @@ const OrganizationPlantation = () => {
                     <p className="font-semibold text-foreground">{speciesText || "Mixed Indigenous"}</p>
                   </div>
                 </div>
+
+                {/* Pre-Submission AI Verification & Anti-Fraud Scorecard */}
+                <ProjectVerificationCard
+                  auditReport={evaluateProjectVerification({
+                    projectName: projectName.trim() || "Untitled Project",
+                    organizationName: orgName.trim() || "Executing Org",
+                    organizationType: orgType,
+                    locationName: location.trim() || "Plot Site",
+                    boundary,
+                    targetTrees: Number(targetTrees) || 100,
+                    speciesList: speciesText.split(",").map((s) => s.trim()).filter(Boolean),
+                    evidenceCount: initialSitePhoto ? 1 : (bulkRows.length > 0 ? 1 : 0),
+                    existingProjects: projects,
+                  })}
+                />
               </div>
             )}
 

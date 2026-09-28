@@ -378,4 +378,11 @@ export const monitoringDashboardService = {
   _setMockTrees(trees: any[] | null): void {
     customTreesOverride = trees;
   },
+
+  /**
+   * Set custom observations for test assertions
+   */
+  _setMockObservations(observations: any[] | null): void {
+    customObservationsOverride = observations;
+  },
 };
