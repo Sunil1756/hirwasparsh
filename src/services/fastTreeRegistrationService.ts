@@ -109,10 +109,10 @@ class FastTreeRegistrationService {
    * Initializes or gets the active planting session
    */
   public startSession(
-    projectId: string = "demo-project-dev-001",
-    projectName: string = "Western Ghats Sahyadri Reforestation",
+    projectId: string = "proj_sahyadri_001",
+    projectName: string = "Sahyadri Bio-Reserve Agroforestry Project",
     planterId: string = "field-worker-01",
-    planterName: string = "Field Ranger",
+    planterName: string = "Field Planter",
     compartmentId?: string,
     compartmentName?: string
   ): FastRegistrationSession {

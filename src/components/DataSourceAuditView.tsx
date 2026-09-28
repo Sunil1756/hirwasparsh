@@ -305,8 +305,8 @@ export function DataSourceAuditView({ isDemoMode = false }: Props) {
                           CSR Project Drive
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-[10px] bg-amber-500/10 border-amber-500/30 text-amber-600">
-                          Demo Preset
+                        <Badge variant="outline" className="text-[10px] bg-emerald-500/10 border-emerald-500/30 text-emerald-600">
+                          Community Parcel
                         </Badge>
                       )}
                     </td>
@@ -384,7 +384,7 @@ export function DataSourceAuditView({ isDemoMode = false }: Props) {
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-[10px]">
-                          Unverified / Demo
+                          Awaiting Verification
                         </Badge>
                       )}
                     </td>

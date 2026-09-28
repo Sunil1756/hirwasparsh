@@ -203,14 +203,12 @@ describe("Module A & TreeMap Component Integrity", () => {
     expect(zoneAnalytics.satelliteAuditedSurvivalRate).toBeGreaterThan(60);
   });
 
-  it("handles fetchDataSourceAuditList with demo mode and null values safely", async () => {
+  it("handles fetchDataSourceAuditList safely with zero synthetic corruption", async () => {
     const { fetchDataSourceAuditList } = await import("@/lib/databaseAuditService");
-    const demoItems = await fetchDataSourceAuditList(true);
-    expect(demoItems.length).toBeGreaterThan(0);
-    const demoPreset = demoItems.find((i) => i.sourceType === "demo_preset");
-    expect(demoPreset).toBeDefined();
-    expect(demoPreset?.name).toContain("[DEMO]");
-    expect(demoPreset?.creatorInfo).toContain("Synthetic Demo Simulator");
+    const items = await fetchDataSourceAuditList(false);
+    expect(Array.isArray(items)).toBe(true);
+    const hasDemo = items.some((i) => i.sourceType === "demo_preset");
+    expect(hasDemo).toBe(false);
   }, 30000);
 
   it("toggles Demo Mode in ModuleASatelliteEngine and renders demo banner without crashing", async () => {

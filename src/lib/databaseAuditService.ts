@@ -563,30 +563,6 @@ export async function fetchDataSourceAuditList(includeDemoPresets = false): Prom
         });
       }
     }
-
-    // 3. Append simulated demo presets only if explicitly requested
-    if (includeDemoPresets) {
-      for (const z of AGROFORESTRY_PRESET_ZONES) {
-        items.push({
-          id: `demo_${z.id}`,
-          name: `🧪 [DEMO] ${z.name}`,
-          sourceType: "demo_preset",
-          location: z.location || `${z.district || "Maharashtra"}, India`,
-          district: z.district || "Maharashtra",
-          totalTrees: z.targetTrees || 2500,
-          approvedTrees: Math.round((z.targetTrees || 2500) * 0.92),
-          pendingTrees: Math.round((z.targetTrees || 2500) * 0.08),
-          verificationCount: Math.round((z.targetTrees || 2500) * 0.92),
-          satellitePassesCount: 18,
-          lastSatelliteDate: new Date().toISOString().split("T")[0],
-          meanNdvi: z.meanNdvi,
-          createdAt: z.plantedDate || "2024-01-01",
-          creatorInfo: "Synthetic Demo Simulator (ESA Sentinel-2 Model)",
-          integrityStatus: "demo_simulation",
-          photoEvidenceSample: null,
-        });
-      }
-    }
   } catch (err) {
     console.warn("fetchDataSourceAuditList error:", err);
   }

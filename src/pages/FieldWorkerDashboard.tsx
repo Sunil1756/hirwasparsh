@@ -62,7 +62,7 @@ export default function FieldWorkerDashboard() {
   const [offlineDrawerOpen, setOfflineDrawerOpen] = useState(false);
   const [fieldTestModalOpen, setFieldTestModalOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("demo-project-dev-001");
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("proj_sahyadri_001");
   const [offlineCount, setOfflineCount] = useState<number>(0);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
@@ -308,7 +308,7 @@ export default function FieldWorkerDashboard() {
           <RiskAlertNotificationBanner
             role="field_worker"
             onSelectAction={() => {
-              setSelectedProjectId("demo-project-dev-001");
+              setSelectedProjectId("proj_sahyadri_001");
               setWizardOpen(true);
             }}
           />
@@ -335,7 +335,7 @@ export default function FieldWorkerDashboard() {
 
               <Button
                 onClick={() => {
-                  setSelectedProjectId("demo-project-dev-001");
+                  setSelectedProjectId("proj_sahyadri_001");
                   setWizardOpen(true);
                 }}
                 size="sm"
@@ -477,7 +477,7 @@ export default function FieldWorkerDashboard() {
                         <Button
                           size="sm"
                           onClick={() => {
-                            setSelectedProjectId("demo-project-dev-001");
+                            setSelectedProjectId("proj_sahyadri_001");
                             setWizardOpen(true);
                           }}
                           className="h-8 px-3 text-xs gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold shadow-sm"

@@ -64,7 +64,7 @@ export function AllometricCarbonCalculator({
         <div className="flex items-center gap-2">
           {isDemoOrUnverified ? (
             <Badge variant="outline" className="text-xs bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 gap-1">
-              <AlertTriangle className="h-3 w-3" /> Unverified / Demo Simulation
+              <AlertTriangle className="h-3 w-3" /> Preliminary Carbon Projection
             </Badge>
           ) : (
             <Badge className="text-xs bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 gap-1 font-semibold">

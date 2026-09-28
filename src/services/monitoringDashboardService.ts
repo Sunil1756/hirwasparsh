@@ -165,11 +165,7 @@ export const monitoringDashboardService = {
       }
     }
 
-    // Process and synthesize trees if empty
-    if (trees.length === 0) {
-      trees = this._generateDefaultDemoTrees();
-    }
-
+    // Zero fake demo trees: if empty, proceed with genuine empty dataset
     const treeLookup = new Map<string, any>();
     trees.forEach((t) => treeLookup.set(t.id, t));
 
@@ -381,89 +377,5 @@ export const monitoringDashboardService = {
    */
   _setMockTrees(trees: any[] | null): void {
     customTreesOverride = trees;
-  },
-
-  /**
-   * Internal generator for fallback / demo preview data
-   */
-  _generateDefaultDemoTrees(): any[] {
-    const speciesList = ["Azadirachta indica (Neem)", "Ficus religiosa (Peepal)", "Mangifera indica (Mango)", "Syzygium cumini (Jamun)", "Tamarindus indica (Imli)"];
-    const now = Date.now();
-
-    return [
-      {
-        id: "tree-demo-1",
-        tree_code: "GE-2026-000101",
-        species: speciesList[0],
-        location: "Warje Urban Forest, Pune",
-        plantation_date: new Date(now - 86400000 * 20).toISOString(),
-        next_monitoring_date: new Date(now + 86400000 * 3).toISOString(),
-        monitoring_status: "due_soon",
-        survival_status: "ALIVE",
-        status: "healthy",
-        height_cm: 65,
-        dbh_cm: 2.4,
-        photo_url: "https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?w=800&auto=format&fit=crop",
-      },
-      {
-        id: "tree-demo-2",
-        tree_code: "GE-2026-000102",
-        species: speciesList[1],
-        location: "Sinhagad Foothills",
-        plantation_date: new Date(now - 86400000 * 60).toISOString(),
-        next_monitoring_date: new Date(now - 86400000 * 18).toISOString(),
-        monitoring_status: "critical_overdue",
-        survival_status: "STRESSED",
-        status: "stressed",
-        height_cm: 80,
-        dbh_cm: 3.1,
-        photo_url: "https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=800&auto=format&fit=crop",
-      },
-      {
-        id: "tree-demo-3",
-        tree_code: "GE-2026-000103",
-        species: speciesList[2],
-        location: "Vetal Tekdi Agro-Zone",
-        plantation_date: new Date(now - 86400000 * 45).toISOString(),
-        next_monitoring_date: new Date(now - 86400000 * 5).toISOString(),
-        monitoring_status: "overdue",
-        survival_status: "ALIVE",
-        status: "alive",
-        height_cm: 95,
-        dbh_cm: 3.8,
-        photo_url: "https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop",
-      },
-      {
-        id: "tree-demo-4",
-        tree_code: "GE-2026-000104",
-        species: speciesList[3],
-        location: "Warje Urban Forest, Pune",
-        plantation_date: new Date(now - 86400000 * 30).toISOString(),
-        next_monitoring_date: new Date(now + 86400000 * 2).toISOString(),
-        monitoring_status: "due_soon",
-        survival_status: "NEEDS_REVIEW",
-        status: "needs_review",
-        height_cm: 72,
-        dbh_cm: 2.8,
-        ai_suggested_status: "STRESSED",
-        ai_status_confidence: 68,
-        ai_status_rationale: "NDVI drop detected (-0.22) indicating leaf canopy desiccation risk. Requires field ground-truth.",
-        photo_url: "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?w=800&auto=format&fit=crop",
-      },
-      {
-        id: "tree-demo-5",
-        tree_code: "GE-2026-000105",
-        species: speciesList[4],
-        location: "Baner Bio-Park",
-        plantation_date: new Date(now - 86400000 * 90).toISOString(),
-        next_monitoring_date: new Date(now + 86400000 * 14).toISOString(),
-        monitoring_status: "up_to_date",
-        survival_status: "ALIVE",
-        status: "thriving",
-        height_cm: 130,
-        dbh_cm: 5.5,
-        photo_url: "https://images.unsplash.com/photo-1473448912268-2022ce9509d8?w=800&auto=format&fit=crop",
-      },
-    ];
   },
 };

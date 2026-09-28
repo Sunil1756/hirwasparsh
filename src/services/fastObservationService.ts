@@ -126,10 +126,10 @@ class FastObservationService {
    * Initializes or gets the active field inspection session
    */
   public startSession(
-    projectId: string = "demo-project-dev-001",
-    projectName: string = "Western Ghats Sahyadri Reforestation",
+    projectId: string = "proj_sahyadri_001",
+    projectName: string = "Sahyadri Bio-Reserve Agroforestry Project",
     inspectorId: string = "field-ranger-01",
-    inspectorName: string = "Ranger Sanjay Patil"
+    inspectorName: string = "Field Inspector"
   ): FastObservationSession {
     this.activeSession = {
       sessionId: "obs-ses-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
