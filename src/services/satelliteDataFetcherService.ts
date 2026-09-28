@@ -228,7 +228,7 @@ export class SatelliteDataFetcherService {
     let signal: any = undefined;
     if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
       try {
-        signal = AbortSignal.timeout(timeoutMs);
+        signal = AbortSignal.timeout(timeoutMs || 3000);
       } catch (e) {
         // Fallback
       }

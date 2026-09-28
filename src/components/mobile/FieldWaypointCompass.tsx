@@ -20,7 +20,7 @@ import {
   coordinateToDMS,
   formatTreeCoordinates,
 } from "@/lib/gisMapFoundation";
-import { RealTreeFeature, getSyntheticRealTrees } from "@/services/treeMapService";
+import { RealTreeFeature } from "@/services/treeMapService";
 
 export interface WaypointTarget {
   id: string;

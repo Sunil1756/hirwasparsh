@@ -60,6 +60,14 @@ const Intelligence = () => {
   const rejected = trees.filter(t => t.admin_status === "rejected");
   const pending = trees.filter(t => t.admin_status === "pending");
 
+  const trackedIds = new Set(growth.map(g => g.tree_id).filter(Boolean));
+  const healthyTreeIds = new Set(
+    growth
+      .filter(g => g.ai_health_status === "healthy" || g.ai_health_status === "thriving")
+      .map(g => g.tree_id)
+      .filter(Boolean)
+  );
+
   const healthyApproved = approved.filter(t => t.verification_status !== "rejected" && t.admin_status !== "rejected");
   const survivalRate = trackedIds.size
     ? Math.round((healthyTreeIds.size / trackedIds.size) * 100)

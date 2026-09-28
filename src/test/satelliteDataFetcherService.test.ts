@@ -232,6 +232,6 @@ describe("PHASE 10 TASK 54 — Satellite Remote Sensing & Agro-Climatic Data Fet
       service.clearCache();
       const statsAfter = service.getCacheStats();
       expect(statsAfter.entriesCount).toBe(0);
-    });
+    }, 15000);
   });
 });

@@ -84,7 +84,7 @@ export interface BoundarySystemMapViewerProps {
 }
 
 export const BoundarySystemMapViewer: React.FC<BoundarySystemMapViewerProps> = ({
-  projectId = "proj-pune-western-ghats",
+  projectId = "",
   defaultBasemap = "google_satellite",
   height = "750px",
   className = "",

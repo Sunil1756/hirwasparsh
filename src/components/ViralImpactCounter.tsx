@@ -39,7 +39,7 @@ const ViralImpactCounter = () => {
             buttonLabel="View Leaderboard"
           />
           <AnimatedCounter
-            end={data?.survivingTrees || data?.totalTreesPlanted || 0}
+            end={data?.survivingTrees ?? 0}
             label="Trees Surviving"
             icon={<HeartPulse className="h-10 w-10 text-emerald-500 animate-pulse" />}
             to="/intelligence"

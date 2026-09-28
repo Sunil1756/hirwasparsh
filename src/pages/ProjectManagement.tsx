@@ -565,7 +565,7 @@ export const ProjectManagement: React.FC = () => {
       ) : viewMode === "boundary_system" ? (
         <div className="animate-in fade-in duration-200">
           <BoundarySystemMapViewer
-            projectId={selectedProjectId || filteredProjects[0]?.id || "proj-pune-western-ghats"}
+            projectId={selectedProjectId || filteredProjects[0]?.id || ""}
             height="720px"
           />
         </div>

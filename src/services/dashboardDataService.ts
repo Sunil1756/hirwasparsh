@@ -99,7 +99,7 @@ export const dashboardDataService = {
       // Trees aggregation
       const totalTrees = trees.length;
       const aliveTrees = trees.filter((t) => t.status === "alive" || t.status === "thriving").length;
-      const survivalRatePct = totalTrees > 0 ? Math.round((aliveTrees / totalTrees) * 100) : 100;
+      const survivalRatePct = totalTrees > 0 ? Math.round((aliveTrees / totalTrees) * 100) : 0;
 
       // Species breakdown
       const speciesDistribution: Record<string, number> = {};
@@ -227,7 +227,7 @@ export const dashboardDataService = {
 
       const plantedCount = trees.length;
       const aliveCount = trees.filter((t) => t.status === "alive" || t.status === "thriving").length;
-      const survivalRate = plantedCount > 0 ? Math.round((aliveCount / plantedCount) * 100) : 100;
+      const survivalRate = plantedCount > 0 ? Math.round((aliveCount / plantedCount) * 100) : 0;
       const annualCo2eMT = Number(((aliveCount * 22) / 1000).toFixed(2));
 
       return {
@@ -294,7 +294,7 @@ export const dashboardDataService = {
       const totalTargetTrees = projects.reduce((sum: number, p: any) => sum + (p.target_trees || 0), 0);
       const totalPlantedTrees = trees.length;
       const totalAliveTrees = trees.filter((t) => t.status === "alive" || t.status === "thriving").length;
-      const survivalRate = totalPlantedTrees > 0 ? Math.round((totalAliveTrees / totalPlantedTrees) * 100) : 100;
+      const survivalRate = totalPlantedTrees > 0 ? Math.round((totalAliveTrees / totalPlantedTrees) * 100) : 0;
 
       return {
         organizationId,
