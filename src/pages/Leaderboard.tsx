@@ -77,8 +77,10 @@ const Leaderboard = () => {
             let totalTrees = 0;
             let totalPoints = 0;
             if (memberIds.length > 0) {
-              const { data: profiles } = await supabase.from("profiles").select("trees_planted, green_points").in("id", memberIds);
-              (profiles || []).forEach(p => { totalTrees += p.trees_planted; totalPoints += p.green_points; });
+              (profiles || []).forEach(p => {
+                totalTrees += Number(p.trees_planted || 0);
+                totalPoints += Number(p.green_points || 0);
+              });
             }
             return { ...team, memberCount: memberIds.length, totalTrees, totalPoints };
           } catch {

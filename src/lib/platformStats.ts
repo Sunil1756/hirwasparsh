@@ -47,7 +47,7 @@ export async function fetchLivePlatformMetrics(): Promise<PlatformMetrics> {
       (t) => t.status === "alive" || t.status === "thriving"
     ).length;
 
-    const survivalRatePct = totalTreesPlanted > 0 ? Math.round((survivingTrees / totalTreesPlanted) * 100) : 100;
+    const survivalRatePct = totalTreesPlanted > 0 ? Math.round((survivingTrees / totalTreesPlanted) * 100) : 0;
 
     // 2. Fetch real projects from 'projects'
     const { data: projData } = await supabase
@@ -116,7 +116,7 @@ export async function fetchLivePlatformMetrics(): Promise<PlatformMetrics> {
       totalStories: 0,
       challengeParticipants: 0,
       survivingTrees: 0,
-      survivalRatePct: 100,
+      survivalRatePct: 0,
       co2OffsetKgPerYear: 0,
       o2GeneratedKgPerYear: 0,
     };

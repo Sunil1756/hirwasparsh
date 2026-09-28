@@ -116,7 +116,7 @@ export default function CertificateVerify() {
       acres: Math.max(0.5, computedArea.acres),
       speciesList: dbProject.species || ["Neem", "Banyan", "Peepal"],
       plantationDate: dbProject.plantation_date || dbProject.created_at,
-      survivalRatePercent: dbProject.verified_trees > 0 ? (dbProject.verified_trees / dbProject.target_trees) * 100 : 95.4,
+      survivalRatePercent: Number(dbProject.target_trees) > 0 ? Math.min(100, Math.round(((Number(dbProject.verified_trees) || Number(dbProject.planted_trees) || 0) / Number(dbProject.target_trees)) * 100)) : 0,
     });
   }, [dbProject, computedArea]);
 

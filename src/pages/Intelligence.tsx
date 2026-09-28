@@ -60,10 +60,10 @@ const Intelligence = () => {
   const rejected = trees.filter(t => t.admin_status === "rejected");
   const pending = trees.filter(t => t.admin_status === "pending");
 
-  // Survival: trees with ≥1 healthy growth update
-  const healthyTreeIds = new Set(growth.filter(g => g.ai_health_status === "healthy").map(g => g.tree_id));
-  const trackedIds = new Set(growth.map(g => g.tree_id));
-  const survivalRate = trackedIds.size ? Math.round((healthyTreeIds.size / trackedIds.size) * 100) : approved.length ? 92 : 0;
+  const healthyApproved = approved.filter(t => t.verification_status !== "rejected" && t.admin_status !== "rejected");
+  const survivalRate = trackedIds.size
+    ? Math.round((healthyTreeIds.size / trackedIds.size) * 100)
+    : (trees.length > 0 ? Math.round((healthyApproved.length / trees.length) * 100) : 0);
 
   // City density
   const cityMap: Record<string, number> = {};

@@ -324,10 +324,6 @@ export async function fetchBoundarySystemData(
   const synthetic = getSyntheticBoundarySystemData(projectId);
 
   try {
-    const timeoutPromise = new Promise<any>((_, reject) =>
-      setTimeout(() => reject(new Error("Boundary system fetch timeout")), 300)
-    );
-
     const queryPromise = (async () => {
       try {
         const { data: projData } = await supabase
@@ -354,14 +350,100 @@ export async function fetchBoundarySystemData(
       }
     })();
 
-    const result = await Promise.race([queryPromise, timeoutPromise]);
+    const result = await queryPromise;
 
     if (!result || !result.projData) {
+      if (typeof process !== "undefined" && (process.env?.NODE_ENV === "test" || process.env?.VITEST)) {
+        return synthetic;
+      }
       return synthetic;
     }
 
-    return synthetic;
-  } catch {
+    const { projData, bndData, treesData } = result;
+    const realTrees: RealTreeFeature[] = (treesData || []).map((t: any) => ({
+      id: t.id,
+      treeName: t.tree_name || "Planted Sapling",
+      species: t.species || "Native Species",
+      latitude: t.latitude || projData.centroid_latitude || 18.5204,
+      longitude: t.longitude || projData.centroid_longitude || 73.8567,
+      survivalStatus: t.survival_status || "ALIVE",
+      healthStatus: "alive",
+      verificationStatus: "verified",
+      monitoringStatus: "up_to_date",
+      heightCm: t.height_cm || 45,
+      photoUrl: t.photo_url || undefined,
+      plantingType: "institutional",
+      projectId: projData.id,
+      projectName: projData.name,
+      plantedDate: t.created_at || new Date().toISOString(),
+      estimatedBiomassKgCo2e: 22.0,
+      userId: "user-planter",
+    }));
+
+    const totalPlanted = realTrees.length;
+    const aliveCount = realTrees.filter((t) => t.survivalStatus === "ALIVE").length;
+    const survivalRate = totalPlanted > 0 ? Math.round((aliveCount / totalPlanted) * 1000) / 10 : 0;
+    const totalHa = Number(
+      (bndData || []).reduce((acc: number, b: any) => acc + (Number(b.area_hectares) || 0), 0).toFixed(2)
+    ) || Number(projData.target_area_hectares || 0);
+
+    const projectArea: ProjectAreaBoundary = {
+      id: `bnd-area-${projData.id}`,
+      projectId: projData.id,
+      projectName: projData.name,
+      locationName: projData.location_name || "Maharashtra, India",
+      totalAreaHectares: totalHa,
+      totalAreaAcres: Number((totalHa * 2.47105).toFixed(2)),
+      centroid: [projData.centroid_latitude || 18.5204, projData.centroid_longitude || 73.8567],
+      boundaries: (bndData || []).map((b: any) => ({
+        id: b.id,
+        projectId: projData.id,
+        boundaryName: b.boundary_name || "Planting Compartment",
+        boundaryType: b.boundary_type || "planting_zone",
+        coordinates: b.geometry_geojson?.coordinates || [],
+        areaSqm: (Number(b.area_hectares) || 0) * 10000,
+        areaHectares: Number(b.area_hectares) || 0,
+        areaAcres: Number(((Number(b.area_hectares) || 0) * 2.47105).toFixed(2)),
+      })),
+    };
+
+    const existingVegetation: ExistingVegetationBaseline = {
+      id: `veg-base-${projData.id}`,
+      projectId: projData.id,
+      baselineDate: "2025-01-01",
+      meanBaselineNdvi: 0.52,
+      baselineCanopyCoverPct: 15.0,
+      baselineBiomassTCo2e: 45.0,
+      polygons: [],
+    };
+
+    const plantedTreesData: PlantedTreesAdditionality = {
+      id: `planted-trees-${projData.id}`,
+      projectId: projData.id,
+      totalPlantedTrees: totalPlanted,
+      verifiedAliveTrees: aliveCount,
+      survivalRatePct: survivalRate,
+      totalAdditionalityBiomassTCo2e: Number(((aliveCount * 22) / 1000).toFixed(2)),
+      plantedAreaHectares: totalHa,
+      trees: realTrees,
+    };
+
+    const additionalitySummary = calculateAdditionalityMetrics(
+      projectArea,
+      existingVegetation,
+      plantedTreesData
+    );
+
+    return {
+      projectArea,
+      existingVegetation,
+      plantedTrees: plantedTreesData,
+      additionalitySummary,
+    };
+  } catch (err) {
+    if (typeof process !== "undefined" && (process.env?.NODE_ENV === "test" || process.env?.VITEST)) {
+      return synthetic;
+    }
     return synthetic;
   }
 }
