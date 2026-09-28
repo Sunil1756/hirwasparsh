@@ -63,6 +63,7 @@ import { PlotSurvivalRateView } from "./PlotSurvivalRateView";
 import { BulkPlotNdviTrendMonitor } from "./BulkPlotNdviTrendMonitor";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { Database } from "lucide-react";
+import { isGenuineProject, isGenuineTree } from "@/lib/genuineDataFilter";
 import {
   generateZoneTreeSurvivalRecords,
   convertDatabaseTreesToSurvivalRecords,
@@ -659,7 +660,10 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
           supabase.from("plantation_projects").select("*").order("created_at", { ascending: false }),
         ]);
         if (plots && plots.length > 0) setDbPlots(plots);
-        if (projects) setDbProjects(projects);
+        if (projects) {
+          const genuineProjects = (projects || []).filter((p: any) => isGenuineProject(p));
+          setDbProjects(genuineProjects);
+        }
       } catch (err) {
         console.warn("Could not fetch plantation projects/plots:", err);
       }

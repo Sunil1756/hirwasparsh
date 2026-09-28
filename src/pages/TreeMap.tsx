@@ -44,6 +44,7 @@ import { FieldScoutingModule } from "@/components/FieldScoutingModule";
 import { ModuleASatelliteEngine } from "@/components/ModuleASatelliteEngine";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { BASEMAP_PROVIDERS, BasemapProviderId } from "@/lib/gisMapFoundation";
+import { isGenuineTree } from "@/lib/genuineDataFilter";
 
 // Glowing pulse marker via DivIcon
 const makeGlowIcon = (color: string) =>
@@ -69,11 +70,11 @@ const fetchTrees = async () => {
   const { data, error } = await supabase
     .from("trees")
     .select(
-      "id, tree_name, species, location, latitude, longitude, verification_status, admin_status, ai_confidence, created_at, photo_url, height_cm, planting_type, plot_id, org_id"
+      "id, tree_name, species, location, latitude, longitude, verification_status, admin_status, ai_confidence, created_at, photo_url, height_cm, planting_type, plot_id, org_id, project_id, tree_code"
     )
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return data || [];
+  return (data || []).filter((t: any) => isGenuineTree(t));
 };
 
 // Component to handle auto-panning map when filtered trees change

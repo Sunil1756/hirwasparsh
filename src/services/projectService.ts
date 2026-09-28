@@ -16,6 +16,7 @@ import {
   AuditLog,
 } from "@/types/coreDatabase";
 import { validateGeodeticBoundary, LatLngPoint } from "@/lib/projectOnboardingService";
+import { isGenuineProject } from "@/lib/genuineDataFilter";
 
 export interface CreateProjectPayload {
   name: string;
@@ -294,9 +295,11 @@ export const projectService = {
         return { projects: [], total: 0, error: error.message };
       }
 
+      const genuineProjects = ((data || []) as unknown as Project[]).filter((p) => isGenuineProject(p));
+
       return {
-        projects: (data || []) as unknown as Project[],
-        total: count || (data?.length ?? 0),
+        projects: genuineProjects,
+        total: genuineProjects.length,
       };
     } catch (err: any) {
       return { projects: [], total: 0, error: err?.message || "Failed to fetch projects" };

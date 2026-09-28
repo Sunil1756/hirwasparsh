@@ -32,6 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateCarbonLedgerMetrics, CarbonAuditResult } from "@/lib/carbonLedger";
 import { computeAreas } from "@/components/BoundaryDrawMap";
+import { isGenuineProject } from "@/lib/genuineDataFilter";
 
 export default function CertificateVerify() {
   const { serialNo } = useParams<{ serialNo: string }>();
@@ -51,11 +52,13 @@ export default function CertificateVerify() {
           .select("*")
           .order("created_at", { ascending: false });
 
-        if (data && data.length > 0) {
+        const genuineProjects = (data || []).filter((p: any) => isGenuineProject(p));
+
+        if (genuineProjects.length > 0) {
           // If serialNo matches a project's id or starts with it
-          let match = data[0];
+          let match = genuineProjects[0];
           if (serialNo) {
-            const found = data.find((p: any) =>
+            const found = genuineProjects.find((p: any) =>
               p.id === serialNo ||
               p.project_name.toLowerCase().includes(serialNo.toLowerCase()) ||
               serialNo.includes(p.id.slice(0, 6))

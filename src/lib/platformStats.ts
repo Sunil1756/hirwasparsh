@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { isGenuineProject, isGenuineTree, isGenuineOrganization } from "@/lib/genuineDataFilter";
 
 export interface PlatformMetrics {
   totalTreesPlanted: number;
@@ -22,29 +23,34 @@ export interface PlatformMetrics {
  * 2. Real Afforestation & Plantation Projects (`projects` table)
  * 3. Multi-tenant Organizations (`organizations` table)
  * 
- * STRICT INVARIANT: Grounded in real Supabase database records without fake multipliers.
+ * STRICT INVARIANT: Grounded in real Supabase database records without fake multipliers or test artifacts.
  */
 export async function fetchLivePlatformMetrics(): Promise<PlatformMetrics> {
   try {
     // 1. Fetch individual & project trees from 'trees'
     const { data: treesData } = await supabase
       .from("trees" as any)
-      .select("id, status, planting_type, verification_status, admin_status");
+      .select("id, status, planting_type, verification_status, admin_status, project_id, org_id, tree_code");
 
-    const trees = (treesData || []) as Array<{
+    const rawTrees = (treesData || []) as Array<{
       id: string;
       status: string;
       planting_type?: string;
       verification_status?: string;
       admin_status?: string;
+      project_id?: string;
+      org_id?: string;
+      tree_code?: string;
     }>;
+
+    const trees = rawTrees.filter((t) => isGenuineTree(t));
 
     const totalTreesPlanted = trees.length;
     const individualTrees = trees.filter((t) => t.planting_type === "individual" || !t.planting_type).length;
     const plantationProjectTrees = trees.filter((t) => t.planting_type === "institutional" || t.planting_type === "community" || t.planting_type === "drive").length;
 
     const survivingTrees = trees.filter(
-      (t) => t.status === "alive" || t.status === "thriving"
+      (t) => t.status === "alive" || t.status === "thriving" || t.status === "healthy"
     ).length;
 
     const survivalRatePct = totalTreesPlanted > 0 ? Math.round((survivingTrees / totalTreesPlanted) * 100) : 0;
@@ -52,14 +58,18 @@ export async function fetchLivePlatformMetrics(): Promise<PlatformMetrics> {
     // 2. Fetch real projects from 'projects'
     const { data: projData } = await supabase
       .from("projects" as any)
-      .select("id, target_trees, planted_trees, status");
+      .select("id, target_trees, planted_trees, status, name, organization_id");
 
-    const projects = (projData || []) as Array<{
+    const rawProjects = (projData || []) as Array<{
       id: string;
       target_trees: number;
       planted_trees: number;
       status: string;
+      name?: string;
+      organization_id?: string;
     }>;
+
+    const projects = rawProjects.filter((p) => isGenuineProject(p));
 
     let totalTargetTrees = 0;
     let activeProjectsCount = 0;
@@ -70,9 +80,16 @@ export async function fetchLivePlatformMetrics(): Promise<PlatformMetrics> {
     });
 
     // 3. Fetch real organizations count
-    const { count: orgCount } = await supabase
+    const { data: orgData, count: orgCountHead } = await supabase
       .from("organizations" as any)
-      .select("id", { count: "exact", head: true });
+      .select("id", { count: "exact" });
+
+    let orgCount = 0;
+    if (Array.isArray(orgData)) {
+      orgCount = orgData.filter((o) => isGenuineOrganization(o)).length;
+    } else if (typeof orgCountHead === "number") {
+      orgCount = orgCountHead;
+    }
 
     // 4. Fetch profiles / volunteers
     const { count: profilesCount } = await supabase

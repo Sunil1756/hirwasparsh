@@ -407,7 +407,7 @@ export async function fetchRealTrees(plotId?: string): Promise<RealTreeRecord[]>
 }
 
 import { computeMultiSourceConfidenceScore, MultiSourceConfidenceResult } from "./multiSourceConfidenceEngine";
-import { generatePilotOverpasses } from "./sentinel2PipelineService";
+import { isGenuineProject, isGenuineTree } from "./genuineDataFilter";
 
 export interface DataSourceAuditItem {
   id: string;
@@ -508,13 +508,15 @@ export async function fetchDataSourceAuditList(): Promise<DataSourceAuditItem[]>
       }
     }
 
-    // 2. Audit real CSR/NGO projects (e.g. saga, VarshikVruksha Ropan 2k26)
-    if (projects && projects.length > 0) {
-      for (const pr of projects) {
-        const isPilot = pr.project_name?.toLowerCase().includes("vruksha") || pr.project_name?.toLowerCase().includes("varshik");
+    // 2. Audit real CSR/NGO projects
+    const genuineProjects = (projects || []).filter((pr) => isGenuineProject(pr));
+    if (genuineProjects.length > 0) {
+      for (const pr of genuineProjects) {
         const linkedTrees = treesList.filter((t: any) =>
-          t.project_id === pr.id ||
-          (t.location && pr.location && t.location.toLowerCase().includes(pr.location.toLowerCase()))
+          isGenuineTree(t) && (
+            t.project_id === pr.id ||
+            (t.location && pr.location && t.location.toLowerCase().includes(pr.location.toLowerCase()))
+          )
         );
         const approved = linkedTrees.filter((t: any) => t.admin_status === "approved" || t.verification_status === "verified").length;
         const pending = linkedTrees.length - approved;
@@ -522,23 +524,19 @@ export async function fetchDataSourceAuditList(): Promise<DataSourceAuditItem[]>
         const orgName = pr.organization_name || pr.project_name || "CSR Partner";
         const emailOrUser = pr.contact_email || (typeof pr.user_id === "string" ? pr.user_id.substring(0, 8) : "Registered Partner");
 
-        let pSat = satList.filter((s: any) => s.plot_id === pr.id || s.project_id === pr.id);
-        if (pSat.length === 0 && isPilot) {
-          pSat = generatePilotOverpasses(pr.id) as any[];
-        }
-
+        const pSat = satList.filter((s: any) => s.plot_id === pr.id || s.project_id === pr.id);
         const latestSat = pSat[pSat.length - 1] || pSat[0];
-        const meanNdvi = latestSat ? Number(latestSat.ndvi) : (isPilot ? 0.83 : (approved > 0 ? 0.76 : null));
+        const meanNdvi = latestSat ? Number(latestSat.ndvi) : (approved > 0 ? 0.76 : null);
 
         const confidence = computeMultiSourceConfidenceScore({
           plotId: pr.id,
           totalPlantedTrees: pr.verified_trees || linkedTrees.length || pr.target_trees || 100,
           manualOverrides: {
             satellitePassesCount: pSat.length,
-            meanNdvi: meanNdvi || 0.78,
-            hasDroneSurvey: isPilot,
-            verifiedTreesCount: approved || (isPilot ? 12 : 0),
-            lastFieldDate: linkedTrees[0]?.created_at || (isPilot ? new Date().toISOString() : undefined),
+            meanNdvi: meanNdvi || 0.72,
+            hasDroneSurvey: false,
+            verifiedTreesCount: approved,
+            lastFieldDate: linkedTrees[0]?.created_at,
           },
         });
 
@@ -549,11 +547,11 @@ export async function fetchDataSourceAuditList(): Promise<DataSourceAuditItem[]>
           location: pr.location || "Maharashtra, India",
           district: pr.location || "Maharashtra",
           totalTrees: pr.verified_trees || linkedTrees.length || pr.target_trees || 0,
-          approvedTrees: approved || pr.verified_trees || (isPilot ? 12 : 0),
+          approvedTrees: approved || pr.verified_trees || 0,
           pendingTrees: pending,
-          verificationCount: approved || (isPilot ? 12 : 0),
+          verificationCount: approved,
           satellitePassesCount: pSat.length,
-          lastSatelliteDate: latestSat?.acquisition_date || latestSat?.reading_date || (isPilot ? "2026-08-30" : null),
+          lastSatelliteDate: latestSat?.acquisition_date || latestSat?.reading_date || null,
           meanNdvi,
           createdAt: pr.created_at || new Date().toISOString(),
           creatorInfo: `${orgName} (${emailOrUser})`,

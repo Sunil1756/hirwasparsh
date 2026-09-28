@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { isGenuineTree, isGenuineProject } from "@/lib/genuineDataFilter";
 
 /**
  * Synchronizes user's total tree plantation count and green points
@@ -19,10 +20,10 @@ export async function syncUserProfileImpact(userId: string): Promise<{
     // 1. Individual trees (approved)
     const { data: indTrees } = await supabase
       .from("trees")
-      .select("id, points_awarded, admin_status")
+      .select("id, points_awarded, admin_status, project_id, org_id, tree_code")
       .eq("user_id", userId);
 
-    const approvedTrees = (indTrees || []).filter(t => t.admin_status === "approved");
+    const approvedTrees = (indTrees || []).filter(t => isGenuineTree(t) && t.admin_status === "approved");
     const individualTreesCount = approvedTrees.length;
     let individualPoints = 0;
     approvedTrees.forEach((t) => {
@@ -32,14 +33,16 @@ export async function syncUserProfileImpact(userId: string): Promise<{
     // 2. Organization projects
     const { data: orgProjects } = await supabase
       .from("plantation_projects")
-      .select("id, target_trees, verified_trees, bulk_rows, ai_score, status")
+      .select("id, target_trees, verified_trees, bulk_rows, ai_score, status, project_name, location")
       .eq("user_id", userId);
+
+    const genuineProjects = (orgProjects || []).filter((p) => isGenuineProject(p));
 
     let projectTreesCount = 0;
     let targetTreesCount = 0;
     let projectPoints = 0;
 
-    (orgProjects || []).forEach((p) => {
+    genuineProjects.forEach((p) => {
       targetTreesCount += (p.target_trees || p.bulk_rows || 0);
       const verified = p.verified_trees || 0;
       projectTreesCount += verified;

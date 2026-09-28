@@ -35,6 +35,7 @@ import { syncUserProfileImpact } from "@/lib/syncUserImpact";
 import { validateGeodeticBoundary } from "@/lib/projectOnboardingService";
 import { fetchRealSentinel2Telemetry } from "@/lib/remoteSensing";
 import { isProjectOwner, canEditProject, getProjectAccessBadge } from "@/lib/projectOwnership";
+import { isGenuineProject } from "@/lib/genuineDataFilter";
 import "leaflet/dist/leaflet.css";
 
 type Project = {
@@ -294,7 +295,9 @@ const OrganizationPlantation = () => {
       if (error) {
         console.warn("Could not fetch plantation projects from Supabase:", error.message);
       }
-      setProjects((data as Project[]) || []);
+      const rawList = (data as Project[]) || [];
+      const genuineList = rawList.filter((p) => isGenuineProject(p));
+      setProjects(genuineList);
     } catch (e) {
       console.warn("Project load exception:", e);
     } finally {
@@ -1182,56 +1185,93 @@ const OrganizationPlantation = () => {
                   <Badge variant="outline" className="text-[10px]">Read-Only Public Explorer</Badge>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {publicProjects.map((p) => {
-                    const s = STATUS_LABEL[p.status] ?? STATUS_LABEL.submitted;
-                    const isMine = myProjects.some((m) => m.id === p.id);
-                    return (
-                      <motion.button
-                        key={p.id}
-                        type="button"
-                        onClick={() => { setActiveId(p.id); setView("detail"); }}
-                        className="glass-card rounded-2xl p-5 text-left border border-border/50 hover:border-primary/50 transition-all cursor-pointer group bg-card"
+                {publicProjects.length === 0 ? (
+                  <div className="glass-card rounded-3xl p-10 sm:p-14 text-center space-y-4 border border-border/40 bg-gradient-to-b from-muted/10 to-transparent">
+                    <div className="h-16 w-16 rounded-2xl bg-muted/30 text-muted-foreground flex items-center justify-center mx-auto shadow-inner">
+                      <Satellite className="h-8 w-8 text-primary" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <h3 className="font-heading text-xl font-bold text-foreground">Public Afforestation Registry is Clean & Active</h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground max-w-lg mx-auto">
+                        All mock and demo projects have been purged. Newly registered institutional, CSR, or NGO plantation projects with live Copernicus Sentinel-2 satellite telemetry will appear here in the verified public registry.
+                      </p>
+                    </div>
+                    <div className="pt-2 flex flex-wrap justify-center gap-3">
+                      <Button
+                        onClick={() => {
+                          if (!user) {
+                            toast({
+                              title: "Authentication Required 🔒",
+                              description: "Please log in to your organization account to register a new plantation project.",
+                            });
+                            setSearchParams({ create: "true" });
+                            setView("wizard");
+                            return;
+                          }
+                          resetWizard();
+                          setView("wizard");
+                        }}
+                        className="rounded-xl font-bold shadow-md"
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            {isMine && (
-                              <Badge className="bg-primary/15 text-primary border-primary/30 text-[10px] font-bold mb-1">
-                                Your Project
-                              </Badge>
-                            )}
-                            <h3 className="font-heading font-semibold text-base text-foreground group-hover:text-primary transition-colors">
-                              {p.project_name}
-                            </h3>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {p.organization_name} · {p.location}
-                            </p>
+                        <Plus className="h-4 w-4 mr-1.5" /> + Register New Project
+                      </Button>
+                      <Button variant="outline" onClick={() => setListTab("my_projects")} className="rounded-xl text-xs font-semibold">
+                        Go to My Workspace
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {publicProjects.map((p) => {
+                      const s = STATUS_LABEL[p.status] ?? STATUS_LABEL.submitted;
+                      const isMine = myProjects.some((m) => m.id === p.id);
+                      return (
+                        <motion.button
+                          key={p.id}
+                          type="button"
+                          onClick={() => { setActiveId(p.id); setView("detail"); }}
+                          className="glass-card rounded-2xl p-5 text-left border border-border/50 hover:border-primary/50 transition-all cursor-pointer group bg-card"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              {isMine && (
+                                <Badge className="bg-primary/15 text-primary border-primary/30 text-[10px] font-bold mb-1">
+                                  Your Project
+                                </Badge>
+                              )}
+                              <h3 className="font-heading font-semibold text-base text-foreground group-hover:text-primary transition-colors">
+                                {p.project_name}
+                              </h3>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {p.organization_name} · {p.location}
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1.5">
+                              {p.ai_score != null && (
+                                <Badge variant="outline" className="border-primary/40 text-primary text-[11px]">
+                                  Trust {p.ai_score}/100
+                                </Badge>
+                              )}
+                              <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${s.className}`}>
+                                {s.label}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex flex-col items-end gap-1.5">
-                            {p.ai_score != null && (
-                              <Badge variant="outline" className="border-primary/40 text-primary text-[11px]">
-                                Trust {p.ai_score}/100
-                              </Badge>
-                            )}
-                            <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${s.className}`}>
-                              {s.label}
+                          <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
+                            <span className="font-semibold text-foreground">
+                              {p.verified_trees > 0
+                                ? `🌿 ${p.verified_trees} Verified Trees`
+                                : `🌱 ${p.target_trees} Target Trees`}
+                            </span>
+                            <span className="text-primary font-semibold flex items-center gap-1">
+                              Inspect Telemetry <ArrowUpRight className="h-3.5 w-3.5" />
                             </span>
                           </div>
-                        </div>
-                        <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
-                          <span className="font-semibold text-foreground">
-                            {p.verified_trees > 0
-                              ? `🌿 ${p.verified_trees} Verified Trees`
-                              : `🌱 ${p.target_trees} Target Trees`}
-                          </span>
-                          <span className="text-primary font-semibold flex items-center gap-1">
-                            Inspect Telemetry <ArrowUpRight className="h-3.5 w-3.5" />
-                          </span>
-                        </div>
-                      </motion.button>
-                    );
-                  })}
-                </div>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>

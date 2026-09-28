@@ -22,6 +22,7 @@ import {
   computeGeodesicPolygonArea,
   isValidCoordinate,
 } from "@/lib/gisMapFoundation";
+import { isGenuineProject, isGenuineTree } from "@/lib/genuineDataFilter";
 
 export interface ProjectBoundaryLayer {
   id: string;
@@ -574,7 +575,8 @@ export async function fetchProjectMapData(
     })();
 
     const result = await Promise.race([queryPromise, timeoutPromise]);
-    const dbProjects = result.data;
+    const rawDbProjects = result.data || [];
+    const dbProjects = rawDbProjects.filter((p: any) => isGenuineProject(p));
 
     let mergedProjects: ProjectMapFeature[] = [];
 
@@ -627,7 +629,7 @@ export async function fetchProjectMapData(
         const bounds = calculateProjectBounds(centroid, projBoundaries);
         const actualAreaHectares = projBoundaries.reduce((acc, b) => acc + b.areaHectares, 0) || (p.target_area_hectares || 10);
 
-        const projTrees = (treesData || []).filter((t: any) => t.project_id === p.id);
+        const projTrees = (treesData || []).filter((t: any) => isGenuineTree(t) && t.project_id === p.id);
         const realPlanted = projTrees.length > 0 ? projTrees.length : (Number(p.planted_trees) || 0);
         const aliveTrees = projTrees.filter((t: any) => t.status === "alive" || t.status === "thriving").length;
         const realSurvivalRate = realPlanted > 0

@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { MultiSourceSurvivalScoreCard } from "@/components/MultiSourceSurvivalScoreCard";
+import { isGenuineTree } from "@/lib/genuineDataFilter";
 
 const statusOptions = [
   { value: "healthy", label: "🌿 Healthy", icon: <Heart className="h-5 w-5 text-primary" /> },
@@ -37,14 +38,14 @@ const TreeHealth = () => {
       try {
         const { data, error } = await supabase
           .from("trees")
-          .select("id, tree_name, species")
+          .select("id, tree_name, species, project_id, org_id, tree_code")
           .eq("user_id", user!.id)
           .order("created_at", { ascending: false });
         if (error) {
           console.warn("user-trees-health error:", error.message);
           return [];
         }
-        return data || [];
+        return (data || []).filter((t: any) => isGenuineTree(t));
       } catch {
         return [];
       }
@@ -55,9 +56,9 @@ const TreeHealth = () => {
     queryKey: ["all-trees-health"],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase.from("trees").select("id, verification_status");
+        const { data, error } = await supabase.from("trees").select("id, verification_status, project_id, org_id, tree_code");
         if (error) return [];
-        return data || [];
+        return (data || []).filter((t: any) => isGenuineTree(t));
       } catch {
         return [];
       }

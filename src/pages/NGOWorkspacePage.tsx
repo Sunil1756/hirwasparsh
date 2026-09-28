@@ -32,6 +32,7 @@ import { RoleBadge } from "@/components/B2BRoleGate";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { isProjectOwner, canEditProject } from "@/lib/projectOwnership";
+import { isGenuineProject } from "@/lib/genuineDataFilter";
 import { IpccCarbonCreditModeler } from "@/components/IpccCarbonCreditModeler";
 
 interface NGOPlot {
@@ -75,8 +76,10 @@ export default function NGOWorkspacePage() {
           .select("id, created_by, name, location_name, target_trees, planted_trees, target_area_hectares, status, created_at, organization_id, organizations(name)")
           .order("created_at", { ascending: false });
 
-        if (projects && projects.length > 0) {
-          const mapped: NGOPlot[] = projects.map((p: any) => {
+        const genuineProjects = (projects || []).filter((p: any) => isGenuineProject(p));
+
+        if (genuineProjects.length > 0) {
+          const mapped: NGOPlot[] = genuineProjects.map((p: any) => {
             const target = Number(p.target_trees) || 100;
             const planted = Number(p.planted_trees) || 0;
             const score = p.status === "active" ? 90 : p.status === "under_review" ? 65 : 35;

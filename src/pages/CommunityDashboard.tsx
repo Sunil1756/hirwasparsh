@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { syncUserProfileImpact } from "@/lib/syncUserImpact";
+import { isGenuineProject } from "@/lib/genuineDataFilter";
 import { useEffect, useState } from "react";
 import { EditProfileModal } from "@/components/EditProfileModal";
 
@@ -79,7 +80,7 @@ const CommunityDashboard = () => {
         .or(`created_by.eq.${user!.id},organization_id.not.is.null`)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data || [];
+      return (data || []).filter((p: any) => isGenuineProject(p));
     },
   });
 
