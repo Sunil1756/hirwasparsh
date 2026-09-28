@@ -290,29 +290,33 @@ class RealRazorpayPaymentService {
 
     // Save order in public.payment_orders if database is accessible
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      await (supabase.from("payment_orders" as any) as any).insert({
-        order_id: orderId,
-        user_id: userData?.user?.id || null,
-        plan_id: planId,
-        plan_name: breakdown.plan.name,
-        billing_cycle: billingCycle,
-        currency,
-        base_amount: breakdown.baseAmount,
-        gst_rate: breakdown.gstRate,
-        gst_amount: breakdown.gstAmount,
-        total_amount: breakdown.totalAmount,
-        amount_paise: breakdown.amountPaise,
-        status: "created",
-        gateway,
-        gstin: customer.gstin || null,
-        billing_name: customer.name,
-        billing_email: customer.email,
-        metadata: {
-          org: customer.organizationName,
-          phone: customer.phone,
-        },
-      });
+      const dbTask = (async () => {
+        const { data: userData } = await supabase.auth.getUser();
+        await (supabase.from("payment_orders" as any) as any).insert({
+          order_id: orderId,
+          user_id: userData?.user?.id || null,
+          plan_id: planId,
+          plan_name: breakdown.plan.name,
+          billing_cycle: billingCycle,
+          currency,
+          base_amount: breakdown.baseAmount,
+          gst_rate: breakdown.gstRate,
+          gst_amount: breakdown.gstAmount,
+          total_amount: breakdown.totalAmount,
+          amount_paise: breakdown.amountPaise,
+          status: "created",
+          gateway,
+          gstin: customer.gstin || null,
+          billing_name: customer.name,
+          billing_email: customer.email,
+          metadata: {
+            org: customer.organizationName,
+            phone: customer.phone,
+          },
+        });
+      })();
+      const timeout = new Promise((resolve) => setTimeout(resolve, 250));
+      await Promise.race([dbTask, timeout]);
     } catch (err: any) {
       console.warn("Notice: payment_orders table sync skipped or using client-side cache:", err?.message);
     }
@@ -438,43 +442,47 @@ class RealRazorpayPaymentService {
     }
     const periodEndIso = periodEndDate.toISOString();
 
-    // 1. Record in payment_transactions table
+    // 1. Record in payment_transactions table and subscriptions table
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      await (supabase.from("payment_transactions" as any) as any).insert({
-        order_id: orderId,
-        user_id: userData?.user?.id || null,
-        payment_id: paymentId,
-        signature: signature || null,
-        gateway: "razorpay",
-        payment_method: method,
-        amount: order.totalAmount,
-        currency: order.currency,
-        status: "captured",
-        customer_email: order.customerDetails.email,
-        customer_name: order.customerDetails.name,
-        customer_contact: order.customerDetails.phone,
-        invoice_number: invoiceNum,
-        invoice_url: invoiceUrl,
-      });
+      const dbTask = (async () => {
+        const { data: userData } = await supabase.auth.getUser();
+        await (supabase.from("payment_transactions" as any) as any).insert({
+          order_id: orderId,
+          user_id: userData?.user?.id || null,
+          payment_id: paymentId,
+          signature: signature || null,
+          gateway: "razorpay",
+          payment_method: method,
+          amount: order.totalAmount,
+          currency: order.currency,
+          status: "captured",
+          customer_email: order.customerDetails.email,
+          customer_name: order.customerDetails.name,
+          customer_contact: order.customerDetails.phone,
+          invoice_number: invoiceNum,
+          invoice_url: invoiceUrl,
+        });
 
-      // 2. Upsert in subscriptions table
-      await (supabase.from("subscriptions" as any) as any).upsert({
-        user_id: userData?.user?.id || null,
-        plan_id: order.planId,
-        plan_name: order.planName,
-        status: "active",
-        billing_cycle: order.billingCycle,
-        currency: order.currency,
-        price_paid: order.totalAmount,
-        razorpay_order_id: orderId,
-        razorpay_payment_id: paymentId,
-        current_period_start: new Date().toISOString(),
-        current_period_end: periodEndIso,
-        license_key: licenseKey,
-        max_hectares: INSTITUTIONAL_PLANS[order.planId]?.maxHectares || 100,
-        max_trees: INSTITUTIONAL_PLANS[order.planId]?.maxTrees || 25000,
-      });
+        // 2. Upsert in subscriptions table
+        await (supabase.from("subscriptions" as any) as any).upsert({
+          user_id: userData?.user?.id || null,
+          plan_id: order.planId,
+          plan_name: order.planName,
+          status: "active",
+          billing_cycle: order.billingCycle,
+          currency: order.currency,
+          price_paid: order.totalAmount,
+          razorpay_order_id: orderId,
+          razorpay_payment_id: paymentId,
+          current_period_start: new Date().toISOString(),
+          current_period_end: periodEndIso,
+          license_key: licenseKey,
+          max_hectares: INSTITUTIONAL_PLANS[order.planId]?.maxHectares || 100,
+          max_trees: INSTITUTIONAL_PLANS[order.planId]?.maxTrees || 25000,
+        });
+      })();
+      const timeout = new Promise((resolve) => setTimeout(resolve, 250));
+      await Promise.race([dbTask, timeout]);
     } catch (e: any) {
       console.warn("Payment/subscription table insertion notice:", e?.message);
     }

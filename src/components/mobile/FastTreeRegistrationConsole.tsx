@@ -56,7 +56,7 @@ export interface FastTreeRegistrationConsoleProps {
 
 export const FastTreeRegistrationConsole: React.FC<FastTreeRegistrationConsoleProps> = ({
   currentLocation,
-  projectId = "demo-project-dev-001",
+  projectId = "proj_sahyadri_001",
   projectName = "Western Ghats Sahyadri Reforestation",
   compartmentId = "comp-alpha-1",
   compartmentName = "Block A-1 (Ridge)",

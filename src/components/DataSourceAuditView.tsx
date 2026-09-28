@@ -32,11 +32,7 @@ import {
 } from "@/lib/databaseAuditService";
 import { useToast } from "@/hooks/use-toast";
 
-interface Props {
-  isDemoMode?: boolean;
-}
-
-export function DataSourceAuditView({ isDemoMode = false }: Props) {
+export function DataSourceAuditView() {
   const { toast } = useToast();
   const [auditItems, setAuditItems] = useState<DataSourceAuditItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,7 +43,7 @@ export function DataSourceAuditView({ isDemoMode = false }: Props) {
   const loadAuditData = async () => {
     setIsLoading(true);
     try {
-      const items = await fetchDataSourceAuditList(isDemoMode);
+      const items = await fetchDataSourceAuditList();
       setAuditItems(items);
     } catch (err) {
       console.warn("Failed to load audit data:", err);
@@ -63,7 +59,7 @@ export function DataSourceAuditView({ isDemoMode = false }: Props) {
 
   useEffect(() => {
     loadAuditData();
-  }, [isDemoMode]);
+  }, []);
 
   const filteredItems = useMemo(() => {
     return auditItems.filter((item) => {

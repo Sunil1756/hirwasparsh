@@ -412,7 +412,7 @@ import { generatePilotOverpasses } from "./sentinel2PipelineService";
 export interface DataSourceAuditItem {
   id: string;
   name: string;
-  sourceType: "real_user_plot" | "real_csr_project" | "demo_preset";
+  sourceType: "real_user_plot" | "real_csr_project";
   location: string;
   district: string;
   totalTrees: number;
@@ -424,7 +424,7 @@ export interface DataSourceAuditItem {
   meanNdvi: number | null;
   createdAt: string;
   creatorInfo: string;
-  integrityStatus: "verified_with_evidence" | "active_monitoring" | "awaiting_trees" | "demo_simulation";
+  integrityStatus: "verified_with_evidence" | "active_monitoring" | "awaiting_trees";
   photoEvidenceSample?: string | null;
   confidenceScore?: MultiSourceConfidenceResult;
 }
@@ -432,7 +432,7 @@ export interface DataSourceAuditItem {
 /**
  * Comprehensive ground truth & data source audit list for Internal NGO/Admin review
  */
-export async function fetchDataSourceAuditList(includeDemoPresets = false): Promise<DataSourceAuditItem[]> {
+export async function fetchDataSourceAuditList(): Promise<DataSourceAuditItem[]> {
   const items: DataSourceAuditItem[] = [];
 
   try {

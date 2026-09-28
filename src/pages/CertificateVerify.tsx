@@ -106,32 +106,19 @@ export default function CertificateVerify() {
 
   const computedArea = useMemo(() => computeAreas(boundaryPoints), [boundaryPoints]);
 
-  const certData: CarbonAuditResult = useMemo(() => {
-    const s = serialNo || "GE-IND-MH-2026-NAGP-9A4B12";
-    if (dbProject) {
-      return calculateCarbonLedgerMetrics({
-        projectId: dbProject.id,
-        projectName: dbProject.project_name,
-        organizationName: dbProject.organization_name,
-        targetTrees: dbProject.target_trees || 100,
-        acres: Math.max(0.5, computedArea.acres),
-        speciesList: dbProject.species || ["Neem", "Banyan", "Peepal"],
-        plantationDate: dbProject.plantation_date || dbProject.created_at,
-        survivalRatePercent: dbProject.verified_trees > 0 ? (dbProject.verified_trees / dbProject.target_trees) * 100 : 95.4,
-      });
-    }
-
+  const certData: CarbonAuditResult | null = useMemo(() => {
+    if (!dbProject) return null;
     return calculateCarbonLedgerMetrics({
-      projectId: "proj_demo",
-      projectName: "Miyawaki Agroforestry Drive — Phase 1",
-      organizationName: "Sahyadri Environmental Trust",
-      targetTrees: 500,
-      acres: 4.25,
-      speciesList: ["Neem", "Teak", "Jamun", "Bamboo"],
-      plantationDate: "2026-03-01",
-      survivalRatePercent: 95.6,
+      projectId: dbProject.id,
+      projectName: dbProject.project_name || "Agroforestry Project",
+      organizationName: dbProject.organization_name || "Green Enlightenment Steward",
+      targetTrees: dbProject.target_trees || 100,
+      acres: Math.max(0.5, computedArea.acres),
+      speciesList: dbProject.species || ["Neem", "Banyan", "Peepal"],
+      plantationDate: dbProject.plantation_date || dbProject.created_at,
+      survivalRatePercent: dbProject.verified_trees > 0 ? (dbProject.verified_trees / dbProject.target_trees) * 100 : 95.4,
     });
-  }, [dbProject, serialNo, computedArea]);
+  }, [dbProject, computedArea]);
 
   const copyLink = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -165,6 +152,19 @@ export default function CertificateVerify() {
           <div className="glass-card rounded-3xl p-12 text-center flex flex-col items-center justify-center gap-3">
             <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
             <p className="text-sm text-muted-foreground font-medium">Verifying cryptographic certificate signature...</p>
+          </div>
+        ) : !certData ? (
+          <div className="glass-card rounded-3xl p-12 text-center space-y-4 border border-border/80">
+            <ShieldCheck className="h-12 w-12 text-muted-foreground mx-auto opacity-50" />
+            <h2 className="text-xl font-heading font-bold text-foreground">Certificate Record Not Found</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto">
+              No live database plantation project matching this certificate serial was found in the Green Enlightenment registry.
+            </p>
+            <Link to="/map">
+              <Button size="sm" className="rounded-xl mt-2 text-xs">
+                Explore Verified GIS Map
+              </Button>
+            </Link>
           </div>
         ) : (
           <>

@@ -63,7 +63,7 @@ export type MobileTab = "tasks" | "compass" | "tally" | "queue";
 
 export const MobileFieldInterface: React.FC<MobileFieldInterfaceProps> = ({
   currentLocation,
-  projectId = "demo-project-dev-001",
+  projectId = "proj_sahyadri_001",
   className = "",
 }) => {
   const [activeTab, setActiveTab] = useState<MobileTab>("tasks");

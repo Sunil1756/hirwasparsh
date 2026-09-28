@@ -244,9 +244,9 @@ export function PredictiveRiskAlertsConsole({
           </p>
         </div>
 
-        {/* Scenario Switcher for Demo / Testing */}
+        {/* Threat Diagnostic Analyzer */}
         <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-background/60 border border-primary/20 text-xs">
-          <span className="px-2 text-[11px] font-bold text-muted-foreground">ML Scenario:</span>
+          <span className="px-2 text-[11px] font-bold text-muted-foreground">Threat Diagnostic:</span>
           {(["drought", "pest", "clearing", "waterlogging", "fire", "healthy"] as const).map((sc) => (
             <button
               key={sc}

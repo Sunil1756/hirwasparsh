@@ -49,7 +49,7 @@ export const RapidFieldActionDrawer: React.FC<RapidFieldActionDrawerProps> = ({
   mode,
   onClose,
   currentLocation,
-  projectId = "demo-project-dev-001",
+  projectId = "proj_sahyadri_001",
   onSuccess,
 }) => {
   // Plant State

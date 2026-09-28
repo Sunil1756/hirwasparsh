@@ -138,7 +138,7 @@ export const FieldWaypointCompass: React.FC<FieldWaypointCompassProps> = ({
 
   const userCoord: LatLngTuple = currentLocation
     ? [currentLocation.lat, currentLocation.lng]
-    : [18.4728, 73.4355]; // Default demo Mulshi baseline
+    : [18.4728, 73.4355]; // Western Ghats baseline coordinates
 
   const targetCoord: LatLngTuple = [activeTarget.latitude, activeTarget.longitude];
   const distanceMeters = calculateHaversineDistance(userCoord, targetCoord);

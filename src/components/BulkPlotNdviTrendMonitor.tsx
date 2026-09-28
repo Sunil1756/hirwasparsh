@@ -176,34 +176,6 @@ export function BulkPlotNdviTrendMonitor({
     }
   };
 
-  // Simulate an anomalous drop for demo/testing purposes
-  const handleSimulateDrop = () => {
-    const today = new Date();
-    const droppedReadings = [
-      {
-        reading_date: new Date(today.getTime() - 120 * 86400000).toISOString().split("T")[0],
-        ndvi: 0.78,
-      },
-      {
-        reading_date: new Date(today.getTime() - 90 * 86400000).toISOString().split("T")[0],
-        ndvi: 0.76,
-      },
-      {
-        reading_date: new Date(today.getTime() - 30 * 86400000).toISOString().split("T")[0],
-        ndvi: 0.61,
-      },
-      {
-        reading_date: new Date().toISOString().split("T")[0],
-        ndvi: 0.58,
-      },
-    ];
-    setReadings(droppedReadings);
-    toast({
-      title: "🧪 Simulation: 25.6% NDVI Decline Injected",
-      description: "Quarter-over-Quarter drop triggered. Notice the alert card and task creation prompt.",
-    });
-  };
-
   if (!isBulkPlot) {
     return null;
   }
@@ -225,17 +197,6 @@ export function BulkPlotNdviTrendMonitor({
           <p className="text-xs text-muted-foreground mt-0.5">
             Monitors multi-spectral vegetation indices across {plotName} ({district}) and flags QoQ drops &gt;15%.
           </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSimulateDrop}
-            className="text-xs rounded-xl h-8 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
-          >
-            🧪 Test &gt;15% Drop
-          </Button>
         </div>
       </div>
 

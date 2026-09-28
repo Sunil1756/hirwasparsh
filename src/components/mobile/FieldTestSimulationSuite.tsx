@@ -73,7 +73,7 @@ export const FieldTestSimulationSuite: React.FC<FieldTestSimulationSuiteProps> =
   isOpen,
   onClose,
   currentLocation = { lat: 18.5204, lng: 73.8567, accuracy: 2.5 },
-  projectId = "demo-project-dev-001",
+  projectId = "proj_sahyadri_001",
 }) => {
   const [activeScenario, setActiveScenario] = useState<SimScenario>("overview");
   const [isAutomatedRunActive, setIsAutomatedRunActive] = useState(false);

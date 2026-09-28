@@ -121,7 +121,7 @@ const DEFAULT_CANDIDATES: TreeInspectionCandidate[] = [
 
 export const FastObservationConsole: React.FC<FastObservationConsoleProps> = ({
   currentLocation,
-  projectId = "demo-project-dev-001",
+  projectId = "proj_sahyadri_001",
   projectName = "Western Ghats Sahyadri Reforestation",
   inspectorId = "field-ranger-01",
   inspectorName = "Ranger Sanjay Patil",

@@ -1,7 +1,44 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { monitoringDashboardService } from '@/services/monitoringDashboardService';
 
 describe('Phase 5 Task 25 — Monitoring Dashboard Service & Analytics Stream', () => {
+  beforeEach(() => {
+    monitoringDashboardService._setMockTrees([
+      {
+        id: 'test-tree-001',
+        tree_code: 'GE-2026-001',
+        species: 'Ficus benghalensis',
+        location: 'Western Ghats Bio-Shield',
+        latitude: 18.4735,
+        longitude: 73.4361,
+        status: 'healthy',
+        survival_status: 'alive',
+        height_cm: 150,
+        dbh_cm: 5.5,
+        created_at: new Date(Date.now() - 60 * 86400000).toISOString(),
+        planted_at: new Date(Date.now() - 60 * 86400000).toISOString(),
+        last_monitored_at: new Date(Date.now() - 15 * 86400000).toISOString(),
+        monitoring_interval_days: 30,
+      },
+      {
+        id: 'test-tree-002',
+        tree_code: 'GE-2026-002',
+        species: 'Azadirachta indica',
+        location: 'Western Ghats Bio-Shield',
+        latitude: 18.4736,
+        longitude: 73.4362,
+        status: 'healthy',
+        survival_status: 'alive',
+        height_cm: 120,
+        dbh_cm: 4.2,
+        created_at: new Date(Date.now() - 120 * 86400000).toISOString(),
+        planted_at: new Date(Date.now() - 120 * 86400000).toISOString(),
+        last_monitored_at: new Date(Date.now() - 45 * 86400000).toISOString(),
+        monitoring_interval_days: 30,
+      },
+    ]);
+  });
+
   describe('1. Unified Monitoring Dashboard Data Aggregation', () => {
     it('aggregates all 5 essential monitoring streams and top-level KPIs', async () => {
       const data = await monitoringDashboardService.getMonitoringDashboardData();

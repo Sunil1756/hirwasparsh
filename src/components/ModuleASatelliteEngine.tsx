@@ -607,17 +607,6 @@ function getZoneSurvivalRecords(
   treesList: TreeRecord[],
   dbProjectsList: any[]
 ): TreeSurvivalRecord[] {
-  // If this is an explicit demo simulation preset, generate demo sample trees
-  if (zone.id.startsWith("demo_")) {
-    return generateZoneTreeSurvivalRecords(
-      zone.id,
-      zone.center[0],
-      zone.center[1],
-      zone.species,
-      24
-    );
-  }
-
   // Strictly check plot_id or project_id match in database for bulk parcels only
   const matching = treesList.filter(
     (t: any) =>
@@ -654,7 +643,6 @@ const DEFAULT_EMPTY_ZONE: AgroforestryPresetZone = {
 
 export function ModuleASatelliteEngine({ trees = [] }: Props) {
   const { toast } = useToast();
-  const [isDemoMode, setIsDemoMode] = useState(false);
   const [activeSpectral, setActiveSpectral] = useState<"rgb" | "ndvi" | "ndre" | "ndwi" | "evi" | "thermal">("ndvi");
   const [activeSubTab, setActiveSubTab] = useState<"map" | "survival" | "slider" | "timeseries" | "carbon" | "parcel" | "audit" | "rates">("map");
   const [showPurposeGuide, setShowPurposeGuide] = useState(false);
@@ -679,7 +667,7 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
     loadDataSpine();
   }, []);
 
-  // Combine Real Database Projects & Plots from Supabase (Strictly no fake plots unless Demo Mode is ON)
+  // Combine Real Database Projects & Plots from Supabase (Strictly real data only)
   const allAvailableZones: AgroforestryPresetZone[] = useMemo(() => {
     // 1. Real Supabase Geofenced Plots
     const realPlotZones: AgroforestryPresetZone[] = dbPlots.map((p) => {
@@ -714,7 +702,7 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
       };
     });
 
-    // 2. Real CSR/NGO projects from database (e.g. any new or existing plantation project)
+    // 2. Real CSR/NGO projects from database
     const realZones: AgroforestryPresetZone[] = dbProjects.map((p) => {
       const pTrees = trees.filter((t: any) => t.project_id === p.id);
       const fallbackLat = Number(p.latitude) || Number(pTrees[0]?.latitude) || 19.75;
@@ -752,23 +740,12 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
 
     const combinedReal = [...realPlotZones, ...realZones];
 
-    // If Demo Mode is explicitly enabled, append synthetic demo corridors
-    if (isDemoMode) {
-      const demoZones: AgroforestryPresetZone[] = AGROFORESTRY_PRESET_ZONES.map((z) => ({
-        ...z,
-        id: `demo_${z.id}`,
-        name: `🧪 [DEMO] ${z.name}`,
-        description: `[SIMULATED DEMO PRESET] ${z.description}`,
-      }));
-      return [...combinedReal, ...demoZones];
-    }
-
     if (combinedReal.length === 0) {
       return [DEFAULT_EMPTY_ZONE];
     }
 
     return combinedReal;
-  }, [dbPlots, dbProjects, trees, isDemoMode]);
+  }, [dbPlots, dbProjects, trees]);
 
   const [selectedZone, setSelectedZone] = useState<AgroforestryPresetZone>(
     () => allAvailableZones[0] || DEFAULT_EMPTY_ZONE
@@ -803,7 +780,7 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
   const [aiReportModalContent, setAiReportModalContent] = useState<string | null>(null);
 
-  // Synchronize zone records whenever selectedZone, trees, projects, or isDemoMode change
+  // Synchronize zone records whenever selectedZone, trees, or projects change
   useEffect(() => {
     const current = allAvailableZones.find((z) => z.id === selectedZone.id) || allAvailableZones[0] || DEFAULT_EMPTY_ZONE;
     if (current) {
@@ -860,19 +837,17 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
   }, [selectedZone, dbProjects, dbPlots, trees]);
 
   const activeConfidence: MultiSourceConfidenceResult = useMemo(() => {
-    const isDemo = selectedZone.id.startsWith("demo_") || isDemoMode;
-
     return computeMultiSourceConfidenceScore({
       plotId: selectedZone.id,
       totalPlantedTrees: activeZoneMetadata.totalPlanted,
       manualOverrides: {
-        satellitePassesCount: isDemo ? 0 : activeZoneMetadata.zoneTreeRecords.length > 0 ? 3 : 1,
+        satellitePassesCount: activeZoneMetadata.zoneTreeRecords.length > 0 ? 3 : 1,
         meanNdvi: selectedZone.meanNdvi,
         verifiedTreesCount: activeZoneMetadata.verifiedCount,
         lastFieldDate: activeZoneMetadata.zoneTreeRecords[0]?.created_at || undefined,
       },
     });
-  }, [selectedZone, activeZoneMetadata, isDemoMode]);
+  }, [selectedZone, activeZoneMetadata]);
 
   const rasterGridCells = useMemo(() => {
     return generateSpectralRasterGrid(
@@ -1106,38 +1081,6 @@ Please provide:
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-background/80 border border-primary/20 shadow-sm">
-              <label htmlFor="demo-toggle" className="text-xs font-semibold cursor-pointer select-none text-foreground flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Demo Mode
-              </label>
-              <Switch
-                id="demo-toggle"
-                checked={isDemoMode}
-                onCheckedChange={(val) => {
-                  setIsDemoMode(val);
-                  if (val) {
-                    const firstDemo = AGROFORESTRY_PRESET_ZONES[0];
-                    if (firstDemo) {
-                      const demoZone: AgroforestryPresetZone = {
-                        ...firstDemo,
-                        id: `demo_${firstDemo.id}`,
-                        name: `🧪 [DEMO] ${firstDemo.name}`,
-                        description: `[SIMULATED DEMO PRESET] ${firstDemo.description}`,
-                      };
-                      setSelectedZone(demoZone);
-                      setMapCenter(demoZone.center);
-                      setMapZoom(demoZone.zoom || 14);
-                    }
-                  }
-                  toast({
-                    title: val ? "🧪 Demo Simulation Mode Enabled" : "🛡️ Real Database Mode Enabled",
-                    description: val
-                      ? "Sample synthetic demonstration corridors loaded."
-                      : "Only verified real database plots are shown.",
-                  });
-                }}
-              />
-            </div>
             <Button
               variant="default"
               size="sm"
@@ -1171,26 +1114,6 @@ Please provide:
             />
           </div>
         </div>
-
-        {/* Demo Mode Notice Banner */}
-        {isDemoMode && (
-          <div className="mt-4 p-3.5 rounded-2xl bg-amber-500/15 border-2 border-amber-500/40 text-amber-900 dark:text-amber-200 text-xs flex flex-wrap items-center justify-between gap-3 shadow-inner">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
-              <span>
-                <strong>Demo Simulation Mode Active:</strong> Showing synthetic demonstration corridors alongside real database plots. Turn off to view strictly verified field uploads.
-              </span>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setIsDemoMode(false)}
-              className="h-7 text-[11px] rounded-lg border-amber-500/40 hover:bg-amber-500/20 text-amber-800 dark:text-amber-200 font-semibold"
-            >
-              Exit Demo Mode
-            </Button>
-          </div>
-        )}
 
         {/* ---------------- PURPOSE & SCIENTIFIC VALUE ACCORDION ---------------- */}
         <AnimatePresence>
@@ -1902,7 +1825,7 @@ Please provide:
           {/* 7. DATA SOURCE & GROUND TRUTH AUDIT */}
           {activeSubTab === "audit" && (
             <div className="animate-in fade-in duration-300">
-              <DataSourceAuditView isDemoMode={isDemoMode} />
+              <DataSourceAuditView />
             </div>
           )}
 

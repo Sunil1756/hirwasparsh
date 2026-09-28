@@ -63,39 +63,7 @@ export default function TreeAdopterDashboard() {
           .order("created_at", { ascending: false });
 
         if (error) throw error;
-        if (data && data.length > 0) return data;
-
-        // Fallback demo trees if new user
-        return [
-          {
-            id: "tree-adopt-001",
-            tree_name: "Ganga Sacred Banyan",
-            species: "Ficus benghalensis",
-            location: "Rishikesh Forest Reserve, Uttarakhand",
-            latitude: 30.0869,
-            longitude: 78.2676,
-            verification_status: "verified",
-            ai_confidence: 94,
-            points_awarded: 50,
-            photo_url: "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=600&auto=format&fit=crop",
-            created_at: new Date(Date.now() - 45 * 24 * 3600 * 1000).toISOString(),
-            height_cm: 110,
-          },
-          {
-            id: "tree-adopt-002",
-            tree_name: "Western Ghats Neem Protector",
-            species: "Azadirachta indica",
-            location: "Mahabaleshwar Bio-Corridor, Maharashtra",
-            latitude: 17.9237,
-            longitude: 73.6586,
-            verification_status: "verified",
-            ai_confidence: 88,
-            points_awarded: 50,
-            photo_url: "https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=600&auto=format&fit=crop",
-            created_at: new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString(),
-            height_cm: 145,
-          },
-        ];
+        return data || [];
       } catch {
         return [];
       }
@@ -112,15 +80,15 @@ export default function TreeAdopterDashboard() {
         .select("eco_points, trees_planted, full_name")
         .eq("id", user?.id)
         .maybeSingle();
-      return data || { eco_points: 150, trees_planted: userTrees.length, full_name: user?.email?.split("@")[0] };
+      return data || { eco_points: 0, trees_planted: userTrees.length, full_name: user?.email?.split("@")[0] || "Eco Steward" };
     },
   });
 
   // Impact Calculations (IPCC Standards)
-  const treesCount = userTrees.length || 2;
+  const treesCount = userTrees.length;
   const annualCo2Kg = treesCount * 22; // ~22kg CO2/tree/year
   const annualO2Kg = treesCount * 118; // ~118kg O2/tree/year
-  const ecoPointsBalance = profile?.eco_points ?? treesCount * 50;
+  const ecoPointsBalance = profile?.eco_points ?? (treesCount * 50);
 
   // Handle Growth Check-in Submission
   const handleGrowthSubmit = async (e: React.FormEvent) => {

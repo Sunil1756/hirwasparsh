@@ -217,7 +217,7 @@ describe("Module A & TreeMap Component Integrity", () => {
       defaultOptions: { queries: { retry: false } },
     });
 
-    const { getByLabelText, getByText } = render(
+    const { getByText, getAllByText } = render(
       <QueryClientProvider client={queryClient}>
         <LanguageProvider>
           <BrowserRouter>
@@ -227,15 +227,9 @@ describe("Module A & TreeMap Component Integrity", () => {
       </QueryClientProvider>
     );
 
-    const toggle = getByLabelText(/Demo Mode/i);
-    expect(toggle).toBeDefined();
-
-    // Click demo mode toggle
-    fireEvent.click(toggle);
-
-    // Verify demo banner is rendered
-    expect(getByText(/Demo Simulation Mode Active/i)).toBeDefined();
-    expect(getByText(/Exit Demo Mode/i)).toBeDefined();
+    expect(getByText(/Module A: Satellite NDVI & Multi-Spectral Telemetry/i)).toBeDefined();
+    expect(getAllByText(/Sentinel-2 L2A/i).length).toBeGreaterThan(0);
+    expect(getByText(/Institutional ESG MRV/i)).toBeDefined();
   });
 
   it("renders ESGReportModal with project-level planted tree count and organization name", async () => {
