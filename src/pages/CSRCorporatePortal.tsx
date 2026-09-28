@@ -57,47 +57,6 @@ interface CSRProjectSummary {
   brsrEligible: boolean;
 }
 
-const SAMPLE_CSR_PORTFOLIO: CSRProjectSummary[] = [
-  {
-    id: "proj_satara_agro",
-    projectName: "Sahyadri Western Ghats Biodiversity Corridor",
-    location: "Satara Watershed, Maharashtra",
-    district: "Satara",
-    funderName: "Tata Sustainability Fund / ACIC Initiative",
-    plantedTrees: 5200,
-    verifiedTrees: 4940,
-    survivalRatePct: 95,
-    annualCo2eMT: 114.4,
-    cumulative10YrCo2eMT: 1144.0,
-    confidenceScore: 88,
-    verificationTier: "Gold",
-    sentinel2PassesCount: 14,
-    lastOverpassDate: "2026-09-06",
-    meanNdvi: 0.72,
-    ndviTrend: "+6.8%",
-    brsrEligible: true,
-  },
-  {
-    id: "proj_nagpur_teak",
-    projectName: "Vidarbha Indigenous Afforestation & Carbon Sink",
-    location: "Nagpur Agroforestry Belt, Maharashtra",
-    district: "Nagpur",
-    funderName: "Mahindra Green CSR / ACIC Incubator",
-    plantedTrees: 3400,
-    verifiedTrees: 3060,
-    survivalRatePct: 90,
-    annualCo2eMT: 74.8,
-    cumulative10YrCo2eMT: 748.0,
-    confidenceScore: 76,
-    verificationTier: "Field Verified",
-    sentinel2PassesCount: 9,
-    lastOverpassDate: "2026-09-02",
-    meanNdvi: 0.65,
-    ndviTrend: "+4.2%",
-    brsrEligible: true,
-  },
-];
-
 export default function CSRCorporatePortal() {
   const [currentRole, setCurrentRole] = useState<B2BRole>("csr_donor");
   const [searchFilter, setSearchFilter] = useState("");

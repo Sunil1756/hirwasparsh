@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Compass,
@@ -121,63 +121,45 @@ export default function FieldWorkerDashboard() {
         if (error) throw error;
         return data || [];
       } catch {
-        return [
-          {
-            id: "ev-demo-1",
-            project_id: "demo-project-dev-001",
-            evidence_type: "field_ground_photo",
-            created_at: new Date().toISOString(),
-            metadata: {
-              trees_observed: 100,
-              trees_healthy: 92,
-              trees_stressed: 6,
-              trees_dead: 2,
-              ground_survival_rate: 95,
-              location_name: "Western Ghats Sector 4",
-            },
-            file_url: "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=600&auto=format&fit=crop",
-          },
-        ];
+        return [];
       }
     },
   });
 
-  // Mock / dynamic predictive risk dispatch tasks
-  const fieldTasks = [
-    {
-      id: "task-01",
-      title: "Moisture Stress Anomaly Check",
-      location: "Sector 4B - Pune Hills (18.5204° N, 73.8567° E)",
-      severity: "high",
-      cause: "NDWI deficit (-0.18) & 6d dry spell detected by Sentinel-2",
-      treesSample: 120,
-      status: "pending",
-      lat: 18.5204,
-      lng: 73.8567,
+  // Query live trees requiring inspection or care from Supabase
+  const { data: liveRiskTrees = [] } = useQuery({
+    queryKey: ["field-worker-live-risk-trees"],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from("trees" as any)
+          .select("id, species, location_name, latitude, longitude, health_status, status, admin_status, created_at")
+          .or("health_status.neq.healthy,status.eq.needs_care,admin_status.eq.flagged,admin_status.eq.under_review")
+          .limit(10);
+        if (error) return [];
+        return data || [];
+      } catch {
+        return [];
+      }
     },
-    {
-      id: "task-02",
-      title: "5% Cochran Ground Truth Spot Audit",
-      location: "Ratnagiri Mango Plantation (16.9902° N, 73.3120° E)",
-      severity: "medium",
-      cause: "Quarterly MRV verification audit required for carbon credit issuance",
-      treesSample: 85,
-      status: "pending",
-      lat: 16.9902,
-      lng: 73.3120,
-    },
-    {
-      id: "task-03",
-      title: "Canopy Defoliation Inspection",
-      location: "Mahabaleshwar Native Preserve (17.9237° N, 73.6586° E)",
-      severity: "low",
-      cause: "NDRE slope decrease (-0.08/mo) indicating possible aphid outbreak",
-      treesSample: 50,
-      status: "in_progress",
-      lat: 17.9237,
-      lng: 73.6586,
-    },
-  ];
+  });
+
+  const fieldTasks = useMemo(() => {
+    if (liveRiskTrees.length > 0) {
+      return liveRiskTrees.map((t: any) => ({
+        id: `live-task-${t.id}`,
+        title: `${t.species || "Sapling"} Field Health Check`,
+        location: `${t.location_name || "Plot Location"} (${Number(t.latitude || 18.5204).toFixed(4)}° N, ${Number(t.longitude || 73.8567).toFixed(4)}° E)`,
+        severity: t.health_status === "diseased" || t.status === "needs_care" ? "high" : "medium",
+        cause: `Tree status '${t.health_status || t.status || "unverified"}' flagged for ground audit`,
+        treesSample: 1,
+        status: "pending",
+        lat: Number(t.latitude) || 18.5204,
+        lng: Number(t.longitude) || 73.8567,
+      }));
+    }
+    return [];
+  }, [liveRiskTrees]);
 
   const handleManualSync = async () => {
     setIsSyncing(true);

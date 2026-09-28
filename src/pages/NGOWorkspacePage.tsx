@@ -52,41 +52,6 @@ interface NGOPlot {
   ndviCurrent: number;
 }
 
-const SAMPLE_NGO_PLOTS: NGOPlot[] = [
-  {
-    id: "plot_satara_agro",
-    name: "Sahyadri Bio-Reserve Agroforestry Parcel",
-    organization_name: "Sahyadri Bio-Reserve Trust",
-    location: "Satara Watershed Basin, Maharashtra",
-    district: "Satara",
-    acres: 5.0,
-    hectares: 2.02,
-    targetTrees: 750,
-    verifiedTrees: 712,
-    confidenceScore: 88,
-    verificationTier: "Gold",
-    pendingScoutTasks: 0,
-    lastSatellitePass: "2026-09-06",
-    ndviCurrent: 0.72,
-  },
-  {
-    id: "plot_nagpur_teak",
-    name: "Vidarbha Teakwood & Bamboo Carbon Plot",
-    organization_name: "Vidarbha Forest Action Forum",
-    location: "Nagpur Agroforestry Belt, Maharashtra",
-    district: "Nagpur",
-    acres: 12.0,
-    hectares: 4.86,
-    targetTrees: 1800,
-    verifiedTrees: 1420,
-    confidenceScore: 76,
-    verificationTier: "Field Verified",
-    pendingScoutTasks: 2,
-    lastSatellitePass: "2026-09-02",
-    ndviCurrent: 0.65,
-  },
-];
-
 export default function NGOWorkspacePage() {
   const { user, isAdmin } = useAuth();
   const [search, setSearch] = useState("");
