@@ -9,8 +9,9 @@ import Login from "@/pages/Login";
 
 const mockSignInWithPassword = vi.fn();
 const mockSignUp = vi.fn();
-const mockSignInWithOAuth = vi.fn();
+const mockSignInWithOtp = vi.fn();
 const mockResetPasswordForEmail = vi.fn();
+const mockUpdateUser = vi.fn();
 const mockUpsert = vi.fn();
 const mockFrom = vi.fn(() => ({
   select: vi.fn().mockReturnThis(),
@@ -29,8 +30,9 @@ vi.mock("@/integrations/supabase/client", () => ({
       getSession: vi.fn(() => Promise.resolve({ data: { session: null } })),
       signInWithPassword: (...args: any[]) => mockSignInWithPassword(...args),
       signUp: (...args: any[]) => mockSignUp(...args),
-      signInWithOAuth: (...args: any[]) => mockSignInWithOAuth(...args),
+      signInWithOtp: (...args: any[]) => mockSignInWithOtp(...args),
       resetPasswordForEmail: (...args: any[]) => mockResetPasswordForEmail(...args),
+      updateUser: (...args: any[]) => mockUpdateUser(...args),
       signOut: vi.fn(),
     },
     from: (table: string) => mockFrom(table),
@@ -66,7 +68,7 @@ describe("Authentication System & Login Page Verification", () => {
     vi.clearAllMocks();
     let currentTime = 1000000;
     dateSpy = vi.spyOn(Date, "now").mockImplementation(() => {
-      currentTime += 2000; // ensures bot timer check (> 600ms) passes
+      currentTime += 2000; // ensures bot timer check passes
       return currentTime;
     });
   });
@@ -75,7 +77,7 @@ describe("Authentication System & Login Page Verification", () => {
     dateSpy?.mockRestore();
   });
 
-  it("renders the Login page with Brand Banner, Log In and Sign Up tabs", () => {
+  it("renders the Login page with Brand Banner, Sign In and Create Account tabs", () => {
     const queryClient = createQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
@@ -90,13 +92,13 @@ describe("Authentication System & Login Page Verification", () => {
     );
 
     expect(screen.getAllByText(/Green Enlightenment/i)[0]).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Log In/i })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Sign Up/i })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/name@gmail\.com or 9876543210/i)).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Sign In/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Create Account/i })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/name@gmail\.com/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/••••••••/i)).toBeInTheDocument();
   });
 
-  it("switches to Sign Up tab and renders registration form with persona options, email, phone, and password", async () => {
+  it("switches to Create Account tab and renders registration form with persona options, email, phone, and password", async () => {
     const queryClient = createQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
@@ -110,19 +112,19 @@ describe("Authentication System & Login Page Verification", () => {
       </QueryClientProvider>
     );
 
-    const signUpTab = screen.getByRole("tab", { name: /Sign Up/i });
+    const signUpTab = screen.getByRole("tab", { name: /Create Account/i });
     switchTab(signUpTab);
 
     expect(await screen.findByPlaceholderText(/Rohit Patil/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/rohit@gmail\.com/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/9876543210/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Min 8\+ strong characters/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/At least 6 characters/i)).toBeInTheDocument();
     expect(screen.getByText(/Individual/i)).toBeInTheDocument();
-    expect(screen.getByText(/NGO \/ Trust/i)).toBeInTheDocument();
-    expect(screen.getByText(/School \/ College/i)).toBeInTheDocument();
+    expect(screen.getByText(/NGO \/ CSR/i)).toBeInTheDocument();
+    expect(screen.getByText(/School\/College/i)).toBeInTheDocument();
   });
 
-  it("switches persona to NGO / Trust and displays organization name field", async () => {
+  it("switches persona to NGO / CSR and displays organization name field", async () => {
     const queryClient = createQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
@@ -136,18 +138,18 @@ describe("Authentication System & Login Page Verification", () => {
       </QueryClientProvider>
     );
 
-    const signUpTab = screen.getByRole("tab", { name: /Sign Up/i });
+    const signUpTab = screen.getByRole("tab", { name: /Create Account/i });
     switchTab(signUpTab);
 
-    const ngoOption = await screen.findByText(/NGO \/ Trust/i);
+    const ngoOption = await screen.findByText(/NGO \/ CSR/i);
     fireEvent.click(ngoOption);
 
     expect(await screen.findByPlaceholderText(/Sahyadri Environmental Trust/i)).toBeInTheDocument();
   });
 
-  it("attempts direct email sign-in with valid credentials and invokes Supabase auth directly (no OTP)", async () => {
+  it("attempts direct email sign-in with valid credentials and invokes Supabase auth directly", async () => {
     mockSignInWithPassword.mockResolvedValueOnce({
-      data: { user: { id: "user-123" }, session: {} },
+      data: { user: { id: "user-123", email: "adopter@greenenlightenment.org" }, session: {} },
       error: null,
     });
 
@@ -164,13 +166,13 @@ describe("Authentication System & Login Page Verification", () => {
       </QueryClientProvider>
     );
 
-    const identifierInput = screen.getByPlaceholderText(/name@gmail\.com or 9876543210/i);
+    const emailInput = screen.getByPlaceholderText(/name@gmail\.com/i);
     const passwordInput = screen.getByPlaceholderText(/••••••••/i);
 
-    fireEvent.change(identifierInput, { target: { value: "adopter@greenenlightenment.org" } });
+    fireEvent.change(emailInput, { target: { value: "adopter@greenenlightenment.org" } });
     fireEvent.change(passwordInput, { target: { value: "SecurePass123!" } });
 
-    const submitBtn = screen.getByRole("button", { name: /Log In/i });
+    const submitBtn = screen.getByRole("button", { name: /^Sign In$/i });
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -178,43 +180,6 @@ describe("Authentication System & Login Page Verification", () => {
         email: "adopter@greenenlightenment.org",
         password: "SecurePass123!",
       });
-    });
-  });
-
-  it("attempts direct mobile number sign-in with valid credentials without requiring OTP", async () => {
-    mockSignInWithPassword.mockResolvedValueOnce({
-      data: { user: { id: "user-phone-123" }, session: {} },
-      error: null,
-    });
-
-    const queryClient = createQueryClient();
-    render(
-      <QueryClientProvider client={queryClient}>
-        <LanguageProvider>
-          <AuthProvider>
-            <MemoryRouter>
-              <Login />
-            </MemoryRouter>
-          </AuthProvider>
-        </LanguageProvider>
-      </QueryClientProvider>
-    );
-
-    const identifierInput = screen.getByPlaceholderText(/name@gmail\.com or 9876543210/i);
-    const passwordInput = screen.getByPlaceholderText(/••••••••/i);
-
-    fireEvent.change(identifierInput, { target: { value: "9876543210" } });
-    fireEvent.change(passwordInput, { target: { value: "SecurePass123!" } });
-
-    const submitBtn = screen.getByRole("button", { name: /Log In/i });
-    fireEvent.click(submitBtn);
-
-    await waitFor(() => {
-      expect(mockSignInWithPassword).toHaveBeenCalledWith(
-        expect.objectContaining({
-          password: "SecurePass123!",
-        })
-      );
     });
   });
 
@@ -237,33 +202,33 @@ describe("Authentication System & Login Page Verification", () => {
       </QueryClientProvider>
     );
 
-    const identifierInput = screen.getByPlaceholderText(/name@gmail\.com or 9876543210/i);
+    const emailInput = screen.getByPlaceholderText(/name@gmail\.com/i);
     const passwordInput = screen.getByPlaceholderText(/••••••••/i);
 
-    fireEvent.change(identifierInput, { target: { value: "unknown@gmail.com" } });
+    fireEvent.change(emailInput, { target: { value: "unknown@gmail.com" } });
     fireEvent.change(passwordInput, { target: { value: "WrongPass123!" } });
 
-    const submitBtn = screen.getByRole("button", { name: /Log In/i });
+    const submitBtn = screen.getByRole("button", { name: /^Sign In$/i });
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: expect.stringContaining("Invalid Email/Mobile or Password"),
+          title: "Sign-In Failed",
           variant: "destructive",
         })
       );
     });
   });
 
-  it("initiates sign-up, dispatches Twilio mobile OTP, verifies OTP and creates Supabase account", async () => {
+  it("creates a new account directly via Supabase Auth without fake SMS OTP", async () => {
     mockSignUp.mockResolvedValueOnce({
       data: {
         user: {
           id: "new-user-789",
           identities: [{ id: "identity-1" }],
         },
-        session: {},
+        session: { access_token: "token123" },
       },
       error: null,
     });
@@ -281,45 +246,22 @@ describe("Authentication System & Login Page Verification", () => {
       </QueryClientProvider>
     );
 
-    const signUpTab = screen.getByRole("tab", { name: /Sign Up/i });
+    const signUpTab = screen.getByRole("tab", { name: /Create Account/i });
     switchTab(signUpTab);
 
     const nameInput = await screen.findByPlaceholderText(/Rohit Patil/i);
     const emailInput = screen.getByPlaceholderText(/rohit@gmail\.com/i);
     const phoneInput = screen.getByPlaceholderText(/9876543210/i);
-    const passwordInput = screen.getByPlaceholderText(/Min 8\+ strong characters/i);
+    const passwordInput = screen.getByPlaceholderText(/At least 6 characters/i);
 
     fireEvent.change(nameInput, { target: { value: "Rohit Patil" } });
     fireEvent.change(emailInput, { target: { value: "rohit.patil@gmail.com" } });
     fireEvent.change(phoneInput, { target: { value: "9820123456" } });
     fireEvent.change(passwordInput, { target: { value: "Str0ngP@ssw0rd!" } });
 
-    const signUpBtn = screen.getByRole("button", { name: /Sign Up & Verify Mobile/i });
+    const signUpBtn = screen.getByRole("button", { name: /Create Account & Get Started/i });
     expect(signUpBtn).not.toBeDisabled();
     fireEvent.click(signUpBtn);
-
-    // Should receive Twilio OTP notification and display OTP input
-    await waitFor(() => {
-      expect(mockToast).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: expect.stringContaining("Twilio OTP Dispatched!"),
-        })
-      );
-    });
-
-    expect(await screen.findByText(/Enter 6-Digit Twilio OTP Code/i)).toBeInTheDocument();
-
-    // Fill OTP and complete registration
-    const verifyBtn = screen.getByRole("button", { name: /Verify OTP & Complete Registration/i });
-    
-    // Simulate typing 6 digits in OTP slots
-    const inputs = screen.getAllByRole("textbox");
-    // Change input
-    const otpContainer = screen.getByText(/Enter 6-Digit Twilio OTP Code/i).parentElement;
-    const otpInput = otpContainer?.querySelector("input") || inputs[inputs.length - 1];
-    fireEvent.change(otpInput, { target: { value: "123456" } });
-
-    fireEvent.click(verifyBtn);
 
     await waitFor(() => {
       expect(mockSignUp).toHaveBeenCalledWith(
@@ -329,7 +271,6 @@ describe("Authentication System & Login Page Verification", () => {
           options: expect.objectContaining({
             data: expect.objectContaining({
               full_name: "Rohit Patil",
-              phone: "+919820123456",
               account_type: "individual",
             }),
           }),
@@ -340,6 +281,42 @@ describe("Authentication System & Login Page Verification", () => {
           id: "new-user-789",
           full_name: "Rohit Patil",
           account_type: "individual",
+        })
+      );
+    });
+  });
+
+  it("dispatches Magic Link for passwordless authentication", async () => {
+    mockSignInWithOtp.mockResolvedValueOnce({ error: null });
+
+    const queryClient = createQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <LanguageProvider>
+          <AuthProvider>
+            <MemoryRouter>
+              <Login />
+            </MemoryRouter>
+          </AuthProvider>
+        </LanguageProvider>
+      </QueryClientProvider>
+    );
+
+    const emailInput = screen.getByPlaceholderText(/name@gmail\.com/i);
+    fireEvent.change(emailInput, { target: { value: "citizen@greenenlightenment.org" } });
+
+    const magicLinkBtn = screen.getByRole("button", { name: /Sign In with Magic Link/i });
+    fireEvent.click(magicLinkBtn);
+
+    await waitFor(() => {
+      expect(mockSignInWithOtp).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: "citizen@greenenlightenment.org",
+        })
+      );
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: expect.stringContaining("Magic Link Sent!"),
         })
       );
     });
@@ -366,8 +343,7 @@ describe("Authentication System & Login Page Verification", () => {
 
     expect(screen.getByText(/Reset Account Password/i)).toBeInTheDocument();
 
-    const emailInputs = screen.getAllByPlaceholderText(/you@gmail\.com/i);
-    const modalEmailInput = emailInputs[emailInputs.length - 1];
+    const modalEmailInput = screen.getByPlaceholderText(/you@gmail\.com/i);
     fireEvent.change(modalEmailInput, { target: { value: "adopter@greenenlightenment.org" } });
 
     const sendLinkBtn = screen.getByRole("button", { name: /Send Reset Link/i });
@@ -384,9 +360,7 @@ describe("Authentication System & Login Page Verification", () => {
   });
 
   it("updates user password when in recovery mode (?type=recovery)", async () => {
-    const mockUpdateUser = vi.fn().mockResolvedValueOnce({ data: { user: {} }, error: null });
-    // @ts-ignore
-    window.history.pushState({}, "Recovery", "/login?type=recovery");
+    mockUpdateUser.mockResolvedValueOnce({ data: { user: {} }, error: null });
 
     const queryClient = createQueryClient();
     render(
@@ -402,12 +376,17 @@ describe("Authentication System & Login Page Verification", () => {
     );
 
     expect(await screen.findByRole("heading", { name: /^Set New Password$/i })).toBeInTheDocument();
-    const newPassInput = screen.getByPlaceholderText(/Enter 8\+ strong characters/i);
+    const newPassInput = screen.getByPlaceholderText(/Enter at least 6 characters/i);
     fireEvent.change(newPassInput, { target: { value: "NewStr0ngP@ssw0rd!" } });
 
-    const submitBtn = screen.getByRole("button", { name: /Set New Password & Log In/i });
+    const submitBtn = screen.getByRole("button", { name: /Save Password & Continue/i });
     expect(submitBtn).not.toBeDisabled();
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(mockUpdateUser).toHaveBeenCalledWith({
+        password: "NewStr0ngP@ssw0rd!",
+      });
+    });
   });
 });
-
-

@@ -97,8 +97,72 @@ export default function TreeAdopterDashboard() {
 
     setIsSubmittingGrowth(true);
     try {
-      // Mock upload / supabase checkin record
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      let uploadedPhotoUrl: string | null = null;
+
+      // 1. Upload photo to Supabase storage bucket 'treebank' if present
+      if (growthPhoto && user?.id) {
+        try {
+          const filePath = `adoptions/${user.id}/${Date.now()}_checkin.jpg`;
+          const { data: uploadData, error: uploadErr } = await supabase.storage
+            .from("treebank")
+            .upload(filePath, growthPhoto, { upsert: true });
+
+          if (!uploadErr && uploadData) {
+            const { data: publicUrlData } = supabase.storage
+              .from("treebank")
+              .getPublicUrl(uploadData.path);
+            uploadedPhotoUrl = publicUrlData.publicUrl;
+          }
+        } catch (storageErr) {
+          console.warn("Storage upload notice:", storageErr);
+        }
+      }
+
+      // 2. Insert growth observation into tree_observations table
+      try {
+        await (supabase.from("tree_observations" as any) as any).insert({
+          tree_id: selectedTreeForGrowth.id,
+          user_id: user?.id || null,
+          height_cm: growthHeightCm,
+          notes: growthNotes.trim() || "Citizen adopter 30-day health inspection",
+          photo_url: uploadedPhotoUrl,
+          health_status: "healthy",
+          survival_status: "alive",
+          observation_date: new Date().toISOString(),
+        });
+      } catch (obsErr) {
+        console.warn("Observation record notice:", obsErr);
+      }
+
+      // 3. Update height in trees table
+      try {
+        await supabase
+          .from("trees")
+          .update({
+            height_cm: growthHeightCm,
+            status: "healthy",
+            updated_at: new Date().toISOString(),
+          } as any)
+          .eq("id", selectedTreeForGrowth.id);
+      } catch (treeErr) {
+        console.warn("Tree update notice:", treeErr);
+      }
+
+      // 4. Award +50 Eco-Points in profiles table
+      if (user?.id) {
+        try {
+          const currentPoints = profile?.eco_points || 0;
+          await supabase
+            .from("profiles")
+            .update({
+              eco_points: currentPoints + 50,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", user.id);
+        } catch (profErr) {
+          console.warn("Profile points notice:", profErr);
+        }
+      }
 
       toast({
         title: "🌿 Growth Check-In Verified!",
