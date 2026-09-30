@@ -374,51 +374,7 @@ const OrganizationPlantation = () => {
     }
   };
 
-  // 1-Click Auto Generate Grid of Saplings inside Boundary Polygon
-  const handleAutoGenerateGrid = () => {
-    const count = Math.min(500, Math.max(10, Number(targetTrees) || 100));
-    const speciesList = speciesText.split(",").map((s) => s.trim()).filter(Boolean);
-    const availableSpecies = speciesList.length > 0 ? speciesList : ["Neem", "Banyan", "Peepal", "Teak", "Jamun"];
-
-    const pts = boundary.length >= 3 ? boundary : [
-      [MH_CENTER[0] - 0.002, MH_CENTER[1] - 0.002],
-      [MH_CENTER[0] + 0.002, MH_CENTER[1] - 0.002],
-      [MH_CENTER[0] + 0.002, MH_CENTER[1] + 0.002],
-      [MH_CENTER[0] - 0.002, MH_CENTER[1] + 0.002],
-    ] as [number, number][];
-
-    const lats = pts.map((p) => p[0]);
-    const lngs = pts.map((p) => p[1]);
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
-    const minLng = Math.min(...lngs);
-    const maxLng = Math.max(...lngs);
-
-    const generatedRows: Record<string, string>[] = [];
-
-    for (let i = 1; i <= count; i++) {
-      const lat = minLat + Math.random() * (maxLat - minLat);
-      const lng = minLng + Math.random() * (maxLng - minLng);
-      const sp = availableSpecies[(i - 1) % availableSpecies.length];
-
-      generatedRows.push({
-        tree_id: `GE-${String(i).padStart(4, "0")}`,
-        species: sp,
-        latitude: lat.toFixed(6),
-        longitude: lng.toFixed(6),
-        height_cm: String(Math.floor(35 + Math.random() * 30)),
-        status: "healthy",
-        planted_on: plantationDate,
-      });
-    }
-
-    setBulkRows(generatedRows);
-    setBulkFileName(`AI-Generated-${count}-Sapling-Grid.csv`);
-    toast({
-      title: "Smart Grid Generated! ⚡",
-      description: `Auto-distributed ${count} sapling locations with GPS coordinates inside your plot.`,
-    });
-  };
+  // AI Grid Generator was permanently removed to enforce zero dummy data policy.
 
   // Image Upload Handler (for Site / Field Photo)
   const handleSitePhotoSelected = (file: File) => {
@@ -1674,10 +1630,7 @@ const OrganizationPlantation = () => {
                           Distribute <strong>{targetTrees || 100} saplings</strong> ({speciesText}) across {computedBoundaryArea.acres.toFixed(2)} Acres.
                         </p>
                       </div>
-                      <Button type="button" onClick={handleAutoGenerateGrid} className="gap-1.5 rounded-xl font-semibold">
-                        <Sparkles className="h-4 w-4" /> Generate Grid (1-Click)
-                      </Button>
-                    </div>
+                      </div>
 
                     {bulkRows.length > 0 && (
                       <div className="p-3 rounded-xl bg-background border border-primary/20 text-xs space-y-2">
