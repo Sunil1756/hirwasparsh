@@ -10,6 +10,7 @@ import { QuarterlySurvivalFeed } from "@/components/QuarterlySurvivalFeed";
 import { CarbonCertificateModal } from "@/components/CarbonCertificateModal";
 import { evaluateProjectVerification, ProjectAuditReport } from "@/lib/projectVerification";
 import { calculateCarbonLedgerMetrics, CarbonAuditResult } from "@/lib/carbonLedger";
+import { analyzeTreePhotoWithBotanicalAi } from "@/lib/geminiBotanicalVision";
 import {
   Building2, MapPin, Target, Leaf, Upload, Camera, Satellite, Bot, ShieldCheck,
   FileText, Activity, Loader2, Plus, ArrowLeft, ArrowRight, Trash2, CheckCircle2,
@@ -618,6 +619,33 @@ const OrganizationPlantation = () => {
     if (!validateCurrentStep()) return;
 
     setSaving(true);
+    
+    // NEW STRICT ENFORCEMENT: Run Gemini AI Verification on the uploaded photo BEFORE creating the project.
+    if (initialSitePhoto) {
+      try {
+        toast({ title: "AI Scanning...", description: "Gemini Vision is analyzing your field photo for biological proof...", duration: 5000 });
+        const aiCheck = await analyzeTreePhotoWithBotanicalAi(initialSitePhoto, speciesText.split(",")[0]);
+        if (!aiCheck.isLivingTree) {
+          toast({
+            title: "AI Audit Rejected - Fake Detected",
+            description: "The uploaded image does not appear to contain a valid plantation site or living trees. AI Report: " + aiCheck.aiReport,
+            variant: "destructive",
+            duration: 8000
+          });
+          setSaving(false);
+          return; // BLOCK PROJECT CREATION!
+        }
+      } catch (e) {
+        toast({
+          title: "AI Service Error",
+          description: "Unable to verify the field evidence right now.",
+          variant: "destructive"
+        });
+        setSaving(false);
+        return;
+      }
+    }
+
     const geoValidation = validateGeodeticBoundary(boundary);
     const centroid = geoValidation.isValid
       ? geoValidation.centroid

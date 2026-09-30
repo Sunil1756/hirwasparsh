@@ -156,27 +156,26 @@ export async function analyzeTreePhotoWithBotanicalAi(
     "";
 
   if (!apiKey || !base64Data) {
-    // Return standard deterministic validation when API key is not supplied in local dev
-    const health = claimedSpecies ? 88 : 82;
+    // SECURITY FIX: If AI is not configured, we MUST reject, otherwise fakers get free passes.
     return {
-      isLivingTree: true,
-      speciesCommon: claimedSpecies || "Neem (Indian Lilac)",
-      speciesScientific: claimedSpecies === "Teak" ? "Tectona grandis" : "Azadirachta indica",
-      botanicalFamily: claimedSpecies === "Teak" ? "Lamiaceae" : "Meliaceae",
-      crownHealthScore: health,
-      vitalityStatus: "healthy",
-      growthStage: "young_tree",
-      stemLignification: "woody",
-      leafMorphology: "Pinnately compound with serrated margins",
-      chlorophyllPigmentation: "dense_photosynthetic_green",
-      backgroundSetting: "in_ground_soil_pit",
-      isGenuineInGroundPlantation: true,
-      confidenceScore: 0.91,
-      detectedStressFactors: [],
-      fraudRiskScore: 4,
-      fraudFlags: [],
+      isLivingTree: false,
+      speciesCommon: "Unknown",
+      speciesScientific: "Unknown",
+      botanicalFamily: "Unknown",
+      crownHealthScore: 0,
+      vitalityStatus: "critical_decline",
+      growthStage: "unknown",
+      stemLignification: "unknown",
+      leafMorphology: "unknown",
+      chlorophyllPigmentation: "none",
+      backgroundSetting: "unknown",
+      isGenuineInGroundPlantation: false,
+      confidenceScore: 0,
+      detectedStressFactors: ["ai_offline"],
+      fraudRiskScore: 100,
+      fraudFlags: ["AI Engine Unreachable (API Key Missing)"],
       perceptualHash: dHash,
-      aiReport: `Botanical validation confirmed genuine living ${claimedSpecies || "Azadirachta indica"} specimen with active chlorophyll pigmentation, lignified stem, and healthy in-ground pit establishment.`,
+      aiReport: "SYSTEM REJECTION: Botanical AI Vision engine is offline. VITE_GEMINI_API_KEY is not configured on this server, so evidence verification failed.",
     };
   }
 
