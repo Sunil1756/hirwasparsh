@@ -169,12 +169,14 @@ export const QuarterlySurvivalFeed = ({
             <text x="10" y="144" fontSize="9" fill="currentColor" opacity="0.5">40%</text>
 
             {/* Area Fill for Survival */}
-            <path
-              d={`M 40,${160 - (survivalModel.quarterlyTimeline[0].calibratedSurvivalRate / 100) * 140} ${survivalModel.quarterlyTimeline
-                .map((q, i) => `L ${40 + i * 45},${160 - (q.calibratedSurvivalRate / 100) * 140}`)
-                .join(" ")} L ${40 + 12 * 45},140 L 40,140 Z`}
-              fill="rgba(16, 185, 129, 0.08)"
-            />
+            {survivalModel.quarterlyTimeline.length > 0 && (
+              <path
+                d={`M 40,${160 - ((survivalModel.quarterlyTimeline[0]?.calibratedSurvivalRate || 0) / 100) * 140} ${survivalModel.quarterlyTimeline
+                  .map((q, i) => `L ${40 + i * 45},${160 - (q.calibratedSurvivalRate / 100) * 140}`)
+                  .join(" ")} L ${40 + (survivalModel.quarterlyTimeline.length - 1) * 45},140 L 40,140 Z`}
+                fill="rgba(16, 185, 129, 0.08)"
+              />
+            )}
 
             {/* Survival Polyline */}
             <polyline

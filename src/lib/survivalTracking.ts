@@ -58,21 +58,27 @@ export function computeProjectSurvivalModel(params: {
   const quarters: QuarterlyScanRecord[] = [];
 
   const now = new Date();
-  const monthsElapsed = (now.getFullYear() - baseDate.getFullYear()) * 12 + (now.getMonth() - baseDate.getMonth());
-  const maxQuartersElapsed = Math.floor(monthsElapsed / 3);
+  let monthsElapsed = 0;
+  if (!isNaN(baseDate.getTime())) {
+    monthsElapsed = (now.getFullYear() - baseDate.getFullYear()) * 12 + (now.getMonth() - baseDate.getMonth());
+  }
+  
+  const maxQuartersElapsed = isNaN(monthsElapsed) ? 0 : Math.floor(monthsElapsed / 3);
   
   // Only loop up to the current quarter, max 12 quarters
-  const finalQuarter = Math.min(12, Math.max(0, maxQuartersElapsed));
+  const finalQuarter = Math.max(0, Math.min(12, maxQuartersElapsed || 0));
 
   for (let q = 0; q <= finalQuarter; q++) {
     const month = q * 3;
     const d = new Date(baseDate);
-    d.setMonth(d.getMonth() + month);
+    if (!isNaN(d.getTime())) {
+      d.setMonth(d.getMonth() + month);
+    }
     
     // Safety check: do not generate reports for future dates
-    if (d > now && q > 0) break;
+    if (!isNaN(d.getTime()) && d > now && q > 0) break;
     
-    const dateStr = d.toISOString().split("T")[0];
+    const dateStr = !isNaN(d.getTime()) ? d.toISOString().split("T")[0] : now.toISOString().split("T")[0];
 
     // Theoretical Sigmoid biological growth curve
     const growthProgress = 1 / (1 + Math.exp(-0.22 * (month - 8)));
