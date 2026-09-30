@@ -57,11 +57,21 @@ export function computeProjectSurvivalModel(params: {
 
   const quarters: QuarterlyScanRecord[] = [];
 
-  // 12 Quarters = 36 Months
-  for (let q = 0; q <= 12; q++) {
+  const now = new Date();
+  const monthsElapsed = (now.getFullYear() - baseDate.getFullYear()) * 12 + (now.getMonth() - baseDate.getMonth());
+  const maxQuartersElapsed = Math.floor(monthsElapsed / 3);
+  
+  // Only loop up to the current quarter, max 12 quarters
+  const finalQuarter = Math.min(12, Math.max(0, maxQuartersElapsed));
+
+  for (let q = 0; q <= finalQuarter; q++) {
     const month = q * 3;
     const d = new Date(baseDate);
     d.setMonth(d.getMonth() + month);
+    
+    // Safety check: do not generate reports for future dates
+    if (d > now && q > 0) break;
+    
     const dateStr = d.toISOString().split("T")[0];
 
     // Theoretical Sigmoid biological growth curve

@@ -67,7 +67,18 @@ export const SatelliteProjectTelemetrySuite = ({
   baselineNdvi = 0.22,
   bulkTrees = [],
 }: Props) => {
-  const [selectedTimeIndex, setSelectedTimeIndex] = useState(2); // default Month 6
+  // PREVENT FAKE DATA: Only show timeline steps that have actually happened in real life.
+  const monthsElapsed = useMemo(() => {
+    const pDate = new Date(plantationDate || new Date());
+    const now = new Date();
+    return (now.getFullYear() - pDate.getFullYear()) * 12 + (now.getMonth() - pDate.getMonth());
+  }, [plantationDate]);
+
+  const validTimelineSteps = useMemo(() => {
+    return TIMELINE_STEPS.filter(step => step.months <= Math.max(0, monthsElapsed));
+  }, [monthsElapsed]);
+
+  const [selectedTimeIndex, setSelectedTimeIndex] = useState(0); 
   const [activeSpectralLayer, setActiveSpectralLayer] = useState<"rgb" | "ndvi" | "ndre" | "ndwi">("ndvi");
   const [isPlayingTimeline, setIsPlayingTimeline] = useState(false);
   const [showSaplingMarkers, setShowSaplingMarkers] = useState(true);
@@ -77,13 +88,13 @@ export const SatelliteProjectTelemetrySuite = ({
     let timer: NodeJS.Timeout;
     if (isPlayingTimeline) {
       timer = setInterval(() => {
-        setSelectedTimeIndex((prev) => (prev + 1) % TIMELINE_STEPS.length);
+        setSelectedTimeIndex((prev) => (prev + 1) % validTimelineSteps.length);
       }, 2000);
     }
     return () => clearInterval(timer);
-  }, [isPlayingTimeline]);
+  }, [isPlayingTimeline, validTimelineSteps.length]);
 
-  const currentStep = TIMELINE_STEPS[selectedTimeIndex];
+  const currentStep = validTimelineSteps[selectedTimeIndex] || validTimelineSteps[validTimelineSteps.length - 1];
 
   // Calculated Map Center
   const mapCenter: [number, number] = useMemo(() => {
@@ -96,7 +107,7 @@ export const SatelliteProjectTelemetrySuite = ({
   }, [boundary]);
 
   // Color gradient for spectral index fill on polygon
-  const getPolygonFillColor = (layer: string, step: typeof TIMELINE_STEPS[0]) => {
+  const getPolygonFillColor = (layer: string, step: typeof validTimelineSteps[0]) => {
     if (layer === "rgb") return "#22c55e";
     if (layer === "ndvi") {
       if (step.ndvi >= 0.7) return "#15803d"; // deep green
@@ -299,7 +310,7 @@ export const SatelliteProjectTelemetrySuite = ({
             <Slider
               value={[selectedTimeIndex]}
               min={0}
-              max={TIMELINE_STEPS.length - 1}
+              max={validTimelineSteps.length - 1}
               step={1}
               onValueChange={(val) => {
                 setSelectedTimeIndex(val[0]);
@@ -310,7 +321,7 @@ export const SatelliteProjectTelemetrySuite = ({
 
             {/* Timeline Pills */}
             <div className="grid grid-cols-5 gap-1 pt-1 text-center">
-              {TIMELINE_STEPS.map((step) => {
+              {validTimelineSteps.map((step) => {
                 const isCurrent = step.index === selectedTimeIndex;
                 return (
                   <button
