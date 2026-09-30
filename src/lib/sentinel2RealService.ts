@@ -180,11 +180,11 @@ export async function getClientCopernicusToken(): Promise<string | null> {
 
   const clientId =
     (typeof import.meta !== "undefined" && import.meta.env?.VITE_COPERNICUS_CLIENT_ID) ||
-    "sh-bca04d51-5029-419e-a9d2-29b4cb7ae6fa";
+    "";
 
   const clientSecret =
     (typeof import.meta !== "undefined" && import.meta.env?.VITE_COPERNICUS_CLIENT_SECRET) ||
-    "65bC8ZTF2Uu4Vy9nBV8Tg6q6ldXAxenF";
+    "";
 
   try {
     const tokenEndpoint =
