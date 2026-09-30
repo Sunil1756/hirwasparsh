@@ -151,11 +151,11 @@ export function computeProjectSurvivalModel(params: {
     });
   }
 
-  // Current active quarter = Q2 (Month 6) for standard demonstration
-  const activeQuarter = quarters[2];
-  const currentSurvivalPercent = activeQuarter.calibratedSurvivalRate;
-  const estimatedLivingTrees = activeQuarter.estimatedLivingTrees;
-  const accumulatedCo2MT = activeQuarter.co2SequesteredMT;
+  // Current active quarter
+  const activeQuarter = quarters[quarters.length - 1] || quarters[0];
+  const currentSurvivalPercent = activeQuarter?.calibratedSurvivalRate || 100;
+  const estimatedLivingTrees = activeQuarter?.estimatedLivingTrees || targetTrees;
+  const accumulatedCo2MT = activeQuarter?.co2SequesteredMT || 0;
 
   let mortalityRiskLevel: "Low (Stable)" | "Moderate (Watch)" | "Elevated Risk" | "Critical" = "Low (Stable)";
   let riskDescription = "Plot vitality is high. Sapling mortality is well within natural tolerance thresholds.";
