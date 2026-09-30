@@ -269,6 +269,26 @@ class FastObservationService {
       // Save to Supabase
       try {
         await supabase.from("tree_observations" as any).insert(observationRecord);
+        
+        // Phase 4: Create a dedicated evidence record linked to the observation
+        if (observationRecord.photo_url) {
+           await supabase.from("observation_evidence_audit" as any).insert({
+              tree_id: input.treeId,
+              observation_id: observationId,
+              observer_id: observationRecord.observer_id,
+              observer_name: observationRecord.observer_name,
+              event_type: "field_observation",
+              survival_status: mappedHealthStatus === "dead" ? "DEAD" : mappedHealthStatus === "diseased" ? "DAMAGED" : mappedHealthStatus === "stressed" ? "STRESSED" : "ALIVE",
+              health_status: mappedHealthStatus,
+              height_cm: observationRecord.height_cm,
+              foliage_density_pct: observationRecord.foliage_density_pct,
+              photo_url_primary: observationRecord.photo_url,
+              latitude: observationRecord.latitude,
+              longitude: observationRecord.longitude,
+              event_timestamp: observationRecord.observation_date
+           });
+        }
+
         // Update tree parent record
         await supabase
           .from("trees")
