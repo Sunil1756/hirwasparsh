@@ -32,6 +32,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const TreeProfile = lazy(() => import("./pages/TreeProfile"));
 const GrowthUpdates = lazy(() => import("./pages/GrowthUpdates"));
 const Intelligence = lazy(() => import("./pages/Intelligence"));
+const DashboardPreview = lazy(() => import("./pages/DashboardPreview"));
 const BulkOnboardPage = lazy(() => import("./pages/BulkOnboardPage"));
 const CertificateVerify = lazy(() => import("./pages/CertificateVerify"));
 const CSRCorporatePortal = lazy(() => import("./pages/CSRCorporatePortal"));
@@ -110,6 +111,7 @@ const App = () => (
                 <Route path="/admin/verification" element={<RoleProtectedRoute requiredRole="admin"><VerificationDashboardPage /></RoleProtectedRoute>} />
                 <Route path="/verify/cert/:serialNo" element={<CertificateVerify />} />
                 <Route path="/verify/cert" element={<CertificateVerify />} />
+                <Route path="/preview-dashboards" element={<DashboardPreview />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>

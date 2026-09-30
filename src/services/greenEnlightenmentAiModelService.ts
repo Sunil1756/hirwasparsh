@@ -193,113 +193,153 @@ export const MAHARASHTRA_NATIVE_SPECIES_DB: Record<string, NativeSpeciesProfile>
   },
 };
 
+import { GoogleGenAI, Type } from "@google/genai";
+
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+
 export class GreenEnlightenmentAiModelService {
   /**
-   * 1. RUN COMPREHENSIVE MULTIMODAL BOTANICAL INSPECTION
+   * 1. RUN COMPREHENSIVE MULTIMODAL BOTANICAL INSPECTION (NOW POWERED BY GEMINI 3.8 FLASH)
    */
   public async executeFullInspection(
     imageSource: string | File | Blob,
     claimedSpeciesName: string = "Neem",
-    engine: ModelExecutionEngine = "gemini-2.5-flash"
+    engine: ModelExecutionEngine = "gemini-3.8-flash" as ModelExecutionEngine
   ): Promise<CompleteAiInspectionReport> {
     const startTime = performance.now();
     const dHash = await computePerceptualDHash(imageSource);
 
-    // Resolve species profile from native catalog (checking scientific, common, and vernacular names)
+    // Resolve species profile from native catalog
     const matchedKey = Object.keys(MAHARASHTRA_NATIVE_SPECIES_DB).find(
       (k) =>
         k.toLowerCase().includes(claimedSpeciesName.toLowerCase()) ||
-        MAHARASHTRA_NATIVE_SPECIES_DB[k].commonName.toLowerCase().includes(claimedSpeciesName.toLowerCase()) ||
-        MAHARASHTRA_NATIVE_SPECIES_DB[k].marathiName.toLowerCase().includes(claimedSpeciesName.toLowerCase()) ||
-        MAHARASHTRA_NATIVE_SPECIES_DB[k].hindiName.toLowerCase().includes(claimedSpeciesName.toLowerCase())
+        MAHARASHTRA_NATIVE_SPECIES_DB[k].commonName.toLowerCase().includes(claimedSpeciesName.toLowerCase())
     ) || "Azadirachta indica";
-
     const species = MAHARASHTRA_NATIVE_SPECIES_DB[matchedKey];
 
-    // Determine performance parameters by model engine
-    let executionLatencyMs = 950;
-    let tokenCostUsd = 0.00015;
-    let confidenceScore = 0.94;
-
-    if (engine === "gemini-2.5-pro") {
-      executionLatencyMs = 1750;
-      tokenCostUsd = 0.00125;
-      confidenceScore = 0.985;
-    } else if (engine === "ge-biovision-sft-v1") {
-      executionLatencyMs = 780;
-      tokenCostUsd = 0.00045;
-      confidenceScore = 0.992;
+    // Convert image to base64 for Gemini
+    let base64Data = "";
+    if (typeof imageSource === "string" && imageSource.startsWith("data:image/")) {
+      base64Data = imageSource.split(",")[1];
+    } else if (imageSource instanceof Blob) {
+      const arrayBuffer = await imageSource.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      base64Data = buffer.toString("base64");
     }
 
-    const inspectionId = `INSP-GE-AI-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-
-    // Compute allometric carbon accretion (IPCC AFOLU Tier 2 equation: AGB = a * DBH^b * WoodDensity)
-    const estDbhCm = 6.5;
-    const estHeightCm = 145;
-    const woodDensity = species.woodDensityGPerCm3;
-    const estimatedAgbKg = Math.round(0.0673 * Math.pow(woodDensity * estDbhCm * estDbhCm * (estHeightCm / 100), 0.976) * 10) / 10;
-    const annualCarbonAccretionTonsCo2e = Math.round((species.expectedAnnualCo2Kg / 1000) * 10000) / 10000;
-
-    const report: CompleteAiInspectionReport = {
-      inspectionId,
-      timestamp: new Date().toISOString(),
-      engineUsed: engine,
-      executionLatencyMs: Math.round(executionLatencyMs + (performance.now() - startTime)),
-      tokenCostUsd,
-      confidenceScore,
-      species,
-      speciesCandidates: [
-        { species: species.commonName, scientificName: species.scientificName, probability: confidenceScore },
-        { species: "Pongamia pinnata (Karanja)", scientificName: "Pongamia pinnata", probability: Math.round((1 - confidenceScore) * 0.7 * 100) / 100 },
-        { species: "Albizia lebbeck (Siris)", scientificName: "Albizia lebbeck", probability: Math.round((1 - confidenceScore) * 0.3 * 100) / 100 },
-      ],
-      vitality: {
-        vitalityStatus: "thriving",
-        crownHealthScore: 92,
-        growthStage: "young_tree",
-        estimatedHeightCm: estHeightCm,
-        estimatedDbhCm: estDbhCm,
-        defoliationPercentage: 4.5,
-        chlorophyllColorRating: "dense_green",
-        stemLignification: "woody",
-        activeApicalGrowthDetected: true,
-      },
-      pathology: {
-        diseaseOrPestDetected: false,
-        pathologyCategory: "none",
-        affectedOrgans: [],
-        severityLevel: "none",
-        urgencyDays: 30,
-        organicRemedies: [
-          "Apply 2% cold-pressed neem seed kernel extract (NSKE) spray as prophylactic bio-shield.",
-          "Maintain 3-inch organic dry leaf mulch around root collar to retain soil rhizosphere moisture.",
+    try {
+      // Structure the response schema exactly to match our interface
+      const response = await ai.models.generateContent({
+        model: "gemini-3.8-flash",
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { inlineData: { mimeType: "image/jpeg", data: base64Data } },
+              { text: `You are an expert botanical auditor and forestry verification AI. 
+                Analyze this field photograph of a newly planted tree or sapling.
+                The user claims this is a ${claimedSpeciesName}.
+                
+                Inspect the image for:
+                1. True botanical vitality (is it thriving, stressed, or dead?)
+                2. Pathology (any signs of pests, fungal disease, or necrosis on leaves?)
+                3. Anti-Fraud (Is this a genuine plant in the ground soil, or is it still in a nursery polybag? Is it a fake plastic plant? Is it a picture of a computer screen?)
+                
+                Respond ONLY with the strictly formatted JSON data.` 
+              }
+            ]
+          }
         ],
-        preventativeMeasures: [
-          "Ensure unobstructed sunlight penetration.",
-          "Inspect leaf undersides weekly during monsoon flush for caterpillar egg clusters.",
-        ],
-      },
-      antiFraud: {
-        isLivingPlant: true,
-        isGenuineInGroundSoilPit: true,
-        isNurseryPolybagOrPot: false,
-        isScreenRephotography: false,
-        isAiGeneratedSynthetic: false,
-        fraudRiskScore: 3,
-        fraudRiskLevel: "safe",
-        detectedAnomalies: [],
-        perceptualHash: dHash,
-      },
-      allometricBiomass: {
-        estimatedAboveGroundBiomassKg: estimatedAgbKg,
-        annualCarbonAccretionTonsCo2e,
-        ipccMethodologyTier: "Tier 2 Allometric Species Constant",
-      },
-      verraComplianceDigest: `VERRA-VM0047-SEC8.3-BIOAI-${inspectionId}`,
-      narrativeAiAuditReport: `Verified genuine in-ground ${species.scientificName} (${species.commonName} / ${species.marathiName}) specimen. Morphological evaluation confirms strong chlorophyll absorption, fully lignified stem, and zero signs of nursery polybag fraud. Qualified for Verra VM0047 carbon ledger accretion.`,
-    };
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              vitalityStatus: { type: Type.STRING, enum: ["thriving", "healthy", "moderate_stress", "severe_stress", "dead_or_dry"] },
+              crownHealthScore: { type: Type.INTEGER, description: "Score from 0 to 100" },
+              growthStage: { type: Type.STRING, enum: ["sapling", "young_tree", "mature_tree", "overmature"] },
+              estimatedHeightCm: { type: Type.INTEGER },
+              estimatedDbhCm: { type: Type.INTEGER },
+              defoliationPercentage: { type: Type.INTEGER },
+              chlorophyllColorRating: { type: Type.STRING, enum: ["dense_green", "moderate_green", "chlorotic_yellow", "necrotic_brown"] },
+              diseaseOrPestDetected: { type: Type.BOOLEAN },
+              pathologyCategory: { type: Type.STRING, enum: ["fungal", "bacterial", "viral", "insect_borer", "defoliator", "nutrient_deficiency", "none"] },
+              organicRemedies: { type: Type.ARRAY, items: { type: Type.STRING } },
+              isGenuineInGroundSoilPit: { type: Type.BOOLEAN },
+              isNurseryPolybagOrPot: { type: Type.BOOLEAN },
+              isScreenRephotography: { type: Type.BOOLEAN },
+              fraudRiskScore: { type: Type.INTEGER, description: "0 (safe) to 100 (fraudulent)" }
+            },
+            required: ["vitalityStatus", "crownHealthScore", "growthStage", "estimatedHeightCm", "estimatedDbhCm", "defoliationPercentage", "chlorophyllColorRating", "diseaseOrPestDetected", "pathologyCategory", "organicRemedies", "isGenuineInGroundSoilPit", "isNurseryPolybagOrPot", "isScreenRephotography", "fraudRiskScore"]
+          }
+        }
+      });
 
-    return report;
+      const result = JSON.parse(response.text || "{}");
+      
+      const inspectionId = `INSP-GE-AI-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+      
+      // Calculate Carbon Accretion based on Gemini's estimated DBH
+      const estDbhCm = result.estimatedDbhCm || 6.5;
+      const estHeightCm = result.estimatedHeightCm || 145;
+      const woodDensity = species.woodDensityGPerCm3;
+      const estimatedAgbKg = Math.round(0.0673 * Math.pow(woodDensity * estDbhCm * estDbhCm * (estHeightCm / 100), 0.976) * 10) / 10;
+      const annualCarbonAccretionTonsCo2e = Math.round((species.expectedAnnualCo2Kg / 1000) * 10000) / 10000;
+
+      return {
+        inspectionId,
+        timestamp: new Date().toISOString(),
+        engineUsed: "gemini-3.8-flash" as ModelExecutionEngine,
+        executionLatencyMs: Math.round(performance.now() - startTime),
+        tokenCostUsd: 0.00015, // Approximate
+        confidenceScore: 0.95,
+        species,
+        speciesCandidates: [
+          { species: species.commonName, scientificName: species.scientificName, probability: 0.95 }
+        ],
+        vitality: {
+          vitalityStatus: result.vitalityStatus as BotanicalVitality,
+          crownHealthScore: result.crownHealthScore,
+          growthStage: result.growthStage as GrowthStage,
+          estimatedHeightCm: estHeightCm,
+          estimatedDbhCm: estDbhCm,
+          defoliationPercentage: result.defoliationPercentage,
+          chlorophyllColorRating: result.chlorophyllColorRating,
+          stemLignification: "woody",
+          activeApicalGrowthDetected: true,
+        },
+        pathology: {
+          diseaseOrPestDetected: result.diseaseOrPestDetected,
+          pathologyCategory: result.pathologyCategory,
+          affectedOrgans: [],
+          severityLevel: result.diseaseOrPestDetected ? "moderate" : "none",
+          urgencyDays: result.diseaseOrPestDetected ? 7 : 30,
+          organicRemedies: result.organicRemedies || [],
+          preventativeMeasures: ["Ensure unobstructed sunlight.", "Monitor weekly."],
+        },
+        antiFraud: {
+          isLivingPlant: true,
+          isGenuineInGroundSoilPit: result.isGenuineInGroundSoilPit,
+          isNurseryPolybagOrPot: result.isNurseryPolybagOrPot,
+          isScreenRephotography: result.isScreenRephotography,
+          isAiGeneratedSynthetic: false,
+          fraudRiskScore: result.fraudRiskScore,
+          fraudRiskLevel: result.fraudRiskScore > 75 ? "high" : result.fraudRiskScore > 30 ? "medium" : "safe",
+          detectedAnomalies: result.isNurseryPolybagOrPot ? ["Plant is still in nursery polybag"] : [],
+          perceptualHash: dHash,
+        },
+        allometricBiomass: {
+          estimatedAboveGroundBiomassKg: estimatedAgbKg,
+          annualCarbonAccretionTonsCo2e,
+          ipccMethodologyTier: "Tier 2 Allometric Species Constant",
+        },
+        verraComplianceDigest: `VERRA-VM0047-SEC8.3-BIOAI-${inspectionId}`,
+        narrativeAiAuditReport: `Verified by Gemini 3.8 Flash Vision. Target species: ${species.commonName}. Status: ${result.vitalityStatus}. Fraud Risk: ${result.fraudRiskScore}/100.`,
+      };
+    } catch (e) {
+      console.error("Gemini 3.8 API Error:", e);
+      throw e;
+    }
   }
 
   /**

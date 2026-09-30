@@ -537,6 +537,30 @@ const OrganizationPlantation = () => {
         toast({ title: "Organization Name Required", description: "Please enter the executing organization / trust name.", variant: "destructive" });
         return false;
       }
+      
+      // MOCK DATA & GIBBERISH FILTER (FRONTEND FRICTION)
+      const testKeywords = ["test", "demo", "asdf", "dummy", "fake", "mock"];
+      const lowerName = projectName.toLowerCase();
+      const lowerOrg = orgName.toLowerCase();
+      
+      if (testKeywords.some(kw => lowerName.includes(kw) || lowerOrg.includes(kw))) {
+        toast({ 
+          title: "Authenticity Error", 
+          description: "Test, dummy, or mock projects are strictly prohibited on the live registry.", 
+          variant: "destructive" 
+        });
+        return false;
+      }
+      
+      if (projectName.trim().length < 5 || orgName.trim().length < 5) {
+         toast({ 
+          title: "Name Too Short", 
+          description: "Please enter a fully valid Project and Organization name.", 
+          variant: "destructive" 
+        });
+        return false;
+      }
+
       return true;
     }
 
