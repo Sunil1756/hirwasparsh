@@ -556,6 +556,18 @@ const OrganizationPlantation = () => {
       return true;
     }
 
+    if (step === 4) {
+      if (!initialSitePhoto && bulkRows.length === 0) {
+        toast({
+          title: "Verification Evidence Required",
+          description: "You cannot create an unverified project. Please upload a real field photo or a CSV spreadsheet containing actual coordinates to proceed.",
+          variant: "destructive"
+        });
+        return false;
+      }
+      return true;
+    }
+
     return true;
   };
 

@@ -401,6 +401,9 @@ export function evaluateProjectVerification(params: {
   // If evidence photos are already attached, bonus +5 trust
   if (evidenceCount > 0) {
     overallScore = Math.min(100, overallScore + 5);
+  } else {
+    // Cannot have a highly verified project without proof!
+    overallScore = Math.min(40, overallScore);
   }
 
   // Determine Status

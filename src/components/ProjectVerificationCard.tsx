@@ -71,7 +71,7 @@ export const ProjectVerificationCard = ({
             <span className="h-7 w-7 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
               <Bot className="h-4 w-4" />
             </span>
-            <h3 className="font-heading text-lg font-bold">Automated AI Verification & Anti-Fraud Audit</h3>
+            <h3 className="font-heading text-lg font-bold">Geospatial Pre-Screening & Anti-Fraud Audit</h3>
           </div>
           <p className="text-xs text-muted-foreground max-w-xl">
             Multi-spectral remote sensing, biological sapling density feasibility, and cadastral sanity screening.
