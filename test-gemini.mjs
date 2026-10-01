@@ -1,17 +1,11 @@
-import { GoogleGenAI } from "@google/genai";
-
-const ai = new GoogleGenAI({ apiKey: process.env.VITE_GEMINI_API_KEY });
-
-async function test() {
+import { GoogleGenAI } from '@google/genai';
+async function run() {
+  const ai = new GoogleGenAI({ apiKey: process.env.VITE_GEMINI_API_KEY });
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: "Tell me a quick 1 sentence joke about trees.",
-    });
-    console.log(response.text);
+    const response = await ai.models.generateContent({ model: 'gemini-flash-latest', contents: 'Say hello' });
+    console.log('SUCCESS! Gemini API is connected and responding. Response:', response.text);
   } catch (e) {
-    console.error("API error:", e);
+    console.error('ERROR! Gemini API failed:', e.message);
   }
 }
-
-test();
+run();

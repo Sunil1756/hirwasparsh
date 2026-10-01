@@ -20,6 +20,7 @@ import {
   QrCode,
   Ruler,
 } from "lucide-react";
+import { analyzeTreePhotoWithBotanicalAi } from "@/lib/geminiBotanicalVision";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -194,6 +195,27 @@ export const FieldSpotAuditConsole = ({
     let uploadedPath = activeSample.photo_url || null;
 
     if (currentPhoto) {
+      try {
+        toast({ title: "AI Scanning...", description: "Gemini Vision is analyzing the field photo for biological proof...", duration: 5000 });
+        const aiCheck = await analyzeTreePhotoWithBotanicalAi(currentPhoto, activeSample.species);
+        if (!aiCheck.isLivingTree) {
+          toast({
+            title: "Spot Audit Rejected - Fake Detected",
+            description: "The uploaded image does not appear to contain a valid plantation site or living trees. AI Report: " + aiCheck.aiReport,
+            variant: "destructive",
+            duration: 8000
+          });
+          return;
+        }
+      } catch (e) {
+        toast({
+          title: "AI Service Error",
+          description: "Unable to verify the field evidence right now.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       try {
         const compressed = await compressImage(currentPhoto, 1400, 0.8);
         const storageKey = `projects/${projectId}/survival-audit-${activeSample.sample_id}-${Date.now()}.jpg`;
