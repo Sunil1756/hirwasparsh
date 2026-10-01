@@ -622,15 +622,17 @@ export default function FieldWorkerDashboard() {
                       <FileSpreadsheet className="h-3.5 w-3.5 text-primary" /> Bulk GPS CSV Import
                     </Button>
                   </Link>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setFieldTestModalOpen(true)}
-                    className="w-full justify-start text-xs rounded-xl gap-2 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10"
-                    data-testid="desktop-open-field-test-suite-btn"
-                  >
-                    <Smartphone className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> Mobile Field Test Suite
-                  </Button>
+                  {import.meta.env.DEV && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFieldTestModalOpen(true)}
+                      className="w-full justify-start text-xs rounded-xl gap-2 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10"
+                      data-testid="desktop-open-field-test-suite-btn"
+                    >
+                      <Smartphone className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> Mobile Field Test Suite (DEV ONLY)
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

@@ -546,7 +546,7 @@ export async function dispatchPredictiveRiskFieldTask(
     if (error) throw error;
     return { success: true, taskId: (data as any)?.id };
   } catch (err) {
-    console.warn("dispatchPredictiveRiskFieldTask error, returning mock success:", err);
-    return { success: true, taskId: `task-${Date.now()}` };
+    console.error("Failed to dispatch predictive risk field task:", err);
+    throw new Error("Database dispatch failed. Could not create task.");
   }
 }

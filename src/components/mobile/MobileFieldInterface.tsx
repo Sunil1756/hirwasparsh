@@ -340,15 +340,17 @@ export const MobileFieldInterface: React.FC<MobileFieldInterfaceProps> = ({
                   <p className="text-[10px] text-muted-foreground">Simulate GPS walk, streak & 2G offline</p>
                 </div>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsFieldTestOpen(true)}
-                className="h-7 px-2.5 text-xs font-semibold rounded-lg border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10"
-                data-testid="open-field-test-suite-btn"
-              >
-                Launch Suite →
-              </Button>
+              {import.meta.env.DEV && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsFieldTestOpen(true)}
+                  className="h-7 px-2.5 text-xs font-semibold rounded-lg border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10"
+                  data-testid="open-field-test-suite-btn"
+                >
+                  Launch Suite (DEV)
+                </Button>
+              )}
             </div>
 
             {/* Quick Fast Tree Observation Action Card */}

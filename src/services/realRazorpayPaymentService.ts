@@ -388,18 +388,8 @@ class RealRazorpayPaymentService {
       }
     }
 
-    // Fallback direct processor when in offline/test environment
-    setTimeout(async () => {
-      const mockPayId = `pay_live_test_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
-      const paymentResult = await this.recordPaymentAndActivate({
-        paymentId: mockPayId,
-        orderId: order.orderId,
-        signature: `hmac_sha256_${Math.random().toString(36).substring(2)}`,
-        method: "upi",
-        order,
-      });
-      onSuccess(paymentResult);
-    }, 50);
+    // Strictly prevent bypassing payment gateway
+    onFailure(new Error("Payment Gateway Blocked. Please disable adblockers or check your connection to Razorpay. Cannot generate fake transactions on a live platform."));
   }
 
   /**
