@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+﻿import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -173,7 +173,7 @@ export default function NGOWorkspacePage() {
         {/* Quick Action Buttons */}
         <div className="flex flex-wrap items-center gap-3">
           <Button asChild variant="default" className="rounded-xl gap-2 text-xs font-semibold shadow-md bg-emerald-600 hover:bg-emerald-700 text-white">
-            <Link to="/plant/organization?create=true">
+            <Link to="/projects">
               <Plus className="h-4 w-4" /> Onboard Geodetic Boundary
             </Link>
           </Button>
@@ -334,7 +334,7 @@ export default function NGOWorkspacePage() {
             <p>No afforestation plots match the current filter or search.</p>
             {tabFilter === "mine" && (
               <Button asChild size="sm" variant="outline" className="rounded-xl text-xs mt-2">
-                <Link to="/plant/organization?create=true">
+                <Link to="/projects">
                   <Plus className="h-3.5 w-3.5 mr-1" /> Onboard New Parcel
                 </Link>
               </Button>
@@ -439,13 +439,13 @@ export default function NGOWorkspacePage() {
 
                     {canEdit ? (
                       <Button asChild size="sm" variant="outline" className="h-8 text-xs rounded-xl border-primary/30">
-                        <Link to={`/plant/organization?project=${plot.id}`}>
+                        <Link to={`/projects`}>
                           Edit Parcel
                         </Link>
                       </Button>
                     ) : (
                       <Button asChild size="sm" variant="outline" className="h-8 text-xs rounded-xl border-border/40 text-muted-foreground">
-                        <Link to={`/plant/organization?project=${plot.id}`}>
+                        <Link to={`/projects`}>
                           <Lock className="h-3 w-3 mr-1" /> View Only
                         </Link>
                       </Button>
