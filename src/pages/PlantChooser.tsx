@@ -126,27 +126,20 @@ const PlantChooser = () => {
             <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-4">
               <Building2 className="h-6 w-6" />
             </div>
-            <h2 className="font-heading text-lg font-semibold">🏢 NGO & Reforestation Project</h2>
+            <h2 className="font-heading text-lg font-semibold">🏢 NGO / CSR Project</h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Full geodetic parcel boundaries, satellite monitoring & field ranger spot audits.
+              Full enterprise project tracking, satellite monitoring & boundary polygon.
             </p>
             <ul className="mt-4 space-y-2 text-xs text-muted-foreground flex-1">
-              <li className="flex gap-2"><MapPin className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> Map parcel boundary drawing</li>
-              <li className="flex gap-2"><Satellite className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> Sentinel-2 satellite telemetry</li>
-              <li className="flex gap-2"><ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> 5% Ground-truth spot audits</li>
+              <li className="flex gap-2"><MapPin className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> Map boundary drawing</li>
+              <li className="flex gap-2"><Satellite className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> Drone & satellite telemetry</li>
+              <li className="flex gap-2"><ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> Multi-year survival audits</li>
             </ul>
-            <div className="mt-5 flex flex-col gap-2">
-              <Link to="/plant/organization?create=true">
-                <Button className="w-full h-10 text-xs font-semibold">
-                  Register New Project <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-                </Button>
-              </Link>
-              <Link to="/workspace/ngo">
-                <Button variant="ghost" className="w-full h-8 text-[11px] text-muted-foreground hover:text-primary">
-                  Go to NGO Command Center →
-                </Button>
-              </Link>
-            </div>
+            <Link to="/plant/organization" className="mt-5">
+              <Button variant="outline" className="w-full h-10 text-xs border-primary/40">
+                Continue as NGO/CSR <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+              </Button>
+            </Link>
           </motion.div>
         </div>
 
