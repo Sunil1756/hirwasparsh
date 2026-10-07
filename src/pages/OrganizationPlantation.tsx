@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { projectService } from "@/services/projectService";
 import { useAuth } from "@/contexts/AuthContext";
 import { compressImage } from "@/lib/imageProcessing";
 import { syncUserProfileImpact } from "@/lib/syncUserImpact";
@@ -725,6 +726,37 @@ const OrganizationPlantation = () => {
       const createdProjectId = data?.id;
       setProjects((p) => [data as Project, ...p]);
       setActiveId((data as Project).id);
+      
+      try {
+        const valBoundary = await validateGeodeticBoundary(boundary.map(b => [b.lat, b.lng]));
+        if (valBoundary.isValid) {
+          await projectService.createProject({
+            name: newProjectPayload.project_name,
+            description: `Project by ${newProjectPayload.organization_name}`,
+            project_type: newProjectPayload.organization_type.toLowerCase().includes("csr") ? "corporate" : "ngo",
+            target_trees: newProjectPayload.target_trees,
+            target_area_hectares: valBoundary.hectares,
+            location_name: newProjectPayload.location,
+            centroid_latitude: newProjectPayload.latitude,
+            centroid_longitude: newProjectPayload.longitude,
+            species_list: newProjectPayload.species,
+            start_date: newProjectPayload.plantation_date.toISOString().split("T")[0],
+            created_by: user?.id,
+            status: "planning",
+            initial_boundary: {
+               boundary_name: "Initial Compartment",
+               compartment_code: "COMP-A1",
+               boundary_type: "planting_zone",
+               geometry_geojson: valBoundary.geoJsonPolygon,
+               area_sqm: valBoundary.areaSqMeters,
+               area_hectares: valBoundary.hectares,
+               area_acres: valBoundary.acres
+            }
+          });
+        }
+      } catch (err) {
+        console.warn("Sync err", err);
+      }
       setView("detail");
       setSearchParams({ project: data.id });
       toast({
