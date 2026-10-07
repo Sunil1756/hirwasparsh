@@ -44,7 +44,7 @@ const Navbar = () => {
   const b2bLinks = [
     { to: "/workspace/ngo", label: "NGO Command Center" },
     { to: "/portal/csr", label: "CSR Carbon & ESG Portal" },
-    { to: "/pricing", label: "Institutional Pricing" },
+
     { to: "/scouting", label: "Field Ground Scouting" },
     { to: "/monitoring", label: "Surveillance & Monitoring" },
   ];
@@ -423,3 +423,4 @@ const Navbar = () => {
 };
 
 export default Navbar;
+
