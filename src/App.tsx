@@ -37,7 +37,7 @@ const BulkOnboardPage = lazy(() => import("./pages/BulkOnboardPage"));
 const CertificateVerify = lazy(() => import("./pages/CertificateVerify"));
 const CSRCorporatePortal = lazy(() => import("./pages/CSRCorporatePortal"));
 const NGOWorkspacePage = lazy(() => import("./pages/NGOWorkspacePage"));
-const PricingPage = lazy(() => import("./pages/PricingPage"));
+
 const TreeStory = lazy(() => import("./pages/TreeStory"));
 const OrganizationPortal = lazy(() => import("./pages/OrganizationPortal"));
 const ProjectManagement = lazy(() => import("./pages/ProjectManagement"));
@@ -105,7 +105,6 @@ const App = () => (
                 <Route path="/project-management" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />
                 <Route path="/monitoring" element={<MonitoringDashboard />} />
                 <Route path="/monitoring-dashboard" element={<MonitoringDashboard />} />
-                <Route path="/pricing" element={<PricingPage />} />
                 <Route path="/verification" element={<VerificationDashboardPage />} />
                 <Route path="/mrv/verification" element={<VerificationDashboardPage />} />
                 <Route path="/admin/verification" element={<RoleProtectedRoute requiredRole="admin"><VerificationDashboardPage /></RoleProtectedRoute>} />
@@ -124,3 +123,5 @@ const App = () => (
 );
 
 export default App;
+
+
