@@ -156,7 +156,7 @@ export const secureStorageService = {
     if (options.persist_to_database !== false) {
       // 1. Insert into tree_photos table
       const { data: photoRecord } = await supabase
-        .from("tree_photos" as any)
+        .from("tree_evidence" as any)
         .insert({
           tree_id: treeId,
           uploader_id: options.uploader_id || null,
@@ -221,7 +221,7 @@ export const secureStorageService = {
     let dbRecordId: string | undefined;
     if (options.persist_to_database !== false) {
       const { data: record } = await supabase
-        .from("tree_photos" as any)
+        .from("tree_evidence" as any)
         .insert({
           tree_id: targetId.startsWith("tree") ? targetId : null,
           project_id: !targetId.startsWith("tree") ? targetId : null,
@@ -281,7 +281,7 @@ export const secureStorageService = {
     let dbRecordId: string | undefined;
     if (options.persist_to_database !== false) {
       const { data: record } = await supabase
-        .from("tree_photos" as any)
+        .from("tree_evidence" as any)
         .insert({
           project_id: projectId,
           uploader_id: options.uploader_id || null,
@@ -331,7 +331,7 @@ export const secureStorageService = {
   async deleteFile(bucket: StorageBucketType, paths: string[]): Promise<boolean> {
     const { error } = await supabase.storage.from(bucket).remove(paths);
     if (!error) {
-      await supabase.from("tree_photos" as any).delete().in("storage_path", paths);
+      await supabase.from("tree_evidence" as any).delete().in("storage_path", paths);
     }
     return !error;
   },

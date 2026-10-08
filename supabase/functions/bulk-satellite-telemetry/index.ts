@@ -281,12 +281,12 @@ serve(async (req) => {
 
     const copernicusClientId =
       Deno.env.get("COPERNICUS_CLIENT_ID") ||
-      Deno.env.get("VITE_COPERNICUS_CLIENT_ID") ||
+      
       "sh-bca04d51-5029-419e-a9d2-29b4cb7ae6fa";
 
     const copernicusClientSecret =
       Deno.env.get("COPERNICUS_CLIENT_SECRET") ||
-      Deno.env.get("VITE_COPERNICUS_CLIENT_SECRET") ||
+      
       "65bC8ZTF2Uu4Vy9nBV8Tg6q6ldXAxenF";
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);

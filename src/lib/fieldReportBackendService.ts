@@ -466,7 +466,7 @@ export async function submitFieldSpotAuditReport(
   try {
     // Step 2: Insert primary evidence record into Supabase `project_evidence` table
     const { data: evidenceData, error: evidenceError } = await supabase
-      .from("project_evidence")
+      .from("tree_evidence")
       .insert({
         project_id: input.projectId,
         user_id: input.auditorId || (await supabase.auth.getUser()).data.user?.id || "00000000-0000-0000-0000-000000000000",
@@ -538,7 +538,7 @@ export async function submitFieldSpotAuditReport(
     // Step 4: Update `plantation_projects` aggregate metrics
     try {
       await supabase
-        .from("plantation_projects")
+        .from("projects")
         .update({
           verified_trees: input.livingCount,
           survival_rate_pct: survivalRate,
@@ -797,7 +797,7 @@ export async function fetchProjectAuditHistory(projectId: string): Promise<Array
 }>> {
   try {
     const { data, error } = await supabase
-      .from("project_evidence")
+      .from("tree_evidence")
       .select("id, evidence_type, survival_percent, latitude, longitude, photo_url, notes, captured_at, created_at")
       .eq("project_id", projectId)
       .order("created_at", { ascending: false });

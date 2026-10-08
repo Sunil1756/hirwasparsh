@@ -209,7 +209,7 @@ export const dashboardDataService = {
       const [boundariesRes, treesRes, photosRes, obsRes, orgRes] = await Promise.all([
         supabase.from("project_boundaries" as any).select("area_hectares, area_acres").eq("project_id", projectId),
         supabase.from("trees" as any).select("id, status, species").eq("project_id", projectId),
-        supabase.from("tree_photos" as any).select("id").eq("project_id", projectId),
+        supabase.from("tree_evidence" as any).select("id").eq("project_id", projectId),
         supabase.from("tree_observations" as any).select("id").eq("tree_id", projectId), // or tree-linked
         project.organization_id
           ? supabase.from("organizations" as any).select("name").eq("id", project.organization_id).maybeSingle()

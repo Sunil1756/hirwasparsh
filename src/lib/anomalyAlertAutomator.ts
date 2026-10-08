@@ -157,7 +157,7 @@ export async function scanAndDispatchProjectAnomalies(): Promise<{
 
   try {
     const { data: projects, error } = await supabase
-      .from("plantation_projects")
+      .from("projects")
       .select("id, project_name, location, target_trees, verified_trees, latitude, longitude");
 
     if (error || !projects) return { scanned: 0, alertsDispatched: 0, results: [] };

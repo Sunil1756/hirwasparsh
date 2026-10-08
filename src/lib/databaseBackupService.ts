@@ -106,7 +106,7 @@ export async function exportNgoProjectSnapshot(
     const [treesRes, plotsRes, projRes, reportsRes, carbonRes, alertsRes] = await Promise.all([
       supabase.from("trees").select("*").eq("project_id", projectId),
       supabase.from("plots" as any).select("*"),
-      supabase.from("plantation_projects").select("*").eq("id", projectId),
+      supabase.from("projects").select("*").eq("id", projectId),
       supabase.from("field_reports" as any).select("*"),
       supabase.from("carbon_ledger_entries" as any).select("*").eq("project_id", projectId),
       supabase.from("risk_alerts" as any).select("*").eq("project_id", projectId),
@@ -375,6 +375,6 @@ export async function checkDatabasePerformanceMetrics(): Promise<DatabasePerform
       "CREATE INDEX idx_risk_alerts_target_unread ON public.risk_alerts (target_persona, is_read, created_at DESC);",
     ],
     isPerformanceOptimized: true,
-    indexedTables: ["trees", "plots", "plantation_projects", "satellite_telemetry", "risk_alerts", "field_reports"],
+    indexedTables: ["trees", "plots", "projects", "satellite_telemetry", "risk_alerts", "field_reports"],
   };
 }

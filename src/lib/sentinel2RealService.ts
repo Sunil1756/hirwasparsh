@@ -1,6 +1,6 @@
 /**
- * Real Copernicus Sentinel-2 L2A Multi-Spectral Remote Sensing & STAC Engine
- * Queries open Earth Search STAC / Planetary Computer STAC for real Sentinel-2 tiles.
+ * Real Copernicus Sentinel-2 L2A Multi-Spectral Remote Sensing
+ * Queries Supabase Edge Function to securely retrieve real Sentinel-2 tiles.
  * Computes real surface reflectance indices: NDVI, NDRE, NDWI, EVI, SAVI, and IPCC Tier-2 Biomass.
  * Persists telemetry into Supabase `satellite_telemetry` and updates `plots` and `trees`.
  */
@@ -11,7 +11,7 @@ export interface Sentinel2TelemetryData {
   plotId?: string;
   plotName?: string;
   tileId: string;
-  satelliteSource: "copernicus_sentinel2_l2a" | "earth_search_stac" | "calibrated_sentinel2";
+  satelliteSource: "copernicus_sentinel2_l2a" | "earth_search_stac" | "calibrated_sentinel2" | "pending";
   acquisitionDate: string;
   cloudCoverPct: number;
   centerLat: number;
@@ -42,6 +42,8 @@ export interface Sentinel2TelemetryData {
   healthDiagnosis: string;
   recommendation: string;
   isLiveSatelliteData: boolean;
+  status?: string;
+  reason?: string;
 }
 
 export interface NdviTimeSeriesPoint {
@@ -65,7 +67,8 @@ export interface TreeNdviTelemetryResult extends Sentinel2TelemetryData {
     | "Vigorous Foliage"
     | "Moderate Vitality"
     | "Sparse Canopy / Moisture Stressed"
-    | "Barren / Soil Exposure";
+    | "Barren / Soil Exposure"
+    | "Satellite Data Unavailable";
   healthScore: number;
 }
 
@@ -84,7 +87,7 @@ export function computeSpectralIndicesFromBands(params: {
   lng?: number;
 }): Omit<
   Sentinel2TelemetryData,
-  "tileId" | "satelliteSource" | "acquisitionDate" | "cloudCoverPct" | "centerLat" | "centerLng" | "elevationM" | "isLiveSatelliteData"
+  "tileId" | "satelliteSource" | "acquisitionDate" | "cloudCoverPct" | "centerLat" | "centerLng" | "elevationM" | "isLiveSatelliteData" | "status" | "reason"
 > {
   const { b02Blue, b03Green, b04Red, b05RedEdge, b08Nir, b11Swir } = params;
   const ha = params.areaHectares || 1.0;
@@ -171,57 +174,8 @@ export function computeSpectralIndicesFromBands(params: {
   };
 }
 
-let cachedClientCopernicusToken: { token: string; expiresAt: number } | null = null;
-
-export async function getClientCopernicusToken(): Promise<string | null> {
-  if (cachedClientCopernicusToken && cachedClientCopernicusToken.expiresAt > Date.now() + 60000) {
-    return cachedClientCopernicusToken.token;
-  }
-
-  const clientId =
-    (typeof import.meta !== "undefined" && import.meta.env?.VITE_COPERNICUS_CLIENT_ID) ||
-    "";
-
-  const clientSecret =
-    (typeof import.meta !== "undefined" && import.meta.env?.VITE_COPERNICUS_CLIENT_SECRET) ||
-    "";
-
-  try {
-    const tokenEndpoint =
-      "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token";
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 800);
-    const res = await fetch(tokenEndpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      signal: controller.signal,
-      body: new URLSearchParams({
-        grant_type: "client_credentials",
-        client_id: clientId,
-        client_secret: clientSecret,
-      }),
-    });
-    clearTimeout(timer);
-
-    if (res.ok) {
-      const data = await res.json();
-      if (data.access_token) {
-        cachedClientCopernicusToken = {
-          token: data.access_token,
-          expiresAt: Date.now() + (data.expires_in || 300) * 1000,
-        };
-        return data.access_token;
-      }
-    }
-  } catch (err) {
-    // Graceful fallback
-  }
-  return null;
-}
-
 /**
- * Fetch real Sentinel-2 L2A multi-spectral data from live Copernicus Data Space Ecosystem or open STAC
+ * Fetch real Sentinel-2 L2A multi-spectral data from live Copernicus Data Space Ecosystem via Supabase Edge Function
  */
 export async function fetchRealSentinel2Telemetry(
   lat: number,
@@ -230,242 +184,178 @@ export async function fetchRealSentinel2Telemetry(
   plotId?: string,
   plotName?: string
 ): Promise<Sentinel2TelemetryData> {
-  const delta = 0.005; // ~500m bounding box radius
-  const bbox = [lng - delta, lat - delta, lng + delta, lat + delta];
-
+  
   // Tile naming for Maharashtra / India Sentinel-2 UTM Grid
   const utmZone = Math.floor((lng + 180) / 6) + 1;
   const tileId = `T${utmZone}Q${String.fromCharCode(65 + Math.floor(Math.abs(lng) % 20))}${String.fromCharCode(65 + Math.floor(Math.abs(lat) % 20))}`;
 
-  let liveSuccess = false;
-  let cloudCover = 2.4;
-  let acquisitionDate = new Date(Date.now() - 3 * 86400000).toISOString().split("T")[0];
-
-  let b04Red = 0.052;
-  let b08Nir = 0.440;
-  let b05RedEdge = 0.185;
-  let b03Green = 0.088;
-  let b02Blue = 0.038;
-  let b11Swir = 0.145;
-
-  // 1. Attempt Live Copernicus Data Space Ecosystem (CDSE) Statistical API
-  try {
-    const token = await getClientCopernicusToken();
-    if (token) {
-      const statsEndpoint = "https://sh.dataspace.copernicus.eu/api/v1/statistics";
-      const fromDate = new Date();
-      fromDate.setDate(fromDate.getDate() - 30);
-
-      const evalscript = `//VERSION=3
-function setup() {
-  return {
-    input: [{ bands: ["B02", "B03", "B04", "B05", "B08", "B11", "dataMask"] }],
-    output: [{ id: "bands", bands: 6 }, { id: "dataMask", bands: 1 }]
-  };
-}
-function evaluatePixel(samples) {
-  return {
-    bands: [samples.B02, samples.B03, samples.B04, samples.B05, samples.B08, samples.B11],
-    dataMask: [samples.dataMask]
-  };
-}`;
-
-      const statReq = {
-        input: {
-          bounds: { bbox },
-          data: [{
-            type: "sentinel-2-l2a",
-            dataFilter: {
-              timeRange: { from: fromDate.toISOString(), to: new Date().toISOString() },
-              maxCloudCoverage: 30
-            }
-          }]
-        },
-        aggregation: {
-          timeRange: { from: fromDate.toISOString(), to: new Date().toISOString() },
-          aggregationInterval: { of: "P10D" },
-          evalscript
-        }
-      };
-
-      const statController = new AbortController();
-      const statTimer = setTimeout(() => statController.abort(), 800);
-      const statRes = await fetch(statsEndpoint, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
-        },
-        signal: statController.signal,
-        body: JSON.stringify(statReq)
-      });
-      clearTimeout(statTimer);
-
-      if (statRes.ok) {
-        const statJson = await statRes.json();
-        const latestInterval = statJson.data?.[statJson.data.length - 1];
-        if (latestInterval && latestInterval.outputs?.bands?.bands) {
-          const b = latestInterval.outputs.bands.bands;
-          b02Blue = b.B0?.stats?.mean ?? b02Blue;
-          b03Green = b.B1?.stats?.mean ?? b03Green;
-          b04Red = b.B2?.stats?.mean ?? b04Red;
-          b05RedEdge = b.B3?.stats?.mean ?? b05RedEdge;
-          b08Nir = b.B4?.stats?.mean ?? b08Nir;
-          b11Swir = b.B5?.stats?.mean ?? b11Swir;
-          acquisitionDate = latestInterval.interval?.to?.split("T")[0] || acquisitionDate;
-          liveSuccess = true;
-        }
-      }
-    }
-  } catch (cdseErr) {
-    // Fallback to STAC search
-  }
-
-  // 2. Fallback / Secondary Live Search: Open STAC API
-  if (!liveSuccess) {
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 600);
-      const stacUrl = "https://earth-search.aws.element84.com/v1/search";
-      const stacRes = await fetch(stacUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
-        body: JSON.stringify({
-          collections: ["sentinel-2-l2a", "sentinel-2-c1-l2a"],
-          bbox,
-          limit: 1,
-          query: {
-            "eo:cloud_cover": { lt: 25 },
-          },
-        }),
-      });
-      clearTimeout(timer);
-
-      if (stacRes.ok) {
-        const stacData = await stacRes.json();
-        if (stacData.features && stacData.features.length > 0) {
-          const item = stacData.features[0];
-          acquisitionDate = item.properties.datetime?.split("T")[0] || acquisitionDate;
-          cloudCover = Math.round((item.properties["eo:cloud_cover"] || 2.4) * 10) / 10;
-          liveSuccess = true;
-        }
-      }
-    } catch {
-      // Graceful fallback to calibrated regional reflectance
-    }
-  }
-
-  // If live satellite reflectance was not obtained, apply calibrated regional baseline
-  if (!liveSuccess) {
-    const isGhats = lng < 74.5 && lat > 15.5 && lat < 20.5;
-    const isCoast = lng < 73.5;
-    const isVidarbha = lng > 78.0;
-
-    b04Red = 0.052;
-    b08Nir = 0.440;
-    b05RedEdge = 0.185;
-    b03Green = 0.088;
-    b02Blue = 0.038;
-    b11Swir = 0.145;
-
-    if (isGhats) {
-      b08Nir = 0.520;
-      b04Red = 0.036;
-      b05RedEdge = 0.220;
-      b03Green = 0.095;
-      b11Swir = 0.110;
-    } else if (isCoast) {
-      b08Nir = 0.485;
-      b04Red = 0.042;
-      b05RedEdge = 0.198;
-      b03Green = 0.092;
-      b11Swir = 0.125;
-    } else if (isVidarbha) {
-      b08Nir = 0.410;
-      b04Red = 0.064;
-      b05RedEdge = 0.170;
-      b03Green = 0.082;
-      b11Swir = 0.175;
-    }
-  }
-
-  // Calculate elevation
-  const elevationM = Math.round(lng < 74.5 && lat > 15.5 && lat < 20.5 ? 750 : lng < 73.5 ? 25 : 290);
-
-  // Compute all indices
-  const computed = computeSpectralIndicesFromBands({
-    b02Blue,
-    b03Green,
-    b04Red,
-    b05RedEdge,
-    b08Nir,
-    b11Swir,
-    lat,
-    lng,
-  });
-
   const safeLat = typeof lat === "number" && !isNaN(lat) ? lat : 19.75;
   const safeLng = typeof lng === "number" && !isNaN(lng) ? lng : 75.71;
+  const elevationM = Math.round(lng < 74.5 && lat > 15.5 && lat < 20.5 ? 750 : lng < 73.5 ? 25 : 290);
 
-  const result: Sentinel2TelemetryData = {
-    plotId,
-    plotName,
-    tileId,
-    satelliteSource: liveSuccess ? "copernicus_sentinel2_l2a" : "calibrated_sentinel2",
-    acquisitionDate,
-    cloudCoverPct: cloudCover,
-    centerLat: Math.round(safeLat * 10000) / 10000,
-    centerLng: Math.round(safeLng * 10000) / 10000,
-    latitude: Math.round(safeLat * 10000) / 10000,
-    longitude: Math.round(safeLng * 10000) / 10000,
-    elevationM,
-    isLiveSatelliteData: true,
-    ...computed,
-  };
-
-  // Persist telemetry to Supabase if plotId is provided
+  // Call the Edge Function to get Satellite Data
   try {
-    if (plotId) {
-      await supabase.from("satellite_telemetry" as any).insert({
-        plot_id: plotId,
-        center_lat: result.centerLat,
-        center_lng: result.centerLng,
-        satellite_source: result.satelliteSource,
-        acquisition_date: result.acquisitionDate,
-        tile_id: result.tileId,
-        cloud_cover_pct: result.cloudCoverPct,
-        b02_blue: result.b02Blue,
-        b03_green: result.b03Green,
-        b04_red: result.b04Red,
-        b05_red_edge: result.b05RedEdge,
-        b08_nir: result.b08Nir,
-        b11_swir: result.b11Swir,
-        mean_ndvi: result.ndvi,
-        mean_ndre: result.ndre,
-        mean_ndwi: result.ndwi,
-        evi: result.evi,
-        savi: result.savi,
-        surface_temp_c: result.surfaceTempC,
-        estimated_biomass_mt_per_ha: result.biomassCarbonMTPerHa,
-        total_carbon_stock_co2e_mt: result.totalCarbonStockCo2eMT,
-      } as any);
+    const { data, error } = await supabase.functions.invoke("copernicus-sentinel", {
+      body: { lat: safeLat, lng: safeLng }
+    });
 
-      // Update plot record
-      await supabase
-        .from("plots" as any)
-        .update({
-          current_mean_ndvi: result.ndvi,
-          current_biomass_mt: result.totalCarbonStockCo2eMT,
-          last_satellite_sync_at: new Date().toISOString(),
-        } as any)
-        .eq("id", plotId);
+    if (error || !data || data.status !== "success") {
+      const reason = data?.reason || error?.message || "SATELLITE_DATA_UNAVAILABLE";
+      console.warn("Satellite data unavailable:", reason);
+      
+      // DO NOT GENERATE FAKE SATELLITE DATA!
+      // Return a clearly unavailable state.
+      return {
+        plotId,
+        plotName,
+        tileId,
+        satelliteSource: "pending",
+        acquisitionDate: new Date().toISOString().split("T")[0],
+        cloudCoverPct: 0,
+        centerLat: Math.round(safeLat * 10000) / 10000,
+        centerLng: Math.round(safeLng * 10000) / 10000,
+        latitude: Math.round(safeLat * 10000) / 10000,
+        longitude: Math.round(safeLng * 10000) / 10000,
+        elevationM,
+        b02Blue: 0,
+        b03Green: 0,
+        b04Red: 0,
+        b05RedEdge: 0,
+        b08Nir: 0,
+        b11Swir: 0,
+        ndvi: 0,
+        ndre: 0,
+        ndwi: 0,
+        evi: 0,
+        savi: 0,
+        surfaceTempC: 0,
+        chlorophyllDensityUgCm2: 0,
+        canopyCoveragePct: 0,
+        biomassCarbonMTPerHa: 0,
+        totalCarbonStockCo2eMT: 0,
+        soilMoisturePct: 0,
+        classification: "Satellite Data Unavailable",
+        healthDiagnosis: "Satellite verification pending",
+        recommendation: "Please try again later or check satellite coverage.",
+        isLiveSatelliteData: false,
+        status: "unavailable",
+        reason: reason
+      };
     }
-  } catch (dbErr) {
-    console.warn("Could not save satellite telemetry to Supabase:", dbErr);
-  }
 
-  return result;
+    const { b02Blue, b03Green, b04Red, b05RedEdge, b08Nir, b11Swir } = data.bands;
+    
+    // Compute all indices
+    const computed = computeSpectralIndicesFromBands({
+      b02Blue,
+      b03Green,
+      b04Red,
+      b05RedEdge,
+      b08Nir,
+      b11Swir,
+      lat,
+      lng,
+    });
+
+    const result: Sentinel2TelemetryData = {
+      plotId,
+      plotName,
+      tileId,
+      satelliteSource: data.source || "copernicus_sentinel2_l2a",
+      acquisitionDate: data.acquisitionDate || new Date().toISOString().split("T")[0],
+      cloudCoverPct: data.cloudCover || 2.4,
+      centerLat: Math.round(safeLat * 10000) / 10000,
+      centerLng: Math.round(safeLng * 10000) / 10000,
+      latitude: Math.round(safeLat * 10000) / 10000,
+      longitude: Math.round(safeLng * 10000) / 10000,
+      elevationM,
+      isLiveSatelliteData: true,
+      status: "success",
+      ...computed,
+    };
+
+    // Persist telemetry to Supabase if plotId is provided
+    try {
+      if (plotId) {
+        await supabase.from("satellite_telemetry" as any).insert({
+          plot_id: plotId,
+          center_lat: result.centerLat,
+          center_lng: result.centerLng,
+          satellite_source: result.satelliteSource,
+          acquisition_date: result.acquisitionDate,
+          tile_id: result.tileId,
+          cloud_cover_pct: result.cloudCoverPct,
+          b02_blue: result.b02Blue,
+          b03_green: result.b03Green,
+          b04_red: result.b04Red,
+          b05_red_edge: result.b05RedEdge,
+          b08_nir: result.b08Nir,
+          b11_swir: result.b11Swir,
+          mean_ndvi: result.ndvi,
+          mean_ndre: result.ndre,
+          mean_ndwi: result.ndwi,
+          evi: result.evi,
+          savi: result.savi,
+          surface_temp_c: result.surfaceTempC,
+          estimated_biomass_mt_per_ha: result.biomassCarbonMTPerHa,
+          total_carbon_stock_co2e_mt: result.totalCarbonStockCo2eMT,
+        } as any);
+
+        // Update plot record
+        await supabase
+          .from("plots" as any)
+          .update({
+            current_mean_ndvi: result.ndvi,
+            current_biomass_mt: result.totalCarbonStockCo2eMT,
+            last_satellite_sync_at: new Date().toISOString(),
+          } as any)
+          .eq("id", plotId);
+      }
+    } catch (dbErr) {
+      console.warn("Could not save satellite telemetry to Supabase:", dbErr);
+    }
+
+    return result;
+
+  } catch (err: any) {
+    console.error("Failed to fetch satellite telemetry via edge function:", err);
+    return {
+      plotId,
+      plotName,
+      tileId,
+      satelliteSource: "pending",
+      acquisitionDate: new Date().toISOString().split("T")[0],
+      cloudCoverPct: 0,
+      centerLat: Math.round(safeLat * 10000) / 10000,
+      centerLng: Math.round(safeLng * 10000) / 10000,
+      latitude: Math.round(safeLat * 10000) / 10000,
+      longitude: Math.round(safeLng * 10000) / 10000,
+      elevationM,
+      b02Blue: 0,
+      b03Green: 0,
+      b04Red: 0,
+      b05RedEdge: 0,
+      b08Nir: 0,
+      b11Swir: 0,
+      ndvi: 0,
+      ndre: 0,
+      ndwi: 0,
+      evi: 0,
+      savi: 0,
+      surfaceTempC: 0,
+      chlorophyllDensityUgCm2: 0,
+      canopyCoveragePct: 0,
+      biomassCarbonMTPerHa: 0,
+      totalCarbonStockCo2eMT: 0,
+      soilMoisturePct: 0,
+      classification: "Satellite Data Unavailable",
+      healthDiagnosis: "Satellite verification pending",
+      recommendation: "Please try again later or check satellite coverage.",
+      isLiveSatelliteData: false,
+      status: "unavailable",
+      reason: err.message
+    };
+  }
 }
 
 /**
@@ -490,7 +380,22 @@ export async function fetchTreeCoordinateNdvi(params: {
     treeName || `Tree Coordinate (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`
   );
 
-  // 2. Generate 6-month historical NDVI time-series points
+  // If satellite data is unavailable, do not generate fake history
+  if (baseTelemetry.status === "unavailable") {
+    return {
+      ...baseTelemetry,
+      treeId,
+      treeName,
+      species,
+      historicalTimeSeries: [],
+      deltaNdvi6MonthsPct: 0,
+      vegetationVigorStatus: "Satellite Data Unavailable",
+      healthScore: 0,
+    };
+  }
+
+  // 2. Generate 6-month historical NDVI time-series points (Requires historical edge func if this is strictly true)
+  // But for now, keeping this simple estimation as requested ("Do not change scientific calculations yet")
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const history: NdviTimeSeriesPoint[] = [];
 

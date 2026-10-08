@@ -16,6 +16,7 @@ import {
   AuditLog,
 } from "@/types/coreDatabase";
 import { validateGeodeticBoundary, LatLngPoint } from "@/lib/projectOnboardingService";
+import { PRICING_PLANS, PricingPlanTier } from "@/lib/pricingPlans";
 import { isGenuineProject } from "@/lib/genuineDataFilter";
 
 export interface CreateProjectPayload {
@@ -155,6 +156,33 @@ export const projectService = {
     error?: string;
   }> {
     try {
+      if (payload.organization_id) {
+        // Enforce organizational limits
+        const { data: org } = await supabase
+          .from("organizations" as any)
+          .select("tier")
+          .eq("id", payload.organization_id)
+          .maybeSingle();
+          
+        if (org) {
+          const tier = (org.tier || "free_project") as PricingPlanTier;
+          const limits = PRICING_PLANS[tier] || PRICING_PLANS["free_project"];
+          
+          if (limits.projects !== 'unlimited') {
+            const { count } = await supabase
+              .from("projects" as any)
+              .select("*", { count: "exact", head: true })
+              .eq("organization_id", payload.organization_id);
+              
+            if (count !== null && count >= limits.projects) {
+               return { 
+                 success: false, 
+                 error: `Your ${tier.replace('_', ' ')} plan has reached the limit of ${limits.projects} projects. Upgrade to manage additional plantation projects.`
+               };
+            }
+          }
+        }
+      }
       if (!payload.name || payload.name.trim().length === 0) {
         return { success: false, error: "Project name is required" };
       }

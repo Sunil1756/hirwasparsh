@@ -105,7 +105,7 @@ export default function FieldWorkerDashboard() {
     queryFn: async () => {
       try {
         const { data, error } = await supabase
-          .from("project_evidence")
+          .from("tree_evidence")
           .select("id, project_id, evidence_type, created_at, metadata, file_url")
           .order("created_at", { ascending: false })
           .limit(10);

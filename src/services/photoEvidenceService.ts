@@ -443,7 +443,7 @@ export class PhotoEvidenceService {
       const effectiveExifTime = exif.timestamp ?? new Date().toISOString();
 
       const { data: photoRecord, error: dbError } = await supabase
-        .from("tree_photos" as any)
+        .from("tree_evidence" as any)
         .insert({
           tree_id: treeId || null,
           project_id: projectId || null,
@@ -544,7 +544,7 @@ export class PhotoEvidenceService {
    */
   async getTreePhotos(treeId: string): Promise<TreePhoto[]> {
     const { data, error } = await supabase
-      .from("tree_photos" as any)
+      .from("tree_evidence" as any)
       .select("*")
       .eq("tree_id", treeId)
       .order("created_at", { ascending: false });
@@ -562,7 +562,7 @@ export class PhotoEvidenceService {
    */
   async getProjectEvidence(projectId: string): Promise<TreePhoto[]> {
     const { data, error } = await supabase
-      .from("tree_photos" as any)
+      .from("tree_evidence" as any)
       .select("*")
       .eq("project_id", projectId)
       .order("created_at", { ascending: false });
@@ -580,7 +580,7 @@ export class PhotoEvidenceService {
    */
   async deletePhotoEvidence(photoId: string): Promise<boolean> {
     const { data: record, error: fetchErr } = await supabase
-      .from("tree_photos" as any)
+      .from("tree_evidence" as any)
       .select("storage_bucket, storage_path")
       .eq("id", photoId)
       .maybeSingle();
@@ -592,7 +592,7 @@ export class PhotoEvidenceService {
     }
 
     const { error: delErr } = await supabase
-      .from("tree_photos" as any)
+      .from("tree_evidence" as any)
       .delete()
       .eq("id", photoId);
 

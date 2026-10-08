@@ -19,6 +19,8 @@ const PlantTree = lazy(() => import("./pages/PlantTree"));
 const PlantChooser = lazy(() => import("./pages/PlantChooser"));
 const OrganizationPlantation = lazy(() => import("./pages/OrganizationPlantation"));
 const CommunityDashboard = lazy(() => import("./pages/CommunityDashboard"));
+const Pricing = lazy(() => import("./pages/Pricing"));
+const Plans = lazy(() => import("./pages/Plans"));
 const TreeMap = lazy(() => import("./pages/TreeMap"));
 const Leaderboard = lazy(() => import("./pages/Leaderboard"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
@@ -77,6 +79,8 @@ const App = () => (
                 <Route path="/field-worker" element={<ProtectedRoute><FieldWorkerDashboard /></ProtectedRoute>} />
                 <Route path="/scouting" element={<ProtectedRoute><FieldWorkerDashboard /></ProtectedRoute>} />
                 <Route path="/tree-map" element={<TreeMap />} />
+                <Route path="/pricing" element={<Pricing />} />
+                <Route path="/plans" element={<Plans />} />
                 <Route path="/analytics" element={<Navigate to="/intelligence" replace />} />
                 <Route path="/leaderboard" element={<Leaderboard />} />
                 <Route path="/admin" element={<RoleProtectedRoute requiredRole="admin"><AdminDashboard /></RoleProtectedRoute>} />

@@ -19,8 +19,8 @@ async function testCopernicus() {
   try {
     const params = new URLSearchParams();
     params.append('grant_type', 'client_credentials');
-    params.append('client_id', process.env.VITE_COPERNICUS_CLIENT_ID);
-    params.append('client_secret', process.env.VITE_COPERNICUS_CLIENT_SECRET);
+    params.append('client_id', process.env.COPERNICUS_CLIENT_ID);
+    params.append('client_secret', process.env.COPERNICUS_CLIENT_SECRET);
     const res = await fetch('https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token', {
       method: 'POST', body: params
     });

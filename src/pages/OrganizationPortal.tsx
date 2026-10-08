@@ -37,6 +37,8 @@ export const OrganizationPortal: React.FC = () => {
   const [currentMembership, setCurrentMembership] = useState<OrganizationMember | null>(null);
   const [members, setMembers] = useState<MemberWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  const [orgStats, setOrgStats] = useState({ projectsCount: 0, treesCount: 0 });
 
   // New Org Form
   const [newOrgName, setNewOrgName] = useState("");
@@ -77,6 +79,11 @@ export const OrganizationPortal: React.FC = () => {
     try {
       const memberList = await organizationService.getOrganizationMembers(orgId);
       setMembers(memberList);
+      
+      const { count: projCount } = await supabase.from('projects').select('*', { count: 'exact', head: true }).eq('organization_id', orgId);
+      const { count: treeCount } = await supabase.from('trees').select('*', { count: 'exact', head: true }).eq('org_id', orgId);
+      setOrgStats({ projectsCount: projCount || 0, treesCount: treeCount || 0 });
+      
     } catch (err: any) {
       toast({ title: "Failed to load members", description: err.message, variant: "destructive" });
     }

@@ -6,8 +6,8 @@ import * as path from "path";
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "https://qvikwdginymvjbrrlvkk.supabase.co";
 const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY || "";
 const GEMINI_KEY = process.env.VITE_GEMINI_API_KEY || "";
-const COPERNICUS_CLIENT_ID = process.env.VITE_COPERNICUS_CLIENT_ID || "";
-const COPERNICUS_CLIENT_SECRET = process.env.VITE_COPERNICUS_CLIENT_SECRET || "";
+
+
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -242,8 +242,8 @@ Return strictly valid JSON with this format:
     const tokenUrl = "https://services.sentinel-hub.com/oauth/token";
     const tokenParams = new URLSearchParams();
     tokenParams.append("grant_type", "client_credentials");
-    tokenParams.append("client_id", COPERNICUS_CLIENT_ID);
-    tokenParams.append("client_secret", COPERNICUS_CLIENT_SECRET);
+    tokenParams.append("client_id", "REMOVED");
+    tokenParams.append("client_secret", "REMOVED");
 
     let accessToken = "";
     try {

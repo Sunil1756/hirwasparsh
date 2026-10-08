@@ -32,7 +32,7 @@ export async function syncUserProfileImpact(userId: string): Promise<{
 
     // 2. Organization projects
     const { data: orgProjects } = await supabase
-      .from("plantation_projects")
+      .from("projects")
       .select("id, target_trees, verified_trees, bulk_rows, ai_score, status, project_name, location")
       .eq("user_id", userId);
 

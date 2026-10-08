@@ -285,10 +285,13 @@ const OrganizationPlantation = () => {
 
   const loadProjects = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from("plantation_projects")
-        .select("*")
-        .order("created_at", { ascending: false });
+      
+// [MIGRATED] Using projectService instead of plantation_projects
+const { data, error } = await supabase
+  .from("projects")
+  .select("*")
+  .order("created_at", { ascending: false });
+
       if (error) {
         console.warn("Could not fetch plantation projects from Supabase:", error.message);
       }
@@ -307,7 +310,7 @@ const OrganizationPlantation = () => {
   const loadEvidence = useCallback(async (projectId: string) => {
     try {
       const { data } = await supabase
-        .from("project_evidence")
+        .from("tree_evidence")
         .select("id, evidence_type, photo_url, latitude, longitude, captured_at, notes, survival_percent, created_at")
         .eq("project_id", projectId)
         .order("created_at", { ascending: false });
@@ -701,11 +704,13 @@ const OrganizationPlantation = () => {
     };
 
     try {
-      const { data, error } = await supabase
-        .from("plantation_projects")
-        .insert(newProjectPayload)
-        .select()
-        .single();
+      
+const { data, error } = await supabase
+  .from("projects")
+  .insert(newProjectPayload)
+  .select()
+  .single();
+
 
       if (error) {
         console.error("Supabase project insert error:", error);
@@ -805,10 +810,10 @@ const OrganizationPlantation = () => {
           const key = `projects/${createdProjectId}/field-site-init-${Date.now()}.jpg`;
           const { data: uploadData } = await supabase.storage.from("treebank").upload(key, compressed, { upsert: true });
 
-          await supabase.from("project_evidence").insert({
+          await supabase.from("tree_evidence").insert({
             project_id: createdProjectId,
-            user_id: user?.id || null,
-            evidence_type: "field",
+            uploader_id: user?.id || null,
+            evidence_type: "health_inspection",
             photo_url: uploadData?.path || `local_site_${Date.now()}`,
             latitude: centroid[0] as number,
             longitude: centroid[1] as number,
@@ -867,9 +872,9 @@ const OrganizationPlantation = () => {
         );
       });
 
-      const { error: insErr } = await supabase.from("project_evidence").insert({
+      const { error: insErr } = await supabase.from("tree_evidence").insert({
         project_id: activeProject.id,
-        user_id: user?.id || null,
+        uploader_id: user?.id || null,
         evidence_type: evType,
         photo_url: path,
         latitude: coords.lat,
@@ -891,13 +896,12 @@ const OrganizationPlantation = () => {
       // Re-run AI verification after new ground evidence is attached
       if (activeAuditReport) {
         const updatedScore = Math.min(100, activeAuditReport.overallScore + 5);
-        await supabase
-          .from("plantation_projects")
-          .update({
-            ai_score: updatedScore,
-            status: updatedScore >= 75 ? "verified_active" : activeProject.status,
-          })
-          .eq("id", activeProject.id);
+        
+await supabase.from("projects").update({
+  ai_score: updatedScore,
+  status: updatedScore >= 75 ? "verified_active" : activeProject.status,
+}).eq("id", activeProject.id);
+
 
         setProjects((prev) =>
           prev.map((p) =>
@@ -930,14 +934,13 @@ const OrganizationPlantation = () => {
     try {
       await new Promise((r) => setTimeout(r, 1200));
 
-      await supabase
-        .from("plantation_projects")
-        .update({
-          ai_score: activeAuditReport.overallScore,
-          ai_report: activeAuditReport.formattedReport,
-          status: activeAuditReport.status,
-        })
-        .eq("id", activeProject.id);
+      
+await supabase.from("projects").update({
+  ai_score: activeAuditReport.overallScore,
+  ai_report: activeAuditReport.formattedReport,
+  status: activeAuditReport.status,
+}).eq("id", activeProject.id);
+
 
       setProjects((prev) =>
         prev.map((p) =>
@@ -982,10 +985,12 @@ const OrganizationPlantation = () => {
     setDeletingId(projectId);
     try {
       // 1. Delete evidence rows
-      await supabase.from("project_evidence").delete().eq("project_id", projectId);
+      await supabase.from("tree_evidence").delete().eq("project_id", projectId);
 
       // 2. Delete project row
-      const { error } = await supabase.from("plantation_projects").delete().eq("id", projectId);
+      
+const { error } = await supabase.from("projects").delete().eq("id", projectId);
+
       if (error) {
         console.warn("Delete note:", error.message);
       }

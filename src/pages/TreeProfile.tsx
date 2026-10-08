@@ -200,7 +200,7 @@ const TreeProfile = () => {
     queryFn: async () => {
       try {
         const { data, error } = await supabase
-          .from("tree_photos")
+          .from("tree_evidence")
           .select("*")
           .eq("tree_id", treeRealId!)
           .order("created_at", { ascending: false });

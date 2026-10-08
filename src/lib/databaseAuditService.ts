@@ -445,7 +445,7 @@ export async function fetchDataSourceAuditList(): Promise<DataSourceAuditItem[]>
       { data: satOverpasses },
     ] = await Promise.all([
       supabase.from("plots" as any).select("*").order("created_at", { ascending: false }),
-      supabase.from("plantation_projects").select("*").order("created_at", { ascending: false }),
+      supabase.from("projects").select("*").order("created_at", { ascending: false }),
       supabase.from("trees").select("id, plot_id, project_id, admin_status, verification_status, photo_url, created_at, user_id, tree_name, location"),
       supabase.from("verifications" as any).select("id, tree_id, created_at"),
       supabase.from("satellite_readings" as any).select("id, plot_id, ndvi, reading_date").order("reading_date", { ascending: false }),

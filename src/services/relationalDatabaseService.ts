@@ -117,7 +117,7 @@ export const relationalDatabaseService = {
 
     const [photosRes, obsRes, tasksRes] = await Promise.all([
       supabase
-        .from("tree_photos" as any)
+        .from("tree_evidence" as any)
         .select("*")
         .eq("tree_id", treeId)
         .order("created_at", { ascending: false }),

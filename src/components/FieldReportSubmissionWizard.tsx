@@ -191,7 +191,7 @@ export const FieldReportSubmissionWizard = ({
     setLoadingProjects(true);
     try {
       const { data, error } = await supabase
-        .from("plantation_projects")
+        .from("projects")
         .select("id, project_name, organization_name, location, latitude, longitude, target_trees, boundary")
         .order("created_at", { ascending: false });
 

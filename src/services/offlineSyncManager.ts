@@ -335,7 +335,7 @@ export const offlineSyncManager = {
         const { error } = await supabase.from("monitoring_events" as any).insert(payload);
         if (error) throw error;
       } else if (item.entityType === "field_report") {
-        const { error } = await supabase.from("project_evidence" as any).insert(item.payload);
+        const { error } = await supabase.from("tree_evidence" as any).insert(item.payload);
         if (error) throw error;
       }
 
