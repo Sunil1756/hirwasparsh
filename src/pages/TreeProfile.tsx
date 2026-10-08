@@ -1050,6 +1050,8 @@ const TreeProfile = () => {
         plantationDate={tree.plantation_date}
         currentHeightCm={tree.height_cm}
         currentDbhCm={tree.dbh_cm}
+        treeLatitude={tree.latitude}
+        treeLongitude={tree.longitude}
         onSuccess={handleDataRefresh}
       />
 

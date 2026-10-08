@@ -78,8 +78,8 @@ serve(async (req) => {
     const imgs = Array.isArray(images) ? images.slice(0, 4) : [];
 
     if (imgs.length > 0) {
-      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-      if (!LOVABLE_API_KEY) return json({ error: "AI gateway not configured" }, 500);
+      const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+      if (!GEMINI_API_KEY) return json({ error: "AI gateway not configured" }, 500);
 
       const content: unknown[] = [
         {
@@ -104,10 +104,10 @@ serve(async (req) => {
           })),
       ];
 
-      const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const aiRes = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${GEMINI_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({

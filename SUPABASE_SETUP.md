@@ -1,6 +1,6 @@
 # Green Enlightenment – Supabase & Production Setup Guide
 
-This guide enables 100% database & backend ownership for **Green Enlightenment** (free of any Lovable dependencies).
+This guide enables 100% database & backend ownership for **Green Enlightenment** (free of any external dependencies).
 
 ---
 
@@ -70,3 +70,4 @@ VITE_GEMINI_API_KEY="AIzaSy..."
 3. Add the Environment Variables from Step 4 (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_GEMINI_API_KEY`).
 4. Click **Deploy**!
 5. Add your custom domain under **Settings $\rightarrow$ Domains**.
+

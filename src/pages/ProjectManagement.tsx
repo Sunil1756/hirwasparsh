@@ -115,6 +115,7 @@ const STATUS_CONFIG: Record<ProjectStatus, { label: string; badgeClass: string; 
 
 export const ProjectManagement: React.FC = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
 
   const [projects, setProjects] = useState<Project[]>([]);
@@ -155,6 +156,7 @@ export const ProjectManagement: React.FC = () => {
   // Status transition reason dialog
   const [isTransitionOpen, setIsTransitionOpen] = useState(false);
   const [targetTransitionStatus, setTargetTransitionStatus] = useState<ProjectStatus | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
   const [transitionReason, setTransitionReason] = useState("");
   const [isSubmittingTransition, setIsSubmittingTransition] = useState(false);
 
@@ -1356,3 +1358,4 @@ export const ProjectManagement: React.FC = () => {
 };
 
 export default ProjectManagement;
+

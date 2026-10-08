@@ -82,6 +82,7 @@ export interface ProjectDetailsWithCompartments extends Project {
   total_hectares: number;
   total_acres: number;
   audit_history: AuditLog[];
+  trees: any[];
 }
 
 // Deterministic State Machine Transition Validator
@@ -327,7 +328,7 @@ export const projectService = {
           .order("created_at", { ascending: true }),
         supabase
           .from("trees" as any)
-          .select("id, status")
+          .select("id, status, health_status, survival_status")
           .eq("project_id", projectId),
         supabase
           .from("audit_logs" as any)

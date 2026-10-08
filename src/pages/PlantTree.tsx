@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import exifr from "exifr";
 import { compressImage, sha256File } from "@/lib/imageProcessing";
@@ -45,10 +46,25 @@ const stepLabels: Record<PhotoStep, { label: string; desc: string; icon: any }> 
 
 const PlantTree = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+    const { data: orgProjects } = useQuery({
+    queryKey: ["org_projects", user?.id],
+    queryFn: async () => {
+      if (profile?.role !== "organization") return [];
+      const { data, error } = await supabase
+        .from("projects")
+        .select("id, name, status")
+        .eq("org_id", profile.org_id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user && profile?.role === "organization",
+  });
+
   const [searchParams] = useSearchParams();
   const driveId = searchParams.get("drive");
-  const projectId = searchParams.get("project") || driveId;
+  const initialProjectId = searchParams.get("project") || driveId;
+  const [projectId, setProjectId] = useState(initialProjectId);
 
   const {
     coordinates: gpsCoords,
@@ -776,6 +792,31 @@ const PlantTree = () => {
           )}
 
           {/* Photo Steps */}
+                    {/* Project Selection (Organizations Only) */}
+          {profile?.role === "organization" && orgProjects && orgProjects.length > 0 && (
+            <div className="glass-card rounded-2xl p-6 mb-6">
+              <h2 className="font-heading font-semibold text-lg flex items-center gap-2 mb-4">
+                <Building2 className="h-5 w-5 text-primary" />
+                Assign to Plantation Project
+              </h2>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Select Project</Label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={projectId || ""}
+                    onChange={(e) => setProjectId(e.target.value || null)}
+                  >
+                    <option value="">-- Independent Tree (No Project) --</option>
+                    {orgProjects.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="glass-card rounded-2xl p-6 mb-6">
             <h2 className="font-heading text-lg font-semibold mb-4">📸 Photo Evidence (Required)</h2>
             <div className="grid grid-cols-3 gap-2 mb-4">

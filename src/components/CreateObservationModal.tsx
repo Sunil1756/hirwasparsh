@@ -54,6 +54,8 @@ interface CreateObservationModalProps {
   plantationDate: string;
   currentHeightCm?: number | null;
   currentDbhCm?: number | null;
+  treeLatitude?: number | null;
+  treeLongitude?: number | null;
   onSuccess?: () => void;
 }
 
@@ -88,6 +90,15 @@ export const CreateObservationModal: React.FC<CreateObservationModalProps> = ({
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+  const [distanceToTree, setDistanceToTree] = useState<number | null>(null);
+
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))) * 1000;
+  };
   const [isCapturingGps, setIsCapturingGps] = useState(false);
 
   // Calculated next inspection preview
@@ -115,6 +126,9 @@ export const CreateObservationModal: React.FC<CreateObservationModalProps> = ({
         setLatitude(pos.coords.latitude);
         setLongitude(pos.coords.longitude);
         setGpsAccuracy(Math.round(pos.coords.accuracy));
+          if (treeLatitude && treeLongitude) {
+            setDistanceToTree(calculateDistance(pos.coords.latitude, pos.coords.longitude, treeLatitude, treeLongitude));
+          }
         setIsCapturingGps(false);
         toast({
           title: "GPS Captured",
@@ -380,30 +394,39 @@ export const CreateObservationModal: React.FC<CreateObservationModalProps> = ({
           </div>
 
           {/* GPS Verification */}
-          <div className="flex items-center justify-between p-3 rounded-xl bg-card/60 border border-border">
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-primary" />
-              <div className="text-xs">
-                {latitude && longitude ? (
-                  <span className="font-mono text-foreground font-medium">
-                    {latitude.toFixed(6)}°, {longitude.toFixed(6)}° (±{gpsAccuracy}m)
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">GPS Location (Optional verification)</span>
-                )}
+          <div className="flex flex-col gap-2 p-3 rounded-xl bg-card/60 border border-border">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-primary" />
+                <div className="text-xs">
+                  {latitude && longitude ? (
+                    <span className="font-mono text-foreground font-medium">
+                      {latitude.toFixed(6)}, {longitude.toFixed(6)} (+/-{gpsAccuracy}m)
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">Capture current GPS location</span>
+                  )}
+                </div>
               </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleCaptureGps}
+                disabled={isCapturingGps}
+                className="text-xs h-8"
+              >
+                {isCapturingGps ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <MapPin className="h-3.5 w-3.5 mr-1" />}
+                {latitude ? "Update GPS" : "Capture GPS"}
+              </Button>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleCaptureGps}
-              disabled={isCapturingGps}
-              className="text-xs h-8"
-            >
-              {isCapturingGps ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <MapPin className="h-3.5 w-3.5 mr-1" />}
-              {latitude ? "Update GPS" : "Capture GPS"}
-            </Button>
+            
+            {distanceToTree !== null && (
+              <div className={"text-xs font-semibold px-2 py-1.5 rounded-lg flex items-center gap-1.5 " + (distanceToTree <= 50 ? "bg-emerald-500/15 text-emerald-500" : "bg-destructive/15 text-destructive")}>
+                 {distanceToTree <= 50 ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+                 {distanceToTree <= 50 ? "VERIFIED: You are within " + Math.round(distanceToTree) + "m of the tree's registered location." : "LOCATION MISMATCH: You are " + Math.round(distanceToTree) + "m away from the tree's registered location."}
+              </div>
+            )}
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0 pt-2">

@@ -126,8 +126,8 @@ serve(async (req) => {
       }
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured");
 
     const userContent: any[] = [
       {
@@ -157,9 +157,9 @@ Respond ONLY via the verify_tree tool. Be strict — when in doubt, score lower.
     if (selfieBase64) userContent.push({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${selfieBase64}` } });
     if (beforeBase64) userContent.push({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${beforeBase64}` } });
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${GEMINI_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-3.1-pro-preview",
         messages: [
