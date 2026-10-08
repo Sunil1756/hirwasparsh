@@ -52,7 +52,7 @@ import { VernacularVoiceAssistant } from "@/components/VernacularVoiceAssistant"
 import { TreeNdviSatelliteViewer } from "@/components/TreeNdviSatelliteViewer";
 import { TreeMonitoringHistoryTimeline } from "@/components/TreeMonitoringHistoryTimeline";
 import { EvidenceAuditInspectorModal } from "@/components/EvidenceAuditInspectorModal";
-import { evidenceHistoryService } from "@/services/evidenceHistoryService";
+
 import { AuditableEvidenceRecord } from "@/types/coreDatabase";
 import { CreateObservationModal } from "@/components/CreateObservationModal";
 import { SurvivalStatusBadge } from "@/components/SurvivalStatusBadge";
@@ -391,7 +391,7 @@ const TreeProfile = () => {
                 size="sm"
                 onClick={async () => {
                   if (treeRealId) {
-                    const history = await evidenceHistoryService.getTreeEvidenceHistory(treeRealId);
+                    const history = [];
                     if (history.length > 0) {
                       setActiveEvidenceRecord(history[0]);
                     } else {
@@ -425,7 +425,7 @@ const TreeProfile = () => {
                         evidence: {
                           photoUrl: tree?.photo_url,
                           evidenceType: "planting_photo",
-                          sha256Hash: tree?.photo_url ? evidenceHistoryService.computeEvidenceHash(tree?.photo_url) : null,
+                          sha256Hash: tree?.photo_url ? null : null,
                           verificationStatus: "verified",
                         },
                       });

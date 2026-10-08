@@ -21,7 +21,7 @@ import {
 } from "@/types/coreDatabase";
 import { monitoringEventService } from "@/services/monitoringEventService";
 import { survivalStatusService } from "@/services/survivalStatusService";
-import { evidenceHistoryService } from "@/services/evidenceHistoryService";
+
 
 export interface DashboardTreeItem {
   id: string;
@@ -257,7 +257,7 @@ export const monitoringDashboardService = {
           observerName: obs.observer_name || "Field Officer",
           observerRole: obs.observer_role || "field_worker",
           photoUrl: obs.photo_url || null,
-          sha256Hash: obs.sha256_hash || (obs.photo_url ? evidenceHistoryService.computeEvidenceHash(obs.photo_url) : null),
+          sha256Hash: obs.sha256_hash || (obs.photo_url ? null : null),
           latitude: obs.latitude ?? linkedTree?.latitude ?? null,
           longitude: obs.longitude ?? linkedTree?.longitude ?? null,
           distanceFromBaselineM: obs.distance_from_baseline_meters ?? 0,
@@ -284,7 +284,7 @@ export const monitoringDashboardService = {
         observerName: "Field Inspector",
         observerRole: "field_worker",
         photoUrl: t.photo_url || null,
-        sha256Hash: t.photo_url ? evidenceHistoryService.computeEvidenceHash(t.photo_url) : null,
+        sha256Hash: t.photo_url ? null : null,
         latitude: t.latitude,
         longitude: t.longitude,
         distanceFromBaselineM: 0,

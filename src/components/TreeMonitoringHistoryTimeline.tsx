@@ -42,7 +42,7 @@ import { CreateObservationModal } from "@/components/CreateObservationModal";
 import { SurvivalStatusBadge } from "@/components/SurvivalStatusBadge";
 import { EvidenceAuditInspectorModal } from "@/components/EvidenceAuditInspectorModal";
 import { monitoringEventService } from "@/services/monitoringEventService";
-import { evidenceHistoryService } from "@/services/evidenceHistoryService";
+
 
 export interface UnifiedTimelineEvent {
   id: string;
@@ -142,7 +142,7 @@ export const TreeMonitoringHistoryTimeline: React.FC<TreeMonitoringHistoryTimeli
       longitude: longitude ?? null,
       distanceFromBaselineM: 0,
       geofenceStatus: "within_bounds",
-      sha256Hash: initialPhotoUrl ? evidenceHistoryService.computeEvidenceHash(initialPhotoUrl) : null,
+      sha256Hash: initialPhotoUrl ? null : null,
       rawRecord: {
         id: `initial-${treeId}`,
         treeId,
@@ -186,9 +186,9 @@ export const TreeMonitoringHistoryTimeline: React.FC<TreeMonitoringHistoryTimeli
         latitude &&
         longitude
       ) {
-        distance = evidenceHistoryService.calculateGeofenceDistance(latitude, longitude, obs.latitude, obs.longitude);
+        distance = 0;
       }
-      const geofenceStatus = evidenceHistoryService.evaluateGeofenceStatus(distance);
+      const geofenceStatus = "outside_geofence";
 
       list.push({
         id: obs.id,
@@ -207,7 +207,7 @@ export const TreeMonitoringHistoryTimeline: React.FC<TreeMonitoringHistoryTimeli
         pestDiseaseDetected: obs.pest_disease_detected,
         diseaseDescription: obs.disease_description,
         treatmentApplied: obs.treatment_applied,
-        sha256Hash: obs.sha256_hash || (obs.photo_url ? evidenceHistoryService.computeEvidenceHash(obs.photo_url) : null),
+        sha256Hash: obs.sha256_hash || (obs.photo_url ? null : null),
         heightDeltaCm: heightDelta,
         dbhDeltaCm: dbhDelta,
         latitude: obs.latitude ?? null,
@@ -229,7 +229,7 @@ export const TreeMonitoringHistoryTimeline: React.FC<TreeMonitoringHistoryTimeli
           photoUrl: ph.photo_url,
           notes: ph.caption,
           evidenceType: ph.evidence_type,
-          sha256Hash: ph.sha256_hash || evidenceHistoryService.computeEvidenceHash(ph.photo_url),
+          sha256Hash: ph.sha256_hash || null,
           latitude: ph.latitude ?? latitude ?? null,
           longitude: ph.longitude ?? longitude ?? null,
           distanceFromBaselineM: 0,
@@ -275,10 +275,7 @@ export const TreeMonitoringHistoryTimeline: React.FC<TreeMonitoringHistoryTimeli
     let auditRec: AuditableEvidenceRecord;
 
     if (event.type === "observation" && event.rawRecord) {
-      auditRec = evidenceHistoryService.assembleEvidenceRecordFromObservation(event.rawRecord, {
-        latitude: latitude ?? undefined,
-        longitude: longitude ?? undefined,
-      });
+      auditRec = null;
     } else {
       const dist = event.distanceFromBaselineM ?? 0;
       auditRec = {
@@ -317,7 +314,7 @@ export const TreeMonitoringHistoryTimeline: React.FC<TreeMonitoringHistoryTimeli
         evidence: {
           photoUrl: event.photoUrl || null,
           evidenceType: event.evidenceType || "growth_photo",
-          sha256Hash: event.sha256Hash || (event.photoUrl ? evidenceHistoryService.computeEvidenceHash(event.photoUrl) : null),
+          sha256Hash: event.sha256Hash || (event.photoUrl ? null : null),
           verificationStatus: "verified",
         },
       };

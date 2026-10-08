@@ -38,11 +38,6 @@ import {
 } from "@/lib/fieldReportBackendService";
 import { RiskAlertNotificationBanner } from "@/components/RiskAlertNotificationBanner";
 import { Link } from "react-router-dom";
-import { HardwarePermissionSentinel } from "@/components/mobile/HardwarePermissionSentinel";
-import { HardwarePermissionModal } from "@/components/mobile/HardwarePermissionModal";
-import { NetworkQualitySentinel } from "@/components/mobile/NetworkQualitySentinel";
-import { OfflineNetworkDrawer } from "@/components/mobile/OfflineNetworkDrawer";
-import { FieldTestSimulationSuite } from "@/components/mobile/FieldTestSimulationSuite";
 import { useSyncConflicts } from "@/hooks/useSyncConflicts";
 import { Smartphone, Monitor, ArrowRightLeft } from "lucide-react";
 
@@ -234,12 +229,8 @@ export default function FieldWorkerDashboard() {
             </div>
 
             <div className="flex items-center gap-2">
-              <NetworkQualitySentinel
-                onOpenDrawer={() => setOfflineDrawerOpen(true)}
-              />
-              <HardwarePermissionSentinel
-                onOpenModal={() => setPermissionModalOpen(true)}
-              />
+              
+              
 
               {pendingConflictCount > 0 && (
                 <Button
@@ -661,24 +652,13 @@ export default function FieldWorkerDashboard() {
       </AnimatePresence>
 
       {/* Hardware Permissions Modal */}
-      <HardwarePermissionModal
-        isOpen={permissionModalOpen}
-        onClose={() => setPermissionModalOpen(false)}
-      />
+      
 
       {/* Offline & Poor Network Drawer */}
-      <OfflineNetworkDrawer
-        isOpen={offlineDrawerOpen}
-        onClose={() => setOfflineDrawerOpen(false)}
-      />
+      
 
       {/* Field Test Simulation Suite Modal */}
-      <FieldTestSimulationSuite
-        isOpen={fieldTestModalOpen}
-        onClose={() => setFieldTestModalOpen(false)}
-        currentLocation={userLocation}
-        projectId={selectedProjectId}
-      />
+      
     </div>
   );
 }

@@ -34,7 +34,6 @@ const GrowthUpdates = lazy(() => import("./pages/GrowthUpdates"));
 const Intelligence = lazy(() => import("./pages/Intelligence"));
 const DashboardPreview = lazy(() => import("./pages/DashboardPreview"));
 const BulkOnboardPage = lazy(() => import("./pages/BulkOnboardPage"));
-const CertificateVerify = lazy(() => import("./pages/CertificateVerify"));
 const CSRCorporatePortal = lazy(() => import("./pages/CSRCorporatePortal"));
 const NGOWorkspacePage = lazy(() => import("./pages/NGOWorkspacePage"));
 
@@ -108,9 +107,7 @@ const App = () => (
                 
                 
                 
-                <Route path="/verify/cert/:serialNo" element={<CertificateVerify />} />
-                <Route path="/verify/cert" element={<CertificateVerify />} />
-                <Route path="/preview-dashboards" element={<DashboardPreview />} />
+                                                <Route path="/preview-dashboards" element={<DashboardPreview />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
