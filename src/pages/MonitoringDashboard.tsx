@@ -53,12 +53,12 @@ import { SurvivalStatusBadge } from "@/components/SurvivalStatusBadge";
 import { CreateObservationModal } from "@/components/CreateObservationModal";
 import { SurvivalVerificationModal } from "@/components/SurvivalVerificationModal";
 import { EvidenceAuditInspectorModal } from "@/components/EvidenceAuditInspectorModal";
-import { MonitoringScheduleConsole } from "@/components/monitoring/MonitoringScheduleConsole";
-import { MonitoringTaskConsole } from "@/components/monitoring/MonitoringTaskConsole";
-import { NotificationCenterConsole } from "@/components/monitoring/NotificationCenterConsole";
-import { AlertManagementConsole } from "@/components/monitoring/AlertManagementConsole";
-import { EscalationWorkflowConsole } from "@/components/monitoring/EscalationWorkflowConsole";
-import { MonitoringAnalyticsConsole } from "@/components/monitoring/MonitoringAnalyticsConsole";
+
+
+
+
+
+
 import {
   monitoringDashboardService,
   DashboardTreeItem,
@@ -695,7 +695,7 @@ export const MonitoringDashboard: React.FC = () => {
         {/* TAB 4: Survival Statistics & Monitoring Analytics (Task 51) */}
         {/* ==================================================================== */}
         <TabsContent value="analytics" className="space-y-6">
-          <MonitoringAnalyticsConsole />
+          
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* 6-Status Breakdown Card */}
