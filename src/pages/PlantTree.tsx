@@ -20,7 +20,7 @@ import { VernacularVoiceAssistant } from "@/components/VernacularVoiceAssistant"
 import { validateGpsCoordinates, syncCoordinateSatelliteTelemetry } from "@/lib/geospatialSatelliteService";
 import { GpsLocationCapture } from "@/components/GpsLocationCapture";
 import { useGpsRegistration } from "@/hooks/useGpsRegistration";
-import { treeRegistrationService } from "@/services/treeRegistrationService";
+
 import { TreeIdCertificateCard } from "@/components/TreeIdCertificateCard";
 
 type NearbyTree = {
@@ -436,7 +436,7 @@ const PlantTree = () => {
       ]);
 
       setSubmitStage("Allocating Unique Green Enlightenment Tree Code (GE-YYYY-NNNNNN)...");
-      const nextTreeCode = await treeRegistrationService.fetchNextTreeCode();
+      const nextTreeCode = await fetchNextTreeCode();
 
       setSubmitStage("Registering on Data Spine...");
       const { data: tree, error: insertError } = await supabase

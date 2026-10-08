@@ -29,8 +29,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ESGReportModal } from "@/components/ESGReportModal";
-import { CarbonCertificateModal } from "@/components/CarbonCertificateModal";
 import { B2BRoleGate, RoleBadge } from "@/components/B2BRoleGate";
 import { isAuditExportEligible, B2BRole } from "@/lib/b2bAccessControl";
 import { IpccCarbonCreditModeler } from "@/components/IpccCarbonCreditModeler";
@@ -194,12 +192,7 @@ export default function CSRCorporatePortal() {
 
         {/* Global Action Buttons */}
         <div className="flex flex-wrap items-center gap-3">
-          <ESGReportModal
-            totalTrees={totalTreesPlanted}
-            verifiedTrees={totalTreesVerified}
-            organizationName="Tata Sustainability / ACIC Afforestation Portfolio"
-            co2OffsetKg={totalAnnualCo2eMT * 1000}
-          />
+          
 
           <Button
             variant="default"
@@ -405,16 +398,7 @@ export default function CSRCorporatePortal() {
                     </Link>
                   </Button>
 
-                  <CarbonCertificateModal
-                    projectId={project.id}
-                    projectName={project.projectName}
-                    organizationName={project.funderName}
-                    targetTrees={project.plantedTrees}
-                    verifiedTrees={project.verifiedTrees}
-                    confidenceScore={project.confidenceScore}
-                    co2OffsetKg={project.annualCo2eMT * 1000}
-                    verificationTier={project.verificationTier}
-                  />
+                  
                 </div>
               </Card>
             );

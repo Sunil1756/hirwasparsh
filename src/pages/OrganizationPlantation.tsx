@@ -4,12 +4,7 @@ import { motion } from "framer-motion";
 import { MapContainer, TileLayer, Polygon, Marker } from "react-leaflet";
 import BoundaryDrawMap, { computeAreas } from "@/components/BoundaryDrawMap";
 import { ProjectVerificationCard } from "@/components/ProjectVerificationCard";
-import { SatelliteProjectTelemetrySuite } from "@/components/SatelliteProjectTelemetrySuite";
-import { FieldSpotAuditConsole } from "@/components/FieldSpotAuditConsole";
-import { QuarterlySurvivalFeed } from "@/components/QuarterlySurvivalFeed";
-import { CarbonCertificateModal } from "@/components/CarbonCertificateModal";
 import { evaluateProjectVerification, ProjectAuditReport } from "@/lib/projectVerification";
-import { calculateCarbonLedgerMetrics, CarbonAuditResult } from "@/lib/carbonLedger";
 import { analyzeTreePhotoWithBotanicalAi } from "@/lib/geminiBotanicalVision";
 import {
   Building2, MapPin, Target, Leaf, Upload, Camera, Satellite, Bot, ShieldCheck,
@@ -1956,9 +1951,7 @@ const OrganizationPlantation = () => {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {activeCarbonLedger && (
-                    <CarbonCertificateModal cert={activeCarbonLedger} />
-                  )}
+                  
                   {canEdit && (
                     <Button
                       variant="outline"
@@ -2030,7 +2023,7 @@ const OrganizationPlantation = () => {
                     <Badge variant="outline" className="font-mono text-xs border-emerald-500/30 text-emerald-600">
                       {activeCarbonLedger.serialNumber}
                     </Badge>
-                    <CarbonCertificateModal cert={activeCarbonLedger} />
+                    
                   </div>
                 </div>
 
@@ -2063,26 +2056,10 @@ const OrganizationPlantation = () => {
             )}
 
             {/* STEP 2: SATELLITE MULTI-SPECTRAL TELEMETRY & TIME-SERIES SUITE */}
-            <SatelliteProjectTelemetrySuite
-              projectName={activeProject.project_name}
-              locationName={activeProject.location}
-              boundary={activeBoundaryPoints}
-              targetTrees={activeProject.target_trees}
-              speciesList={activeProject.species || []}
-              plantationDate={activeProject.plantation_date}
-              baselineNdvi={activeAuditReport?.baselineNdvi || 0.22}
-              bulkTrees={Array.isArray(activeProject.bulk_data) ? activeProject.bulk_data : []}
-            />
+            
 
             {/* STEP 4: CONTINUOUS TREE SURVIVAL TRACKING & 36-MONTH QUARTERLY FEED */}
-            <QuarterlySurvivalFeed
-              projectName={activeProject.project_name}
-              organizationName={activeProject.organization_name}
-              targetTrees={activeProject.target_trees}
-              plantationDate={activeProject.plantation_date}
-              baselineNdvi={activeAuditReport?.baselineNdvi || 0.22}
-              speciesList={activeProject.species || []}
-            />
+            
 
             {/* STEP 1: AUTOMATED AI VERIFICATION & ANTI-FRAUD SCORECARD */}
             {activeAuditReport && (
@@ -2093,31 +2070,7 @@ const OrganizationPlantation = () => {
               />
             )}
 
-            {/* STEP 3: FIELD RANGER SCOUTING & 5% STRATIFIED RANDOM SPOT AUDIT CONSOLE */}
-            <FieldSpotAuditConsole
-              projectId={activeProject.id}
-              projectName={activeProject.project_name}
-              organizationName={activeProject.organization_name}
-              totalTrees={activeProject.target_trees}
-              boundary={activeBoundaryPoints}
-              bulkData={Array.isArray(activeProject.bulk_data) ? activeProject.bulk_data : []}
-              readOnly={!canEdit}
-              onAuditCompleted={async (results) => {
-                if (!canEdit) return;
-                toast({
-                  title: "Ground-Truth Audit Complete! 🎖️",
-                  description: `Audited ${results.auditedCount} sample plots. Calibrated survival rate: ${results.survivalRatePercent}%.`,
-                });
-                await supabase
-                  .from("plantation_projects")
-                  .update({
-                    status: "verified_active",
-                    verified_trees: Math.round((activeProject.target_trees * results.survivalRatePercent) / 100),
-                  })
-                  .eq("id", activeProject.id);
-                loadProjects();
-              }}
-            />
+            
 
             {/* Evidence Upload (Field / Drone / Satellite) */}
             <div className="glass-card rounded-2xl p-6 border border-border/40 space-y-4">

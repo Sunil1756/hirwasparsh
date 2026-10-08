@@ -42,7 +42,6 @@ import { MapContainer, TileLayer, Marker, Popup, Circle, Polygon, useMap } from 
 import MarkerClusterGroup from "react-leaflet-cluster";
 import L from "leaflet";
 import { FieldScoutingModule } from "@/components/FieldScoutingModule";
-import { ModuleASatelliteEngine } from "@/components/ModuleASatelliteEngine";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { BASEMAP_PROVIDERS, BasemapProviderId } from "@/lib/gisMapFoundation";
 import { isGenuineTree } from "@/lib/genuineDataFilter";
@@ -248,7 +247,7 @@ const TreeMap = () => {
         <ErrorBoundary fallbackTitle="Map Viewport Error" fallbackMessage="An error occurred while loading this GIS viewport. You can retry or switch tabs.">
           {activeTab === "satellite_ndvi" ? (
             <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
-              <ModuleASatelliteEngine trees={trees} />
+              
             </motion.div>
           ) : activeTab === "field_scouting" ? (
             <div className="space-y-6">

@@ -31,7 +31,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { FieldReportSubmissionWizard } from "@/components/FieldReportSubmissionWizard";
-import { MultiSourceSurvivalScoreCard } from "@/components/MultiSourceSurvivalScoreCard";
 import { getOfflineTreeQueue, syncOfflineTreesWithSupabase } from "@/lib/offlineSyncService";
 import {
   getQueuedOfflineFieldReportsCount,
@@ -39,9 +38,6 @@ import {
 } from "@/lib/fieldReportBackendService";
 import { RiskAlertNotificationBanner } from "@/components/RiskAlertNotificationBanner";
 import { Link } from "react-router-dom";
-import { MobileFieldInterface } from "@/components/mobile/MobileFieldInterface";
-import { FastTreeRegistrationConsole } from "@/components/mobile/FastTreeRegistrationConsole";
-import { FastObservationConsole } from "@/components/mobile/FastObservationConsole";
 import { HardwarePermissionSentinel } from "@/components/mobile/HardwarePermissionSentinel";
 import { HardwarePermissionModal } from "@/components/mobile/HardwarePermissionModal";
 import { NetworkQualitySentinel } from "@/components/mobile/NetworkQualitySentinel";
@@ -209,10 +205,7 @@ export default function FieldWorkerDashboard() {
             <Monitor className="h-3.5 w-3.5 mr-1" /> Desktop View
           </Button>
         </div>
-        <MobileFieldInterface
-          currentLocation={userLocation}
-          projectId={selectedProjectId}
-        />
+        
       </div>
     );
   }
@@ -407,19 +400,7 @@ export default function FieldWorkerDashboard() {
 
           {/* 3-Pillar Multi-Source Survival Confidence MRV Dial & Parameter Simulator */}
           <div className="mb-2">
-            <MultiSourceSurvivalScoreCard
-              projectName="Maharashtra Agroforestry Field Sector"
-              initialParams={{
-                totalPlantedTrees: 500,
-                livingCount: livingCount,
-                stressedCount: stressedCount,
-                deadCount: deadCount,
-                currentMeanNdvi: 0.74,
-                baselineNdvi: 0.65,
-                overpassCount: 5,
-              }}
-              onRefresh={() => queryClient.invalidateQueries({ queryKey: ["field-worker-audits"] })}
-            />
+            
           </div>
 
           {/* Main Grid: Left Column (Tasks & Calculations) | Right Column (Recent Field Audits) */}
@@ -660,11 +641,7 @@ export default function FieldWorkerDashboard() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-background/95 backdrop-blur-md overflow-y-auto"
           >
-            <FastTreeRegistrationConsole
-              currentLocation={userLocation}
-              projectId={selectedProjectId}
-              onClose={() => setFastRegisterModalOpen(false)}
-            />
+            
           </motion.div>
         )}
       </AnimatePresence>
@@ -678,11 +655,7 @@ export default function FieldWorkerDashboard() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-background/95 backdrop-blur-md overflow-y-auto"
           >
-            <FastObservationConsole
-              currentLocation={userLocation}
-              projectId={selectedProjectId}
-              onClose={() => setFastObservationModalOpen(false)}
-            />
+            
           </motion.div>
         )}
       </AnimatePresence>

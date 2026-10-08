@@ -42,7 +42,7 @@ const TreeStory = lazy(() => import("./pages/TreeStory"));
 const OrganizationPortal = lazy(() => import("./pages/OrganizationPortal"));
 const ProjectManagement = lazy(() => import("./pages/ProjectManagement"));
 const MonitoringDashboard = lazy(() => import("./pages/MonitoringDashboard"));
-const VerificationDashboardPage = lazy(() => import("./pages/VerificationDashboardPage"));
+
 
 const PageLoadingFallback = () => (
   <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3">
@@ -105,9 +105,9 @@ const App = () => (
                 <Route path="/project-management" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />
                 <Route path="/monitoring" element={<MonitoringDashboard />} />
                 <Route path="/monitoring-dashboard" element={<MonitoringDashboard />} />
-                <Route path="/verification" element={<VerificationDashboardPage />} />
-                <Route path="/mrv/verification" element={<VerificationDashboardPage />} />
-                <Route path="/admin/verification" element={<RoleProtectedRoute requiredRole="admin"><VerificationDashboardPage /></RoleProtectedRoute>} />
+                
+                
+                
                 <Route path="/verify/cert/:serialNo" element={<CertificateVerify />} />
                 <Route path="/verify/cert" element={<CertificateVerify />} />
                 <Route path="/preview-dashboards" element={<DashboardPreview />} />
