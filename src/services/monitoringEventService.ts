@@ -237,21 +237,18 @@ export const monitoringEventService = {
       const obsHealth = input.health_status || "healthy";
       const scheduleCalc = this.calculateNextMonitoringDate(plantationDate, obsHealth, obsDate);
 
-      // 4. Insert Tree Observation
+      // 4. Insert Tree Observation (matching exact PostgreSQL schema columns)
       const insertPayload: any = {
         tree_id: input.tree_id,
         observer_id: input.observer_id || null,
         observer_name: input.observer_name || null,
         observer_role: input.observer_role || "field_worker",
         observation_date: obsDate,
-        observed_at: obsDate,
         latitude: input.latitude || null,
         longitude: input.longitude || null,
         elevation_m: input.elevation_m || null,
         gps_accuracy_meters: input.gps_accuracy_meters || null,
-        location_name: input.location_name || null,
         health_status: obsHealth,
-        condition: obsHealth,
         height_cm: input.height_cm || null,
         canopy_width_cm: input.canopy_width_cm || null,
         dbh_cm: input.dbh_cm || null,
@@ -261,13 +258,11 @@ export const monitoringEventService = {
         disease_description: input.disease_description || null,
         treatment_applied: input.treatment_applied || null,
         condition_notes: input.condition_notes || input.notes || null,
-        notes: input.condition_notes || input.notes || null,
         care_recommendations: input.care_recommendations || null,
         photo_url: input.photo_url || null,
         evidence_type: input.evidence_type || (input.photo_url ? "growth_photo" : null),
         sha256_hash: input.sha256_hash || null,
         verification_status: input.verification_status || "verified",
-        status: input.verification_status || "verified",
         ai_health_score: input.ai_health_score || (obsHealth === "healthy" || obsHealth === "thriving" ? 95 : 65),
       };
 

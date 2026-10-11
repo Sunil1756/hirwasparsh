@@ -350,6 +350,7 @@ export function evaluateProjectVerification(params: {
   targetTrees: number;
   speciesList: string[];
   evidenceCount?: number;
+  isAiVerifiedTreePhoto?: boolean;
   existingProjects?: Array<{ id: string; project_name: string; boundary: any }>;
   currentProjectId?: string;
 }): ProjectAuditReport {
@@ -362,6 +363,7 @@ export function evaluateProjectVerification(params: {
     targetTrees,
     speciesList,
     evidenceCount = 0,
+    isAiVerifiedTreePhoto = false,
     existingProjects = [],
     currentProjectId,
   } = params;
@@ -389,43 +391,49 @@ export function evaluateProjectVerification(params: {
 
   const checks = [check1, check2, check3, check4];
 
-  // Weighted Consolidated Score
-  // Biological (30%) + Land Sanity (25%) + Overlap (25%) + Baseline NDVI (20%)
-  let overallScore = Math.round(
+  // Weighted Feasibility Screening Base Score (Max 100)
+  const feasibilityScore = Math.round(
     check1.score * 0.30 +
     check2.score * 0.25 +
     check3.score * 0.25 +
     check4.score * 0.20
   );
 
-  // If evidence photos are already attached, bonus +5 trust
-  if (evidenceCount > 0) {
-    overallScore = Math.min(100, overallScore + 5);
-  } else {
-    // Cannot have a highly verified project without proof!
-    overallScore = Math.min(40, overallScore);
-  }
-
-  // Determine Status
-  let status: VerificationStatus = "verified_active";
-  let statusLabel = "Verified Active";
-  let statusDescription = "Project passed automated geospatial, biological density, and cadastral sanity screening.";
-
   const hasCriticalFail = checks.some((c) => c.status === "fail");
   const hasWarning = checks.some((c) => c.status === "warn");
 
-  if (hasCriticalFail || overallScore < 45) {
+  // HONEST PRE-PLANTING SCORE ENFORCEMENT:
+  // A newly registered project that has not yet performed in-ground planting can NEVER be 100/100.
+  // Full 100/100 requires: (1) Feasible boundary + (2) In-ground saplings logged with GPS + (3) Living canopy verified.
+  let overallScore = 35;
+  let status: VerificationStatus = "evidence_required";
+  let statusLabel = "Evidence Required";
+  let statusDescription = "Boundary plotted. Upload AI-verified ground photos of plantation saplings to advance project readiness.";
+
+  if (hasCriticalFail) {
+    overallScore = 20;
     status = "rejected_fraud";
     statusLabel = "Flagged / Infeasible";
     statusDescription = "Project parameters failed critical biological density or territorial sanity checks.";
-  } else if (hasWarning || overallScore < 75 || evidenceCount === 0) {
+  } else if (evidenceCount > 0 && isAiVerifiedTreePhoto) {
+    // Valid AI-verified field botanical evidence attached:
+    // Awards pre-planting readiness score capped at 55/100 until trees are physically tagged in-ground.
+    overallScore = Math.min(55, Math.round(feasibilityScore * 0.55));
+    status = "submitted";
+    statusLabel = "Pre-Planting Baseline Approved";
+    statusDescription = "Cadastral boundary and botanical specimen evidence verified by Gemini AI. In-ground GPS tree tagging required for active carbon accretion.";
+  } else if (evidenceCount > 0 && !isAiVerifiedTreePhoto) {
+    // Photo attached but NOT verified as living tree / plant:
+    overallScore = 30;
+    status = "evidence_required";
+    statusLabel = "Evidence Unverified (Non-Tree Photo)";
+    statusDescription = "Uploaded photo does not provide verified botanical evidence of living trees or plantation site.";
+  } else {
+    // No evidence attached yet:
+    overallScore = Math.min(40, Math.round(feasibilityScore * 0.40));
     status = "evidence_required";
     statusLabel = "Evidence Required";
-    statusDescription = "Geospatial screening passed. Upload field photographs or drone imagery to activate full carbon certification.";
-  } else {
-    status = "verified_active";
-    statusLabel = "Verified Active";
-    statusDescription = "Automated remote sensing audit passed. Ready for quarterly Sentinel-2 satellite telemetry.";
+    statusDescription = "Geospatial screening passed. Upload field photographs to verify active plantation site.";
   }
 
   // Formatted human-readable audit report

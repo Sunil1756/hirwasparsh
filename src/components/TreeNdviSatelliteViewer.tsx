@@ -156,18 +156,28 @@ export function TreeNdviSatelliteViewer({
             <Satellite className="h-5 w-5" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h3 className="font-heading font-bold text-sm text-foreground">
                 Copernicus Sentinel-2 L2A Telemetry
               </h3>
               <Badge className="bg-primary/15 text-primary border-primary/30 text-[10px]">
                 10m GSD Optical
               </Badge>
+              {telemetry.isLiveSatelliteData ? (
+                <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px] flex items-center gap-1 font-semibold">
+                  <ShieldCheck className="h-3 w-3" /> Live Copernicus Verified
+                </Badge>
+              ) : (
+                <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30 text-[10px] flex items-center gap-1 font-semibold">
+                  <Info className="h-3 w-3" /> Calibrated Baseline / Pending Pass
+                </Badge>
+              )}
             </div>
             <p className="text-[11px] text-muted-foreground">
               Tile ID: <span className="font-mono font-medium">{telemetry.tileId}</span> • Overpass:{" "}
               <span className="font-medium">{telemetry.acquisitionDate}</span> • Cloud:{" "}
-              <span className="font-medium">{telemetry.cloudCoverPct}%</span>
+              <span className="font-medium">{telemetry.cloudCoverPct}%</span> • Source:{" "}
+              <span className="font-mono text-[10px] font-semibold">{telemetry.satelliteSource}</span>
             </p>
           </div>
         </div>
@@ -270,13 +280,26 @@ export function TreeNdviSatelliteViewer({
             <span className="font-mono font-bold text-primary">{activeSpec.val}</span>
             <p className="text-[11px] text-muted-foreground mt-0.5">{activeSpec.desc}</p>
           </div>
-          <div className="text-right shrink-0">
-            <span className="text-[10px] uppercase font-mono tracking-wider text-muted-foreground block">
-              10m Pixel Value
-            </span>
-            <Badge variant="outline" className="border-primary/30 text-primary text-[10px]">
-              Active Signal
-            </Badge>
+          <div className="flex items-center gap-2">
+            {telemetry.rasterTileUrl && (
+              <div className="flex flex-col items-center">
+                <img
+                  src={telemetry.rasterTileUrl}
+                  alt="Sentinel-2 Real NDVI Tile"
+                  className="w-10 h-10 rounded-lg border border-primary/30 object-cover shadow-sm"
+                  title="Live Sentinel-2 10m NDVI Canopy Raster"
+                />
+                <span className="text-[9px] text-muted-foreground font-mono mt-0.5">Raster Tile</span>
+              </div>
+            )}
+            <div className="text-right shrink-0">
+              <span className="text-[10px] uppercase font-mono tracking-wider text-muted-foreground block">
+                10m Pixel Value
+              </span>
+              <Badge variant="outline" className="border-primary/30 text-primary text-[10px]">
+                Active Signal
+              </Badge>
+            </div>
           </div>
         </div>
       </div>

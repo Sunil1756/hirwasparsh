@@ -217,63 +217,98 @@ export class GreenEnlightenmentAiModelService {
     ) || "Azadirachta indica";
     const species = MAHARASHTRA_NATIVE_SPECIES_DB[matchedKey];
 
-    // Convert image to base64 for Gemini
+    // Convert image to base64 safely across browser and node environments
     let base64Data = "";
-    if (typeof imageSource === "string" && imageSource.startsWith("data:image/")) {
-      base64Data = imageSource.split(",")[1];
+    if (typeof imageSource === "string") {
+      if (imageSource.startsWith("data:image/")) {
+        base64Data = imageSource.split(",")[1];
+      } else {
+        base64Data = imageSource;
+      }
+    } else if (typeof window !== "undefined" && imageSource instanceof Blob) {
+      base64Data = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const res = reader.result as string;
+          resolve(res.split(",")[1] || "");
+        };
+        reader.readAsDataURL(imageSource);
+      });
     } else if (imageSource instanceof Blob) {
       const arrayBuffer = await imageSource.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      base64Data = buffer.toString("base64");
+      if (typeof Buffer !== "undefined") {
+        base64Data = Buffer.from(arrayBuffer).toString("base64");
+      } else {
+        const bytes = new Uint8Array(arrayBuffer);
+        let binary = "";
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        base64Data = btoa(binary);
+      }
     }
 
     try {
-      // Structure the response schema exactly to match our interface
-      const response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { inlineData: { mimeType: "image/jpeg", data: base64Data } },
-              { text: `You are an expert botanical auditor and forestry verification AI. 
-                Analyze this field photograph of a newly planted tree or sapling.
-                The user claims this is a ${claimedSpeciesName}.
-                
-                Inspect the image for:
-                1. True botanical vitality (is it thriving, stressed, or dead?)
-                2. Pathology (any signs of pests, fungal disease, or necrosis on leaves?)
-                3. Anti-Fraud (Is this a genuine plant in the ground soil, or is it still in a nursery polybag? Is it a fake plastic plant? Is it a picture of a computer screen?)
-                
-                Respond ONLY with the strictly formatted JSON data.` 
+      const candidateModels = ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
+      let response: any = null;
+      let lastModelError: any = null;
+
+      for (const modelCandidate of candidateModels) {
+        try {
+          response = await ai.models.generateContent({
+            model: modelCandidate,
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  { inlineData: { mimeType: "image/jpeg", data: base64Data } },
+                  { text: `You are an expert botanical auditor and forestry verification AI. 
+                    Analyze this field photograph of a newly planted tree or sapling.
+                    The user claims this is a ${claimedSpeciesName}.
+                    
+                    Inspect the image for:
+                    1. True botanical vitality (is it thriving, stressed, or dead?)
+                    2. Pathology (any signs of pests, fungal disease, or necrosis on leaves?)
+                    3. Anti-Fraud (Is this a genuine plant in the ground soil, or is it still in a nursery polybag? Is it a fake plastic plant? Is it a picture of a computer screen?)
+                    
+                    Respond ONLY with the strictly formatted JSON data.` 
+                  }
+                ]
               }
-            ]
-          }
-        ],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              vitalityStatus: { type: Type.STRING, enum: ["thriving", "healthy", "moderate_stress", "severe_stress", "dead_or_dry"] },
-              crownHealthScore: { type: Type.INTEGER, description: "Score from 0 to 100" },
-              growthStage: { type: Type.STRING, enum: ["sapling", "young_tree", "mature_tree", "overmature"] },
-              estimatedHeightCm: { type: Type.INTEGER },
-              estimatedDbhCm: { type: Type.INTEGER },
-              defoliationPercentage: { type: Type.INTEGER },
-              chlorophyllColorRating: { type: Type.STRING, enum: ["dense_green", "moderate_green", "chlorotic_yellow", "necrotic_brown"] },
-              diseaseOrPestDetected: { type: Type.BOOLEAN },
-              pathologyCategory: { type: Type.STRING, enum: ["fungal", "bacterial", "viral", "insect_borer", "defoliator", "nutrient_deficiency", "none"] },
-              organicRemedies: { type: Type.ARRAY, items: { type: Type.STRING } },
-              isGenuineInGroundSoilPit: { type: Type.BOOLEAN },
-              isNurseryPolybagOrPot: { type: Type.BOOLEAN },
-              isScreenRephotography: { type: Type.BOOLEAN },
-              fraudRiskScore: { type: Type.INTEGER, description: "0 (safe) to 100 (fraudulent)" }
-            },
-            required: ["vitalityStatus", "crownHealthScore", "growthStage", "estimatedHeightCm", "estimatedDbhCm", "defoliationPercentage", "chlorophyllColorRating", "diseaseOrPestDetected", "pathologyCategory", "organicRemedies", "isGenuineInGroundSoilPit", "isNurseryPolybagOrPot", "isScreenRephotography", "fraudRiskScore"]
-          }
+            ],
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  vitalityStatus: { type: Type.STRING, enum: ["thriving", "healthy", "moderate_stress", "severe_stress", "dead_or_dry"] },
+                  crownHealthScore: { type: Type.INTEGER, description: "Score from 0 to 100" },
+                  growthStage: { type: Type.STRING, enum: ["sapling", "young_tree", "mature_tree", "overmature"] },
+                  estimatedHeightCm: { type: Type.INTEGER },
+                  estimatedDbhCm: { type: Type.INTEGER },
+                  defoliationPercentage: { type: Type.INTEGER },
+                  chlorophyllColorRating: { type: Type.STRING, enum: ["dense_green", "moderate_green", "chlorotic_yellow", "necrotic_brown"] },
+                  diseaseOrPestDetected: { type: Type.BOOLEAN },
+                  pathologyCategory: { type: Type.STRING, enum: ["fungal", "bacterial", "viral", "insect_borer", "defoliator", "nutrient_deficiency", "none"] },
+                  organicRemedies: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  isGenuineInGroundSoilPit: { type: Type.BOOLEAN },
+                  isNurseryPolybagOrPot: { type: Type.BOOLEAN },
+                  isScreenRephotography: { type: Type.BOOLEAN },
+                  fraudRiskScore: { type: Type.INTEGER, description: "0 (safe) to 100 (fraudulent)" }
+                },
+                required: ["vitalityStatus", "crownHealthScore", "growthStage", "estimatedHeightCm", "estimatedDbhCm", "defoliationPercentage", "chlorophyllColorRating", "diseaseOrPestDetected", "pathologyCategory", "organicRemedies", "isGenuineInGroundSoilPit", "isNurseryPolybagOrPot", "isScreenRephotography", "fraudRiskScore"]
+              }
+            }
+          });
+          if (response && response.text) break;
+        } catch (mErr) {
+          lastModelError = mErr;
         }
-      });
+      }
+
+      if (!response || !response.text) {
+        throw lastModelError || new Error("Failed to receive structured botanical response from Gemini models.");
+      }
 
       const result = JSON.parse(response.text || "{}");
       

@@ -50,6 +50,7 @@ import {
 } from "@/lib/treeIntelligence";
 import { VernacularVoiceAssistant } from "@/components/VernacularVoiceAssistant";
 import { TreeNdviSatelliteViewer } from "@/components/TreeNdviSatelliteViewer";
+import { AgroWeatherWidget } from "@/components/AgroWeatherWidget";
 import { TreeMonitoringHistoryTimeline } from "@/components/TreeMonitoringHistoryTimeline";
 import { EvidenceAuditInspectorModal } from "@/components/EvidenceAuditInspectorModal";
 
@@ -950,6 +951,15 @@ const TreeProfile = () => {
                   longitude={tree.longitude}
                   treeName={tree.tree_name || tree.species}
                   species={tree.species}
+                />
+              )}
+
+              {/* Real Agro-Climatic Weather & Soil Moisture Telemetry (Open-Meteo & Map My Crop) */}
+              {tree.latitude && tree.longitude && (
+                <AgroWeatherWidget
+                  latitude={tree.latitude}
+                  longitude={tree.longitude}
+                  locationName={tree.location || tree.address || "Field Location"}
                 />
               )}
 

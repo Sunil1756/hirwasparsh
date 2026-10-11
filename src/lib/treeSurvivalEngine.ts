@@ -4,6 +4,8 @@
  * Telemetry, Early-Stress Radar, Mortality Mitigation, and ESG Proof-of-Survival (PoS).
  */
 
+import { fetchRealSentinel2Telemetry, Sentinel2TelemetryData } from "./sentinel2RealService";
+
 export interface TreeSurvivalRecord {
   treeId: string;
   treeName: string;
@@ -31,6 +33,8 @@ export interface TreeSurvivalRecord {
   heightCm?: number;
   aiConfidence?: number;
   projectId?: string;
+  isSatelliteVerified?: boolean;
+  satelliteSource?: string;
   history: {
     month: number;
     ndvi: number;
@@ -70,11 +74,11 @@ export interface ZoneSurvivalAnalytics {
 }
 
 /**
- * Deterministic seed generator based on string
+ * Deterministic linear congruential generator for reproducible layouts
  */
 function seededRandom(seed: number): number {
-  const x = Math.sin(seed++) * 10000;
-  return x - Math.floor(x);
+  const x = (seed * 9301 + 49297) % 233280;
+  return x / 233280;
 }
 
 /**
@@ -95,6 +99,10 @@ export function convertDatabaseTreesToSurvivalRecords(
     photo_url?: string | null;
     ai_confidence?: number | null;
     project_id?: string | null;
+    current_ndvi?: number | null;
+    current_ndwi?: number | null;
+    health_score?: number | null;
+    last_satellite_sync_at?: string | null;
   }>,
   fallbackCenter: [number, number] = [19.75, 75.71],
   zoneName: string = "Plantation Plot"
@@ -115,39 +123,57 @@ export function convertDatabaseTreesToSurvivalRecords(
     const monthsMonitored = monthsElapsed;
 
     const status = (t.verification_status || "pending").toLowerCase();
-    const height = t.height_cm ?? 65;
-    const aiConf = (t.ai_confidence ?? 85) / 100;
+    const hasDbNdvi = typeof t.current_ndvi === "number" && !isNaN(t.current_ndvi) && t.current_ndvi > 0;
+    const isSatelliteVerified = hasDbNdvi;
+    const satelliteSource = hasDbNdvi ? "copernicus_sentinel2_l2a" : "ground_baseline_estimate";
 
-    let baseNdvi = 0.76;
-    let baseNdwi = 0.24;
+    let baseNdvi = hasDbNdvi ? t.current_ndvi! : 0.60;
+    let baseNdwi = typeof t.current_ndwi === "number" && !isNaN(t.current_ndwi) ? t.current_ndwi : 0.18;
     let healthStatus: TreeSurvivalRecord["healthStatus"] = "Thriving Canopy";
     let mortalityRisk: TreeSurvivalRecord["mortalityRisk"] = "Low";
     let interventionStatus: TreeSurvivalRecord["interventionStatus"] = "Normal Monitoring";
-    let survivalProb = 95.0;
+    let survivalProb = 90.0;
 
-    if (status === "verified") {
-      baseNdvi = Math.min(0.92, 0.74 + (height / 300) * 0.12 + (monthsMonitored / 36) * 0.06);
-      baseNdwi = 0.22 + (baseNdvi - 0.7) * 0.5;
-      survivalProb = Math.min(99.4, 91.0 + aiConf * 5.0 + (monthsMonitored / 36) * 3.4);
-      healthStatus = "Thriving Canopy";
-      mortalityRisk = "Low";
-    } else if (status === "rejected") {
-      baseNdvi = 0.38 + (idx % 3) * 0.04;
-      baseNdwi = -0.04 + (idx % 3) * 0.03;
-      survivalProb = 52.0 + (idx % 4) * 3.0;
-      healthStatus = "Critical Mortality Risk";
-      mortalityRisk = "High";
-      interventionStatus = "Agro-Ranger Scheduled";
-    } else {
-      // Pending
-      baseNdvi = 0.62 + (idx % 3) * 0.03;
-      baseNdwi = 0.12 + (idx % 3) * 0.03;
-      survivalProb = 82.0 + (idx % 4) * 2.0;
-      healthStatus = "Moderate Growth";
-      mortalityRisk = "Moderate";
-      if (baseNdwi < 0.1) {
+    if (hasDbNdvi) {
+      if (baseNdvi >= 0.65) {
+        healthStatus = "Thriving Canopy";
+        mortalityRisk = "Low";
+      } else if (baseNdvi >= 0.45) {
+        healthStatus = "Moderate Growth";
+        mortalityRisk = "Low";
+      } else if (baseNdvi >= 0.28 || baseNdwi < 0.05) {
         healthStatus = "Moisture Stressed";
+        mortalityRisk = "Moderate";
         interventionStatus = "Drip Irrigation Dispatched";
+      } else {
+        healthStatus = "Critical Mortality Risk";
+        mortalityRisk = "High";
+        interventionStatus = "Agro-Ranger Scheduled";
+      }
+      survivalProb = typeof t.health_score === "number" && t.health_score > 0
+        ? t.health_score
+        : Math.round(Math.min(99.4, Math.max(45, (baseNdvi / 0.85) * 95)));
+    } else {
+      // Ground-truth verified status from field scouts/adopters
+      if (status === "verified") {
+        baseNdvi = 0.62;
+        baseNdwi = 0.18;
+        survivalProb = 88.0;
+        healthStatus = "Moderate Growth";
+        mortalityRisk = "Low";
+      } else if (status === "rejected") {
+        baseNdvi = 0.35;
+        baseNdwi = -0.05;
+        survivalProb = 48.0;
+        healthStatus = "Critical Mortality Risk";
+        mortalityRisk = "High";
+        interventionStatus = "Agro-Ranger Scheduled";
+      } else {
+        baseNdvi = 0.52;
+        baseNdwi = 0.12;
+        survivalProb = 78.0;
+        healthStatus = "Moderate Growth";
+        mortalityRisk = "Moderate";
       }
     }
 
@@ -203,6 +229,8 @@ export function convertDatabaseTreesToSurvivalRecords(
       heightCm: t.height_cm || undefined,
       aiConfidence: t.ai_confidence || undefined,
       projectId: t.project_id || undefined,
+      isSatelliteVerified,
+      satelliteSource,
       history,
     };
   });
@@ -445,7 +473,7 @@ export function calculateZoneSurvivalMetrics(
 }
 
 /**
- * Simulates on-demand high-resolution Sentinel-2 constellation sweep
+ * Re-evaluates existing tree spectral survival records without artificial noise
  */
 export function runSatelliteSurvivalScan(
   zoneId: string,
@@ -456,16 +484,14 @@ export function runSatelliteSurvivalScan(
   scannedPixelsCount: number;
   scanTimestamp: string;
 } {
-  const updatedTrees = existingTrees.map((tree, idx) => {
-    // Re-evaluate spectral reflectance with micro-variance
-    const noise = (Math.sin(idx * 43.12 + Date.now()) % 1) * 0.03;
-    let newNdvi = Math.max(0.3, Math.min(0.95, tree.currentNdvi + noise));
-    let newNdwi = Math.max(-0.2, Math.min(0.6, tree.currentNdwi + noise * 0.5));
+  const updatedTrees = existingTrees.map((tree) => {
+    let newNdvi = tree.currentNdvi;
+    let newNdwi = tree.currentNdwi;
 
-    // If an intervention was previously applied, boost recovery!
+    // If an intervention was previously applied, reflect recovery
     if (tree.interventionStatus === "Drip Irrigation Dispatched" || tree.interventionStatus === "Bio-Mulch Applied") {
-      newNdvi = Math.min(0.82, newNdvi + 0.08);
-      newNdwi = Math.min(0.38, newNdwi + 0.15);
+      newNdvi = Math.min(0.82, newNdvi + 0.06);
+      newNdwi = Math.min(0.35, newNdwi + 0.12);
     }
 
     const currentNdvi = Math.round(newNdvi * 100) / 100;
@@ -512,6 +538,95 @@ export function runSatelliteSurvivalScan(
     newAlertsCount,
     scannedPixelsCount: updatedTrees.length * 48,
     scanTimestamp: new Date().toLocaleTimeString(),
+  };
+}
+
+/**
+ * Asynchronously runs a genuine Sentinel-2 constellation sweep using Copernicus CDSE.
+ * Queries live BOA reflectance and applies verified spectral metrics to the zone trees.
+ */
+export async function runSatelliteSurvivalScanAsync(
+  zoneId: string,
+  existingTrees: TreeSurvivalRecord[],
+  centerLat: number = 19.75,
+  centerLng: number = 75.71
+): Promise<{
+  updatedTrees: TreeSurvivalRecord[];
+  newAlertsCount: number;
+  scannedPixelsCount: number;
+  scanTimestamp: string;
+  liveTelemetry?: Sentinel2TelemetryData;
+}> {
+  let liveTelemetry: Sentinel2TelemetryData | undefined;
+  try {
+    liveTelemetry = await fetchRealSentinel2Telemetry(centerLat, centerLng);
+  } catch (e) {
+    console.warn("Copernicus Sentinel-2 sync failed during zone scan:", e);
+  }
+
+  const isLive = Boolean(liveTelemetry?.isLiveSatelliteData);
+  const liveNdvi = isLive && liveTelemetry?.ndvi ? liveTelemetry.ndvi : null;
+  const liveNdwi = isLive && typeof liveTelemetry?.ndwi === "number" ? liveTelemetry.ndwi : null;
+  const passDate = liveTelemetry?.acquisitionDate || new Date().toISOString().split("T")[0];
+  const tileId = liveTelemetry?.tileId || "43QDA";
+
+  const updatedTrees = existingTrees.map((tree) => {
+    let newNdvi = liveNdvi !== null ? liveNdvi : tree.currentNdvi;
+    let newNdwi = liveNdwi !== null ? liveNdwi : tree.currentNdwi;
+
+    if (tree.interventionStatus === "Drip Irrigation Dispatched" || tree.interventionStatus === "Bio-Mulch Applied") {
+      newNdvi = Math.min(0.85, newNdvi + 0.06);
+      newNdwi = Math.min(0.35, newNdwi + 0.12);
+    }
+
+    const currentNdvi = Math.round(newNdvi * 100) / 100;
+    const currentNdwi = Math.round(newNdwi * 100) / 100;
+    const ndviDelta = Math.round((currentNdvi - tree.previousNdvi) * 100) / 100;
+
+    let healthStatus: TreeSurvivalRecord["healthStatus"] = "Thriving Canopy";
+    let mortalityRisk: TreeSurvivalRecord["mortalityRisk"] = "Low";
+
+    if (currentNdvi < 0.40 || currentNdwi < -0.02) {
+      healthStatus = "Critical Mortality Risk";
+      mortalityRisk = "High";
+    } else if (currentNdvi < 0.58 || currentNdwi < 0.10) {
+      healthStatus = "Moisture Stressed";
+      mortalityRisk = "Moderate";
+    } else if (currentNdvi < 0.70) {
+      healthStatus = "Moderate Growth";
+      mortalityRisk = "Low";
+    }
+
+    const survivalProbability = Math.round(
+      Math.min(99.4, Math.max(45, (currentNdvi / 0.85) * 96 + (currentNdwi > 0.15 ? 3 : -8)))
+    );
+
+    return {
+      ...tree,
+      previousNdvi: tree.currentNdvi,
+      currentNdvi,
+      currentNdwi,
+      ndviDelta,
+      healthStatus,
+      mortalityRisk,
+      survivalProbability,
+      lastSatellitePass: passDate,
+      tileId,
+      isSatelliteVerified: isLive,
+      satelliteSource: isLive ? "copernicus_sentinel2_l2a" : (tree.satelliteSource || "calibrated_baseline"),
+    };
+  });
+
+  const newAlertsCount = updatedTrees.filter(
+    (t) => t.healthStatus === "Moisture Stressed" || t.healthStatus === "Critical Mortality Risk"
+  ).length;
+
+  return {
+    updatedTrees,
+    newAlertsCount,
+    scannedPixelsCount: updatedTrees.length * 48,
+    scanTimestamp: new Date().toLocaleTimeString(),
+    liveTelemetry,
   };
 }
 

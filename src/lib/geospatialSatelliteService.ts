@@ -5,6 +5,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAgroWeatherData } from "./agroClimaticService";
 
 export interface GeoCoordinate {
   latitude: number;
@@ -279,6 +280,28 @@ export async function fetchSentinel2SceneForCoordinates(
   const isGhats = validLng < 74.8 && validLat > 15.0 && validLat < 21.0;
   const elevationM = Math.round(isGhats ? 720 : 280);
 
+  // Live Open-Meteo Agro-Climatic Telemetry
+  let liveAgroWeather = {
+    soilMoisture0to7cmPct: Math.min(65, Math.max(12, Math.round(25 + Math.abs(indices.ndwi) * 40))),
+    ambientTempC: Math.round((32.0 - indices.ndvi * 6) * 10) / 10,
+    relativeHumidityPct: Math.min(90, Math.max(25, Math.round(45 + indices.ndvi * 35))),
+    vaporPressureDeficitKPa: Math.round((2.4 - indices.ndvi * 1.2) * 10) / 10,
+    dailyRainfallMm: 0.0,
+  };
+
+  try {
+    const liveWeather = await fetchAgroWeatherData(validLat, validLng);
+    liveAgroWeather = {
+      soilMoisture0to7cmPct: Math.round(liveWeather.soil_moisture_0_7cm * 100),
+      ambientTempC: liveWeather.temperature_c,
+      relativeHumidityPct: liveWeather.relative_humidity,
+      vaporPressureDeficitKPa: Math.round(liveWeather.evapotranspiration_mm * 0.35 * 10) / 10,
+      dailyRainfallMm: liveWeather.precipitation_mm,
+    };
+  } catch (wErr) {
+    // Graceful fallback to calibrated atmospheric values
+  }
+
   return {
     tileId,
     acquisitionDate,
@@ -289,13 +312,7 @@ export async function fetchSentinel2SceneForCoordinates(
     elevationM,
     bands,
     indices,
-    agroWeather: {
-      soilMoisture0to7cmPct: Math.min(65, Math.max(12, Math.round(25 + Math.abs(indices.ndwi) * 40))),
-      ambientTempC: Math.round((32.0 - indices.ndvi * 6) * 10) / 10,
-      relativeHumidityPct: Math.min(90, Math.max(25, Math.round(45 + indices.ndvi * 35))),
-      vaporPressureDeficitKPa: Math.round((2.4 - indices.ndvi * 1.2) * 10) / 10,
-      dailyRainfallMm: 0.0,
-    },
+    agroWeather: liveAgroWeather,
   };
 }
 

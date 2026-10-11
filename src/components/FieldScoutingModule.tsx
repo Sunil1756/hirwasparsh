@@ -8,6 +8,10 @@ import {
 } from "react-leaflet";
 import {
   loadScoutingPins,
+  fetchScoutingPinsFromSupabase,
+  createScoutingPinInSupabase,
+  updateScoutingPinStatusInSupabase,
+  deleteScoutingPinFromSupabase,
   addScoutingPin,
   updateScoutingPinStatus,
   deleteScoutingPin,
@@ -17,6 +21,7 @@ import {
   ScoutingStatus,
   SCOUTING_CATEGORY_CONFIG,
 } from "@/lib/scoutingService";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Bug,
   Droplets,
@@ -34,6 +39,9 @@ import {
   Camera,
   RefreshCw,
   Trash2,
+  Cloud,
+  TreePine,
+  Loader2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -75,6 +83,11 @@ export function FieldScoutingModule({ onOpenAuditWizard }: FieldScoutingModulePr
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Available trees in Supabase registry for linking
+  const [availableTrees, setAvailableTrees] = useState<Array<{ id: string; tree_code?: string; species: string; location?: string }>>([]);
+  const [selectedTreeId, setSelectedTreeId] = useState<string>("none");
 
   // Form State
   const [title, setTitle] = useState("");
@@ -89,21 +102,52 @@ export function FieldScoutingModule({ onOpenAuditWizard }: FieldScoutingModulePr
   const [lat, setLat] = useState<number>(18.5204);
   const [lng, setLng] = useState<number>(73.8567);
 
-  const loadData = () => {
+  const loadData = async () => {
+    // 1. Initial cached render
     setPins(loadScoutingPins());
+    // 2. Fetch live data from Supabase
+    try {
+      const livePins = await fetchScoutingPinsFromSupabase();
+      if (livePins && livePins.length > 0) {
+        setPins(livePins);
+      }
+    } catch (e) {
+      console.warn("Could not fetch remote scouting pins:", e);
+    }
   };
 
   useEffect(() => {
     loadData();
+
+    // Fetch registered trees for linking
+    async function fetchTrees() {
+      try {
+        const { data } = await supabase
+          .from("trees" as any)
+          .select("id, tree_code, species, location")
+          .limit(50);
+        if (data && data.length > 0) {
+          setAvailableTrees(data as any);
+        }
+      } catch (err) {
+        console.warn("Could not fetch trees for scouting dropdown:", err);
+      }
+    }
+    fetchTrees();
   }, []);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setRefreshing(true);
-    setTimeout(() => {
+    try {
+      const livePins = await fetchScoutingPinsFromSupabase();
+      setPins(livePins);
+      toast.success("Field scouting matrix synced with Supabase!");
+    } catch {
       loadData();
+      toast.success("Field scouting matrix refreshed from local cache.");
+    } finally {
       setRefreshing(false);
-      toast.success("Field scouting matrix refreshed!");
-    }, 250);
+    }
   };
 
   const handleCategoryChange = (cat: ScoutingIssueCategory) => {
@@ -124,44 +168,56 @@ export function FieldScoutingModule({ onOpenAuditWizard }: FieldScoutingModulePr
     }
   };
 
-  const handleSavePin = () => {
+  const handleSavePin = async () => {
     if (!title.trim()) {
       toast.error("Please provide a title for the scout observation.");
       return;
     }
 
-    const created = addScoutingPin({
-      plotName,
-      title,
-      category,
-      severity,
-      status: "open",
-      latitude: lat,
-      longitude: lng,
-      assignedTo,
-      affectedTreeCount,
-      affectedSpecies,
-      notes,
-      recommendedRemedy: remedy,
-    });
+    setIsSaving(true);
+    try {
+      const linkedTreeId = selectedTreeId && selectedTreeId !== "none" ? selectedTreeId : undefined;
+      const created = await createScoutingPinInSupabase({
+        plotName,
+        title,
+        category,
+        severity,
+        status: "open",
+        latitude: lat,
+        longitude: lng,
+        assignedTo,
+        affectedTreeCount,
+        affectedSpecies,
+        notes,
+        recommendedRemedy: remedy,
+        treeId: linkedTreeId,
+      });
 
-    setPins([created, ...pins]);
-    toast.success("Scouting Pin Registered & Alert Issued!");
-    setIsDialogOpen(false);
-    setTitle("");
-    setNotes("");
+      setPins((prev) => [created, ...prev.filter((p) => p.id !== created.id)]);
+      toast.success("Scouting Pin Saved Directly to Supabase Cloud Database!");
+      setIsDialogOpen(false);
+      setTitle("");
+      setNotes("");
+      setSelectedTreeId("none");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save scouting pin to Supabase.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleStatusUpdate = (id: string, newStatus: ScoutingStatus) => {
-    const updated = updateScoutingPinStatus(id, newStatus);
-    setPins([...updated]);
+  const handleStatusUpdate = async (id: string, newStatus: ScoutingStatus) => {
+    setPins((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, status: newStatus } : p))
+    );
+    await updateScoutingPinStatusInSupabase(id, newStatus);
     toast.success(`Issue status updated to ${newStatus.replace("_", " ").toUpperCase()}`);
   };
 
-  const handleDeletePin = (id: string) => {
-    const updated = deleteScoutingPin(id);
-    setPins([...updated]);
-    toast.success("Scouting pin deleted.");
+  const handleDeletePin = async (id: string) => {
+    setPins((prev) => prev.filter((p) => p.id !== id));
+    await deleteScoutingPinFromSupabase(id);
+    toast.success("Scouting pin deleted from Supabase.");
   };
 
   const filteredPins = pins.filter((p) => {
@@ -184,6 +240,9 @@ export function FieldScoutingModule({ onOpenAuditWizard }: FieldScoutingModulePr
             <h3 className="font-heading font-semibold text-lg">
               Plantation Field Scouting & Anomaly Telemetry
             </h3>
+            <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 gap-1 text-[11px] font-medium">
+              <Cloud className="h-3 w-3" /> Supabase Cloud Synced
+            </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
             Geotag ground truth observations, pest & disease detection, and assign remediation tasks.
@@ -331,6 +390,30 @@ export function FieldScoutingModule({ onOpenAuditWizard }: FieldScoutingModulePr
                   </div>
                 </div>
 
+                {/* Link to Registered Tree in Supabase (Optional) */}
+                {availableTrees.length > 0 && (
+                  <div>
+                    <label className="text-muted-foreground block mb-1 font-medium flex items-center gap-1">
+                      <TreePine className="h-3 w-3 text-primary" /> Link to Registered Tree (Optional)
+                    </label>
+                    <Select value={selectedTreeId} onValueChange={setSelectedTreeId}>
+                      <SelectTrigger className="rounded-xl text-xs">
+                        <SelectValue placeholder="Select tree from registry..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none" className="text-xs">
+                          -- No tree link (General plot area) --
+                        </SelectItem>
+                        {availableTrees.map((t) => (
+                          <SelectItem key={t.id} value={t.id} className="text-xs">
+                            {t.tree_code || t.id.slice(0, 8)} • {t.species} {t.location ? `(${t.location})` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <div>
                   <label className="text-muted-foreground block mb-1 font-medium">Field Scout Observations</label>
                   <textarea
@@ -354,11 +437,12 @@ export function FieldScoutingModule({ onOpenAuditWizard }: FieldScoutingModulePr
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3">
-                <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(false)}>
+                <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>
                   Cancel
                 </Button>
-                <Button size="sm" onClick={handleSavePin}>
-                  Save & Issue Alert
+                <Button size="sm" onClick={handleSavePin} disabled={isSaving} className="gap-1.5">
+                  {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {isSaving ? "Saving to Supabase..." : "Save Directly to Supabase"}
                 </Button>
               </div>
             </DialogContent>

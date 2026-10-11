@@ -42,6 +42,9 @@ import { MapContainer, TileLayer, Marker, Popup, Circle, Polygon, useMap } from 
 import MarkerClusterGroup from "react-leaflet-cluster";
 import L from "leaflet";
 import { FieldScoutingModule } from "@/components/FieldScoutingModule";
+import { AgroWeatherWidget } from "@/components/AgroWeatherWidget";
+import { SatelliteTreeSurvivalAssurance } from "@/components/SatelliteTreeSurvivalAssurance";
+import { AGROFORESTRY_PRESET_ZONES } from "@/lib/remoteSensing";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { BASEMAP_PROVIDERS, BasemapProviderId } from "@/lib/gisMapFoundation";
 import { isGenuineTree } from "@/lib/genuineDataFilter";
@@ -246,8 +249,25 @@ const TreeMap = () => {
 
         <ErrorBoundary fallbackTitle="Map Viewport Error" fallbackMessage="An error occurred while loading this GIS viewport. You can retry or switch tabs.">
           {activeTab === "satellite_ndvi" ? (
-            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
-              
+            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <div className="text-center mb-6">
+                <h2 className="font-heading text-3xl font-bold">Satellite NDVI & Agro-Climatic Intelligence</h2>
+                <p className="text-sm text-muted-foreground">
+                  Real-time Copernicus Sentinel-2 Multi-Spectral Reflectance & Open-Meteo High-Resolution Agro-Meteorology
+                </p>
+              </div>
+
+              {/* Live Precision Agro-Weather Telemetry */}
+              <AgroWeatherWidget
+                latitude={treesWithCoords[0]?.latitude || 18.5204}
+                longitude={treesWithCoords[0]?.longitude || 73.8567}
+                locationName={treesWithCoords[0]?.location || "Maharashtra Agroforestry Zone"}
+              />
+
+              <SatelliteTreeSurvivalAssurance
+                selectedZone={AGROFORESTRY_PRESET_ZONES[0]}
+                trees={treesWithCoords as any}
+              />
             </motion.div>
           ) : activeTab === "field_scouting" ? (
             <div className="space-y-6">

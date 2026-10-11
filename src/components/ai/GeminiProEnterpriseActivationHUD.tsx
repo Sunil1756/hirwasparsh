@@ -301,13 +301,13 @@ export const GeminiProEnterpriseActivationHUD: React.FC<GeminiProEnterpriseActiv
               </div>
             </div>
 
-            {/* Verra VM0047 Carbon Certificate Sign-off */}
+            {/* Verra VM0047 Carbon Audit Digest */}
             <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-950 via-purple-950/40 to-slate-950 border border-purple-500/40 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-5 h-5 text-emerald-400" />
                   <strong className="text-sm font-bold text-white">
-                    Verra VM0047 Cryptographic MRV Sign-Off Certificate
+                    Verra VM0047 Aligned Biomass MRV Audit Digest
                   </strong>
                 </div>
                 <span className="text-xs font-mono text-purple-300 font-bold">
@@ -317,6 +317,9 @@ export const GeminiProEnterpriseActivationHUD: React.FC<GeminiProEnterpriseActiv
               <p className="text-xs text-slate-300 leading-relaxed">
                 {report.executiveAuditorDigest}
               </p>
+              <div className="text-[11px] text-slate-400 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                ⚠️ <em>Methodology Notice:</em> Internal MRV audit digest modeled strictly under Verra VM0047 biomass allometry. Official carbon unit crediting requires accredited third-party VVB verification.
+              </div>
             </div>
           </div>
         )}

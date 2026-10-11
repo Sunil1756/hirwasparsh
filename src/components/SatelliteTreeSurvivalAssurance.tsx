@@ -58,6 +58,7 @@ import {
   ZoneSurvivalAnalytics,
   calculateZoneSurvivalMetrics,
   runSatelliteSurvivalScan,
+  runSatelliteSurvivalScanAsync,
   simulateSurvivalIntervention,
   computeIndividualSurvivalSummary,
   computeBulkParcelSurvival,
@@ -146,20 +147,36 @@ export function SatelliteTreeSurvivalAssurance({
     });
   }, [analytics.satelliteAuditedSurvivalRate, wateringFreq, mulchPct, scanInterval, bioFertilizer]);
 
-  // Trigger On-Demand Satellite Constellation Scan
-  const handleTriggerSatelliteScan = () => {
+  // Trigger Genuine On-Demand Copernicus Satellite Constellation Scan
+  const handleTriggerSatelliteScan = async () => {
     setIsScanning(true);
-    setTimeout(() => {
-      const scanResult = runSatelliteSurvivalScan(analytics.zoneId, analytics.trees);
+    try {
+      const scanResult = await runSatelliteSurvivalScanAsync(
+        analytics.zoneId,
+        analytics.trees,
+        selectedZone.center?.[0] || 19.75,
+        selectedZone.center?.[1] || 75.71
+      );
       const updatedAnalytics = calculateZoneSurvivalMetrics(selectedZone, scanResult.updatedTrees);
       setAnalytics(updatedAnalytics);
-      setIsScanning(false);
 
       toast({
-        title: "🛰️ Sentinel-2 Constellation Scan Complete",
-        description: `Scanned ${scanResult.scannedPixelsCount} multi-spectral pixels across ${selectedZone.name}. ${scanResult.newAlertsCount} moisture/vigor alerts updated.`,
+        title: scanResult.liveTelemetry?.isLiveSatelliteData
+          ? "🛰️ Copernicus Sentinel-2 L2A Overpass Verified"
+          : "🛰️ Satellite Constellation Telemetry Synchronized",
+        description: scanResult.liveTelemetry?.isLiveSatelliteData
+          ? `Tile ${scanResult.liveTelemetry.tileId} • Overpass: ${scanResult.liveTelemetry.acquisitionDate} • Mean BOA NDVI: ${scanResult.liveTelemetry.ndvi.toFixed(2)}.`
+          : `Scanned ${scanResult.scannedPixelsCount} multi-spectral pixels across ${selectedZone.name}. ${scanResult.newAlertsCount} alerts evaluated.`,
       });
-    }, 1200);
+    } catch (err: any) {
+      toast({
+        title: "Satellite Scan",
+        description: err.message || "Failed to complete constellation scan.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   // Dispatch Action for a Stressed Tree
@@ -764,55 +781,65 @@ export function SatelliteTreeSurvivalAssurance({
 
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-xs">
-                  ● Green Enlightenment (94.8% Retained)
+                  ● Green Enlightenment ({analytics.satelliteAuditedSurvivalRate}% Retained)
                 </Badge>
                 <Badge variant="outline" className="bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30 text-xs">
-                  - - Industry Baseline (52.0%)
+                  - - Industry Baseline ({analytics.unmonitoredBaselineSurvivalRate}%)
                 </Badge>
               </div>
             </div>
 
-            <div className="h-72 w-full pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={analytics.monthlyTrajectory} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                  <YAxis domain={[40, 100]} unit="%" tick={{ fontSize: 11 }} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "rgba(15, 23, 42, 0.92)",
-                      borderColor: "rgba(34, 197, 94, 0.4)",
-                      borderRadius: "12px",
-                      fontSize: "12px",
-                      color: "#fff",
-                    }}
-                    formatter={(value: any, name: string) => [
-                      `${value}%`,
-                      name === "satelliteMonitoredSurvival" ? "Satellite-Monitored Survival" : "Unmonitored Baseline",
-                    ]}
-                  />
-                  <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: "12px" }} />
-                  <Area
-                    type="monotone"
-                    dataKey="satelliteMonitoredSurvival"
-                    name="Satellite-Monitored Survival"
-                    stroke="#22c55e"
-                    strokeWidth={3}
-                    fill="#22c55e"
-                    fillOpacity={0.15}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="unmonitoredBaseline"
-                    name="Unmonitored Baseline (Traditional)"
-                    stroke="#ef4444"
-                    strokeWidth={2}
-                    strokeDasharray="5 5"
-                    dot={false}
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
+            {analytics.monthlyTrajectory.length === 0 ? (
+              <div className="h-48 flex flex-col items-center justify-center text-center p-6 bg-muted/20 rounded-xl border border-dashed border-border/50 text-xs text-muted-foreground space-y-2">
+                <TreePine className="h-8 w-8 text-primary/40" />
+                <strong className="text-foreground text-sm">Awaiting Ground-Truth Tagged Trees</strong>
+                <p className="max-w-md">
+                  The 36-month survival trajectory curve activates once physical trees are geotagged in the parcel and calibrated against multi-spectral satellite overpasses.
+                </p>
+              </div>
+            ) : (
+              <div className="h-72 w-full pt-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={analytics.monthlyTrajectory} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                    <YAxis domain={[40, 100]} unit="%" tick={{ fontSize: 11 }} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "rgba(15, 23, 42, 0.92)",
+                        borderColor: "rgba(34, 197, 94, 0.4)",
+                        borderRadius: "12px",
+                        fontSize: "12px",
+                        color: "#fff",
+                      }}
+                      formatter={(value: any, name: string) => [
+                        `${value}%`,
+                        name === "satelliteMonitoredSurvival" ? "Satellite-Monitored Survival" : "Unmonitored Baseline",
+                      ]}
+                    />
+                    <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: "12px" }} />
+                    <Area
+                      type="monotone"
+                      dataKey="satelliteMonitoredSurvival"
+                      name="Satellite-Monitored Survival"
+                      stroke="#22c55e"
+                      strokeWidth={3}
+                      fill="#22c55e"
+                      fillOpacity={0.15}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="unmonitoredBaseline"
+                      name="Unmonitored Baseline (Traditional)"
+                      stroke="#ef4444"
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      dot={false}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
 
           {/* SECTION 3: LIVE SATELLITE RADAR & GROUND ACTION DISPATCH */}
@@ -1133,76 +1160,90 @@ export function SatelliteTreeSurvivalAssurance({
           <DialogHeader>
             <DialogTitle className="font-heading text-2xl font-extrabold text-center text-primary flex items-center justify-center gap-2">
               <Award className="h-6 w-6 text-emerald-500" />
-              Official Satellite Proof-of-Survival Certificate (PoS)
+              Satellite Proof-of-Survival (PoS) Monitoring Report
             </DialogTitle>
             <DialogDescription className="text-center text-xs text-muted-foreground">
-              Verified by European Space Agency Sentinel-2 Multi-Spectral Earth Observation Constellation
+              Verifiable Earth Observation Telemetry compiled from Copernicus Sentinel-2 L2A Multi-Spectral Imagery
             </DialogDescription>
           </DialogHeader>
 
-          <div className="mt-4 p-6 rounded-2xl bg-gradient-to-b from-primary/5 via-background to-background border-2 border-primary/30 space-y-5 text-center">
-            <div className="flex justify-center">
-              <div className="h-16 w-16 rounded-full bg-emerald-500/15 text-emerald-600 flex items-center justify-center border-2 border-emerald-500/30">
-                <ShieldCheck className="h-8 w-8" />
-              </div>
-            </div>
-
-            <div>
-              <h3 className="font-heading font-extrabold text-xl text-foreground">
-                {selectedZone.name}
-              </h3>
-              <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                {selectedZone.district} • GPS: {selectedZone.center[0]}°N, {selectedZone.center[1]}°E
+          {analytics.totalMonitoredTrees === 0 ? (
+            <div className="p-8 text-center space-y-3 bg-muted/40 rounded-2xl border border-border/60 my-4">
+              <AlertTriangle className="h-8 w-8 text-amber-500 mx-auto" />
+              <h4 className="font-heading font-bold text-foreground">Verification Report Blocked</h4>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                No trees are currently registered or synced for this zone. At least 1 verified tree observation and a valid Sentinel-2 overpass are required to generate an authentic Proof-of-Survival report.
               </p>
             </div>
-
-            <div className="grid grid-cols-3 gap-3 py-3 border-y border-border/60">
-              <div>
-                <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Certified Survival</div>
-                <div className="font-heading font-extrabold text-2xl text-emerald-600 dark:text-emerald-400">
-                  {activeTrack === "individual" ? individualSummary.individualSurvivalRate : analytics.satelliteAuditedSurvivalRate}%
+          ) : (
+            <div className="mt-4 p-6 rounded-2xl bg-gradient-to-b from-primary/5 via-background to-background border-2 border-primary/30 space-y-5 text-center">
+              <div className="flex justify-center">
+                <div className="h-16 w-16 rounded-full bg-emerald-500/15 text-emerald-600 flex items-center justify-center border-2 border-emerald-500/30">
+                  <ShieldCheck className="h-8 w-8" />
                 </div>
               </div>
+
               <div>
-                <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Monitored Trees</div>
-                <div className="font-heading font-extrabold text-2xl text-foreground">
-                  {activeTrack === "individual" ? individualSummary.totalIndividualTrees.toLocaleString() : analytics.totalMonitoredTrees.toLocaleString()}
+                <h3 className="font-heading font-extrabold text-xl text-foreground">
+                  {selectedZone.name}
+                </h3>
+                <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                  {selectedZone.district} • GPS: {selectedZone.center[0]}°N, {selectedZone.center[1]}°E
+                </p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 py-3 border-y border-border/60">
+                <div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Audited Survival</div>
+                  <div className="font-heading font-extrabold text-2xl text-emerald-600 dark:text-emerald-400">
+                    {activeTrack === "individual" ? individualSummary.individualSurvivalRate : analytics.satelliteAuditedSurvivalRate}%
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Monitored Trees</div>
+                  <div className="font-heading font-extrabold text-2xl text-foreground">
+                    {activeTrack === "individual" ? individualSummary.totalIndividualTrees.toLocaleString() : analytics.totalMonitoredTrees.toLocaleString()}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Avoided Mortality</div>
+                  <div className="font-heading font-extrabold text-2xl text-amber-600 dark:text-amber-400">
+                    +{analytics.mortalityCasesAvoided}
+                  </div>
                 </div>
               </div>
-              <div>
-                <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Avoided Mortality</div>
-                <div className="font-heading font-extrabold text-2xl text-amber-600 dark:text-amber-400">
-                  +{analytics.mortalityCasesAvoided}
-                </div>
+
+              <div className="text-left space-y-1 text-xs text-muted-foreground bg-muted/40 p-3 rounded-xl font-mono">
+                <div>• Constellation: {analytics.constellation}</div>
+                <div>• Verification Mode: {activeTrack === "individual" ? "Track 1: Geotagged Ground Truth Photo Audits" : "Track 2: Sentinel-2 Multi-Spectral (B08, B04, B05, B03)"}</div>
+                <div>• Mean Canopy NDVI: {analytics.meanCanopyVigorNdvi} (Photosynthetic Biomass Vigor)</div>
+                <div className="truncate text-primary">• Cryptographic PoS Hash: {analytics.proofOfSurvivalHash}</div>
+              </div>
+
+              <div className="text-[11px] text-left text-muted-foreground bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-xl">
+                ⚠️ <em>Stakeholder Notice:</em> This cryptographic report reflects remote sensing measurements and ground-truth check-ins for transparent ESG assurance. It does not replace sovereign land title or statutory forestry audits.
+              </div>
+
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <Button
+                  onClick={() => window.print()}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs rounded-xl font-bold gap-2"
+                >
+                  <Download className="h-4 w-4" /> Print / Save Report PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText(analytics.proofOfSurvivalHash);
+                    toast({ title: "Copied!", description: "PoS Hash copied to clipboard." });
+                  }}
+                  className="text-xs rounded-xl gap-2 border-primary/20"
+                >
+                  <Share2 className="h-4 w-4" /> Copy Verification Hash
+                </Button>
               </div>
             </div>
-
-            <div className="text-left space-y-1 text-xs text-muted-foreground bg-muted/40 p-3 rounded-xl font-mono">
-              <div>• Constellation: {analytics.constellation}</div>
-              <div>• Verification Mode: {activeTrack === "individual" ? "Track 1: Geotagged Ground Truth Photo Audits" : "Track 2: Sentinel-2 Multi-Spectral (B08, B04, B05, B03)"}</div>
-              <div>• Mean Canopy NDVI: {analytics.meanCanopyVigorNdvi} (Optimal Green Vigor)</div>
-              <div className="truncate text-primary">• Cryptographic PoS Hash: {analytics.proofOfSurvivalHash}</div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-              <Button
-                onClick={() => window.print()}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs rounded-xl font-bold gap-2"
-              >
-                <Download className="h-4 w-4" /> Print / Save Certificate PDF
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  navigator.clipboard.writeText(analytics.proofOfSurvivalHash);
-                  toast({ title: "Copied!", description: "PoS Hash copied to clipboard." });
-                }}
-                className="text-xs rounded-xl gap-2 border-primary/20"
-              >
-                <Share2 className="h-4 w-4" /> Copy Verification Hash
-              </Button>
-            </div>
-          </div>
+          )}
         </DialogContent>
       </Dialog>
 

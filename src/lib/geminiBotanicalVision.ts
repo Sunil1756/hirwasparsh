@@ -206,88 +206,112 @@ Return ONLY a valid JSON object with EXACTLY this structure:
 }
 `;
 
-  try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { text: prompt },
-                {
-                  inline_data: {
-                    mime_type: "image/jpeg",
-                    data: base64Data,
+  const candidateModels = [
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-flash-latest",
+    "gemini-3.8-flash",
+  ];
+
+  let lastErr: any = null;
+
+  for (const model of candidateModels) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { text: prompt },
+                  {
+                    inline_data: {
+                      mime_type: "image/jpeg",
+                      data: base64Data,
+                    },
                   },
-                },
-              ],
+                ],
+              },
+            ],
+            generationConfig: {
+              response_mime_type: "application/json",
+              temperature: 0.15,
             },
-          ],
-          generationConfig: {
-            response_mime_type: "application/json",
-            temperature: 0.2,
-          },
-        }),
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const msg = errorData?.error?.message || `Gemini API responded with status ${res.status}`;
+        lastErr = new Error(msg);
+        continue;
       }
-    );
 
-    if (!res.ok) {
-      throw new Error(`Gemini API responded with status ${res.status}`);
+      const data = await res.json();
+      const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!candidateText) {
+        lastErr = new Error("No text response in Gemini payload.");
+        continue;
+      }
+
+      const cleanJson = candidateText
+        .replace(/^```json\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+
+      const parsed = JSON.parse(cleanJson);
+      return {
+        isLivingTree: Boolean(parsed.isLivingTree),
+        speciesCommon: parsed.speciesCommon || claimedSpecies || "Indigenous Native Species",
+        speciesScientific: parsed.speciesScientific || "Flora indica",
+        botanicalFamily: parsed.botanicalFamily || "Plantae",
+        crownHealthScore: Number(parsed.crownHealthScore) || 75,
+        vitalityStatus: parsed.vitalityStatus || "healthy",
+        growthStage: parsed.growthStage || "young_tree",
+        stemLignification: parsed.stemLignification || "woody",
+        leafMorphology: parsed.leafMorphology || "Broadleaf foliage",
+        chlorophyllPigmentation: parsed.chlorophyllPigmentation || "dense_photosynthetic_green",
+        backgroundSetting: parsed.backgroundSetting || "in_ground_soil_pit",
+        isGenuineInGroundPlantation: parsed.isGenuineInGroundPlantation !== undefined ? Boolean(parsed.isGenuineInGroundPlantation) : true,
+        confidenceScore: typeof parsed.confidenceScore === "number" ? parsed.confidenceScore : 0.85,
+        detectedStressFactors: Array.isArray(parsed.detectedStressFactors) ? parsed.detectedStressFactors : [],
+        fraudRiskScore: typeof parsed.fraudRiskScore === "number" ? parsed.fraudRiskScore : 5,
+        fraudFlags: Array.isArray(parsed.fraudFlags) ? parsed.fraudFlags : [],
+        perceptualHash: dHash,
+        aiReport: parsed.aiReport || "Botanical validation completed successfully.",
+      };
+    } catch (err: any) {
+      lastErr = err;
     }
-
-    const data = await res.json();
-    const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!candidateText) {
-      throw new Error("No text response in Gemini payload.");
-    }
-
-    const parsed = JSON.parse(candidateText);
-    return {
-      isLivingTree: Boolean(parsed.isLivingTree),
-      speciesCommon: parsed.speciesCommon || claimedSpecies || "Indigenous Native Species",
-      speciesScientific: parsed.speciesScientific || "Flora indica",
-      botanicalFamily: parsed.botanicalFamily || "Plantae",
-      crownHealthScore: Number(parsed.crownHealthScore) || 80,
-      vitalityStatus: parsed.vitalityStatus || "healthy",
-      growthStage: parsed.growthStage || "young_tree",
-      stemLignification: parsed.stemLignification || "woody",
-      leafMorphology: parsed.leafMorphology || "Broadleaf foliage",
-      chlorophyllPigmentation: parsed.chlorophyllPigmentation || "dense_photosynthetic_green",
-      backgroundSetting: parsed.backgroundSetting || "in_ground_soil_pit",
-      isGenuineInGroundPlantation: parsed.isGenuineInGroundPlantation !== undefined ? Boolean(parsed.isGenuineInGroundPlantation) : true,
-      confidenceScore: Number(parsed.confidenceScore) || 0.88,
-      detectedStressFactors: Array.isArray(parsed.detectedStressFactors) ? parsed.detectedStressFactors : [],
-      fraudRiskScore: Number(parsed.fraudRiskScore) || 5,
-      fraudFlags: Array.isArray(parsed.fraudFlags) ? parsed.fraudFlags : [],
-      perceptualHash: dHash,
-      aiReport: parsed.aiReport || "Botanical validation completed successfully.",
-    };
-  } catch (err: any) {
-    console.warn("Gemini Botanical AI analysis failed, falling back to local heuristic:", err);
-    return {
-      isLivingTree: true,
-      speciesCommon: claimedSpecies || "Native Agroforestry Species",
-      speciesScientific: "Indigenous flora",
-      botanicalFamily: "Plantae",
-      crownHealthScore: 85,
-      vitalityStatus: "healthy",
-      growthStage: "young_tree",
-      stemLignification: "woody",
-      leafMorphology: "Alternate compound leaves",
-      chlorophyllPigmentation: "dense_photosynthetic_green",
-      backgroundSetting: "in_ground_soil_pit",
-      isGenuineInGroundPlantation: true,
-      confidenceScore: 0.85,
-      detectedStressFactors: [],
-      fraudRiskScore: 5,
-      fraudFlags: [],
-      perceptualHash: dHash,
-      aiReport: "Photo analyzed with local botanical heuristic validator.",
-    };
   }
+
+  console.warn("Gemini Botanical AI analysis failed across candidate models:", lastErr);
+  // Honest unverified response routed to supervisor review — NEVER fabricate fake 85% auto-approval!
+  return {
+    isLivingTree: false,
+    speciesCommon: claimedSpecies || "Unidentified Species",
+    speciesScientific: "Pending taxonomic review",
+    botanicalFamily: "Plantae",
+    crownHealthScore: 0,
+    vitalityStatus: "moderate_stress",
+    growthStage: "young_tree",
+    stemLignification: "unknown",
+    leafMorphology: "Foliage re-inspection required",
+    chlorophyllPigmentation: "moderate_green",
+    backgroundSetting: "open_field",
+    isGenuineInGroundPlantation: false,
+    confidenceScore: 0,
+    detectedStressFactors: ["ai_analysis_incomplete"],
+    fraudRiskScore: 35,
+    fraudFlags: ["Botanical AI vision analysis unresolved: " + (lastErr?.message || "Service error")],
+    perceptualHash: dHash,
+    aiReport: "Automated botanical vision analysis could not be completed. Photo forwarded to human forestry supervisor review.",
+  };
 }
 
 /**

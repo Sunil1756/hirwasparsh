@@ -96,12 +96,12 @@ export interface CanopyParcelAnalysisResult {
  * Candidate models tried in sequence for resilience against deprecation/availability changes
  */
 const CANDIDATE_MODELS = [
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
   "gemini-flash-latest",
+  "gemini-3.8-flash",
+  "gemini-flash-lite-latest",
   "gemini-pro-latest",
-  "gemini-2.5-flash",
-  "gemini-2.5-pro",
-  "gemini-2.0-flash",
-  "gemini-1.5-flash",
 ];
 
 /**
@@ -202,13 +202,15 @@ export async function callGeminiDirect(
         const errorData = await response.json().catch(() => ({}));
         const msg = errorData?.error?.message || `Gemini API returned status ${response.status}`;
         
-        // Check if model not found / deprecated to failover to next candidate model
+        // Check if model not found / deprecated / high demand 503 to failover to next candidate model
         if (
           response.status === 404 ||
           response.status === 400 ||
+          response.status === 503 ||
           msg.toLowerCase().includes("not found") ||
           msg.toLowerCase().includes("no longer available") ||
-          msg.toLowerCase().includes("deprecated")
+          msg.toLowerCase().includes("deprecated") ||
+          msg.toLowerCase().includes("high demand")
         ) {
           lastError = new Error(msg);
           continue;
@@ -285,21 +287,22 @@ Return strict JSON:
 
   const prompt = `Screen this image: Does it contain a genuine living tree or sapling planted outdoors?`;
 
-  if (apiKey) {
-    try {
-      return await callGeminiDirect(prompt, imageBase64, systemPrompt, { isJson: true });
-    } catch (e) {
-      console.warn("Screening via Gemini API failed, applying fallback heuristic:", e);
-    }
+  if (!apiKey) {
+    throw new Error("Gemini API key is not configured (VITE_GEMINI_API_KEY).");
   }
 
-  // Fallback heuristic
-  return {
-    isValidTreePhoto: true,
-    rejectionReason: null,
-    detectedSubject: "Living Plant / Sapling",
-    confidence: 92,
-  };
+  try {
+    const res = await callGeminiDirect(prompt, imageBase64, systemPrompt, { isJson: true });
+    return {
+      isValidTreePhoto: Boolean(res?.isValidTreePhoto),
+      rejectionReason: res?.isValidTreePhoto ? null : (res?.rejectionReason || "Photo does not show a living tree or sapling."),
+      detectedSubject: res?.detectedSubject || (res?.isValidTreePhoto ? "Living Plant / Sapling" : "Non-Plant Subject"),
+      confidence: typeof res?.confidence === "number" ? res.confidence : 85,
+    };
+  } catch (e: any) {
+    console.error("Screening via Gemini API failed:", e);
+    throw new Error(`AI photo screening failed: ${e?.message || "Service unreachable"}`);
+  }
 }
 
 /**
@@ -353,13 +356,16 @@ Return strict JSON matching the schema:
 
   if (apiKey) {
     try {
-      return await callGeminiDirect(prompt, images, systemPrompt, { isJson: true });
+      const res = await callGeminiDirect(prompt, images, systemPrompt, { isJson: true });
+      if (res && typeof res.is_tree === "boolean") {
+        return res;
+      }
     } catch (e) {
       console.warn("Direct Gemini verification failed, falling back to edge verification:", e);
     }
   }
 
-  // Fallback to Supabase Edge Function or realistic verification model
+  // Fallback to Supabase Edge Function if available
   try {
     const { data, error } = await supabase.functions.invoke("verify-tree", {
       body: {
@@ -370,32 +376,32 @@ Return strict JSON matching the schema:
       },
     });
 
-    if (!error && data && !data.error) return data;
+    if (!error && data && !data.error && typeof data.is_tree === "boolean") return data;
   } catch (err) {
     console.warn("Edge function verify-tree fallback:", err);
   }
 
-  // Robust default genuine audit
+  // Honest unverified response — never fabricate fake 95% pass
   return {
-    tree_visibility_score: 95,
-    environmental_authenticity_score: 92,
-    image_authenticity_score: 96,
-    species_match_score: 88,
-    human_presence_score: 85,
-    duplicate_probability_score: 4,
-    is_tree: true,
-    is_genuine_photo: true,
+    tree_visibility_score: 0,
+    environmental_authenticity_score: 0,
+    image_authenticity_score: 0,
+    species_match_score: 0,
+    human_presence_score: 0,
+    duplicate_probability_score: 0,
+    is_tree: false,
+    is_genuine_photo: false,
     is_indoor: false,
     is_ai_generated: false,
     is_screenshot: false,
-    plantation_stage: "sapling",
-    health_status: "healthy",
-    detected_species: params.claimedSpecies || "Native Indian Tree",
-    fraud_signals: [],
+    plantation_stage: "unknown",
+    health_status: "unknown",
+    detected_species: params.claimedSpecies || "Unidentified",
+    fraud_signals: ["ai_verification_unreachable"],
     auto_rejected: false,
     rejection_reasons: [],
-    analysis: "Genuine outdoor plantation verified with optimal soil preparation and root-collar alignment.",
-    co2_absorption_rate: 22.5,
+    analysis: "Automated Gemini vision audit was temporarily unavailable. Submission placed in supervisor verification queue.",
+    co2_absorption_rate: 0,
   };
 }
 
@@ -420,7 +426,8 @@ export async function detectSpeciesAI(imageBase64: string): Promise<SpeciesDetec
   "native_regions": string[] (e.g. ["Maharashtra", "Western Ghats", "Deccan"]),
   "care_tips": string[] (3 practical care instructions)
 }`;
-      return await callGeminiDirect(prompt, imageBase64, systemPrompt, { isJson: true });
+      const res = await callGeminiDirect(prompt, imageBase64, systemPrompt, { isJson: true });
+      if (res && res.common_name) return res;
     } catch (e) {
       console.warn("Direct Gemini species detection failed, attempting edge fallback:", e);
     }
@@ -431,25 +438,25 @@ export async function detectSpeciesAI(imageBase64: string): Promise<SpeciesDetec
     const { data, error } = await supabase.functions.invoke("detect-species", {
       body: { imageBase64 },
     });
-    if (!error && data && !(data as any).error) return data;
+    if (!error && data && !(data as any).error && (data as any).common_name) return data;
   } catch (err) {
     console.warn("Edge function detect-species fallback:", err);
   }
 
-  // Deterministic botanical fallback
+  // Honest unverified response — never fabricate fake Neem
   return {
-    common_name: "Neem",
-    scientific_name: "Azadirachta indica",
-    confidence: 94,
-    description: "Vigorous native Indian evergreen renowned for pest resistance, drought resilience, and medicinal air purification.",
+    common_name: "Unidentified Plant / Sapling",
+    scientific_name: "Botanical identification pending",
+    confidence: 0,
+    description: "Automated vision analysis could not determine species with high confidence. Please specify species manually or provide a clearer foliar photograph.",
     growth_rate: "medium",
-    water_requirement: "low",
-    co2_absorption_kg_per_year: 23.5,
-    native_regions: ["Maharashtra", "Deccan Plateau", "Western Ghats"],
+    water_requirement: "medium",
+    co2_absorption_kg_per_year: 20.0,
+    native_regions: ["Maharashtra", "Western Ghats"],
     care_tips: [
-      "Water deeply once a week during first 6 months of establishment.",
-      "Apply organic leaf mulch around base leaving 2 inches clearance from trunk.",
-      "Protect young foliage from severe direct summer heat waves with loose shade.",
+      "Ensure tree is planted in native topsoil with adequate drainage.",
+      "Apply protective organic mulch around root collar.",
+      "Water regularly according to soil moisture levels.",
     ],
   };
 }
@@ -478,7 +485,7 @@ Planter Symptoms Description: ${params.symptoms || "None provided"}
 Provide JSON output:
 {
   "is_plant": boolean,
-  "diagnosis": string (name of pest, disease, or deficiency),
+  "diagnosis": string (name of pest, disease, or deficiency, or "Healthy Vigorous Growth"),
   "confidence": number (0-100),
   "severity": "none" | "mild" | "moderate" | "severe",
   "symptoms_observed": string[],
@@ -488,7 +495,8 @@ Provide JSON output:
   "prevention": string[],
   "urgency_days": number
 }`;
-      return await callGeminiDirect(prompt, params.imageBase64, systemPrompt, { isJson: true });
+      const res = await callGeminiDirect(prompt, params.imageBase64, systemPrompt, { isJson: true });
+      if (res && res.diagnosis) return res;
     } catch (e) {
       console.warn("Direct Gemini tree diagnosis failed, attempting edge fallback:", e);
     }
@@ -498,37 +506,30 @@ Provide JSON output:
     const { data, error } = await supabase.functions.invoke("tree-assistant", {
       body: { mode: "diagnose", ...params },
     });
-    if (!error && data && !(data as any)?.error) return (data as any).result;
+    if (!error && data && !(data as any)?.error && (data as any)?.result?.diagnosis) return (data as any).result;
   } catch (err) {
     console.warn("Edge function tree-assistant diagnose fallback:", err);
   }
 
+  // Honest unverified response
   return {
     is_plant: true,
-    diagnosis: "Minor Foliar Nutrient Deficiency & Mild Moisture Stress",
-    confidence: 89,
-    severity: "mild",
-    symptoms_observed: [
-      "Slight interveinal chlorosis on lower mature leaves",
-      "Minor edge curling due to midday transpirational demand",
-    ],
-    likely_causes: [
-      "Low soil organic carbon buffer",
-      "Dry topsoil layer exposed to direct sun",
-    ],
+    diagnosis: "Pathology Diagnosis Pending Visual Re-inspection",
+    confidence: 0,
+    severity: "none",
+    symptoms_observed: ["Automated diagnostic vision service was temporarily unreachable."],
+    likely_causes: ["Camera blur, network timeout, or foliar obstruction."],
     treatment_steps: [
-      "Apply 200g well-decomposed vermicompost mixed with neem cake powder.",
-      "Irrigate early in the morning before 8:00 AM.",
+      "Capture a close-up photograph of leaf margins and stem collar.",
+      "Check soil moisture and ensure adequate root hydration.",
     ],
     organic_remedies: [
-      "Foliar spray of 5% Panchagavya or Jeevamrit solution bi-weekly.",
-      "Neem seed kernel extract (NSKE 5%) spray for prophylactic pest resistance.",
+      "Prophylactic foliar spray of 5% Jeevamrit or Neem Seed Kernel Extract (NSKE).",
     ],
     prevention: [
-      "Spread 3-inch sugarcane bagasse or dried grass mulch around the root collar.",
-      "Ensure soil drainage remains uncompacted.",
+      "Maintain organic straw mulching to conserve root moisture.",
     ],
-    urgency_days: 7,
+    urgency_days: 14,
   };
 }
 

@@ -234,6 +234,8 @@ export const AGROFORESTRY_PRESET_ZONES: AgroforestryPresetZone[] = [
 export interface CoordinateTelemetryResult {
   latitude: number;
   longitude: number;
+  centerLat?: number;
+  centerLng?: number;
   elevationM: number;
   tileId: string;
   overpassDate: string;
@@ -251,10 +253,21 @@ export interface CoordinateTelemetryResult {
   classification: string;
   healthDiagnosis: string;
   recommendation: string;
+  isLiveSatelliteData: boolean;
+  satelliteSource: string;
+  status?: string;
+  b02Blue?: number;
+  b03Green?: number;
+  b04Red?: number;
+  b05RedEdge?: number;
+  b08Nir?: number;
+  b11Swir?: number;
 }
 
 /**
- * Precision Remote Sensing Inspector for any clicked GPS Coordinate
+ * Synchronous Calibrated Regional Baseline Inspector for GPS Coordinates.
+ * Returns honest physiological baselines with explicit isLiveSatelliteData: false flag
+ * until real Copernicus Sentinel-2 STAC telemetry is queried.
  */
 export function inspectCoordinateTelemetry(
   lat: number = 19.75,
@@ -264,53 +277,27 @@ export function inspectCoordinateTelemetry(
   const safeLat = typeof lat === "number" && !isNaN(lat) ? lat : 19.75;
   const safeLng = typeof lng === "number" && !isNaN(lng) ? lng : 75.71;
 
-  // Deterministic high-precision seed based on coordinates
-  const latSeed = Math.abs(Math.sin(safeLat * 12.9898 + safeLng * 78.233)) * 43758.5453;
-  const hash = latSeed - Math.floor(latSeed);
-
-  // Geographic context for Maharashtra / India
+  // Geographic context for Maharashtra / India agro-climatic zones
   const isWesternGhats = safeLng < 74.5 && safeLat > 15.5 && safeLat < 20.5;
   const isCoast = safeLng < 73.5;
   const isVidarbha = safeLng > 78.0;
 
-  let baseNdvi = 0.62 + hash * 0.26;
-  if (isWesternGhats) baseNdvi = Math.min(0.92, baseNdvi + 0.14);
-  if (isCoast) baseNdvi = Math.min(0.89, baseNdvi + 0.10);
-
-  const ndvi = Math.round(baseNdvi * 100) / 100;
-  const ndre = Math.round((ndvi * 0.82 + (hash - 0.5) * 0.08) * 100) / 100;
+  // Calibrated physiological baseline based on agro-climatic zone
+  const baseNdvi = isWesternGhats ? 0.72 : isCoast ? 0.68 : isVidarbha ? 0.54 : 0.60;
+  const ndvi = baseNdvi;
+  const ndre = Math.round(ndvi * 0.82 * 100) / 100;
   const ndwi = Math.round(((ndvi - 0.45) * 0.7 + (isCoast ? 0.15 : 0.0)) * 100) / 100;
-  const evi = Math.round((ndvi * 0.88) * 100) / 100;
-  const savi = Math.round((ndvi * 0.75) * 100) / 100;
-  const surfaceTempC = Math.round((38 - ndvi * 12 + (hash - 0.5) * 3) * 10) / 10;
+  const evi = Math.round(ndvi * 0.88 * 100) / 100;
+  const savi = Math.round(ndvi * 0.75 * 100) / 100;
+  const surfaceTempC = Math.round((34 - ndvi * 8) * 10) / 10;
   const chlorophyllDensityUgCm2 = Math.round((ndvi * 62 + 8) * 10) / 10;
-  const canopyCoveragePct = Math.min(96, Math.round(ndvi * 105));
+  const canopyCoveragePct = Math.min(92, Math.round(ndvi * 100));
   const biomassCarbonMTPerHa = Math.round((ndvi * 65.5 + 4.2) * 10) / 10;
-  const soilMoisturePct = Math.min(65, Math.max(12, Math.round(20 + ndwi * 50)));
+  const soilMoisturePct = Math.min(65, Math.max(15, Math.round(20 + ndwi * 50)));
 
-  const elevationM = Math.round(isWesternGhats ? 600 + hash * 700 : isCoast ? 15 + hash * 40 : 250 + hash * 300);
-
-  let classification = "Dense Healthy Canopy (High Vigor)";
-  let healthDiagnosis = "High photosynthetic activity with robust chlorophyll absorption across NIR/Red spectrum.";
-  let recommendation = "Canopy integrity verified. Proceed with regular quarterly survival monitoring.";
-
-  if (ndvi < 0.3) {
-    classification = "Barren / Non-Vegetated Terrain";
-    healthDiagnosis = "Low chlorophyll reflectance; soil exposure dominates the pixel signature.";
-    recommendation = "Ideal site for new afforestation drive, pit preparation, and initial soil de-compaction.";
-  } else if (ndvi < 0.5) {
-    classification = "Sparse Canopy / Pioneer Saplings";
-    healthDiagnosis = "Moderate vegetation signature consistent with young saplings or dryland foliage.";
-    recommendation = "Maintain regular mulching and drip irrigation to promote canopy closure.";
-  } else if (ndwi < 0.05) {
-    classification = "Dense Canopy (Moisture Stressed)";
-    healthDiagnosis = "Vegetation is dense but shows foliar hydration deficit in the SWIR spectral bands.";
-    recommendation = "Initiate supplemental irrigation or soil moisture conservation to prevent leaf shedding.";
-  }
-
-  // Sentinel-2 Tile naming
-  const tileId = `T${Math.floor(safeLat / 6) + 40}Q${String.fromCharCode(65 + Math.floor(safeLng % 26))}${String.fromCharCode(65 + Math.floor(safeLat % 26))}`;
-  const overpassDate = new Date(Date.now() - (1 + Math.floor(hash * 4)) * 86400000).toISOString().split("T")[0];
+  const elevationM = Math.round(isWesternGhats ? 720 : isCoast ? 25 : 290);
+  const tileId = "43QDA";
+  const overpassDate = new Date().toISOString().split("T")[0];
 
   return {
     latitude: Math.round(safeLat * 10000) / 10000,
@@ -320,7 +307,7 @@ export function inspectCoordinateTelemetry(
     elevationM,
     tileId,
     overpassDate,
-    cloudCoverPct: Math.round(hash * 2.8 * 10) / 10,
+    cloudCoverPct: 0,
     ndvi,
     ndre,
     ndwi,
@@ -331,10 +318,65 @@ export function inspectCoordinateTelemetry(
     canopyCoveragePct,
     biomassCarbonMTPerHa,
     soilMoisturePct,
-    classification,
-    healthDiagnosis,
-    recommendation,
+    classification: "Calibrated Regional Baseline (Pending Satellite Sync)",
+    healthDiagnosis: "Physiological baseline estimated from agro-climatic zone. Run live Copernicus sync for genuine Sentinel-2 BOA reflectance.",
+    recommendation: "Query Copernicus Sentinel-2 STAC for real-time verified multi-spectral imagery.",
+    isLiveSatelliteData: false,
+    satelliteSource: "calibrated_baseline_estimate",
+    status: "baseline_estimate",
   };
+}
+
+/**
+ * Asynchronous Precision Remote Sensing Inspector for any GPS Coordinate.
+ * Queries live Copernicus Sentinel-2 L2A STAC & Statistical API for genuine BOA reflectance.
+ */
+export async function inspectCoordinateTelemetryAsync(
+  lat: number = 19.75,
+  lng: number = 75.71,
+  activeLayer: string = "ndvi"
+): Promise<CoordinateTelemetryResult> {
+  try {
+    const sat = await fetchRealSentinel2Telemetry(lat, lng);
+    return {
+      latitude: sat.latitude,
+      longitude: sat.longitude,
+      centerLat: sat.centerLat,
+      centerLng: sat.centerLng,
+      elevationM: sat.elevationM,
+      tileId: sat.tileId,
+      overpassDate: sat.acquisitionDate,
+      cloudCoverPct: sat.cloudCoverPct,
+      ndvi: sat.ndvi,
+      ndre: sat.ndre,
+      ndwi: sat.ndwi,
+      evi: sat.evi,
+      savi: sat.savi,
+      surfaceTempC: sat.surfaceTempC,
+      chlorophyllDensityUgCm2: sat.chlorophyllDensityUgCm2,
+      canopyCoveragePct: sat.canopyCoveragePct,
+      biomassCarbonMTPerHa: sat.biomassCarbonMTPerHa,
+      soilMoisturePct: sat.soilMoisturePct,
+      classification: sat.classification,
+      healthDiagnosis: sat.healthDiagnosis,
+      recommendation: sat.recommendation,
+      isLiveSatelliteData: sat.isLiveSatelliteData,
+      satelliteSource: sat.satelliteSource,
+      status: sat.status,
+      b02Blue: sat.b02Blue,
+      b03Green: sat.b03Green,
+      b04Red: sat.b04Red,
+      b05RedEdge: sat.b05RedEdge,
+      b08Nir: sat.b08Nir,
+      b11Swir: sat.b11Swir,
+    };
+  } catch (err) {
+    const fallback = inspectCoordinateTelemetry(lat, lng, activeLayer);
+    return {
+      ...fallback,
+      status: "offline_fallback",
+    };
+  }
 }
 
 /**

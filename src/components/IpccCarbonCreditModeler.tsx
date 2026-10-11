@@ -118,7 +118,7 @@ export function IpccCarbonCreditModeler({
   const handleExportAuditSummary = () => {
     toast({
       title: "📄 IPCC Carbon Audit Report Generated!",
-      description: `SEBI BRSR Scope 1/3 Certificate for ${projectName}: ${annualNetCertifiedCreditsMT} MT CO₂e/yr verified.`,
+      description: `SEBI BRSR Scope 1/3 Carbon Accretion Report for ${projectName}: ${annualNetCertifiedCreditsMT} MT CO₂e/yr estimated.`,
     });
   };
 
