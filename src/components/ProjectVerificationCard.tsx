@@ -71,10 +71,10 @@ export const ProjectVerificationCard = ({
             <span className="h-7 w-7 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
               <Bot className="h-4 w-4" />
             </span>
-            <h3 className="font-heading text-lg font-bold">Geospatial Pre-Screening & Anti-Fraud Audit</h3>
+            <h3 className="font-heading text-lg font-bold">Geospatial Boundary Feasibility & Anti-Fraud Audit</h3>
           </div>
           <p className="text-xs text-muted-foreground max-w-xl">
-            Multi-spectral remote sensing, biological sapling density feasibility, and cadastral sanity screening.
+            Sentinel-2 10m multispectral baseline screening, biological sapling density feasibility, and cadastral boundary overlap verification.
           </p>
         </div>
 
@@ -93,6 +93,15 @@ export const ProjectVerificationCard = ({
               <RefreshCw className={`h-3.5 w-3.5 mr-1 ${isReauditing ? "animate-spin" : ""}`} /> Re-Audit
             </Button>
           )}
+        </div>
+      </div>
+
+      {/* Remote Sensing Physics Reality Callout */}
+      <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-900 dark:text-blue-200 flex items-start gap-2.5">
+        <Info className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
+        <div>
+          <strong className="font-semibold">Remote Sensing Physics Standard: </strong>
+          Optical satellites like Sentinel-2 (10m ground resolution = 100 m² per pixel) detect aggregate canopy reflectance (NDVI/NDRE) and vegetation vigor. Sub-meter saplings cannot be counted individually from orbit; physical living tree censuses are verified exclusively through geotagged field inspections and ground check-ins.
         </div>
       </div>
 

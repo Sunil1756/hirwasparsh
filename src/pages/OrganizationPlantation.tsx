@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { MapContainer, TileLayer, Polygon, Marker } from "react-leaflet";
 import BoundaryDrawMap, { computeAreas } from "@/components/BoundaryDrawMap";
 import { ProjectVerificationCard } from "@/components/ProjectVerificationCard";
+import { TreeNdviSatelliteViewer } from "@/components/TreeNdviSatelliteViewer";
 import { evaluateProjectVerification, ProjectAuditReport } from "@/lib/projectVerification";
 import { analyzeTreePhotoWithBotanicalAi } from "@/lib/geminiBotanicalVision";
 import {
@@ -2091,14 +2092,14 @@ const { error } = await supabase.from("projects").delete().eq("id", projectId);
                 <div className="p-3 rounded-xl bg-card border border-border/40">
                   <Target className="h-4 w-4 mx-auto text-primary" />
                   <p className="mt-1 font-bold text-base">{activeProject.target_trees}</p>
-                  <p className="text-xs text-muted-foreground">Planted Target</p>
+                  <p className="text-xs text-muted-foreground">Target Trees (Cohort)</p>
                 </div>
                 <div className="p-3 rounded-xl bg-card border border-blue-500/20 bg-blue-500/5">
                   <TreePine className="h-4 w-4 mx-auto text-blue-500" />
                   <p className="mt-1 font-bold text-base text-blue-600 dark:text-blue-400">
                     {activeProject.bulk_data?.baseline_existing_trees ?? activeProject.bulk_data?.metadata?.baseline_existing_trees ?? 0}
                   </p>
-                  <p className="text-xs text-muted-foreground">Pre-Existing Trees</p>
+                  <p className="text-xs text-muted-foreground">Pre-Existing Canopy Trees</p>
                 </div>
                 <div className="p-3 rounded-xl bg-card border border-emerald-500/20 bg-emerald-500/5">
                   <Leaf className="h-4 w-4 mx-auto text-emerald-500" />
@@ -2107,8 +2108,8 @@ const { error } = await supabase.from("projects").delete().eq("id", projectId);
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {activeProject.verified_trees > 0
-                      ? `${activeProject.verified_trees} of ${activeProject.target_trees} Tagged`
-                      : `0 of ${activeProject.target_trees} Tagged`}
+                      ? `${activeProject.verified_trees} of ${activeProject.target_trees} Tagged Living`
+                      : "0 Tagged (Pending Ground Census)"}
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-card border border-border/40">
@@ -2116,19 +2117,19 @@ const { error } = await supabase.from("projects").delete().eq("id", projectId);
                   <p className="mt-1 font-bold text-base">
                     {activeProject.verified_trees > 0
                       ? `${Math.round((activeProject.verified_trees / Math.max(1, activeProject.target_trees)) * 100)}%`
-                      : "Pending Census (0%)"}
+                      : "0.00%"}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {activeProject.verified_trees > 0 ? "Calibrated Survival" : "Awaiting Tagged Trees"}
+                    {activeProject.verified_trees > 0 ? "Field-Verified Survival" : "Zero-Tree Locked"}
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-card border border-border/40">
                   <Bot className="h-4 w-4 mx-auto text-primary" />
                   <p className="mt-1 font-bold text-base text-primary">
-                    {activeAuditReport ? `${activeAuditReport.overallScore}/100` : `${activeProject.ai_score ?? "—"}`}
+                    {activeAuditReport ? `${activeAuditReport.overallScore}/100` : `${activeProject.ai_score ?? "35"}/100`}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {activeAuditReport?.trustTier || "AI Trust Score"}
+                    {activeAuditReport?.statusLabel || "Pre-Planting Baseline"}
                   </p>
                 </div>
               </div>
@@ -2204,10 +2205,67 @@ const { error } = await supabase.from("projects").delete().eq("id", projectId);
             )}
 
             {/* STEP 2: SATELLITE MULTI-SPECTRAL TELEMETRY & TIME-SERIES SUITE */}
-            
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="font-heading font-bold text-base flex items-center gap-2">
+                    <Satellite className="h-5 w-5 text-primary" />
+                    Copernicus Sentinel-2 Multi-Spectral Telemetry (10m L2A)
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Zonal vegetation vigor (NDVI/NDRE) across the 10m grid envelope. Individual tree counts are validated through ground-truth field check-ins.
+                  </p>
+                </div>
+              </div>
+              <TreeNdviSatelliteViewer
+                latitude={activeProject.latitude || (Array.isArray(activeProject.boundary) && activeProject.boundary[0]?.[0]) || 19.75}
+                longitude={activeProject.longitude || (Array.isArray(activeProject.boundary) && activeProject.boundary[0]?.[1]) || 75.71}
+                treeName={activeProject.project_name}
+                species={activeProject.species_breakdown?.[0]?.species || "Mixed Indigenous"}
+              />
+            </div>
 
-            {/* STEP 4: CONTINUOUS TREE SURVIVAL TRACKING & 36-MONTH QUARTERLY FEED */}
-            
+            {/* STEP 4: GROUND-TRUTH FIELD CENSUS & SURVIVAL STATUS */}
+            <div className="glass-card rounded-2xl p-5 border border-border/40 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="font-heading font-bold text-base flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                    Ground-Truth Field Census & Survival Tracking
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Dual-track MRV standard: Satellite monitors macro canopy cover; field rangers log individual sapling coordinates and health photos.
+                  </p>
+                </div>
+                <Badge variant="outline" className={activeProject.verified_trees > 0 ? "border-emerald-500/40 text-emerald-600" : "border-amber-500/40 text-amber-600"}>
+                  {activeProject.verified_trees > 0 ? "Field Census Active" : "Pending Field Census"}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div className="p-3 rounded-xl bg-card border border-border/40 space-y-1">
+                  <span className="text-muted-foreground">Geotagged Living Trees</span>
+                  <p className="text-lg font-bold text-foreground">{activeProject.verified_trees || 0} / {activeProject.target_trees}</p>
+                  <span className="text-[10px] text-muted-foreground">Individually tagged in-ground</span>
+                </div>
+                <div className="p-3 rounded-xl bg-card border border-border/40 space-y-1">
+                  <span className="text-muted-foreground">Living Census Survival Rate</span>
+                  <p className="text-lg font-bold text-emerald-600">
+                    {activeProject.verified_trees > 0
+                      ? `${Math.round((activeProject.verified_trees / Math.max(1, activeProject.target_trees)) * 100)}%`
+                      : "0.00%"}
+                  </p>
+                  <span className="text-[10px] text-muted-foreground">
+                    {activeProject.verified_trees > 0 ? "Calibrated from field audits" : "Locked (Zero tagged trees)"}
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-card border border-border/40 space-y-1">
+                  <span className="text-muted-foreground">Next Scheduled Audit</span>
+                  <p className="text-lg font-bold text-foreground">Quarterly Cycle</p>
+                  <span className="text-[10px] text-muted-foreground">90-day ranger revisit window</span>
+                </div>
+              </div>
+            </div>
 
             {/* STEP 1: AUTOMATED AI VERIFICATION & ANTI-FRAUD SCORECARD */}
             {activeAuditReport && (

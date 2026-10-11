@@ -192,6 +192,15 @@ export function TreeNdviSatelliteViewer({
         </Button>
       </div>
 
+      {/* Remote Sensing Physics Notice */}
+      <div className="p-3 rounded-xl bg-muted/40 border border-border/40 text-[11px] text-muted-foreground flex items-start gap-2">
+        <Info className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+        <p>
+          <strong className="text-foreground">Scale Physics: </strong>
+          Sentinel-2 optical bands sample at 10m Ground Sample Distance (100 m² per pixel). Telemetry measures zonal canopy vigor of the parcel envelope; individual tree mortality and survival are authenticated via field geotags.
+        </p>
+      </div>
+
       {/* Main Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {/* Card 1: NDVI Primary Score */}
