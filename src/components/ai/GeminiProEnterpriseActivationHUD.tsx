@@ -129,7 +129,7 @@ export const GeminiProEnterpriseActivationHUD: React.FC<GeminiProEnterpriseActiv
           <span className="text-xs text-slate-400 block font-semibold">Dedicated Cloud TPU v5e Endpoint:</span>
           <div className="p-2 rounded bg-slate-950 border border-slate-800 text-[11px] font-mono text-emerald-400 flex items-center gap-1.5 truncate">
             <Server className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate">ep-gemini-2.5-pro-dedicated-tpu-v5e</span>
+            <span className="truncate">ep-gemini-3.1-pro-dedicated-tpu-v5e</span>
           </div>
           <span className="text-[10px] text-slate-500 font-mono">Region: asia-south1 (Mumbai) • Zero Rate Throttling</span>
         </div>

@@ -37,7 +37,7 @@ interface GreenEnlightenmentAiStudioHUDProps {
 export const GreenEnlightenmentAiStudioHUD: React.FC<GreenEnlightenmentAiStudioHUDProps> = ({
   className = "",
 }) => {
-  const [selectedEngine, setSelectedEngine] = useState<ModelExecutionEngine>("gemini-2.5-flash");
+  const [selectedEngine, setSelectedEngine] = useState<ModelExecutionEngine>("gemini-3.1-pro-preview");
   const [selectedSpecies, setSelectedSpecies] = useState<string>("Neem");
   const [inspecting, setInspecting] = useState<boolean>(false);
   const [report, setReport] = useState<CompleteAiInspectionReport | null>(null);
@@ -132,17 +132,17 @@ export const GreenEnlightenmentAiStudioHUD: React.FC<GreenEnlightenmentAiStudioH
               </button>
 
               <button
-                onClick={() => setSelectedEngine("gemini-2.5-pro")}
+                onClick={() => setSelectedEngine("gemini-3.1-pro-preview")}
                 data-testid="engine-pro-btn"
                 className={`w-full p-2.5 rounded-xl text-left border text-xs font-mono transition-all flex items-center justify-between ${
-                  selectedEngine === "gemini-2.5-pro"
+                  selectedEngine === "gemini-3.1-pro-preview"
                     ? "bg-purple-950/80 border-purple-400 text-white shadow-md shadow-purple-950/40"
                     : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
                 }`}
               >
                 <div className="flex items-center gap-2">
                   <Award className="w-3.5 h-3.5 text-purple-400" />
-                  <span>Gemini 2.5 Pro (Deep Reasoning)</span>
+                  <span>Gemini 3.1 Pro (Flagship Reasoning)</span>
                 </div>
                 <span className="text-[10px] text-purple-400">$1.25/1k</span>
               </button>

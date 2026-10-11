@@ -34,8 +34,8 @@ export interface GeminiProEnterpriseLicense {
 export interface GeminiProDeepReasoningReport {
   inspectionId: string;
   timestamp: string;
-  engine: "Google Gemini 2.5 Pro (Flagship Deep Reasoning)";
-  modelVersion: "gemini-2.5-pro-002";
+  engine: "Google Gemini 3.1 Pro (Flagship Deep Reasoning)" | "Google Gemini 2.5 Pro (Flagship Deep Reasoning)";
+  modelVersion: "gemini-3.1-pro-preview" | "gemini-2.5-pro-002" | "gemini-2.5-pro";
   confidenceScore: number;
   executionLatencyMs: number;
   tokenConsumption: {
@@ -213,8 +213,8 @@ Return strict JSON:
     const report: GeminiProDeepReasoningReport = {
       inspectionId,
       timestamp: new Date().toISOString(),
-      engine: "Google Gemini 2.5 Pro (Flagship Deep Reasoning)",
-      modelVersion: "gemini-2.5-pro-002",
+      engine: "Google Gemini 3.1 Pro (Flagship Deep Reasoning)",
+      modelVersion: "gemini-3.1-pro-preview",
       confidenceScore,
       executionLatencyMs: Math.round(performance.now() - startTime),
       tokenConsumption: {

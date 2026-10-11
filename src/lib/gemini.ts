@@ -96,12 +96,15 @@ export interface CanopyParcelAnalysisResult {
  * Candidate models tried in sequence for resilience against deprecation/availability changes
  */
 const CANDIDATE_MODELS = [
-  "gemini-3.5-flash-lite",
-  "gemini-3.1-flash-lite",
-  "gemini-flash-latest",
-  "gemini-3.8-flash",
-  "gemini-flash-lite-latest",
+  "gemini-3.1-pro-preview",
+  "gemini-2.5-pro",
   "gemini-pro-latest",
+  "gemini-3.1-flash-lite",
+  "gemini-2.5-flash",
+  "gemini-3.8-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-flash-latest",
+  "gemini-flash-lite-latest",
 ];
 
 /**

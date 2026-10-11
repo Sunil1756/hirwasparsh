@@ -18,7 +18,7 @@ export type BotanicalVitality = "thriving" | "healthy" | "moderate_stress" | "se
 
 export type GrowthStage = "sapling" | "young_tree" | "mature_tree" | "overmature";
 
-export type ModelExecutionEngine = "gemini-2.5-flash" | "gemini-2.5-pro" | "ge-biovision-sft-v1";
+export type ModelExecutionEngine = "gemini-3.1-pro-preview" | "gemini-2.5-pro" | "gemini-2.5-flash" | "gemini-3.8-flash" | "ge-biovision-sft-v1";
 
 export interface PathologyDiagnosis {
   diseaseOrPestDetected: boolean;
@@ -199,12 +199,12 @@ const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
 
 export class GreenEnlightenmentAiModelService {
   /**
-   * 1. RUN COMPREHENSIVE MULTIMODAL BOTANICAL INSPECTION (NOW POWERED BY GEMINI 3.8 FLASH)
+   * 1. RUN COMPREHENSIVE MULTIMODAL BOTANICAL INSPECTION (POWERED BY GEMINI 3.1 PRO)
    */
   public async executeFullInspection(
     imageSource: string | File | Blob,
     claimedSpeciesName: string = "Neem",
-    engine: ModelExecutionEngine = "gemini-3.8-flash" as ModelExecutionEngine
+    engine: ModelExecutionEngine = "gemini-3.1-pro-preview" as ModelExecutionEngine
   ): Promise<CompleteAiInspectionReport> {
     const startTime = performance.now();
     const dHash = await computePerceptualDHash(imageSource);
@@ -249,7 +249,16 @@ export class GreenEnlightenmentAiModelService {
     }
 
     try {
-      const candidateModels = ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
+      const candidateModels = [
+        "gemini-3.1-pro-preview",
+        "gemini-2.5-pro",
+        "gemini-pro-latest",
+        "gemini-3.1-flash-lite",
+        "gemini-2.5-flash",
+        "gemini-3.8-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-flash-latest"
+      ];
       let response: any = null;
       let lastModelError: any = null;
 
@@ -324,7 +333,7 @@ export class GreenEnlightenmentAiModelService {
       return {
         inspectionId,
         timestamp: new Date().toISOString(),
-        engineUsed: "gemini-3.8-flash" as ModelExecutionEngine,
+        engineUsed: "gemini-3.1-pro-preview" as ModelExecutionEngine,
         executionLatencyMs: Math.round(performance.now() - startTime),
         tokenCostUsd: 0.00015, // Approximate
         confidenceScore: 0.95,
