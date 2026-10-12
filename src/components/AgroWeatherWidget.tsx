@@ -42,7 +42,7 @@ export function AgroWeatherWidget({
 
   const loadData = async () => {
     try {
-      const res = await fetchAgroWeatherData(latitude, longitude);
+      const res = await fetchAgroWeatherData(latitude, longitude, locationName);
       setData(res);
       setLastUpdated(new Date());
     } catch (err) {
@@ -110,11 +110,21 @@ export function AgroWeatherWidget({
             <Cloud className="h-5 w-5 text-primary" />
             <h3 className="font-heading font-semibold text-lg">Agro-Climatic Intelligence</h3>
             <Badge variant="outline" className="text-xs bg-primary/5 border-primary/20">
-              Open-Meteo & Map My Crop
+              {data.agroClimaticZone?.name || "Agro-Climatic Zone"}
+            </Badge>
+            <Badge
+              variant="outline"
+              className={`text-xs ${
+                data.isLive
+                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                  : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+              }`}
+            >
+              {data.source}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Real-time telemetry for {locationName} ({latitude.toFixed(3)}°N, {longitude.toFixed(3)}°E) • Updated {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            Zone #{data.agroClimaticZone?.zoneNumber}: {data.agroClimaticZone?.climateClassification} • {locationName} ({latitude.toFixed(3)}°N, {longitude.toFixed(3)}°E) • Updated {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
           </p>
         </div>
 
@@ -203,15 +213,31 @@ export function AgroWeatherWidget({
         </div>
       </div>
 
+      {/* Offline Provenance Banner if fallback */}
+      {data.provenanceNote && (
+        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-800 dark:text-amber-200 mb-3 flex items-start gap-2.5">
+          <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <div>
+            <strong className="font-semibold">Meteorological Provenance Notice: </strong>
+            {data.provenanceNote}
+          </div>
+        </div>
+      )}
+
       {/* Advisory Banner */}
       <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/15 flex items-start gap-3 text-xs mb-3">
         <AlertCircle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-        <div>
-          <span className="font-semibold text-primary">Agro-Forestry Advisory: </span>
-          <span className="text-foreground/90">{data.irrigation_advisory}</span>
-          <span className="block mt-1 text-muted-foreground">
-            Plantation Suitability: <strong className="text-foreground">{data.planting_suitability}</strong>
-          </span>
+        <div className="space-y-1">
+          <div>
+            <span className="font-semibold text-primary">Agro-Forestry Advisory: </span>
+            <span className="text-foreground/90">{data.irrigation_advisory}</span>
+          </div>
+          <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-0.5">
+            <span>Plantation Suitability: <strong className="text-foreground">{data.planting_suitability}</strong></span>
+            {data.agroClimaticZone?.recommendedNativeSpecies && (
+              <span>Recommended Species: <strong className="text-foreground">{data.agroClimaticZone.recommendedNativeSpecies.join(", ")}</strong></span>
+            )}
+          </div>
         </div>
       </div>
 
