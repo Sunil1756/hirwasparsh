@@ -14,6 +14,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import exifr from "exifr";
 import { compressImage, sha256File } from "@/lib/imageProcessing";
 import { computeImageDHash, evaluatePhotoDuplicateFraud } from "@/lib/perceptualHash";
+import { evaluateDuplicatePhotoIntegrity } from "@/lib/antiFraudVerificationEngine";
 import { detectSpeciesAI, screenTreeImageWithAI, verifyTreeWithGeminiAI } from "@/lib/gemini";
 import { enqueueOfflineTree } from "@/lib/offlineSyncService";
 import { VernacularVoiceAssistant } from "@/components/VernacularVoiceAssistant";
@@ -387,20 +388,24 @@ const PlantTree = () => {
         console.warn("dHash generation fallback:", err);
       }
 
-      // Check against existing database tree perceptual hashes
+      // Check against existing database tree binary SHA-256 and perceptual hashes
       try {
-        const { data: existingTreeHashes } = await supabase
+        const { data: existingTrees } = await supabase
           .from("trees")
-          .select("id, tree_name, phash")
-          .not("phash", "is", null)
-          .limit(200);
+          .select("id, tree_name, phash, photo_hash")
+          .limit(300);
 
-        if (existingTreeHashes && dhashFingerprint) {
-          const fraudEval = evaluatePhotoDuplicateFraud(dhashFingerprint, existingTreeHashes as any);
-          if (fraudEval.isDuplicate && fraudEval.riskLevel === "critical_fraud") {
+        if (existingTrees) {
+          const dupEval = evaluateDuplicatePhotoIntegrity({
+            candidateSha256: photoHash,
+            candidateDhash: dhashFingerprint || null,
+            existingRecords: existingTrees as any,
+          });
+
+          if (dupEval.isExactDuplicate || (dupEval.isPerceptualDuplicate && dupEval.riskLevel === "critical_fraud")) {
             toast({
               title: "❌ Duplicate Photo Fraud Blocked",
-              description: fraudEval.reason || "This exact tree photo was already registered in the database.",
+              description: dupEval.reason || "This tree photo was already registered in the platform database.",
               variant: "destructive",
             });
             setIsSubmitting(false);
@@ -409,7 +414,7 @@ const PlantTree = () => {
           }
         }
       } catch (phashErr) {
-        console.warn("Perceptual hash collision query warning:", phashErr);
+        console.warn("Duplicate hash collision query warning:", phashErr);
       }
 
       // Offline mode handling for rural/remote areas
