@@ -26,14 +26,15 @@ import {
   StatusTransitionAuditRecord,
   ProjectSurvivalRateMetrics,
 } from "@/types/coreDatabase";
+import { calculateScientificSurvivalMetrics } from "@/lib/scientificSurvivalCalculation";
 
 
 // In-memory fallback store for offline/test execution
 const inMemoryTreeStatusCache = new Map<string, { status: SurvivalStatus; aiSuggested?: string; aiConfidence?: number; aiRationale?: string }>();
 
-function withTimeout<T>(promise: Promise<T>, ms = 250): Promise<T | null> {
+function withTimeout<T>(promise: PromiseLike<T>, ms = 250): Promise<T | null> {
   return Promise.race([
-    promise,
+    Promise.resolve(promise),
     new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
   ]);
 }
@@ -143,7 +144,7 @@ export const survivalStatusService = {
       // 1. Fetch current tree record with timeout
       let tree: any = null;
       try {
-        const res = await withTimeout(
+        const res = await withTimeout<any>(
           supabase
             .from("trees")
             .select("id, survival_status, status, project_id")
@@ -258,7 +259,7 @@ export const survivalStatusService = {
       // 1. Fetch current tree record with timeout
       let tree: any = null;
       try {
-        const res = await withTimeout(
+        const res = await withTimeout<any>(
           supabase
             .from("trees")
             .select("id, survival_status, status, height_cm")
@@ -309,7 +310,7 @@ export const survivalStatusService = {
 
       // 3. Write immutable record to tree_status_audit_log
       try {
-        await withTimeout(
+        await withTimeout<any>(
           supabase.from("tree_status_audit_log").insert({
             tree_id: input.treeId,
             previous_status: previousStatus,
@@ -446,10 +447,15 @@ export const survivalStatusService = {
           deadCount: 0,
           unknownCount: 0,
           needsReviewCount: 0,
-          survivalRatePct: 100,
-          retentionRatePct: 100,
+          survivalRatePct: 0,
+          retentionRatePct: 0,
           verifiedCount: 0,
           pendingReviewCount: 0,
+          observedSurvivalRateAssessedPct: null,
+          confirmedAliveShareOfPlantedPct: null,
+          assessmentCoveragePct: 0,
+          provenanceSummary: "0 registered trees in project cohort (Survival rate unassessed).",
+          isAssessed: false,
         };
       }
 
@@ -473,9 +479,20 @@ export const survivalStatusService = {
         if (t.status_verified_at) verified++;
       }
 
-      const surveyedTrees = Math.max(1, totalTrees - unknown);
-      const survivalRatePct = Math.round((alive / surveyedTrees) * 1000) / 10;
-      const retentionRatePct = Math.round(((alive + stressed + damaged) / surveyedTrees) * 1000) / 10;
+      // Calculate scientifically rigorous survival metrics (Document 1 standard)
+      const scientificMetrics = calculateScientificSurvivalMetrics({
+        totalPlanted: totalTrees,
+        confirmedAlive: alive,
+        confirmedDead: dead,
+        stressedOrDamaged: stressed + damaged,
+        notInspected: unknown + needsReview,
+      });
+
+      const assessedTrees = alive + dead + stressed + damaged;
+      const effectiveSurvivalRate = scientificMetrics.observedSurvivalRateAssessedPct ?? 0;
+      const retentionRatePct = assessedTrees > 0
+        ? Math.round(((alive + stressed + damaged) / assessedTrees) * 1000) / 10
+        : 0;
 
       return {
         totalTrees,
@@ -485,10 +502,15 @@ export const survivalStatusService = {
         deadCount: dead,
         unknownCount: unknown,
         needsReviewCount: needsReview,
-        survivalRatePct,
+        survivalRatePct: effectiveSurvivalRate,
         retentionRatePct,
         verifiedCount: verified,
         pendingReviewCount: needsReview,
+        observedSurvivalRateAssessedPct: scientificMetrics.observedSurvivalRateAssessedPct,
+        confirmedAliveShareOfPlantedPct: scientificMetrics.confirmedAliveShareOfPlantedPct,
+        assessmentCoveragePct: scientificMetrics.assessmentCoveragePct,
+        provenanceSummary: scientificMetrics.provenanceSummary,
+        isAssessed: assessedTrees > 0,
       };
     } catch (err) {
       console.warn("Error calculating survival metrics:", err);
@@ -500,10 +522,15 @@ export const survivalStatusService = {
         deadCount: 0,
         unknownCount: 0,
         needsReviewCount: 0,
-        survivalRatePct: 100,
-        retentionRatePct: 100,
+        survivalRatePct: 0,
+        retentionRatePct: 0,
         verifiedCount: 0,
         pendingReviewCount: 0,
+        observedSurvivalRateAssessedPct: null,
+        confirmedAliveShareOfPlantedPct: null,
+        assessmentCoveragePct: 0,
+        provenanceSummary: "Error fetching survival observation data.",
+        isAssessed: false,
       };
     }
   },

@@ -20,6 +20,7 @@ import { VernacularVoiceAssistant } from "@/components/VernacularVoiceAssistant"
 import { validateGpsCoordinates, syncCoordinateSatelliteTelemetry } from "@/lib/geospatialSatelliteService";
 import { GpsLocationCapture } from "@/components/GpsLocationCapture";
 import { useGpsRegistration } from "@/hooks/useGpsRegistration";
+import { generateCanonicalTreeCode, validateTreeGpsCoordinates } from "@/lib/treeIdentityService";
 
 import { TreeIdCertificateCard } from "@/components/TreeIdCertificateCard";
 
@@ -346,13 +347,19 @@ const PlantTree = () => {
       return;
     }
     if (!latitude || !longitude) {
-      toast({ title: "Location required", variant: "destructive" });
+      toast({ title: "Location required", description: "GPS coordinates must be acquired before registration.", variant: "destructive" });
       return;
     }
-    if (gpsAccuracy != null && gpsAccuracy > 12) {
+
+    const gpsValidation = validateTreeGpsCoordinates({
+      latitude,
+      longitude,
+      accuracyMeters: gpsAccuracy,
+    });
+    if (!gpsValidation.isValid) {
       toast({
-        title: "GPS Signal Too Weak",
-        description: `Accuracy is ${Math.round(gpsAccuracy)}m. Move into the open (away from concrete/canopy) to lock coordinates.`,
+        title: "GPS Acquisition Rejected",
+        description: gpsValidation.error || "GPS accuracy is outside acceptable threshold (>50m).",
         variant: "destructive",
       });
       return;
@@ -435,8 +442,22 @@ const PlantTree = () => {
         uploadSelfie(selfiePhoto, `${authUserId}/${ts}_selfie.jpg`),
       ]);
 
-      setSubmitStage("Allocating Unique Green Enlightenment Tree Code (GE-YYYY-NNNNNN)...");
-      const nextTreeCode = await fetchNextTreeCode();
+      setSubmitStage("Allocating Canonical Tree Code (GE-{ORG}-{PROJ}-{SERIAL})...");
+      let sequenceNumber = 1;
+      try {
+        const { count } = await supabase
+          .from("trees")
+          .select("id", { count: "exact", head: true });
+        sequenceNumber = (count || 0) + 1;
+      } catch {
+        sequenceNumber = Date.now() % 100000;
+      }
+
+      const nextTreeCode = generateCanonicalTreeCode({
+        orgCode: profile?.org_id ? profile.org_id.substring(0, 4) : "MAH",
+        projectCode: projectId ? projectId.substring(0, 4) : "P01",
+        sequenceNumber,
+      });
 
       setSubmitStage("Registering on Data Spine...");
       const { data: tree, error: insertError } = await supabase

@@ -709,15 +709,23 @@ export function SatelliteTreeSurvivalAssurance({
 
             {/* Key Telemetry KPI Counters */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 mt-5 pt-4 border-t border-emerald-500/20">
-              <div className="p-4 rounded-2xl bg-card border border-emerald-500/30 shadow-sm space-y-1">
+              <div className={`p-4 rounded-2xl bg-card border shadow-sm space-y-1 ${
+                bulkSummary.hybridCalibratedSurvivalRate > 0 ? "border-emerald-500/30" : "border-amber-500/30"
+              }`}>
                 <div className="text-xs text-muted-foreground font-medium flex items-center gap-1">
-                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+                  <ShieldCheck className={`h-3.5 w-3.5 ${bulkSummary.hybridCalibratedSurvivalRate > 0 ? "text-emerald-500" : "text-amber-500"}`} />
                   Hybrid Calibrated Survival
                 </div>
-                <div className="font-heading font-extrabold text-3xl text-emerald-600 dark:text-emerald-400">
-                  {bulkSummary.hybridCalibratedSurvivalRate}%
-                </div>
-                <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-0.5">
+                {bulkSummary.hybridCalibratedSurvivalRate > 0 ? (
+                  <div className="font-heading font-extrabold text-3xl text-emerald-600 dark:text-emerald-400">
+                    {bulkSummary.hybridCalibratedSurvivalRate}%
+                  </div>
+                ) : (
+                  <div className="font-heading font-bold text-xl text-amber-600 dark:text-amber-400">
+                    Pending Census
+                  </div>
+                )}
+                <div className="text-[11px] text-muted-foreground font-semibold flex items-center gap-0.5">
                   <ArrowUpRight className="h-3 w-3" />
                   ΔNDVI: {bulkSummary.deltaNdvi >= 0 ? `+${bulkSummary.deltaNdvi}` : bulkSummary.deltaNdvi}
                 </div>

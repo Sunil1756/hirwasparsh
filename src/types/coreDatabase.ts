@@ -570,6 +570,12 @@ export interface ProjectSurvivalRateMetrics {
   retentionRatePct: number; // (ALIVE + STRESSED + DAMAGED) / (total - UNKNOWN) * 100
   verifiedCount: number;
   pendingReviewCount: number;
+  // Phase 2 Scientific MRV Extensions
+  observedSurvivalRateAssessedPct?: number | null;
+  confirmedAliveShareOfPlantedPct?: number | null;
+  assessmentCoveragePct?: number;
+  provenanceSummary?: string;
+  isAssessed?: boolean;
 }
 
 // 9. Monitoring Task

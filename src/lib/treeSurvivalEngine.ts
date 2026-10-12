@@ -801,7 +801,7 @@ export function computeBulkParcelSurvival(params: {
   latestNdvi?: number;
   satellitePassCount?: number;
   lastPassDate?: string | null;
-  groundSampleRate?: number; // 0 - 100 from verified ground check sample
+  groundSampleRate?: number; // 0 - 100 from verified ground check sample (0 = uninspected)
 }): BulkParcelSurvivalSummary {
   const {
     plotId,
@@ -809,13 +809,13 @@ export function computeBulkParcelSurvival(params: {
     district,
     targetTrees,
     baselineNdvi = 0.25,
-    latestNdvi = 0.72,
+    latestNdvi = 0,
     satellitePassCount = 0,
     lastPassDate = null,
-    groundSampleRate = 94.0,
+    groundSampleRate = 0,
   } = params;
 
-  const deltaNdvi = Math.round((latestNdvi - baselineNdvi) * 100) / 100;
+  const deltaNdvi = latestNdvi > 0 ? Math.round((latestNdvi - baselineNdvi) * 100) / 100 : 0;
   let ndviTrendStatus: BulkParcelSurvivalSummary["ndviTrendStatus"] = "steady_canopy";
   let fieldAuditRecommendation: BulkParcelSurvivalSummary["fieldAuditRecommendation"] = "routine_quarterly_sample";
 
@@ -831,11 +831,12 @@ export function computeBulkParcelSurvival(params: {
   }
 
   // Hybrid survival rate = Ground Sample % * NDVI Trend Calibration
+  // Strict MRV rule: Cannot fabricate a survival rate if ground sample is 0% (uninspected)
   let trendMultiplier = 1.0;
   if (ndviTrendStatus === "accelerating_expansion") trendMultiplier = 1.02;
   else if (ndviTrendStatus === "moisture_stress_alert") trendMultiplier = 0.88;
 
-  const hybridRate = targetTrees > 0
+  const hybridRate = targetTrees > 0 && groundSampleRate > 0
     ? Math.min(100, Math.max(0, Math.round(groundSampleRate * trendMultiplier * 10) / 10))
     : 0;
 
