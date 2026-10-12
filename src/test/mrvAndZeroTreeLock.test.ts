@@ -55,7 +55,29 @@ describe("Project Verification & Trust Score Engine", () => {
   ];
 
   it("caps pre-planting projects with verified botanical photos at honest 55/100 (never 100/100)", () => {
-    const report = evaluateProjectVerification({
+    // 1. With genuine satellite telemetry ingested
+    const reportWithSat = evaluateProjectVerification({
+      projectName: "Solapur Bio-Shield Agroforestry",
+      organizationName: "Solapur Farmers FPO",
+      organizationType: "ngo",
+      locationName: "Solapur, Maharashtra",
+      boundary: testBoundary,
+      targetTrees: 1000,
+      speciesList: ["Neem", "Karanj"],
+      evidenceCount: 1,
+      isAiVerifiedTreePhoto: true,
+      existingProjects: [],
+      currentProjectId: "solapur-proj-01",
+      realBaselineNdvi: 0.22,
+    });
+
+    expect(reportWithSat.overallScore).toBeLessThanOrEqual(55);
+    expect(reportWithSat.overallScore).toBeGreaterThanOrEqual(50);
+    expect(reportWithSat.isSatelliteVerified).toBe(true);
+    expect(reportWithSat.statusLabel).toBe("Pre-Planting Baseline Approved");
+
+    // 2. When satellite baseline is pending ingestion (honest uninflated score)
+    const reportPendingSat = evaluateProjectVerification({
       projectName: "Solapur Bio-Shield Agroforestry",
       organizationName: "Solapur Farmers FPO",
       organizationType: "ngo",
@@ -69,9 +91,10 @@ describe("Project Verification & Trust Score Engine", () => {
       currentProjectId: "solapur-proj-01",
     });
 
-    expect(report.overallScore).toBeLessThanOrEqual(55);
-    expect(report.overallScore).toBeGreaterThanOrEqual(50);
-    expect(report.statusLabel).toBe("Pre-Planting Baseline Approved");
+    expect(reportPendingSat.overallScore).toBeLessThanOrEqual(50);
+    expect(reportPendingSat.overallScore).toBeGreaterThanOrEqual(45);
+    expect(reportPendingSat.isSatelliteVerified).toBe(false);
+    expect(reportPendingSat.statusLabel).toBe("Pre-Planting Baseline Approved");
   });
 
   it("assigns 30-40 score and Evidence Required status when tree photo is unverified", () => {

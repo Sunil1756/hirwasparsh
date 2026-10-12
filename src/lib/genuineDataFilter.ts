@@ -33,12 +33,15 @@ export const KNOWN_TEST_ORG_IDS = new Set<string>([
 export function isGenuineProject(project: any): boolean {
   if (!project || !project.id) return false;
   if (KNOWN_TEST_PROJECT_IDS.has(project.id)) return false;
-  if (project.is_mock === true || project.status === "deleted" || project.status === "archived") return false;
+  if (project.is_mock === true || project.is_demo === true || project.status === "deleted" || project.status === "archived") return false;
   if (project.org_id && KNOWN_TEST_ORG_IDS.has(project.org_id)) return false;
   if (project.organization_id && KNOWN_TEST_ORG_IDS.has(project.organization_id)) return false;
 
   // Reject synthetic placeholder names with zero geometry or invalid coords
   const name = String(project.project_name || project.name || "").toLowerCase();
+  if (name.includes("[demo]") || name.startsWith("demo:") || name.startsWith("demo -")) {
+    return false;
+  }
   if (name.includes("sahyadri bio-reserve agroforestry & carbon pilot") && (!project.boundary || project.boundary.length === 0)) {
     return false;
   }
@@ -54,7 +57,7 @@ export function isGenuineTree(tree: any): boolean {
   if (KNOWN_TEST_TREE_IDS.has(tree.id)) return false;
   if (tree.project_id && KNOWN_TEST_PROJECT_IDS.has(tree.project_id)) return false;
   if (tree.org_id && KNOWN_TEST_ORG_IDS.has(tree.org_id)) return false;
-  if (tree.is_mock === true || tree.admin_status === "rejected") return false;
+  if (tree.is_mock === true || tree.is_demo === true || tree.admin_status === "rejected") return false;
 
   const code = String(tree.tree_code || "").toLowerCase();
   if (code.startsWith("mock-") || code.startsWith("demo-")) return false;

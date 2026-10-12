@@ -133,7 +133,10 @@ export const ProjectVerificationCard = ({
               <span className="text-[10px] text-muted-foreground block -mt-1">/100</span>
             </div>
           </div>
-          <span className="text-xs font-bold mt-2">Project Trust Score</span>
+          <span className="text-xs font-bold mt-2">{auditReport.metricName || "Pre-Planting Readiness Score"}</span>
+          <span className="text-[10px] text-muted-foreground block text-center px-1">
+            {auditReport.provenanceBadge || "Pre-Planting Screening"}
+          </span>
         </div>
 
         {/* Telemetry Metrics */}
@@ -146,8 +149,17 @@ export const ProjectVerificationCard = ({
 
           <div className="p-3 rounded-xl bg-background/80 border border-border/40">
             <span className="text-[11px] text-muted-foreground block">Pre-Plant Baseline NDVI</span>
-            <strong className="text-sm font-bold text-primary">{auditReport.baselineNdvi} (t₀)</strong>
-            <span className="text-[10px] text-muted-foreground block mt-0.5">Sentinel-2 Reflectance</span>
+            {auditReport.isSatelliteVerified ? (
+              <>
+                <strong className="text-sm font-bold text-primary">{auditReport.baselineNdvi} (t₀)</strong>
+                <span className="text-[10px] text-emerald-600 block mt-0.5">Copernicus Sentinel-2</span>
+              </>
+            ) : (
+              <>
+                <strong className="text-sm font-semibold text-amber-600">Pending Overpass</strong>
+                <span className="text-[10px] text-muted-foreground block mt-0.5">Sentinel-2 Ingestion Pending</span>
+              </>
+            )}
           </div>
 
           <div className="p-3 rounded-xl bg-background/80 border border-border/40 col-span-2 sm:col-span-1">

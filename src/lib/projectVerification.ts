@@ -31,6 +31,9 @@ export interface ProjectAuditReport {
   hectares: number;
   treesPerAcre: number;
   baselineNdvi: number;
+  isSatelliteVerified: boolean;
+  provenanceBadge: string;
+  metricName: string;
   maxFeasibleTrees: number;
   carbonEligibility: "High (Prime)" | "Moderate (Verified)" | "Conditional" | "Ineligible";
   checks: DiagnosticCheckResult[];
@@ -278,68 +281,87 @@ export function auditCadastralBoundaryOverlap(params: {
 /**
  * 4. SENTINEL-2 PRE-PLANTATION BASELINE NDVI (t0) AUDIT
  */
+/**
+ * 4. SENTINEL-2 PRE-PLANTATION BASELINE NDVI (t0) AUDIT
+ * Strictly requires genuine satellite telemetry or marks check as pending.
+ * Zero simulated coordinate hashes (Math.sin purged per Phase 1 Data Integrity Rule).
+ */
 export function auditBaselineNdviSpectral(params: {
   boundary: [number, number][];
   speciesList: string[];
-}): { check: DiagnosticCheckResult; baselineNdvi: number; carbonEligibility: "High (Prime)" | "Moderate (Verified)" | "Conditional" | "Ineligible" } {
-  const { boundary, speciesList } = params;
+  realBaselineNdvi?: number | null;
+}): {
+  check: DiagnosticCheckResult;
+  baselineNdvi: number;
+  isSatelliteVerified: boolean;
+  carbonEligibility: "High (Prime)" | "Moderate (Verified)" | "Conditional" | "Pending Overpass" | "Ineligible";
+} {
+  const { realBaselineNdvi } = params;
 
-  // Synthesize realistic satellite reflectance for target coordinates
-  const lats = boundary.map((p) => p[0]);
-  const lngs = boundary.map((p) => p[1]);
-  const avgLat = lats.length ? lats.reduce((a, b) => a + b, 0) / lats.length : 19.75;
-  const avgLng = lngs.length ? lngs.reduce((a, b) => a + b, 0) / lngs.length : 75.71;
+  // If real satellite baseline is missing, report honest pending state
+  if (realBaselineNdvi === undefined || realBaselineNdvi === null) {
+    return {
+      check: {
+        id: "baseline_ndvi",
+        name: "Copernicus Sentinel-2 Baseline (t0)",
+        status: "warn",
+        score: 40,
+        title: "Sentinel-2 Telemetry Pending Ingestion",
+        details:
+          "Pre-planting multispectral baseline has not yet been acquired from Copernicus Sentinel-2 overpasses. Baseline NDVI will be populated once satellite telemetry is fetched.",
+        metric: "Baseline NDVI: Pending Satellite Ingestion",
+      },
+      baselineNdvi: 0,
+      isSatelliteVerified: false,
+      carbonEligibility: "Pending Overpass",
+    };
+  }
 
-  // Deterministic baseline NDVI hash based on coordinates
-  const coordHash = Math.abs(Math.sin(avgLat * 12.9898 + avgLng * 78.233) * 43758.5453) % 1;
-  // Baseline NDVI for open/degraded agro-land is typically 0.18 - 0.38
-  const baselineNdvi = Number((0.18 + coordHash * 0.18).toFixed(2));
-
-  let carbonEligibility: "High (Prime)" | "Moderate (Verified)" | "Conditional" | "Ineligible" = "High (Prime)";
+  const baselineNdvi = Number(realBaselineNdvi.toFixed(2));
+  let carbonEligibility: "High (Prime)" | "Moderate (Verified)" | "Conditional" | "Pending Overpass" | "Ineligible" = "High (Prime)";
   let checkResult: DiagnosticCheckResult;
 
   if (baselineNdvi < 0.25) {
-    // Degraded barren land = Prime additionality for carbon credits
     carbonEligibility = "High (Prime)";
     checkResult = {
       id: "baseline_ndvi",
-      name: "Pre-Planting Baseline NDVI (t0)",
+      name: "Copernicus Sentinel-2 Baseline (t0)",
       status: "pass",
       score: 95,
-      title: "Prime Additionality Candidate (Degraded Soil)",
-      details: `Baseline reflectance NDVI = ${baselineNdvi}. Low initial canopy confirms genuine degraded land, meeting Gold Standard / Verra additionality criteria for carbon sequestration.`,
-      metric: `Baseline NDVI: ${baselineNdvi} (Degraded)`,
+      title: "Fallow / Degraded Terrain Baseline",
+      details: `Sentinel-2 surface reflectance baseline NDVI = ${baselineNdvi}. Confirms degraded/fallow soil profile suitable for new afforestation additionality.`,
+      metric: `Baseline NDVI: ${baselineNdvi} (Satellite Verified)`,
     };
   } else if (baselineNdvi <= 0.45) {
     carbonEligibility = "Moderate (Verified)";
     checkResult = {
       id: "baseline_ndvi",
-      name: "Pre-Planting Baseline NDVI (t0)",
+      name: "Copernicus Sentinel-2 Baseline (t0)",
       status: "pass",
-      score: 88,
-      title: "Verified Agro-Climatic Baseline",
-      details: `Baseline NDVI = ${baselineNdvi}. Reflects scrubland/fallow agricultural terrain. Growth delta (ΔNDVI) will be tracked quarterly via Sentinel-2 satellite.`,
-      metric: `Baseline NDVI: ${baselineNdvi} (Scrubland)`,
+      score: 85,
+      title: "Scrubland / Sparse Canopy Baseline",
+      details: `Sentinel-2 baseline NDVI = ${baselineNdvi}. Indicates sparse pioneer or scrub foliage. Future quarterly growth delta (ΔNDVI) will be monitored.`,
+      metric: `Baseline NDVI: ${baselineNdvi} (Satellite Verified)`,
     };
   } else {
-    // Already dense forest
     carbonEligibility = "Conditional";
     checkResult = {
       id: "baseline_ndvi",
-      name: "Pre-Planting Baseline NDVI (t0)",
+      name: "Copernicus Sentinel-2 Baseline (t0)",
       status: "warn",
       score: 60,
-      title: "High Existing Canopy Detected",
-      details: `Baseline NDVI = ${baselineNdvi}. Indicates existing tree cover. Ground evidence required to verify new sapling additionality vs existing canopy.`,
+      title: "Substantial Existing Canopy Detected",
+      details: `Sentinel-2 baseline NDVI = ${baselineNdvi}. Substantial existing tree canopy present. Ground photo audit required to verify net-new sapling additionality.`,
       metric: `Baseline NDVI: ${baselineNdvi} (Dense Existing)`,
     };
   }
 
-  return { check: checkResult, baselineNdvi, carbonEligibility };
+  return { check: checkResult, baselineNdvi, isSatelliteVerified: true, carbonEligibility };
 }
 
 /**
- * MASTER EVALUATOR: Runs all 4 verification tiers and calculates Consolidated Project Trust Score
+ * MASTER EVALUATOR: Runs all verification tiers and calculates Pre-Planting Readiness Score
+ * Purely evidence-driven, zero fabricated metrics.
  */
 export function evaluateProjectVerification(params: {
   projectName: string;
@@ -353,6 +375,7 @@ export function evaluateProjectVerification(params: {
   isAiVerifiedTreePhoto?: boolean;
   existingProjects?: Array<{ id: string; project_name: string; boundary: any }>;
   currentProjectId?: string;
+  realBaselineNdvi?: number | null;
 }): ProjectAuditReport {
   const {
     projectName,
@@ -366,6 +389,7 @@ export function evaluateProjectVerification(params: {
     isAiVerifiedTreePhoto = false,
     existingProjects = [],
     currentProjectId,
+    realBaselineNdvi,
   } = params;
 
   // Calculate polygon area
@@ -387,7 +411,12 @@ export function evaluateProjectVerification(params: {
   const check1 = auditBiologicalFeasibility({ targetTrees, acres, speciesList });
   const check2 = auditGeospatialLandSanity({ boundary, locationName });
   const check3 = auditCadastralBoundaryOverlap({ currentBoundary: boundary, currentProjectId, existingProjects });
-  const { check: check4, baselineNdvi, carbonEligibility } = auditBaselineNdviSpectral({ boundary, speciesList });
+  const check4Result = auditBaselineNdviSpectral({ boundary, speciesList, realBaselineNdvi });
+
+  const check4 = check4Result.check;
+  const baselineNdvi = check4Result.baselineNdvi;
+  const carbonEligibility = check4Result.carbonEligibility;
+  const isSatelliteVerified = check4Result.isSatelliteVerified;
 
   const checks = [check1, check2, check3, check4];
 
@@ -400,7 +429,6 @@ export function evaluateProjectVerification(params: {
   );
 
   const hasCriticalFail = checks.some((c) => c.status === "fail");
-  const hasWarning = checks.some((c) => c.status === "warn");
 
   // HONEST PRE-PLANTING SCORE ENFORCEMENT:
   // A newly registered project that has not yet performed in-ground planting can NEVER be 100/100.
@@ -417,11 +445,10 @@ export function evaluateProjectVerification(params: {
     statusDescription = "Project parameters failed critical biological density or territorial sanity checks.";
   } else if (evidenceCount > 0 && isAiVerifiedTreePhoto) {
     // Valid AI-verified field botanical evidence attached:
-    // Awards pre-planting readiness score capped at 55/100 until trees are physically tagged in-ground.
     overallScore = Math.min(55, Math.round(feasibilityScore * 0.55));
     status = "submitted";
     statusLabel = "Pre-Planting Baseline Approved";
-    statusDescription = "Cadastral boundary and botanical specimen evidence verified by Gemini AI. In-ground GPS tree tagging required for active carbon accretion.";
+    statusDescription = "Cadastral boundary and botanical specimen evidence verified. In-ground GPS tree tagging required for active carbon accretion.";
   } else if (evidenceCount > 0 && !isAiVerifiedTreePhoto) {
     // Photo attached but NOT verified as living tree / plant:
     overallScore = 30;
@@ -436,10 +463,16 @@ export function evaluateProjectVerification(params: {
     statusDescription = "Geospatial screening passed. Upload field photographs to verify active plantation site.";
   }
 
+  const provenanceBadge = isSatelliteVerified
+    ? "Satellite Ingested (Copernicus Sentinel-2 L2A)"
+    : "Pre-Planting Screening (Pending Satellite Overpass)";
+
+  const metricName = "Pre-Planting Readiness Score";
+
   // Formatted human-readable audit report
   const formattedReport =
     `====================================================================\n` +
-    `GREEN ENLIGHTENMENT INTELLIGENCE — PROJECT VERIFICATION AUDIT\n` +
+    `GREEN ENLIGHTENMENT INTELLIGENCE — PRE-PLANTING SCREENING AUDIT\n` +
     `====================================================================\n` +
     `• Project: ${projectName || "Unnamed Project"}\n` +
     `• Organization: ${organizationName} (${organizationType.toUpperCase()})\n` +
@@ -447,6 +480,7 @@ export function evaluateProjectVerification(params: {
     `• Parcel Area: ${acres} Acres (${hectares} Hectares)\n` +
     `• Target Trees: ${targetTrees.toLocaleString()} | Density: ${treesPerAcre} trees/acre\n` +
     `• Species Diversity: ${speciesList.join(", ") || "Mixed Native"}\n` +
+    `• Data Provenance: ${provenanceBadge}\n` +
     `--------------------------------------------------------------------\n` +
     `DIAGNOSTIC AUDIT RESULTS:\n` +
     `1. [${check1.status.toUpperCase()}] ${check1.name}: ${check1.title} (${check1.metric})\n` +
@@ -454,9 +488,9 @@ export function evaluateProjectVerification(params: {
     `3. [${check3.status.toUpperCase()}] ${check3.name}: ${check3.title} (${check3.metric})\n` +
     `4. [${check4.status.toUpperCase()}] ${check4.name}: ${check4.title} (${check4.metric})\n` +
     `--------------------------------------------------------------------\n` +
-    `OVERALL TRUST SCORE: ${overallScore}/100 [STATUS: ${statusLabel.toUpperCase()}]\n` +
+    `PRE-PLANTING READINESS SCORE: ${overallScore}/100 [STATUS: ${statusLabel.toUpperCase()}]\n` +
     `CARBON SEQUESTRATION ELIGIBILITY: ${carbonEligibility}\n` +
-    `ESTIMATED ANNUAL CO2 REMOVAL: ${(targetTrees * 0.022).toFixed(1)} MT CO2e / Year\n` +
+    `ESTIMATED ANNUAL CO2 REMOVAL: ${(targetTrees * 0.022).toFixed(1)} MT CO2e / Year (Theoretical Model)\n` +
     `====================================================================`;
 
   return {
@@ -468,6 +502,9 @@ export function evaluateProjectVerification(params: {
     hectares,
     treesPerAcre,
     baselineNdvi,
+    isSatelliteVerified,
+    provenanceBadge,
+    metricName,
     maxFeasibleTrees: Math.round(acres * 600),
     carbonEligibility,
     checks,

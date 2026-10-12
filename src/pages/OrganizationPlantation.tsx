@@ -35,6 +35,7 @@ import { fetchRealSentinel2Telemetry } from "@/lib/remoteSensing";
 import { isProjectOwner, canEditProject, getProjectAccessBadge } from "@/lib/projectOwnership";
 import { isGenuineProject } from "@/lib/genuineDataFilter";
 import { calculateCarbonLedgerMetrics, CarbonAuditResult } from "@/lib/carbonLedger";
+import { validateProjectCreation, checkDuplicateProject } from "@/lib/projectValidation";
 import "leaflet/dist/leaflet.css";
 
 type Project = {
@@ -744,6 +745,54 @@ const { data, error } = await supabase
       ? boundary.reduce((a, p) => [a[0] + p[0] / boundary.length, a[1] + p[1] / boundary.length], [0, 0])
       : [MH_CENTER[0], MH_CENTER[1]];
 
+    const parsedTrees = Number(targetTrees);
+    const boundaryPoints = boundary.map(([lat, lng]) => ({ lat, lng }));
+
+    // 1. Canonical Project Validation Check (Phase 1 Data Integrity Rule)
+    const creationValidation = validateProjectCreation({
+      name: projectName.trim(),
+      target_trees: parsedTrees,
+      project_type: orgType,
+      location_name: location.trim(),
+      centroid_latitude: centroid[0],
+      centroid_longitude: centroid[1],
+      species_list: speciesText.split(",").map((s) => s.trim()).filter(Boolean),
+      start_date: plantationDate?.toISOString().split("T")[0],
+      boundary: boundaryPoints.length >= 3 ? boundaryPoints : undefined,
+    });
+
+    if (!creationValidation.isValid) {
+      toast({
+        title: "Validation Error ❌",
+        description: creationValidation.errors.join("; "),
+        variant: "destructive",
+      });
+      setSaving(false);
+      return;
+    }
+
+    // 2. Prevent unintentional duplicate projects
+    const dupCheck = checkDuplicateProject({
+      projectName: projectName.trim(),
+      centroidLat: centroid[0],
+      centroidLng: centroid[1],
+      existingProjects: projects,
+    });
+
+    if (dupCheck.isDuplicate) {
+      toast({
+        title: "Duplicate Project Detected ⚠️",
+        description: dupCheck.duplicateReason,
+        variant: "destructive",
+      });
+      setSaving(false);
+      return;
+    }
+
+    const targetTreesNum = parsedTrees;
+    const baselineTreesNum = Number(existingTrees) || 0;
+    const totalCanopyNum = targetTreesNum + baselineTreesNum;
+
     // Run Automated Step 1 AI Verification immediately!
     const preAudit = evaluateProjectVerification({
       projectName: projectName.trim(),
@@ -751,16 +800,12 @@ const { data, error } = await supabase
       organizationType: orgType,
       locationName: location.trim(),
       boundary,
-      targetTrees: Number(targetTrees) || 100,
+      targetTrees: targetTreesNum,
       speciesList: speciesText.split(",").map((s) => s.trim()).filter(Boolean),
       evidenceCount: initialSitePhoto ? 1 : 0,
       isAiVerifiedTreePhoto: !!sitePhotoAiResult?.isLivingTree,
       existingProjects: projects,
     });
-
-    const baselineTreesNum = Number(existingTrees) || 0;
-    const targetTreesNum = Number(targetTrees) || 100;
-    const totalCanopyNum = targetTreesNum + baselineTreesNum;
 
     const formattedBulkData = Array.isArray(bulkRows) && bulkRows.length > 0
       ? {
@@ -1994,7 +2039,7 @@ const { error } = await supabase.from("projects").delete().eq("id", projectId);
                     organizationType: orgType,
                     locationName: location.trim() || "Plot Site",
                     boundary,
-                    targetTrees: Number(targetTrees) || 100,
+                    targetTrees: Math.max(1, Number(targetTrees) || 0),
                     speciesList: speciesText.split(",").map((s) => s.trim()).filter(Boolean),
                     evidenceCount: initialSitePhoto ? 1 : 0,
                     isAiVerifiedTreePhoto: !!sitePhotoAiResult?.isLivingTree,

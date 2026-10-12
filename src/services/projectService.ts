@@ -18,6 +18,7 @@ import {
 import { validateGeodeticBoundary, LatLngPoint } from "@/lib/projectOnboardingService";
 import { PRICING_PLANS, PricingPlanTier } from "@/lib/pricingPlans";
 import { isGenuineProject } from "@/lib/genuineDataFilter";
+import { validateProjectCreation, checkDuplicateProject } from "@/lib/projectValidation";
 
 export interface CreateProjectPayload {
   name: string;
@@ -183,11 +184,56 @@ export const projectService = {
           }
         }
       }
-      if (!payload.name || payload.name.trim().length === 0) {
-        return { success: false, error: "Project name is required" };
+      // 1. Enforce strict canonical project creation validation
+      const boundaryPoints = payload.initial_boundary?.points?.map(p => ({ lat: p.lat, lng: p.lng })) || [];
+      const validation = validateProjectCreation({
+        name: payload.name,
+        organization_id: payload.organization_id,
+        target_trees: payload.target_trees,
+        project_type: payload.project_type,
+        location_name: payload.location_name,
+        centroid_latitude: payload.centroid_latitude,
+        centroid_longitude: payload.centroid_longitude,
+        species_list: payload.species_list,
+        start_date: payload.start_date,
+        end_date: payload.end_date,
+        boundary: boundaryPoints.length >= 3 ? boundaryPoints : undefined,
+      });
+
+      if (!validation.isValid) {
+        return {
+          success: false,
+          error: `Project validation failed: ${validation.errors.join("; ")}`,
+        };
       }
-      if (payload.target_trees <= 0) {
-        return { success: false, error: "Target trees must be greater than 0" };
+
+      // 2. Query existing projects to prevent unintentional duplicate projects
+      const existingQuery = supabase
+        .from("projects" as any)
+        .select("id, name, centroid_latitude, centroid_longitude")
+        .limit(200);
+
+      if (payload.organization_id) {
+        existingQuery.eq("organization_id", payload.organization_id);
+      } else if (payload.created_by) {
+        existingQuery.eq("created_by", payload.created_by);
+      }
+
+      const { data: existingProjects } = await existingQuery;
+      if (existingProjects && existingProjects.length > 0) {
+        const dupCheck = checkDuplicateProject({
+          projectName: payload.name,
+          centroidLat: payload.centroid_latitude,
+          centroidLng: payload.centroid_longitude,
+          existingProjects: existingProjects as any[],
+        });
+
+        if (dupCheck.isDuplicate) {
+          return {
+            success: false,
+            error: dupCheck.duplicateReason || "A duplicate project with this name or location already exists.",
+          };
+        }
       }
 
       const initialStatus: ProjectStatus = payload.status || 'draft';
