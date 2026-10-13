@@ -1,0 +1,41 @@
+{
+  "name": "Green Enlightenment – Forestry MRV & Plantation Intelligence",
+  "short_name": "HirwaSparsh",
+  "description": "Offline-capable geotagged tree survival audit, agro-climatic intelligence, and institutional MRV platform for Maharashtra.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#064e3b",
+  "orientation": "portrait-primary",
+  "categories": ["utilities", "productivity", "government"],
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Field Ranger Console",
+      "short_name": "Field Mode",
+      "description": "Open offline field inspection and spot audit mode",
+      "url": "/field-worker",
+      "icons": [{ "src": "/favicon.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Register Tree",
+      "short_name": "Plant Tree",
+      "description": "Geotag and register newly planted sapling",
+      "url": "/plant",
+      "icons": [{ "src": "/favicon.png", "sizes": "192x192" }]
+    }
+  ]
+}

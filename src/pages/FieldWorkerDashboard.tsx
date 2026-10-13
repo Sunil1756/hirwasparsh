@@ -179,10 +179,10 @@ export default function FieldWorkerDashboard() {
 
   // Ground survival rate calculation
   const totalTreesEvaluated = livingCount + stressedCount + deadCount;
-  const calculatedSurvivalRate =
+  const calculatedSurvivalRate: number | null =
     totalTreesEvaluated > 0
       ? ((livingCount + 0.5 * stressedCount) / totalTreesEvaluated) * 100
-      : 100;
+      : null;
 
   if (isMobileMode) {
     return (
@@ -513,9 +513,15 @@ export default function FieldWorkerDashboard() {
                 <div className="p-4 rounded-2xl bg-muted/40 border flex flex-col sm:flex-row items-center justify-between gap-3">
                   <div>
                     <div className="text-xs text-muted-foreground">Computed Ground Truth Survival:</div>
-                    <div className="font-heading text-2xl font-bold text-foreground">
-                      {calculatedSurvivalRate.toFixed(1)}% Survival
-                    </div>
+                    {calculatedSurvivalRate !== null ? (
+                      <div className="font-heading text-2xl font-bold text-foreground">
+                        {calculatedSurvivalRate.toFixed(1)}% Survival
+                      </div>
+                    ) : (
+                      <div className="font-heading text-lg font-semibold text-amber-600 dark:text-amber-400">
+                        Pending Ground Census
+                      </div>
+                    )}
                   </div>
 
                   <div className="text-right text-xs text-muted-foreground">
@@ -562,7 +568,7 @@ export default function FieldWorkerDashboard() {
                           </div>
 
                           <div className="text-[11px] text-muted-foreground flex items-center justify-between">
-                            <span>Observed: {meta.trees_observed || 100} trees</span>
+                            <span>Observed: {meta.trees_observed != null ? `${meta.trees_observed} trees` : "Sample unrecorded"}</span>
                             <span>{new Date(audit.created_at).toLocaleDateString()}</span>
                           </div>
 

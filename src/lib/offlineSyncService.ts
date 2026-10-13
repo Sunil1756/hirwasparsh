@@ -111,10 +111,10 @@ export async function syncOfflineTreesWithSupabase(userId?: string): Promise<{
         longitude: item.longitude,
         height_cm: item.height_cm || 45,
         plantation_date: item.plantation_date || new Date().toISOString().split("T")[0],
-        verification_status: "verified",
-        admin_status: "approved",
-        ai_confidence: 94,
-        notes: item.notes ? `${item.notes} (Synced from Rural Offline Mode)` : "Synced from Rural Offline Mode",
+        verification_status: "pending",
+        admin_status: "pending",
+        ai_confidence: null,
+        notes: item.notes ? `${item.notes} (Synced from Rural Offline Queue)` : "Synced from Rural Offline Queue",
       };
 
       const { error } = await supabase.from("trees").insert(payload);

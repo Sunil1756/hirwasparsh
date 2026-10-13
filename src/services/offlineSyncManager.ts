@@ -165,6 +165,17 @@ export const offlineSyncManager = {
     return newItem;
   },
 
+  enqueueItem(item: {
+    entityType: SyncEntityType;
+    title: string;
+    subtitle: string;
+    payload: any;
+    priority?: number;
+    idempotencyKey?: string;
+  }): SyncQueueItem {
+    return this.enqueue(item);
+  },
+
   /**
    * 3. REMOVE ITEM
    */
@@ -185,6 +196,10 @@ export const offlineSyncManager = {
     } catch (e) {
       console.error("Error clearing unified queue:", e);
     }
+  },
+
+  clearAll(): void {
+    this.clear();
   },
 
   /**
@@ -219,9 +234,9 @@ export const offlineSyncManager = {
           longitude: item.payload.longitude,
           height_cm: item.payload.height_cm || 45,
           plantation_date: item.payload.plantation_date || new Date().toISOString().split("T")[0],
-          verification_status: "verified",
-          admin_status: "approved",
-          ai_confidence: 95,
+          verification_status: "pending",
+          admin_status: "pending",
+          ai_confidence: null,
           notes: item.payload.notes ? `${item.payload.notes} (Synced from Rural Offline Queue)` : "Synced from Rural Offline Queue",
         };
 
@@ -277,8 +292,8 @@ export const offlineSyncManager = {
           tree_id: item.payload.tree_id || null,
           inspector_name: item.payload.inspector_name || "Field Ranger",
           health_status: item.payload.health_status || "healthy",
-          growth_delta_cm: item.payload.growth_delta_cm ?? 5,
-          foliage_density_pct: item.payload.foliage_density_pct ?? 100,
+          growth_delta_cm: item.payload.growth_delta_cm ?? null,
+          foliage_density_pct: item.payload.foliage_density_pct ?? null,
           threat_tags: item.payload.threat_tags || [],
           latitude: item.payload.latitude,
           longitude: item.payload.longitude,
@@ -460,8 +475,8 @@ export const offlineSyncManager = {
           longitude: tree.longitude,
           height_cm: tree.height_cm || 45,
           plantation_date: tree.plantation_date || new Date().toISOString().split("T")[0],
-          verification_status: "verified",
-          admin_status: "approved",
+          verification_status: "pending",
+          admin_status: "pending",
           notes: "Synced from legacy offline tree queue",
         };
         const { error } = await supabase.from("trees").insert(payload);
