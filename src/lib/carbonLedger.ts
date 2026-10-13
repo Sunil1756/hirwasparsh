@@ -4,6 +4,8 @@
  * Biomass Estimation, Cryptographic Certificate Generation, and QR Verification
  */
 
+import { sha256 } from "@/services/auditLogService";
+
 export interface SpeciesAllometricConfig {
   name: string;
   scientificName: string;
@@ -14,17 +16,20 @@ export interface SpeciesAllometricConfig {
 }
 
 export const SPECIES_ALLOMETRIC_MAP: Record<string, SpeciesAllometricConfig> = {
-  neem: { name: "Neem", scientificName: "Azadirachta indica", woodDensityRho: 0.72, avgGrowthRateCmYear: 80, carbonFraction: 0.47, rootToShootRatio: 0.26 },
-  teak: { name: "Teak", scientificName: "Tectona grandis", woodDensityRho: 0.65, avgGrowthRateCmYear: 90, carbonFraction: 0.48, rootToShootRatio: 0.24 },
-  banyan: { name: "Banyan", scientificName: "Ficus benghalensis", woodDensityRho: 0.58, avgGrowthRateCmYear: 60, carbonFraction: 0.46, rootToShootRatio: 0.30 },
-  peepal: { name: "Peepal", scientificName: "Ficus religiosa", woodDensityRho: 0.52, avgGrowthRateCmYear: 70, carbonFraction: 0.46, rootToShootRatio: 0.28 },
-  jamun: { name: "Jamun", scientificName: "Syzygium cumini", woodDensityRho: 0.77, avgGrowthRateCmYear: 75, carbonFraction: 0.47, rootToShootRatio: 0.26 },
-  bamboo: { name: "Bamboo", scientificName: "Bambusa vulgaris", woodDensityRho: 0.70, avgGrowthRateCmYear: 180, carbonFraction: 0.50, rootToShootRatio: 0.20 },
-  mahua: { name: "Mahua", scientificName: "Madhuca longifolia", woodDensityRho: 0.82, avgGrowthRateCmYear: 50, carbonFraction: 0.47, rootToShootRatio: 0.28 },
-  shisham: { name: "Shisham", scientificName: "Dalbergia sissoo", woodDensityRho: 0.75, avgGrowthRateCmYear: 85, carbonFraction: 0.48, rootToShootRatio: 0.25 },
-  karanj: { name: "Karanj", scientificName: "Millettia pinnata", woodDensityRho: 0.68, avgGrowthRateCmYear: 70, carbonFraction: 0.47, rootToShootRatio: 0.26 },
-  mango: { name: "Mango", scientificName: "Mangifera indica", woodDensityRho: 0.60, avgGrowthRateCmYear: 65, carbonFraction: 0.46, rootToShootRatio: 0.25 },
-  default: { name: "Mixed Native", scientificName: "Indigenous Agroforestry", woodDensityRho: 0.66, avgGrowthRateCmYear: 75, carbonFraction: 0.47, rootToShootRatio: 0.26 },
+  neem: { name: "Neem", scientificName: "Azadirachta indica", woodDensityRho: 0.72, avgGrowthRateCmYear: 80, carbonFraction: 0.475, rootToShootRatio: 0.26 },
+  teak: { name: "Teak", scientificName: "Tectona grandis", woodDensityRho: 0.66, avgGrowthRateCmYear: 90, carbonFraction: 0.48, rootToShootRatio: 0.24 },
+  banyan: { name: "Banyan", scientificName: "Ficus benghalensis", woodDensityRho: 0.58, avgGrowthRateCmYear: 60, carbonFraction: 0.465, rootToShootRatio: 0.32 },
+  peepal: { name: "Peepal", scientificName: "Ficus religiosa", woodDensityRho: 0.54, avgGrowthRateCmYear: 70, carbonFraction: 0.47, rootToShootRatio: 0.30 },
+  jamun: { name: "Jamun", scientificName: "Syzygium cumini", woodDensityRho: 0.77, avgGrowthRateCmYear: 75, carbonFraction: 0.475, rootToShootRatio: 0.26 },
+  bamboo: { name: "Bamboo", scientificName: "Dendrocalamus strictus", woodDensityRho: 0.60, avgGrowthRateCmYear: 180, carbonFraction: 0.49, rootToShootRatio: 0.38 },
+  mahua: { name: "Mahua", scientificName: "Madhuca longifolia", woodDensityRho: 0.88, avgGrowthRateCmYear: 50, carbonFraction: 0.485, rootToShootRatio: 0.28 },
+  shisham: { name: "Shisham", scientificName: "Dalbergia sissoo", woodDensityRho: 0.78, avgGrowthRateCmYear: 85, carbonFraction: 0.48, rootToShootRatio: 0.25 },
+  karanj: { name: "Karanj", scientificName: "Millettia pinnata", woodDensityRho: 0.65, avgGrowthRateCmYear: 70, carbonFraction: 0.47, rootToShootRatio: 0.26 },
+  amla: { name: "Amla", scientificName: "Phyllanthus emblica", woodDensityRho: 0.75, avgGrowthRateCmYear: 65, carbonFraction: 0.47, rootToShootRatio: 0.25 },
+  tamarind: { name: "Tamarind", scientificName: "Tamarindus indica", woodDensityRho: 0.91, avgGrowthRateCmYear: 55, carbonFraction: 0.48, rootToShootRatio: 0.27 },
+  sandalwood: { name: "Sandalwood", scientificName: "Santalum album", woodDensityRho: 0.88, avgGrowthRateCmYear: 45, carbonFraction: 0.485, rootToShootRatio: 0.28 },
+  mango: { name: "Mango", scientificName: "Mangifera indica", woodDensityRho: 0.60, avgGrowthRateCmYear: 65, carbonFraction: 0.47, rootToShootRatio: 0.25 },
+  default: { name: "Mixed Native", scientificName: "Indigenous Agroforestry", woodDensityRho: 0.67, avgGrowthRateCmYear: 75, carbonFraction: 0.475, rootToShootRatio: 0.27 },
 };
 
 export interface CarbonAuditResult {
@@ -149,7 +154,25 @@ export function calculateCarbonLedgerMetrics(params: {
   const serialNumber = isZeroTreeLocked
     ? `GE-BASELINE-${projectSlug}-${idHash}`
     : `GE-IND-MH-2026-${projectSlug}-${idHash}`;
-  const cryptographicHash = `sha256:0x${idHash}fa8879${projectSlug.toLowerCase()}99c`;
+
+  // Canonical payload for deterministic cryptographic verification
+  const canonicalPayload = JSON.stringify({
+    serialNumber,
+    projectId: projectId || "ge-default",
+    projectName: projectName || "Agroforestry Project",
+    organizationName: organizationName || "Executing Organization",
+    acres: Number(acres.toFixed(2)),
+    totalLivingTrees,
+    targetTrees,
+    dominantSpecies,
+    meanWoodDensityRho,
+    agbKgPerTree,
+    totalBiomassMetricTons,
+    co2SequesteredToDateMT,
+    zeroTreeLocked: isZeroTreeLocked,
+    standard: "IPCC_TIER_2_CHAVE_2014",
+  });
+  const cryptographicHash = `sha256:${sha256(canonicalPayload)}`;
   const qrVerificationUrl = `https://green-enlightenment.com/verify/cert/${serialNumber}`;
 
   return {

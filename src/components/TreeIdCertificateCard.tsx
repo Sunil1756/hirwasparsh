@@ -27,10 +27,11 @@ import { Tree } from "@/types/coreDatabase";
 import { useToast } from "@/hooks/use-toast";
 
 export interface TreeIdCertificateCardProps {
-  treeCode: string; // e.g. GE-2026-000001
+  treeCode: string; // e.g. GE-2026-000001 or GE-ORG-PROJ-000001
   tree: Partial<Tree>;
   qrToken?: string | null;
   photoUrl?: string | null;
+  cryptographicHash?: string | null;
   onClose?: () => void;
 }
 
@@ -39,6 +40,7 @@ export const TreeIdCertificateCard: React.FC<TreeIdCertificateCardProps> = ({
   tree,
   qrToken,
   photoUrl,
+  cryptographicHash,
   onClose,
 }) => {
   const { toast } = useToast();
@@ -102,7 +104,7 @@ export const TreeIdCertificateCard: React.FC<TreeIdCertificateCardProps> = ({
               </Button>
             </div>
             <p className="text-[11px] text-slate-400">
-              Format: <span className="font-mono text-emerald-300">GE-YYYY-NNNNNN</span>
+              Canonical Standard: <span className="font-mono text-emerald-300">GE-ORG-PROJ-NNNNNN</span>
             </p>
           </div>
 
@@ -156,6 +158,19 @@ export const TreeIdCertificateCard: React.FC<TreeIdCertificateCardProps> = ({
               <Badge variant="outline" className="text-[10px] font-mono border-emerald-500/30 text-emerald-300">
                 WGS84 Locked
               </Badge>
+            </div>
+          )}
+
+          {/* Cryptographic SHA-256 Digest */}
+          {cryptographicHash && (
+            <div className="p-2.5 rounded-lg bg-slate-900/70 border border-slate-800 space-y-1 text-xs">
+              <div className="flex items-center justify-between text-[10px] text-slate-400 uppercase font-semibold">
+                <span>Cryptographic Digest (SHA-256)</span>
+                <span className="text-emerald-400 font-mono">Immutable</span>
+              </div>
+              <p className="font-mono text-[11px] text-slate-300 break-all select-all">
+                {cryptographicHash}
+              </p>
             </div>
           )}
 

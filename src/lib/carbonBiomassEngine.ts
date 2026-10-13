@@ -94,6 +94,72 @@ export const SPECIES_ALLOMETRY_CATALOG: Record<string, TreeSpeciesAllometry> = {
     carbonFraction: 0.485,
     ecologicalBenefit: "High aromatic value, semi-parasitic root biodiversity enhancement",
   },
+  jamun: {
+    speciesName: "Black Plum / Jamun",
+    scientificName: "Syzygium cumini",
+    woodDensity: 0.77,
+    growthRateCategory: "medium",
+    annualDbhGrowthCm: 2.0,
+    annualHeightGrowthM: 1.4,
+    rootToShootRatio: 0.26,
+    carbonFraction: 0.475,
+    ecologicalBenefit: "Riparian buffer, wetland stability, avian food source",
+  },
+  karanj: {
+    speciesName: "Indian Beech / Karanj",
+    scientificName: "Pongamia pinnata",
+    woodDensity: 0.65,
+    growthRateCategory: "fast",
+    annualDbhGrowthCm: 2.4,
+    annualHeightGrowthM: 1.5,
+    rootToShootRatio: 0.26,
+    carbonFraction: 0.47,
+    ecologicalBenefit: "Nitrogen fixation, bio-diesel seed production, saline soil restoration",
+  },
+  mahua: {
+    speciesName: "Butter Tree / Mahua",
+    scientificName: "Madhuca longifolia",
+    woodDensity: 0.88,
+    growthRateCategory: "slow",
+    annualDbhGrowthCm: 1.2,
+    annualHeightGrowthM: 0.9,
+    rootToShootRatio: 0.28,
+    carbonFraction: 0.485,
+    ecologicalBenefit: "Tribal livelihood security, deep taproot watershed retention, heavy biomass",
+  },
+  amla: {
+    speciesName: "Indian Gooseberry / Amla",
+    scientificName: "Phyllanthus emblica",
+    woodDensity: 0.75,
+    growthRateCategory: "medium",
+    annualDbhGrowthCm: 1.6,
+    annualHeightGrowthM: 1.1,
+    rootToShootRatio: 0.25,
+    carbonFraction: 0.47,
+    ecologicalBenefit: "High medicinal value, soil stabilization, pollinator support",
+  },
+  tamarind: {
+    speciesName: "Tamarind / Chinch",
+    scientificName: "Tamarindus indica",
+    woodDensity: 0.91,
+    growthRateCategory: "slow",
+    annualDbhGrowthCm: 1.4,
+    annualHeightGrowthM: 1.0,
+    rootToShootRatio: 0.27,
+    carbonFraction: 0.48,
+    ecologicalBenefit: "Extreme arid drought tolerance, high wood density carbon sink",
+  },
+  shisham: {
+    speciesName: "Indian Rosewood / Shisham",
+    scientificName: "Dalbergia sissoo",
+    woodDensity: 0.78,
+    growthRateCategory: "fast",
+    annualDbhGrowthCm: 2.5,
+    annualHeightGrowthM: 1.7,
+    rootToShootRatio: 0.25,
+    carbonFraction: 0.48,
+    ecologicalBenefit: "Nitrogen-fixing root nodules, riverbank erosion control, premium hardwood",
+  },
   mixed_native: {
     speciesName: "Mixed Western Ghats Native Forest",
     scientificName: "Terminalia + Syzygium + Ficus Poly-culture",
@@ -121,6 +187,7 @@ export interface CarbonBiomassResult {
   carbonCreditValuationInr: number; // based on ₹1,250/ton ($15/ton)
   carbonCreditValuationUsd: number;
   speciesDetails: TreeSpeciesAllometry;
+  isZeroTreeLocked: boolean;
 }
 
 /**
@@ -161,21 +228,23 @@ export function calculateAllometricCarbon(params: {
   // CO2 Equivalent = Carbon * (Molecular weight CO2 / C) = Carbon * (44 / 12) = Carbon * 3.667
   const co2eKgPerTree = carbonKg * 3.667;
 
+  const isZeroTreeLocked = (params.treeCount ?? 0) <= 0;
+
   // Cumulative Plot Totals
-  const totalPlotDryBiomassMT = (totalBiomassKg * params.treeCount) / 1000;
-  const totalCo2eMT = (co2eKgPerTree * params.treeCount) / 1000;
+  const totalPlotDryBiomassMT = isZeroTreeLocked ? 0 : (totalBiomassKg * params.treeCount) / 1000;
+  const totalCo2eMT = isZeroTreeLocked ? 0 : (co2eKgPerTree * params.treeCount) / 1000;
 
   // Annualized rate
-  const annualPlotCo2eMT = totalCo2eMT / Math.max(1, ageYears);
+  const annualPlotCo2eMT = isZeroTreeLocked ? 0 : totalCo2eMT / Math.max(1, ageYears);
 
   // 10-Year cumulative carbon projection
-  const tenYearPlotCo2eMT = annualPlotCo2eMT * 10 * 1.15; // accounting for accelerating mature biomass curve
+  const tenYearPlotCo2eMT = isZeroTreeLocked ? 0 : annualPlotCo2eMT * 10 * 1.15; // accounting for accelerating mature biomass curve
 
   // Market valuation (Standard Gold Standard / Verra rate ~ $15 / ₹1,250 per ton)
   const creditPricePerTonUsd = 15;
   const inrConversionRate = 86;
-  const carbonCreditValuationUsd = Math.round(tenYearPlotCo2eMT * creditPricePerTonUsd);
-  const carbonCreditValuationInr = Math.round(carbonCreditValuationUsd * inrConversionRate);
+  const carbonCreditValuationUsd = isZeroTreeLocked ? 0 : Math.round(tenYearPlotCo2eMT * creditPricePerTonUsd);
+  const carbonCreditValuationInr = isZeroTreeLocked ? 0 : Math.round(carbonCreditValuationUsd * inrConversionRate);
 
   return {
     dbhCm: Math.round(dbh * 10) / 10,
@@ -191,6 +260,7 @@ export function calculateAllometricCarbon(params: {
     carbonCreditValuationInr,
     carbonCreditValuationUsd,
     speciesDetails: species,
+    isZeroTreeLocked,
   };
 }
 

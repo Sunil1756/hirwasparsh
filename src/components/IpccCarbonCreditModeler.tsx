@@ -19,6 +19,7 @@ import {
   Clock,
   Sprout,
   TreePine,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -116,6 +117,14 @@ export function IpccCarbonCreditModeler({
   }, [projections20Years]);
 
   const handleExportAuditSummary = () => {
+    if (modelResult.isZeroTreeLocked) {
+      toast({
+        title: "⚠️ Zero-Tree Lock: Audit Export Blocked",
+        description: "Cannot issue certified carbon credits or export BRSR compliance audit for stands with 0 verified living trees.",
+        variant: "destructive",
+      });
+      return;
+    }
     toast({
       title: "📄 IPCC Carbon Audit Report Generated!",
       description: `SEBI BRSR Scope 1/3 Carbon Accretion Report for ${projectName}: ${annualNetCertifiedCreditsMT} MT CO₂e/yr estimated.`,
@@ -158,12 +167,28 @@ export function IpccCarbonCreditModeler({
           <Button
             size="sm"
             onClick={handleExportAuditSummary}
-            className="text-xs gap-1.5 rounded-xl bg-primary text-primary-foreground font-semibold shadow-md"
+            disabled={modelResult.isZeroTreeLocked}
+            className="text-xs gap-1.5 rounded-xl bg-primary text-primary-foreground font-semibold shadow-md disabled:opacity-50"
           >
             <Download className="h-3.5 w-3.5" /> Export BRSR Audit
           </Button>
         </div>
       </div>
+
+      {/* Zero-Tree Anti-Greenwashing Lock Alert */}
+      {modelResult.isZeroTreeLocked && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border-2 border-amber-500/30 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <h4 className="font-heading font-bold text-sm text-amber-700 dark:text-amber-400">
+              Zero-Tree Anti-Greenwashing Lock Engaged
+            </h4>
+            <p className="text-xs text-amber-800 dark:text-amber-300">
+              {modelResult.zeroTreeReason || "No confirmed living trees detected on ground. Per IPCC Tier-2 and Verra anti-greenwashing rules, carbon credits, standing biomass metrics, and monetary valuations are locked at 0.0 MT until on-ground survival census is conducted."}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Stand Lifecycle & Growth Stage Indicator */}
       <div className="p-4 rounded-2xl bg-muted/40 border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -373,7 +398,7 @@ export function IpccCarbonCreditModeler({
                 <span className="font-bold text-primary">{plantedTrees.toLocaleString()} trees</span>
               </div>
               <Slider
-                min={100}
+                min={0}
                 max={5000}
                 step={50}
                 value={[plantedTrees]}
@@ -388,7 +413,7 @@ export function IpccCarbonCreditModeler({
                 <span className="font-bold text-emerald-600">{survivalRate}%</span>
               </div>
               <Slider
-                min={40}
+                min={0}
                 max={100}
                 step={1}
                 value={[survivalRate]}

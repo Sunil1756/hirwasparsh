@@ -50,7 +50,7 @@ export const IPCC_SPECIES_PROFILES: Record<string, SpeciesAllometricProfile> = {
     speciesKey: "teak",
     speciesName: "Teak / Sagwan",
     scientificName: "Tectona grandis",
-    woodDensityRho: 0.65,
+    woodDensityRho: 0.66,
     annualDbhGrowthCm: 1.8,
     annualHeightGrowthM: 1.6,
     rootToShootRatio: 0.24,
@@ -72,23 +72,89 @@ export const IPCC_SPECIES_PROFILES: Record<string, SpeciesAllometricProfile> = {
     speciesKey: "peepal",
     speciesName: "Peepal / Pimpal",
     scientificName: "Ficus religiosa",
-    woodDensityRho: 0.55,
+    woodDensityRho: 0.54,
     annualDbhGrowthCm: 3.2,
     annualHeightGrowthM: 1.3,
     rootToShootRatio: 0.30,
     carbonFraction: 0.47,
     ecologicalRole: "Continuous oxygen release, high air pollution tolerance, bird nesting",
   },
+  jamun: {
+    speciesKey: "jamun",
+    speciesName: "Black Plum / Jamun",
+    scientificName: "Syzygium cumini",
+    woodDensityRho: 0.77,
+    annualDbhGrowthCm: 2.0,
+    annualHeightGrowthM: 1.4,
+    rootToShootRatio: 0.26,
+    carbonFraction: 0.475,
+    ecologicalRole: "Riparian buffer, wetland stability, keystone avian food source",
+  },
+  karanj: {
+    speciesKey: "karanj",
+    speciesName: "Indian Beech / Karanj",
+    scientificName: "Pongamia pinnata",
+    woodDensityRho: 0.65,
+    annualDbhGrowthCm: 2.4,
+    annualHeightGrowthM: 1.5,
+    rootToShootRatio: 0.26,
+    carbonFraction: 0.47,
+    ecologicalRole: "Nitrogen fixation, saline soil restoration, bio-diesel seed production",
+  },
+  mahua: {
+    speciesKey: "mahua",
+    speciesName: "Butter Tree / Mahua",
+    scientificName: "Madhuca longifolia",
+    woodDensityRho: 0.88,
+    annualDbhGrowthCm: 1.2,
+    annualHeightGrowthM: 0.9,
+    rootToShootRatio: 0.28,
+    carbonFraction: 0.485,
+    ecologicalRole: "Tribal livelihood security, deep taproot watershed retention, heavy biomass",
+  },
+  amla: {
+    speciesKey: "amla",
+    speciesName: "Indian Gooseberry / Amla",
+    scientificName: "Phyllanthus emblica",
+    woodDensityRho: 0.75,
+    annualDbhGrowthCm: 1.6,
+    annualHeightGrowthM: 1.1,
+    rootToShootRatio: 0.25,
+    carbonFraction: 0.47,
+    ecologicalRole: "High medicinal value, soil stabilization, pollinator support",
+  },
+  tamarind: {
+    speciesKey: "tamarind",
+    speciesName: "Tamarind / Chinch",
+    scientificName: "Tamarindus indica",
+    woodDensityRho: 0.91,
+    annualDbhGrowthCm: 1.4,
+    annualHeightGrowthM: 1.0,
+    rootToShootRatio: 0.27,
+    carbonFraction: 0.48,
+    ecologicalRole: "Extreme arid drought tolerance, high wood density carbon sink",
+  },
+  shisham: {
+    speciesKey: "shisham",
+    speciesName: "Indian Rosewood / Shisham",
+    scientificName: "Dalbergia sissoo",
+    woodDensityRho: 0.78,
+    annualDbhGrowthCm: 2.5,
+    annualHeightGrowthM: 1.7,
+    rootToShootRatio: 0.25,
+    carbonFraction: 0.48,
+    ecologicalRole: "Nitrogen-fixing root nodules, riverbank erosion control, premium hardwood",
+  },
   bamboo: {
     speciesKey: "bamboo",
     speciesName: "Bamboo / Manvel",
     scientificName: "Dendrocalamus strictus",
-    woodDensityRho: 0.70,
+    woodDensityRho: 0.60,
     annualDbhGrowthCm: 2.8,
     annualHeightGrowthM: 3.2,
     rootToShootRatio: 0.38,
     carbonFraction: 0.49,
-    ecologicalRole: "Rapid carbon sequestration, watershed conservation, root erosion control",
+    ecologicalRole: "Rapid vegetative carbon accumulation, steep slope watershed conservation",
   },
   mango: {
     speciesKey: "mango",
@@ -177,6 +243,8 @@ export interface IpccCarbonModelResult {
   projections20Years: CarbonYearProjection[];
   methodologyStandard: string;
   esgBrsrClassification: string;
+  isZeroTreeLocked: boolean;
+  zeroTreeReason?: string;
 }
 
 export interface ModelCarbonParams {
@@ -238,12 +306,21 @@ export function determineGrowthStage(ageYears: number): GrowthStageDetails {
 }
 
 /**
- * Pure Mathematical Engine for IPCC Tier-2 Carbon Credit Modeling
+ * Pure Mathematical Engine for IPCC Tier-2 Carbon Credit Modeling with strict Zero-Tree Lock
  */
 export function calculateIpccCarbonModel(params: ModelCarbonParams): IpccCarbonModelResult {
-  const planted = Math.max(1, params.plantedTrees || 100);
-  const survivalRate = Math.min(100, Math.max(0, params.survivalRatePct ?? 92));
+  const planted = Math.max(0, params.plantedTrees ?? 0);
+  const survivalRate = params.survivalRatePct !== undefined
+    ? Math.min(100, Math.max(0, params.survivalRatePct))
+    : 0;
   const verifiedLiving = Math.round((planted * survivalRate) / 100);
+  const isZeroTreeLocked = verifiedLiving === 0;
+  const zeroTreeReason = planted === 0
+    ? "Zero-Tree Lock: Plantation has 0 registered trees. Credit issuance and biomass totals are locked at 0."
+    : survivalRate === 0
+    ? "Zero-Tree Lock: Ground survival census indicates 0 verified living trees. Credit issuance is locked at 0."
+    : undefined;
+
   const ageYears = Math.max(0.2, params.ageYears ?? 2.5);
   const bufferPct = Math.min(30, Math.max(5, params.permanenceBufferPct ?? 12));
   const creditPriceUsd = params.creditPriceUsdPerTon ?? 15;
@@ -272,14 +349,14 @@ export function calculateIpccCarbonModel(params: ModelCarbonParams): IpccCarbonM
   const carbonKg = totalBiomassKg * species.carbonFraction;
   const co2eKg = carbonKg * 3.667; // Carbon to CO2 stoichiometric ratio (44/12)
 
-  // Plot Total Metrics at Current Stand Age
-  const totalPlotBiomassMT = (totalBiomassKg * verifiedLiving) / 1000;
-  const grossPlotCo2eMT = (co2eKg * verifiedLiving) / 1000;
-  const annualGrossPlotCo2eMT = grossPlotCo2eMT / Math.max(1, ageYears);
+  // Plot Total Metrics at Current Stand Age (Strictly 0 when Zero-Tree Locked)
+  const totalPlotBiomassMT = isZeroTreeLocked ? 0 : (totalBiomassKg * verifiedLiving) / 1000;
+  const grossPlotCo2eMT = isZeroTreeLocked ? 0 : (co2eKg * verifiedLiving) / 1000;
+  const annualGrossPlotCo2eMT = isZeroTreeLocked ? 0 : grossPlotCo2eMT / Math.max(1, ageYears);
 
   // Verra / Gold Standard Buffer Deduction
-  const bufferDeductionMT = (annualGrossPlotCo2eMT * bufferPct) / 100;
-  const annualNetCertifiedCreditsMT = Math.max(0, annualGrossPlotCo2eMT - bufferDeductionMT);
+  const bufferDeductionMT = isZeroTreeLocked ? 0 : (annualGrossPlotCo2eMT * bufferPct) / 100;
+  const annualNetCertifiedCreditsMT = isZeroTreeLocked ? 0 : Math.max(0, annualGrossPlotCo2eMT - bufferDeductionMT);
 
   // 20-Year Timeline Projections
   const projections: CarbonYearProjection[] = [];
@@ -300,15 +377,17 @@ export function calculateIpccCarbonModel(params: ModelCarbonParams): IpccCarbonM
     const prevCumulativeCo2e = yr === 1 ? 0 : projections[yr - 2].cumulativeCo2ePerTreeKg;
     const yrAnnualCo2ePerTree = Math.max(1.0, yrCumulativeCo2ePerTree - prevCumulativeCo2e);
 
-    const yrGrossPlotMT = (yrAnnualCo2ePerTree * verifiedLiving) / 1000;
-    const yrBufferMT = (yrGrossPlotMT * bufferPct) / 100;
-    const yrNetCredits = yrGrossPlotMT - yrBufferMT;
+    const yrGrossPlotMT = isZeroTreeLocked ? 0 : (yrAnnualCo2ePerTree * verifiedLiving) / 1000;
+    const yrBufferMT = isZeroTreeLocked ? 0 : (yrGrossPlotMT * bufferPct) / 100;
+    const yrNetCredits = isZeroTreeLocked ? 0 : yrGrossPlotMT - yrBufferMT;
 
-    cumulativeGrossCo2e += yrGrossPlotMT;
-    cumulativeNetCredits += yrNetCredits;
+    if (!isZeroTreeLocked) {
+      cumulativeGrossCo2e += yrGrossPlotMT;
+      cumulativeNetCredits += yrNetCredits;
+    }
 
-    const yrValUsd = yrNetCredits * creditPriceUsd;
-    const yrValInr = yrValUsd * inrRate;
+    const yrValUsd = isZeroTreeLocked ? 0 : yrNetCredits * creditPriceUsd;
+    const yrValInr = isZeroTreeLocked ? 0 : yrValUsd * inrRate;
 
     projections.push({
       year: yr,
@@ -330,14 +409,14 @@ export function calculateIpccCarbonModel(params: ModelCarbonParams): IpccCarbonM
     });
   }
 
-  const tenYearNetCredits = projections[9].cumulativeNetCreditsMT;
-  const twentyYearNetCredits = projections[19].cumulativeNetCreditsMT;
+  const tenYearNetCredits = isZeroTreeLocked ? 0 : projections[9].cumulativeNetCreditsMT;
+  const twentyYearNetCredits = isZeroTreeLocked ? 0 : projections[19].cumulativeNetCreditsMT;
 
-  const annualValuationUsd = Math.round(annualNetCertifiedCreditsMT * creditPriceUsd);
-  const annualValuationInr = Math.round(annualValuationUsd * inrRate);
+  const annualValuationUsd = isZeroTreeLocked ? 0 : Math.round(annualNetCertifiedCreditsMT * creditPriceUsd);
+  const annualValuationInr = isZeroTreeLocked ? 0 : Math.round(annualValuationUsd * inrRate);
 
-  const tenYearValuationUsd = Math.round(tenYearNetCredits * creditPriceUsd);
-  const tenYearValuationInr = Math.round(tenYearValuationUsd * inrRate);
+  const tenYearValuationUsd = isZeroTreeLocked ? 0 : Math.round(tenYearNetCredits * creditPriceUsd);
+  const tenYearValuationInr = isZeroTreeLocked ? 0 : Math.round(tenYearValuationUsd * inrRate);
 
   return {
     plantedTrees: planted,
@@ -368,5 +447,7 @@ export function calculateIpccCarbonModel(params: ModelCarbonParams): IpccCarbonM
     projections20Years: projections,
     methodologyStandard: "IPCC Tier-2 Allometric Model (Chave et al., 2014 & Verra VM0047)",
     esgBrsrClassification: "SEBI BRSR Core Principal 6 (GHG Scope 1/3 Removal Verification)",
+    isZeroTreeLocked,
+    zeroTreeReason,
   };
 }

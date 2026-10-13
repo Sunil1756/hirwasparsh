@@ -157,11 +157,17 @@ export function CanopyNDVITimeSeriesChart({
             </h3>
           </div>
           <div className="flex items-center gap-2 mt-1">
-            <Badge variant="outline" className="text-[10px] font-mono bg-primary/5 text-primary border-primary/20 gap-1">
-              <Satellite className="h-3 w-3" /> Data source: Copernicus Sentinel-2 L2A (10m BOA, SCL Masked)
-            </Badge>
+            {hasRealData ? (
+              <Badge variant="outline" className="text-[10px] font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1 font-semibold">
+                <Satellite className="h-3 w-3" /> Copernicus Sentinel-2 L2A (10m BOA, SCL Masked)
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-[10px] font-mono bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 gap-1">
+                <Satellite className="h-3 w-3" /> Phenological Allometric Model (Pending Sentinel-2 Overpass Sync)
+              </Badge>
+            )}
             <span className="text-xs text-muted-foreground">
-              · Overpass: {latestData?.month || "Latest Available"}
+              · {hasRealData ? `Live Overpass: ${latestData?.month || "Latest Available"}` : "Mode: Regional Phenology Baseline"}
             </span>
           </div>
         </div>

@@ -19,6 +19,8 @@
  * - Cryptographic SHA-256 Digest Seal for BRSR ESG Compliance & Verifiable Carbon Credits
  */
 
+import { sha256 } from "@/services/auditLogService";
+
 export interface Tier1GroundEvidenceInput {
   totalPlantedTrees: number;
   verifiedGroundTrees: number;
@@ -254,13 +256,7 @@ export function evaluateTier3FusionTrustScore(input: Tier3FusionInput): Tier3Fus
   const projSeed = input.projectId || "ge-project-default";
   const digestString = `${projSeed}:${finalScore}:${verificationTier}:${actualAuditCount}:${timestamp}`;
   
-  let hashVal = 0;
-  for (let i = 0; i < digestString.length; i++) {
-    const char = digestString.charCodeAt(i);
-    hashVal = (hashVal << 5) - hashVal + char;
-    hashVal |= 0;
-  }
-  const hexHash = Math.abs(hashVal).toString(16).padStart(16, "0") + "8f3e2b1c4a5d6e7f";
+  const hexHash = sha256(digestString);
   const serialNumber = `GE-MRV-${new Date().getFullYear()}-${hexHash.substring(0, 8).toUpperCase()}`;
 
   return {
