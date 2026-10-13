@@ -12,11 +12,15 @@
 export interface MaharashtraAgroClimaticZone {
   id: string;
   zoneNumber: number;
+  zoneCode: string;
+  code: string;
   name: string;
+  zoneName: string;
   marathiName: string;
   districts: string[];
   rainfallRangeMm: [number, number];
   annualRainfallAverageMm: number;
+  annualRainfallMm: string;
   soilType: string;
   typicalSoilMoistureRange: [number, number];
   climateClassification: string;
@@ -35,11 +39,15 @@ export const MAHARASHTRA_AGRO_CLIMATIC_ZONES: MaharashtraAgroClimaticZone[] = [
   {
     id: "south_konkan",
     zoneNumber: 1,
+    zoneCode: "MH-01",
+    code: "MH-01",
     name: "South Konkan Coastal Zone",
+    zoneName: "South Konkan Coastal Zone",
     marathiName: "दक्षिण कोकण किनारपट्टी विभाग",
     districts: ["Ratnagiri", "Sindhudurg"],
     rainfallRangeMm: [3000, 3500],
     annualRainfallAverageMm: 3250,
+    annualRainfallMm: "3,000 - 3,500 mm (Avg: 3,250 mm)",
     soilType: "Lateritic red loam, acidic with high organic matter",
     typicalSoilMoistureRange: [0.28, 0.45],
     climateClassification: "Per-humid / Tropical Coastal",
@@ -53,11 +61,15 @@ export const MAHARASHTRA_AGRO_CLIMATIC_ZONES: MaharashtraAgroClimaticZone[] = [
   {
     id: "north_konkan",
     zoneNumber: 2,
+    zoneCode: "MH-02",
+    code: "MH-02",
     name: "North Konkan Coastal Zone",
+    zoneName: "North Konkan Coastal Zone",
     marathiName: "उत्तर कोकण किनारपट्टी विभाग",
     districts: ["Thane", "Palghar", "Raigad", "Mumbai Suburban", "Mumbai"],
     rainfallRangeMm: [2500, 3000],
     annualRainfallAverageMm: 2750,
+    annualRainfallMm: "2,500 - 3,000 mm (Avg: 2,750 mm)",
     soilType: "Medium black to coarse shallow coastal alluvium",
     typicalSoilMoistureRange: [0.25, 0.42],
     climateClassification: "Humid Coastal",
@@ -71,11 +83,15 @@ export const MAHARASHTRA_AGRO_CLIMATIC_ZONES: MaharashtraAgroClimaticZone[] = [
   {
     id: "western_ghats",
     zoneNumber: 3,
+    zoneCode: "MH-03",
+    code: "MH-03",
     name: "Western Ghat Zone (Ghatmatha)",
+    zoneName: "Western Ghat Zone (Ghatmatha)",
     marathiName: "घाटमाथा / सह्याद्री पर्वतीय विभाग",
     districts: ["Mahabaleshwar", "Igatpuri", "Lonavala", "Khandala", "Western Pune", "Western Satara", "Western Kolhapur"],
     rainfallRangeMm: [3000, 5000],
     annualRainfallAverageMm: 4000,
+    annualRainfallMm: "3,000 - 5,000 mm (Avg: 4,000 mm)",
     soilType: "Lateritic and heavy forest loam, high elevation",
     typicalSoilMoistureRange: [0.32, 0.50],
     climateClassification: "Super-humid Montane",
@@ -89,11 +105,15 @@ export const MAHARASHTRA_AGRO_CLIMATIC_ZONES: MaharashtraAgroClimaticZone[] = [
   {
     id: "sub_montane",
     zoneNumber: 4,
+    zoneCode: "MH-04",
+    code: "MH-04",
     name: "Sub-Montane Zone (Transition Zone 1)",
+    zoneName: "Sub-Montane Zone (Transition Zone 1)",
     marathiName: "संक्रमण विभाग १ (सह्याद्री पूर्व उतार)",
     districts: ["Kolhapur", "Satara", "Sangli", "Western Nashik", "Bhor"],
     rainfallRangeMm: [1250, 2500],
     annualRainfallAverageMm: 1750,
+    annualRainfallMm: "1,250 - 2,500 mm (Avg: 1,750 mm)",
     soilType: "Reddish brown to medium black clay",
     typicalSoilMoistureRange: [0.24, 0.38],
     climateClassification: "Sub-humid Transition",
@@ -107,11 +127,15 @@ export const MAHARASHTRA_AGRO_CLIMATIC_ZONES: MaharashtraAgroClimaticZone[] = [
   {
     id: "plain_zone",
     zoneNumber: 5,
+    zoneCode: "MH-05",
+    code: "MH-05",
     name: "Plain Zone (Transition Zone 2)",
+    zoneName: "Plain Zone (Transition Zone 2)",
     marathiName: "संक्रमण विभाग २ (मैदानी विभाग)",
     districts: ["Pune", "Nashik", "Ahmednagar", "Eastern Satara", "Eastern Kolhapur"],
     rainfallRangeMm: [700, 1250],
     annualRainfallAverageMm: 950,
+    annualRainfallMm: "700 - 1,250 mm (Avg: 950 mm)",
     soilType: "Medium to deep black clay soils (Vertisols)",
     typicalSoilMoistureRange: [0.20, 0.34],
     climateClassification: "Semi-arid Transition",
@@ -125,11 +149,15 @@ export const MAHARASHTRA_AGRO_CLIMATIC_ZONES: MaharashtraAgroClimaticZone[] = [
   {
     id: "scarcity_zone",
     zoneNumber: 6,
+    zoneCode: "MH-06",
+    code: "MH-06",
     name: "Scarcity Zone (Drought-Prone Central Belt)",
+    zoneName: "Scarcity Zone (Drought-Prone Central Belt)",
     marathiName: "पर्जन्यछायेचा अवर्षणप्रवण विभाग",
     districts: ["Solapur", "Beed", "Dharashiv", "Osmanabad", "Eastern Pune", "Eastern Ahmednagar", "Eastern Sangli"],
     rainfallRangeMm: [500, 750],
     annualRainfallAverageMm: 600,
+    annualRainfallMm: "500 - 750 mm (Avg: 600 mm)",
     soilType: "Shallow to medium black calcarous clay with moisture deficit",
     typicalSoilMoistureRange: [0.12, 0.24],
     climateClassification: "Arid / Semi-Arid Rainshadow",
@@ -143,11 +171,15 @@ export const MAHARASHTRA_AGRO_CLIMATIC_ZONES: MaharashtraAgroClimaticZone[] = [
   {
     id: "central_plateau",
     zoneNumber: 7,
+    zoneCode: "MH-07",
+    code: "MH-07",
     name: "Central Maharashtra Plateau Zone",
+    zoneName: "Central Maharashtra Plateau Zone",
     marathiName: "मध्य महाराष्ट्र पठारी विभाग (मराठवाडा/खानदेश)",
     districts: ["Chhatrapati Sambhajinagar", "Aurangabad", "Jalna", "Jalgaon", "Dhule", "Parbhani", "Latur", "Nanded", "Hingoli"],
     rainfallRangeMm: [700, 900],
     annualRainfallAverageMm: 800,
+    annualRainfallMm: "700 - 900 mm (Avg: 800 mm)",
     soilType: "Deep black cotton soils (Regur) with swelling clay",
     typicalSoilMoistureRange: [0.16, 0.28],
     climateClassification: "Semi-arid Plateau",
@@ -161,11 +193,15 @@ export const MAHARASHTRA_AGRO_CLIMATIC_ZONES: MaharashtraAgroClimaticZone[] = [
   {
     id: "central_vidarbha",
     zoneNumber: 8,
+    zoneCode: "MH-08",
+    code: "MH-08",
     name: "Central Vidarbha Zone",
+    zoneName: "Central Vidarbha Zone",
     marathiName: "मध्य विदर्भ विभाग",
     districts: ["Nagpur", "Wardha", "Amravati", "Yavatmal", "Akola", "Washim", "Buldhana"],
     rainfallRangeMm: [950, 1250],
     annualRainfallAverageMm: 1100,
+    annualRainfallMm: "950 - 1,250 mm (Avg: 1,100 mm)",
     soilType: "Medium to heavy deep black cotton soils (Vertic Inceptisols)",
     typicalSoilMoistureRange: [0.18, 0.32],
     climateClassification: "Semi-arid to Sub-humid Vidarbha",
@@ -179,11 +215,15 @@ export const MAHARASHTRA_AGRO_CLIMATIC_ZONES: MaharashtraAgroClimaticZone[] = [
   {
     id: "eastern_vidarbha",
     zoneNumber: 9,
+    zoneCode: "MH-09",
+    code: "MH-09",
     name: "Eastern Vidarbha Zone",
+    zoneName: "Eastern Vidarbha Zone",
     marathiName: "पूर्व विदर्भ विभाग (वैनगंगा खोरे)",
     districts: ["Bhandara", "Gondia", "Chandrapur", "Gadchiroli"],
     rainfallRangeMm: [1250, 1500],
     annualRainfallAverageMm: 1380,
+    annualRainfallMm: "1,250 - 1,500 mm (Avg: 1,380 mm)",
     soilType: "Red and yellow sandy loam, Wainganga basin alluvium",
     typicalSoilMoistureRange: [0.24, 0.38],
     climateClassification: "Sub-humid Forest Zone",
@@ -195,6 +235,21 @@ export const MAHARASHTRA_AGRO_CLIMATIC_ZONES: MaharashtraAgroClimaticZone[] = [
     baselineSoilMoisture: 0.28,
   },
 ];
+
+/**
+ * Keyed lookup by MH-01 through MH-09
+ */
+export const MAHARASHTRA_AGRO_ZONES: Record<string, MaharashtraAgroClimaticZone> = {
+  "MH-01": MAHARASHTRA_AGRO_CLIMATIC_ZONES[0],
+  "MH-02": MAHARASHTRA_AGRO_CLIMATIC_ZONES[1],
+  "MH-03": MAHARASHTRA_AGRO_CLIMATIC_ZONES[2],
+  "MH-04": MAHARASHTRA_AGRO_CLIMATIC_ZONES[3],
+  "MH-05": MAHARASHTRA_AGRO_CLIMATIC_ZONES[4],
+  "MH-06": MAHARASHTRA_AGRO_CLIMATIC_ZONES[5],
+  "MH-07": MAHARASHTRA_AGRO_CLIMATIC_ZONES[6],
+  "MH-08": MAHARASHTRA_AGRO_CLIMATIC_ZONES[7],
+  "MH-09": MAHARASHTRA_AGRO_CLIMATIC_ZONES[8],
+};
 
 /**
  * Resolves GPS coordinates or district name to the canonical Maharashtra Agro-Climatic Zone.
