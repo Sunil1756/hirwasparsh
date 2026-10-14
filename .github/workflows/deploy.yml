@@ -48,34 +48,50 @@ jobs:
       - name: Run Full Vitest Test Suites
         run: npm test -- --run
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://hirwasparsh-project.supabase.co' }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholderKeyForClientSafeInit' }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Production Build Verification
         run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
   deploy:
     name: Deploy to Vercel
     needs: quality-gate
-    if: ${{ secrets.VERCEL_TOKEN != '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Verify Vercel Credentials
+        id: check-creds
+        run: |
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ] || [ -z "${{ secrets.VERCEL_PROJECT_ID }}" ]; then
+            echo "has_creds=false" >> $GITHUB_OUTPUT
+            echo "::notice::VERCEL_TOKEN and/or VERCEL_PROJECT_ID are not set in GitHub Secrets. Vercel Git Integration handles automated builds directly on commit. CLI deployment step safely skipped."
+          else
+            echo "has_creds=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Setup Node.js Runtime
+        if: steps.check-creds.outputs.has_creds == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: "npm"
 
       - name: Install Dependencies
+        if: steps.check-creds.outputs.has_creds == 'true'
         run: npm ci
 
       - name: Install Vercel CLI
+        if: steps.check-creds.outputs.has_creds == 'true'
         run: npm install --global vercel@latest
 
       - name: Determine Deployment Environment
+        if: steps.check-creds.outputs.has_creds == 'true'
         id: env-decision
         run: |
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
@@ -93,6 +109,7 @@ jobs:
           fi
 
       - name: Pull Vercel Environment Configuration
+        if: steps.check-creds.outputs.has_creds == 'true'
         run: |
           vercel pull --yes --environment=${{ steps.env-decision.outputs.target_env }} --token=${{ secrets.VERCEL_TOKEN }}
         env:
@@ -100,6 +117,7 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Build Project Artifacts on Vercel
+        if: steps.check-creds.outputs.has_creds == 'true'
         run: |
           if [ "${{ steps.env-decision.outputs.is_prod }}" = "true" ]; then
             vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
@@ -116,6 +134,7 @@ jobs:
           VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
 
       - name: Deploy Prebuilt Artifacts to Vercel
+        if: steps.check-creds.outputs.has_creds == 'true'
         id: vercel-deploy
         run: |
           if [ "${{ steps.env-decision.outputs.is_prod }}" = "true" ]; then
@@ -130,7 +149,7 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Post Deployment Summary to GitHub PR
-        if: github.event_name == 'pull_request' && steps.vercel-deploy.outputs.deployment_url != ''
+        if: steps.check-creds.outputs.has_creds == 'true' && github.event_name == 'pull_request' && steps.vercel-deploy.outputs.deployment_url != ''
         uses: actions/github-script@v7
         with:
           script: |
@@ -144,6 +163,7 @@ jobs:
             });
 
       - name: Post-Deployment Smoke Test
+        if: steps.check-creds.outputs.has_creds == 'true'
         run: |
           echo "Verifying deployment endpoint responsiveness..."
           DEPLOY_URL="${{ steps.vercel-deploy.outputs.deployment_url }}"

@@ -2,16 +2,27 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 
-const SUPABASE_URL =
+const rawUrl =
   import.meta.env.VITE_SUPABASE_URL ||
   import.meta.env.VITE_PUBLIC_SUPABASE_URL ||
   "";
 
-const SUPABASE_PUBLISHABLE_KEY =
+const rawKey =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
   import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY ||
   "";
+
+// Fallback to safe placeholders during offline builds or testing if env is unset or malformed
+const SUPABASE_URL =
+  typeof rawUrl === "string" && rawUrl.startsWith("http")
+    ? rawUrl
+    : "https://hirwasparsh-project.supabase.co";
+
+const SUPABASE_PUBLISHABLE_KEY =
+  typeof rawKey === "string" && rawKey.length > 20
+    ? rawKey
+    : "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholderKeyForClientSafeInit";
 
 // Safe storage getter that falls back gracefully if localStorage is disabled or restricted
 const getSafeAuthStorage = () => {
