@@ -195,7 +195,10 @@ export const MAHARASHTRA_NATIVE_SPECIES_DB: Record<string, NativeSpeciesProfile>
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+const geminiKey =
+  import.meta.env.VITE_GEMINI_API_KEY ||
+  "placeholder-key-for-client-initialization";
+const ai = new GoogleGenAI({ apiKey: geminiKey });
 
 export class GreenEnlightenmentAiModelService {
   /**
