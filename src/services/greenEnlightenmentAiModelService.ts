@@ -253,14 +253,11 @@ export class GreenEnlightenmentAiModelService {
 
     try {
       const candidateModels = [
-        "gemini-3.1-pro-preview",
-        "gemini-2.5-pro",
-        "gemini-pro-latest",
-        "gemini-3.1-flash-lite",
-        "gemini-2.5-flash",
         "gemini-3.8-flash",
-        "gemini-3.5-flash-lite",
-        "gemini-flash-latest"
+        "gemini-3.1-flash-lite",
+        "gemini-3.1-pro-preview",
+        "gemini-flash-latest",
+        "gemini-pro-latest"
       ];
       let response: any = null;
       let lastModelError: any = null;
@@ -274,14 +271,16 @@ export class GreenEnlightenmentAiModelService {
                 role: "user",
                 parts: [
                   { inlineData: { mimeType: "image/jpeg", data: base64Data } },
-                  { text: `You are an expert botanical auditor and forestry verification AI. 
-                    Analyze this field photograph of a newly planted tree or sapling.
-                    The user claims this is a ${claimedSpeciesName}.
+                  { text: `You are an ADVERSARIAL BOTANICAL FORENSIC AUDITOR and forestry verification AI for institutional MRV. 
+                    Inspect this photograph. The applicant claims this is an in-ground planted ${claimedSpeciesName}.
+                    DO NOT TRUST THE APPLICANT'S CLAIM.
                     
-                    Inspect the image for:
-                    1. True botanical vitality (is it thriving, stressed, or dead?)
-                    2. Pathology (any signs of pests, fungal disease, or necrosis on leaves?)
-                    3. Anti-Fraud (Is this a genuine plant in the ground soil, or is it still in a nursery polybag? Is it a fake plastic plant? Is it a picture of a computer screen?)
+                    MANDATORY REJECTION RULES:
+                    Set fraudRiskScore = 100, isGenuineInGroundSoilPit = false, vitalityStatus = "dead_or_dry", crownHealthScore = 0 if ANY of the following apply:
+                    1. SILHOUETTE / UNDEREXPOSURE / TWILIGHT: The tree is an underexposed dark/black silhouette against twilight or bright sky where individual leaf veins, margins, and green chlorophyll cannot be inspected under daylight.
+                    2. SKY / LANDSCAPE / DISTANT HORIZON: The photo is mostly sky, clouds, scenery, buildings, or distant background tree lines, rather than a clear close-up/mid-range photograph of an individual planted sapling or tree specimen.
+                    3. NON-PLANT / ARTIFACT: The image shows animals, people, vehicles, furniture, food, or general household items.
+                    4. DIGITAL SCREEN / REPLAY ATTACK: The image is a photo of a computer monitor, tablet, smartphone screen, moiré pattern, printed poster, or screenshot.
                     
                     Respond ONLY with the strictly formatted JSON data.` 
                   }

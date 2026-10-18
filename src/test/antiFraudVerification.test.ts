@@ -8,6 +8,7 @@ import {
   calculateHammingDistance,
   calculateHashSimilarity,
 } from "../lib/perceptualHash";
+import { calculateCompositeAiVerificationScore } from "../lib/geminiBotanicalVision";
 
 describe("Phase 4: EXIF Freshness & Device GPS Cross-Check", () => {
   const baseDeviceGps = {
@@ -284,3 +285,71 @@ describe("Phase 4: Multi-Modal AI Screening & Fraud Gatekeeper", () => {
     expect(result.auditNotes).toContain("verified authentic");
   });
 });
+
+describe("Phase 11: Optical Quality Pre-Check & Silhouette Anti-Fraud Verification", () => {
+  it("strictly rejects silhouette, twilight, or sky-dominated photos without living specimen", () => {
+    // When an underexposed silhouette photo (like evening sky + dark canopy) is submitted
+    const silhouetteFraudResult = evaluateTreeSubmissionFraudRisk({
+      sha256Hash: "silhouette-hash-999",
+      dhashFingerprint: "0000000000000000",
+      claimedSpecies: "Neem",
+      existingRecords: [],
+      exifInput: {
+        photoTimestamp: new Date().toISOString(),
+        exifLatitude: 18.5204,
+        exifLongitude: 73.8567,
+        cameraMake: "Samsung",
+        cameraModel: "S23",
+        deviceLatitude: 18.5204,
+        deviceLongitude: 73.8567,
+      },
+      aiVerification: {
+        is_tree: false,
+        is_indoor: false,
+        is_screenshot: false,
+        is_ai_generated: false,
+        plantation_stage: "unidentifiable",
+        detected_species: "Unidentified Specimen",
+        environmental_authenticity_score: 0,
+        image_authenticity_score: 15,
+        tree_visibility_score: 0,
+      },
+    });
+
+    expect(silhouetteFraudResult.verdict).toBe("AUTO_REJECTED");
+    expect(silhouetteFraudResult.autoRejected).toBe(true);
+    expect(silhouetteFraudResult.speciesMatchConfirmed).toBe(false);
+    expect(silhouetteFraudResult.compositeTrustScore).toBeLessThan(30);
+    expect(silhouetteFraudResult.fraudSignals.some((s) => s.includes("NON_TREE_IMAGE"))).toBe(true);
+  });
+
+  it("ensures composite AI verification score strictly routes silhouettes and non-trees to fraud_rejected", () => {
+    const rejectedAiResult = {
+      isLivingTree: false,
+      speciesCommon: "None (Rejected / Unidentifiable)",
+      speciesScientific: "None",
+      botanicalFamily: "None",
+      crownHealthScore: 0,
+      vitalityStatus: "not_a_tree_fraud" as const,
+      growthStage: "sapling" as const,
+      confidenceScore: 0.0,
+      detectedStressFactors: ["silhouette_dark_lighting"],
+      fraudRiskScore: 95,
+      fraudFlags: ["REJECTED: SILHOUETTE_OR_DARK_LIGHTING"],
+      perceptualHash: "0000000000000000",
+      aiReport: "Photo rejected: dark silhouette against twilight sky without distinguishable leaf morphology.",
+    };
+
+    const decision = calculateCompositeAiVerificationScore(rejectedAiResult, {
+      accountType: "individual",
+      plantingType: "individual",
+      isIndividualPlanter: true,
+    });
+
+    expect(decision.isAutoApproved).toBe(false);
+    expect(decision.routingDecision).toBe("fraud_rejected");
+    expect(decision.compositeScore).toBe(0);
+    expect(decision.rationale).toContain("flagged as non-plant object");
+  });
+});
+

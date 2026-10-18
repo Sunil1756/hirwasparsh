@@ -180,41 +180,55 @@ export async function analyzeTreePhotoWithBotanicalAi(
   }
 
   const prompt = `
-You are an expert botanical taxonomist and forestry verification AI for an institutional Carbon MRV (Monitoring, Reporting & Verification) platform.
-Analyze this ground-truth photo of a planted tree or sapling:
-Claimed species: "${claimedSpecies || "Unspecified"}".
+You are an ADVERSARIAL BOTANICAL FORENSIC AUDITOR for an institutional Carbon MRV (Monitoring, Reporting & Verification) platform.
+Your mission is to rigorously DETECT AND REJECT FRAUD, FAKES, POOR-QUALITY PHOTOS, SILHOUETTES, AND NON-PLANT OBJECTS.
+
+SUBMISSION CLAIM:
+The applicant claims this photo shows an in-ground planted tree or sapling of species: "${claimedSpecies || "Unspecified"}".
+DO NOT TRUST THIS CLAIM. Rigorously cross-examine the image pixels.
+
+REJECTION CRITERIA (MANDATORY FRAUD / QUALITY REJECTION):
+You MUST set "isLivingTree": false, "vitalityStatus": "not_a_tree_fraud", "confidenceScore": 0.0, "crownHealthScore": 0, and "fraudRiskScore": 90-100 if ANY of the following are true:
+1. SILHOUETTE / UNDEREXPOSURE / TWILIGHT: The tree or foliage is a dark or black silhouette against a twilight, sunset, or bright sky, where individual leaf veins, margins, serrations, and true green chlorophyll coloration are unreadable.
+2. SKY / LANDSCAPE / DISTANT HORIZON: The photo is mostly sky, clouds, scenery, buildings, or distant background tree lines, rather than a clear close-up/mid-range photograph of an individual planted sapling or tree specimen.
+3. NON-PLANT / ARTIFACT: The image shows animals, people, vehicles, furniture, food, or general household items.
+4. DIGITAL SCREEN / REPLAY ATTACK: The image is a photo of a computer monitor, tablet, smartphone screen, moiré pattern, printed poster, or screenshot.
+5. ARTIFICIAL / PLASTIC / CUT FOLIAGE: Plastic flowers/trees, pruned twigs stuck in ground, or artificial grass.
+6. INDOOR / NURSERY POT: Houseplant in a ceramic pot, living room, or unplanted polybag instead of a genuine outdoor in-ground plantation soil pit.
+
+SPECIES VERIFICATION RULE:
+- If the photo is rejected for ANY reason above, DO NOT assign the claimed species. Set "speciesCommon": "None (Rejected / Unidentifiable)" and "speciesScientific": "None".
+- Only confirm a species if distinct botanical traits (compound vs simple leaves, bipinnate arrangement, serrated margins, bark lenticels) are clearly visible under direct light with >= 80% certainty.
 
 Return ONLY a valid JSON object with EXACTLY this structure:
 {
   "isLivingTree": boolean,
-  "speciesCommon": "Common English / Local Indian Name",
-  "speciesScientific": "Genus species in Latin",
-  "botanicalFamily": "Botanical Family Name",
-  "crownHealthScore": integer (0 to 100),
+  "speciesCommon": "Common English / Local Indian Name (or 'None (Rejected)' if not authentic)",
+  "speciesScientific": "Genus species in Latin (or 'None' if rejected)",
+  "botanicalFamily": "Botanical Family Name (or 'None' if rejected)",
+  "crownHealthScore": integer (0 to 100, MUST be 0 if rejected or silhouette),
   "vitalityStatus": "healthy" | "moderate_stress" | "severe_stress" | "dead_or_dry" | "not_a_tree_fraud",
   "growthStage": "sapling" | "young_tree" | "mature_tree" | "overmature",
   "stemLignification": "woody" | "semi_woody" | "herbaceous" | "unknown",
-  "leafMorphology": "string describing leaf structure (e.g. pinnate, simple ovate, palmate, needle-like)",
+  "leafMorphology": "string describing leaf structure (or 'unidentifiable' if rejected)",
   "chlorophyllPigmentation": "dense_photosynthetic_green" | "moderate_green" | "chlorotic_yellow" | "necrotic_brown",
   "backgroundSetting": "in_ground_soil_pit" | "nursery_polybag" | "indoor_pot" | "screen_or_recycled_media" | "open_field",
-  "isGenuineInGroundPlantation": boolean (true if sapling is physically in a prepared ground soil pit, false if indoor houseplant or unplanted polybag),
-  "confidenceScore": float (0.0 to 1.0),
+  "isGenuineInGroundPlantation": boolean,
+  "confidenceScore": float (0.0 to 1.0, MUST be 0.0 if silhouette or fraud),
   "detectedStressFactors": ["string", "string"],
-  "fraudRiskScore": integer (0 = authentic ground photo, 100 = photo of computer monitor/fake plastic plant/indoor furniture),
+  "fraudRiskScore": integer (0 = authentic ground photo, 100 = silhouette/photo of computer monitor/fake plastic plant/indoor furniture),
   "fraudFlags": ["string", "string"],
-  "aiReport": "1-2 sentence scientific assessment of leaf morphology, chlorophyll health, stem lignification, and ground establishment."
+  "aiReport": "1-2 sentence scientific assessment of leaf morphology, chlorophyll health, stem lignification, and ground establishment, or reason for fraud rejection."
 }
 `;
 
+  // Prioritize active and available models; avoid deprecated or rate-limited endpoints
   const candidateModels = [
-    "gemini-3.1-pro-preview",
-    "gemini-2.5-pro",
-    "gemini-pro-latest",
-    "gemini-3.1-flash-lite",
-    "gemini-2.5-flash",
     "gemini-3.8-flash",
-    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-3.1-pro-preview",
     "gemini-flash-latest",
+    "gemini-pro-latest",
   ];
 
   let lastErr: any = null;
@@ -242,7 +256,7 @@ Return ONLY a valid JSON object with EXACTLY this structure:
             ],
             generationConfig: {
               response_mime_type: "application/json",
-              temperature: 0.15,
+              temperature: 0.1,
             },
           }),
         }
@@ -269,25 +283,27 @@ Return ONLY a valid JSON object with EXACTLY this structure:
         .trim();
 
       const parsed = JSON.parse(cleanJson);
+      const isLiving = Boolean(parsed.isLivingTree) && parsed.vitalityStatus !== "not_a_tree_fraud" && (parsed.fraudRiskScore ?? 0) < 50;
+
       return {
-        isLivingTree: Boolean(parsed.isLivingTree),
-        speciesCommon: parsed.speciesCommon || claimedSpecies || "Indigenous Native Species",
-        speciesScientific: parsed.speciesScientific || "Flora indica",
-        botanicalFamily: parsed.botanicalFamily || "Plantae",
-        crownHealthScore: Number(parsed.crownHealthScore) || 75,
-        vitalityStatus: parsed.vitalityStatus || "healthy",
+        isLivingTree: isLiving,
+        speciesCommon: isLiving ? (parsed.speciesCommon || claimedSpecies || "Indigenous Native Species") : "Rejected / Not a Living Specimen",
+        speciesScientific: isLiving ? (parsed.speciesScientific || "Flora indica") : "None",
+        botanicalFamily: isLiving ? (parsed.botanicalFamily || "Plantae") : "None",
+        crownHealthScore: isLiving ? (Number(parsed.crownHealthScore) || 75) : 0,
+        vitalityStatus: isLiving ? (parsed.vitalityStatus || "healthy") : "not_a_tree_fraud",
         growthStage: parsed.growthStage || "young_tree",
         stemLignification: parsed.stemLignification || "woody",
-        leafMorphology: parsed.leafMorphology || "Broadleaf foliage",
-        chlorophyllPigmentation: parsed.chlorophyllPigmentation || "dense_photosynthetic_green",
-        backgroundSetting: parsed.backgroundSetting || "in_ground_soil_pit",
-        isGenuineInGroundPlantation: parsed.isGenuineInGroundPlantation !== undefined ? Boolean(parsed.isGenuineInGroundPlantation) : true,
-        confidenceScore: typeof parsed.confidenceScore === "number" ? parsed.confidenceScore : 0.85,
+        leafMorphology: parsed.leafMorphology || (isLiving ? "Broadleaf foliage" : "Unidentifiable"),
+        chlorophyllPigmentation: parsed.chlorophyllPigmentation || (isLiving ? "dense_photosynthetic_green" : "necrotic_brown"),
+        backgroundSetting: parsed.backgroundSetting || (isLiving ? "in_ground_soil_pit" : "screen_or_recycled_media"),
+        isGenuineInGroundPlantation: isLiving && parsed.isGenuineInGroundPlantation !== undefined ? Boolean(parsed.isGenuineInGroundPlantation) : false,
+        confidenceScore: isLiving ? (typeof parsed.confidenceScore === "number" ? parsed.confidenceScore : 0.85) : 0,
         detectedStressFactors: Array.isArray(parsed.detectedStressFactors) ? parsed.detectedStressFactors : [],
-        fraudRiskScore: typeof parsed.fraudRiskScore === "number" ? parsed.fraudRiskScore : 5,
-        fraudFlags: Array.isArray(parsed.fraudFlags) ? parsed.fraudFlags : [],
+        fraudRiskScore: typeof parsed.fraudRiskScore === "number" ? parsed.fraudRiskScore : (isLiving ? 5 : 95),
+        fraudFlags: Array.isArray(parsed.fraudFlags) ? parsed.fraudFlags : (!isLiving ? ["Botanical verification rejected: not an in-ground living tree"] : []),
         perceptualHash: dHash,
-        aiReport: parsed.aiReport || "Botanical validation completed successfully.",
+        aiReport: parsed.aiReport || (isLiving ? "Botanical validation completed successfully." : "Photo rejected: does not show an authentic living tree specimen."),
       };
     } catch (err: any) {
       lastErr = err;
@@ -331,13 +347,28 @@ export function calculateCompositeAiVerificationScore(
   routingDecision: "auto_approved" | "manual_review_queue" | "fraud_rejected" | "institutional_mrv_audit_queue";
   rationale: string;
 } {
-  const confidenceComponent = (result.confidenceScore || 0.8) * 70;
-  const healthComponent = (result.crownHealthScore || 70) * 0.3;
-  const fraudPenalty = (result.fraudRiskScore || 0) * 0.5;
+  // 1. Fraud & Non-Tree / Silhouette Detection Gate
+  if (
+    !result.isLivingTree ||
+    result.vitalityStatus === "not_a_tree_fraud" ||
+    (result.fraudRiskScore ?? 0) >= 50 ||
+    result.backgroundSetting === "screen_or_recycled_media"
+  ) {
+    return {
+      compositeScore: 0,
+      isAutoApproved: false,
+      routingDecision: "fraud_rejected",
+      rationale: "Photo flagged as non-plant object, synthetic artificial plant, computer screen capture, duplicate image, or dark silhouette.",
+    };
+  }
+
+  const confidenceComponent = (result.confidenceScore ?? 0.8) * 70;
+  const healthComponent = (result.crownHealthScore ?? 70) * 0.3;
+  const fraudPenalty = (result.fraudRiskScore ?? 0) * 0.5;
 
   const compositeScore = Math.max(0, Math.min(100, Math.round(confidenceComponent + healthComponent - fraudPenalty)));
 
-  // 1. Strict Institutional Isolation Gate:
+  // 2. Strict Institutional Isolation Gate:
   // NGO, CSR, Corporate, Government, or Plot-level bulk plantation drives MUST NOT be auto-approved by individual photo AI.
   const isInstitutional =
     context &&
@@ -358,21 +389,6 @@ export function calculateCompositeAiVerificationScore(
       routingDecision: "institutional_mrv_audit_queue",
       rationale:
         "Institutional NGO/CSR projects are isolated from lightweight individual auto-approval. Must complete Tier 1/2/3 multi-tree MRV audits (geodetic polygon validation, Sentinel-2 plot accretion, 5% ranger spot audit, and admin sign-off).",
-    };
-  }
-
-  // 2. Fraud & Non-Tree Detection Gate for Individual Planters
-  if (
-    !result.isLivingTree ||
-    result.vitalityStatus === "not_a_tree_fraud" ||
-    result.fraudRiskScore >= 50 ||
-    result.backgroundSetting === "screen_or_recycled_media"
-  ) {
-    return {
-      compositeScore,
-      isAutoApproved: false,
-      routingDecision: "fraud_rejected",
-      rationale: "Photo flagged as non-plant object, synthetic artificial plant, computer screen capture, or duplicate image.",
     };
   }
 

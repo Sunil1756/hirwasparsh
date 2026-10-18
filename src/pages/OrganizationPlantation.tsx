@@ -28,7 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { projectService } from "@/services/projectService";
 import { useAuth } from "@/contexts/AuthContext";
-import { compressImage } from "@/lib/imageProcessing";
+import { compressImage, inspectImageQualityForBotanicalVerification } from "@/lib/imageProcessing";
 import { syncUserProfileImpact } from "@/lib/syncUserImpact";
 import { validateGeodeticBoundary } from "@/lib/projectOnboardingService";
 import { fetchRealSentinel2Telemetry } from "@/lib/remoteSensing";
@@ -389,20 +389,38 @@ const { data, error } = await supabase
     setSitePhotoAiResult(null);
 
     toast({
-      title: "🤖 Gemini Vision AI Scanning...",
-      description: `Auditing "${file.name}" for living tree foliage and plantation authenticity...`,
+      title: "🔍 Optical & Quality Pre-Check...",
+      description: `Inspecting "${file.name}" for daylight illumination and foliar visibility...`,
     });
 
     try {
+      // 1. Client-side rapid canvas scan (catches silhouettes, night, and sky photos in ~10ms)
+      const qualityCheck = await inspectImageQualityForBotanicalVerification(file);
+      if (!qualityCheck.isValid) {
+        toast({
+          title: "❌ Optical Pre-Check Rejected",
+          description: qualityCheck.reason || "Photo quality is insufficient for botanical verification.",
+          variant: "destructive",
+          duration: 9000,
+        });
+        setIsVerifyingSitePhoto(false);
+        return;
+      }
+
+      toast({
+        title: "🤖 Gemini Vision AI Scanning...",
+        description: `Auditing "${file.name}" for living tree foliage and plantation authenticity...`,
+      });
+
       const primarySpecies = speciesText.split(",")[0]?.trim() || "Indigenous Tree";
       const aiCheck = await analyzeTreePhotoWithBotanicalAi(file, primarySpecies);
 
-      if (!aiCheck.isLivingTree || aiCheck.vitalityStatus === "not_a_tree_fraud") {
+      if (!aiCheck.isLivingTree || aiCheck.vitalityStatus === "not_a_tree_fraud" || (aiCheck.confidenceScore || 0) < 0.60) {
         toast({
-          title: "❌ Photo Verification Failed — Fraud Rejection",
-          description: `Gemini AI detected that this photo does not show living trees or a plantation site (${aiCheck.fraudFlags?.[0] || aiCheck.aiReport || "No living tree detected"}). Please upload an authentic tree photo.`,
+          title: "❌ Photo Verification Failed — Fraud / Quality Rejection",
+          description: `Gemini AI detected that this photo does not show a verifiable in-ground living tree (${aiCheck.fraudFlags?.[0] || aiCheck.aiReport || "Insufficient botanical detail"}). Please upload a clear photo of the planted sapling.`,
           variant: "destructive",
-          duration: 8000,
+          duration: 9000,
         });
         setIsVerifyingSitePhoto(false);
         return;
@@ -419,7 +437,7 @@ const { data, error } = await supabase
       setSitePhotoAiResult(aiCheck);
       toast({
         title: "✅ AI Biological Proof Verified",
-        description: `Living tree verified: ${aiCheck.speciesCommon || primarySpecies} (${Math.round((aiCheck.confidenceScore || 0.9) * 100)}% AI confidence).`,
+        description: `Living tree verified: ${aiCheck.speciesCommon || primarySpecies} (${Math.round((aiCheck.confidenceScore || 0) * 100)}% AI confidence, Vitality: ${aiCheck.crownHealthScore}%).`,
       });
     } catch (err: any) {
       toast({
@@ -1888,13 +1906,17 @@ const { error } = await supabase.from("projects").delete().eq("id", projectId);
                           <img src={initialSitePhotoPreview} alt="Site Preview" className="h-20 w-28 object-cover rounded-lg border border-border" />
                           <div className="text-xs space-y-1">
                             <p className="font-semibold text-foreground">{initialSitePhoto?.name}</p>
-                            {sitePhotoAiResult && (
+                            {sitePhotoAiResult?.isLivingTree ? (
                               <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px] flex items-center gap-1 font-semibold">
                                 <ShieldCheck className="h-3 w-3" /> Living Specimen Verified ({sitePhotoAiResult.speciesCommon})
                               </Badge>
-                            )}
+                            ) : sitePhotoAiResult ? (
+                              <Badge className="bg-destructive/15 text-destructive border-destructive/30 text-[10px] flex items-center gap-1 font-semibold">
+                                <AlertCircle className="h-3 w-3" /> Verification Rejected (Non-Specimen)
+                              </Badge>
+                            ) : null}
                             <p className="text-muted-foreground text-[11px]">
-                              Crown Vitality: {sitePhotoAiResult?.crownHealthScore ?? 85}% • Confidence: {Math.round((sitePhotoAiResult?.confidenceScore || 0.9) * 100)}%
+                              Crown Vitality: {sitePhotoAiResult?.crownHealthScore ?? 0}% • Confidence: {Math.round((sitePhotoAiResult?.confidenceScore || 0) * 100)}%
                             </p>
                             <Button
                               type="button"
