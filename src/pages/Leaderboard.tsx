@@ -77,7 +77,7 @@ const Leaderboard = () => {
             let totalTrees = 0;
             let totalPoints = 0;
             if (memberIds.length > 0) {
-              (profiles || []).forEach(p => {
+              (planters || []).forEach(p => {
                 totalTrees += Number(p.trees_planted || 0);
                 totalPoints += Number(p.green_points || 0);
               });

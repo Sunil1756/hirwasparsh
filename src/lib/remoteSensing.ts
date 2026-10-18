@@ -1,3 +1,4 @@
+import { fetchRealSentinel2Telemetry } from "./sentinel2RealService";
 /**
  * Remote Sensing & Multi-Spectral Sentinel-2 L2A Vegetation Engine
  * Enterprise Sentinel-2 MSI Multi-Spectral & Carbon Biomass Modeling Engine

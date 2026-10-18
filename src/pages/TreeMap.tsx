@@ -119,6 +119,16 @@ const TreeMap = () => {
     queryFn: fetchTrees,
   });
 
+  const { data: projects = [] } = useQuery({
+    queryKey: ["projects"],
+    queryFn: fetchProjects,
+  });
+
+  const { data: boundaries = [] } = useQuery({
+    queryKey: ["project_boundaries"],
+    queryFn: fetchBoundaries,
+  });
+
   const speciesOptions = useMemo(
     () => Array.from(new Set(trees.map((t) => t.species).filter(Boolean))).sort(),
     [trees]

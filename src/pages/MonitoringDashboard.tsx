@@ -346,26 +346,6 @@ export const MonitoringDashboard: React.FC = () => {
       {/* Main Tabs Navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-card/70 border border-border p-1 rounded-xl flex flex-wrap gap-1">
-          <TabsTrigger value="schedules" className="text-xs gap-1.5 data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-            <Calendar className="h-3.5 w-3.5" />
-            <span>Automated Schedules (Task 46)</span>
-          </TabsTrigger>
-          <TabsTrigger value="work_orders" className="text-xs gap-1.5 data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-            <ClipboardList className="h-3.5 w-3.5" />
-            <span>Due & Overdue Tasks (Task 47)</span>
-          </TabsTrigger>
-          <TabsTrigger value="notifications" className="text-xs gap-1.5 data-[state=active]:bg-amber-600 data-[state=active]:text-white">
-            <Bell className="h-3.5 w-3.5" />
-            <span>Notifications (Task 48)</span>
-          </TabsTrigger>
-          <TabsTrigger value="alerts" className="text-xs gap-1.5 data-[state=active]:bg-rose-600 data-[state=active]:text-white">
-            <AlertTriangle className="h-3.5 w-3.5" />
-            <span>Anomaly Alerts (Task 49)</span>
-          </TabsTrigger>
-          <TabsTrigger value="escalations" className="text-xs gap-1.5 data-[state=active]:bg-purple-600 data-[state=active]:text-white">
-            <ShieldAlert className="h-3.5 w-3.5" />
-            <span>Escalations (Task 50)</span>
-          </TabsTrigger>
           <TabsTrigger value="requiring_monitoring" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Calendar className="h-3.5 w-3.5" />
             <span>Requiring Monitoring</span>
@@ -407,41 +387,6 @@ export const MonitoringDashboard: React.FC = () => {
             )}
           </TabsTrigger>
         </TabsList>
-
-        {/* ==================================================================== */}
-        {/* TAB: Automated Monitoring Schedules & Recurrence Engine (Task 46) */}
-        {/* ==================================================================== */}
-        <TabsContent value="schedules" className="space-y-4">
-          <MonitoringScheduleConsole />
-        </TabsContent>
-
-        {/* ==================================================================== */}
-        {/* TAB: Due & Overdue Work Orders & SLA Engine (Task 47) */}
-        {/* ==================================================================== */}
-        <TabsContent value="work_orders" className="space-y-4">
-          <MonitoringTaskConsole />
-        </TabsContent>
-
-        {/* ==================================================================== */}
-        {/* TAB: Alerts & Multi-Channel Notifications (Task 48) */}
-        {/* ==================================================================== */}
-        <TabsContent value="notifications" className="space-y-4">
-          <NotificationCenterConsole />
-        </TabsContent>
-
-        {/* ==================================================================== */}
-        {/* TAB: Biometric & Satellite Anomaly Alert Engine (Task 49) */}
-        {/* ==================================================================== */}
-        <TabsContent value="alerts" className="space-y-4">
-          <AlertManagementConsole />
-        </TabsContent>
-
-        {/* ==================================================================== */}
-        {/* TAB: Multi-Tier Escalations & SLA Management (Task 50) */}
-        {/* ==================================================================== */}
-        <TabsContent value="escalations" className="space-y-4">
-          <EscalationWorkflowConsole />
-        </TabsContent>
 
         {/* ==================================================================== */}
         {/* TAB 1: Trees Requiring Monitoring */}

@@ -68,6 +68,8 @@ export const CreateObservationModal: React.FC<CreateObservationModalProps> = ({
   plantationDate,
   currentHeightCm,
   currentDbhCm,
+  treeLatitude,
+  treeLongitude,
   onSuccess,
 }) => {
   const { toast } = useToast();

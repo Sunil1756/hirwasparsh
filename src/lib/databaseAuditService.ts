@@ -1,3 +1,4 @@
+import { generatePilotOverpasses } from "./sentinel2PipelineService";
 /**
  * Enterprise Database Audit & Synchronization Service
  * Manages Supabase data integrity for NGOs, CSR donors, and Carbon MRV.

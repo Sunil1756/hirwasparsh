@@ -192,6 +192,7 @@ const OrganizationPlantation = () => {
   // Step 4 Flexible Modes (Auto Grid vs Photo vs CSV)
   const [dataEntryMode, setDataEntryMode] = useState<"auto" | "photo" | "csv">("auto");
   const [bulkRows, setBulkRows] = useState<Record<string, string>[]>([]);
+  const [bulkFileName, setBulkFileName] = useState<string>("");
   const [initialSitePhoto, setInitialSitePhoto] = useState<File | null>(null);
   const [initialSitePhotoPreview, setInitialSitePhotoPreview] = useState<string | null>(null);
   const [isVerifyingSitePhoto, setIsVerifyingSitePhoto] = useState(false);
