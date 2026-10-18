@@ -29,6 +29,10 @@ import {
   MAHARASHTRA_NATIVE_SPECIES_DB,
   SftTrainingPair,
 } from "../../services/greenEnlightenmentAiModelService";
+import {
+  SFT_46_GROUND_TRUTH_DATASET,
+  SftGroundTruthPair,
+} from "@/data/sft46GroundTruthDataset";
 
 interface GreenEnlightenmentAiStudioHUDProps {
   className?: string;
@@ -37,17 +41,16 @@ interface GreenEnlightenmentAiStudioHUDProps {
 export const GreenEnlightenmentAiStudioHUD: React.FC<GreenEnlightenmentAiStudioHUDProps> = ({
   className = "",
 }) => {
-  const [selectedEngine, setSelectedEngine] = useState<ModelExecutionEngine>("gemini-3.1-pro-preview");
+  const [selectedEngine, setSelectedEngine] = useState<ModelExecutionEngine>("gemini-3.8-flash" as ModelExecutionEngine);
   const [selectedSpecies, setSelectedSpecies] = useState<string>("Neem");
   const [inspecting, setInspecting] = useState<boolean>(false);
   const [report, setReport] = useState<CompleteAiInspectionReport | null>(null);
   const [activeResultTab, setActiveResultTab] = useState<
     "taxonomy" | "vitality" | "pathology" | "antifraud" | "sft_dataset"
-  >("taxonomy");
+  >("sft_dataset");
 
-  const [sftPairs, setSftPairs] = useState<SftTrainingPair[]>(
-    greenEnlightenmentAiModelService.generateSftDataset(6)
-  );
+  const [sftFilter, setSftFilter] = useState<"all" | "genuine" | "fraud">("all");
+  const [sftPairs] = useState<SftGroundTruthPair[]>(SFT_46_GROUND_TRUTH_DATASET);
   const [sftJsonlExported, setSftJsonlExported] = useState<string>("");
 
   const handleRunInspection = async () => {
@@ -68,8 +71,19 @@ export const GreenEnlightenmentAiStudioHUD: React.FC<GreenEnlightenmentAiStudioH
   };
 
   const handleExportJsonl = () => {
-    const jsonl = greenEnlightenmentAiModelService.exportSftJsonl(sftPairs);
+    const jsonl = exportSftDatasetAsJsonl(sftPairs);
     setSftJsonlExported(jsonl);
+    if (typeof window !== "undefined" && typeof document !== "undefined") {
+      const blob = new Blob([jsonl], { type: "application/jsonl" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "green_enlightenment_sft_46_pairs.jsonl";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
   };
 
   return (
@@ -451,56 +465,149 @@ export const GreenEnlightenmentAiStudioHUD: React.FC<GreenEnlightenmentAiStudioH
           )}
 
           {/* Tab Content 5: SFT Dataset Vault */}
-          {activeResultTab === "sft_dataset" && (
-            <div className="space-y-4 text-xs" data-testid="panel-sft">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <span className="text-slate-300 font-semibold">
-                  Google Cloud Vertex AI Supervised Fine-Tuning (SFT) Dataset Vault ({sftPairs.length} Curated Pairs)
-                </span>
-                <button
-                  onClick={handleExportJsonl}
-                  data-testid="export-jsonl-btn"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-mono text-xs transition-all"
-                >
-                  <Download className="w-3.5 h-3.5" /> Export Gemini SFT JSONL
-                </button>
-              </div>
+          {activeResultTab === "sft_dataset" && (() => {
+            const displayed = sftPairs.filter((p) => {
+              if (sftFilter === "genuine") return p.groundTruthVerdict === "VERIFIED_GENUINE_PLANTATION";
+              if (sftFilter === "fraud") return p.groundTruthVerdict === "REJECTED_FRAUD_OR_INVALID";
+              return true;
+            });
 
-              <div className="overflow-x-auto rounded-xl border border-slate-800">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] border-b border-slate-800 font-mono">
-                    <tr>
-                      <th className="p-2.5">Pair ID</th>
-                      <th className="p-2.5">Species</th>
-                      <th className="p-2.5">Ground Truth Auditor</th>
-                      <th className="p-2.5">Verra Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800 font-mono text-slate-300">
-                    {sftPairs.map((p) => (
-                      <tr key={p.id} className="hover:bg-slate-800/40">
-                        <td className="p-2.5 text-purple-300 font-bold">{p.id}</td>
-                        <td className="p-2.5 text-white font-sans">{p.species}</td>
-                        <td className="p-2.5 text-[11px] text-slate-400 font-sans">{p.groundTruthVerifiedBy}</td>
-                        <td className="p-2.5 text-emerald-400 font-bold">VERRA_ELIGIBLE</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {sftJsonlExported && (
-                <div className="p-3 rounded-xl bg-slate-950 border border-purple-500/40 space-y-2">
-                  <strong className="text-purple-300 block font-mono text-xs">
-                    Generated Gemini SFT JSONL Training Stream:
-                  </strong>
-                  <pre className="p-3 rounded-lg bg-slate-900 text-slate-300 font-mono text-[10px] overflow-x-auto max-h-40">
-                    {sftJsonlExported}
-                  </pre>
+            return (
+              <div className="space-y-4 text-xs" data-testid="panel-sft">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <span className="text-slate-200 font-bold block text-sm">
+                      Google Cloud Vertex AI Supervised Fine-Tuning (SFT) Dataset Vault
+                    </span>
+                    <span className="text-[11px] text-slate-400 font-mono">
+                      46 Certified Pairs: 25 Authentic Ground-Truth (PDF 1) • 21 Adversarial Fraud (PDF 2)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleExportJsonl}
+                      data-testid="export-jsonl-btn"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-mono text-xs transition-all shadow-md"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Export & Download JSONL (60 KB)
+                    </button>
+                  </div>
                 </div>
-              )}
-            </div>
-          )}
+
+                {/* Filter Controls */}
+                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setSftFilter("all")}
+                    className={`px-3 py-1 rounded-lg text-xs font-mono transition-all ${
+                      sftFilter === "all"
+                        ? "bg-slate-700 text-white font-bold"
+                        : "bg-slate-900 text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    All 46 Curated Pairs
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSftFilter("genuine")}
+                    className={`px-3 py-1 rounded-lg text-xs font-mono transition-all ${
+                      sftFilter === "genuine"
+                        ? "bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 font-bold"
+                        : "bg-slate-900 text-slate-400 hover:text-emerald-400"
+                    }`}
+                  >
+                    ✓ 25 Positive Genuine (PDF 1: P.1–25)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSftFilter("fraud")}
+                    className={`px-3 py-1 rounded-lg text-xs font-mono transition-all ${
+                      sftFilter === "fraud"
+                        ? "bg-rose-600/30 text-rose-300 border border-rose-500/40 font-bold"
+                        : "bg-slate-900 text-slate-400 hover:text-rose-400"
+                    }`}
+                  >
+                    ✕ 21 Negative Fraud / Invalid (PDF 2: P.1–21)
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto rounded-xl border border-slate-800 max-h-96">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] border-b border-slate-800 font-mono sticky top-0 z-10">
+                      <tr>
+                        <th className="p-2.5">Pair ID</th>
+                        <th className="p-2.5">Source & Page</th>
+                        <th className="p-2.5">Verification Verdict</th>
+                        <th className="p-2.5">Evidence Title</th>
+                        <th className="p-2.5">Silvicultural Check</th>
+                        <th className="p-2.5">Verra Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800 font-mono text-slate-300">
+                      {displayed.map((p) => {
+                        const isPos = p.groundTruthVerdict === "VERIFIED_GENUINE_PLANTATION";
+                        return (
+                          <tr key={p.id} className="hover:bg-slate-800/40 transition-colors">
+                            <td className="p-2.5 text-purple-300 font-bold">{p.id}</td>
+                            <td className="p-2.5 text-[11px] text-slate-400">
+                              {p.sourceDocument === "25_PAGE_CORRECT_DATASET" ? (
+                                <span className="text-emerald-400 font-sans">PDF 1 (Page {p.sourcePageNumber})</span>
+                              ) : (
+                                <span className="text-rose-400 font-sans">PDF 2 (Page {p.sourcePageNumber})</span>
+                              )}
+                            </td>
+                            <td className="p-2.5 font-bold">
+                              {isPos ? (
+                                <span className="inline-flex items-center gap-1 text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded text-[10px]">
+                                  <ShieldCheck className="w-3 h-3" /> Genuine Planting
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded text-[10px]">
+                                  <AlertTriangle className="w-3 h-3" /> Fraud Disqualified
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-2.5 text-white font-sans max-w-xs truncate" title={p.visualEvidenceDescription}>
+                              {p.title}
+                            </td>
+                            <td className="p-2.5 text-[10px] font-sans">
+                              {isPos ? (
+                                <span className="text-emerald-300">
+                                  H: {p.completion.silviculturalAllometry.estimatedHeightCm}cm • DBH: {p.completion.silviculturalAllometry.estimatedDbhCm}cm • Pit: {p.completion.silviculturalAllometry.soilPitDetected ? "Yes" : "No"}
+                                </span>
+                              ) : (
+                                <span className="text-rose-300">
+                                  {p.completion.rejectionReason?.replace(/_/g, " ") || "Mature Tree / Hardscape"}
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-2.5 text-center">
+                              {isPos ? (
+                                <span className="text-emerald-400 font-bold text-[10px]">ELIGIBLE</span>
+                              ) : (
+                                <span className="text-rose-400 font-bold text-[10px]">DISQUALIFIED</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {sftJsonlExported && (
+                  <div className="p-3 rounded-xl bg-slate-950 border border-purple-500/40 space-y-2">
+                    <strong className="text-purple-300 block font-mono text-xs">
+                      Generated Gemini SFT JSONL Training Stream:
+                    </strong>
+                    <pre className="p-3 rounded-lg bg-slate-900 text-slate-300 font-mono text-[10px] overflow-x-auto max-h-40">
+                      {sftJsonlExported}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>

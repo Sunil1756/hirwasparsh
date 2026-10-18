@@ -187,14 +187,27 @@ SUBMISSION CLAIM:
 The applicant claims this photo shows an in-ground planted tree or sapling of species: "${claimedSpecies || "Unspecified"}".
 DO NOT TRUST THIS CLAIM. Rigorously cross-examine the image pixels.
 
-REJECTION CRITERIA (MANDATORY FRAUD / QUALITY REJECTION):
-You MUST set "isLivingTree": false, "vitalityStatus": "not_a_tree_fraud", "confidenceScore": 0.0, "crownHealthScore": 0, and "fraudRiskScore": 90-100 if ANY of the following are true:
-1. SILHOUETTE / UNDEREXPOSURE / TWILIGHT: The tree or foliage is a dark or black silhouette against a twilight, sunset, or bright sky, where individual leaf veins, margins, serrations, and true green chlorophyll coloration are unreadable.
-2. SKY / LANDSCAPE / DISTANT HORIZON: The photo is mostly sky, clouds, scenery, buildings, or distant background tree lines, rather than a clear close-up/mid-range photograph of an individual planted sapling or tree specimen.
-3. NON-PLANT / ARTIFACT: The image shows animals, people, vehicles, furniture, food, or general household items.
-4. DIGITAL SCREEN / REPLAY ATTACK: The image is a photo of a computer monitor, tablet, smartphone screen, moiré pattern, printed poster, or screenshot.
-5. ARTIFICIAL / PLASTIC / CUT FOLIAGE: Plastic flowers/trees, pruned twigs stuck in ground, or artificial grass.
-6. INDOOR / NURSERY POT: Houseplant in a ceramic pot, living room, or unplanted polybag instead of a genuine outdoor in-ground plantation soil pit.
+REJECTION CRITERIA & 46-EXEMPLAR VISUAL DISQUALIFICATIONS (MANDATORY FRAUD REJECTION):
+You MUST set "isLivingTree": false, "vitalityStatus": "not_a_tree_fraud", "confidenceScore": 0.0, "crownHealthScore": 0, "isGenuineInGroundPlantation": false, and "fraudRiskScore": 90-100 if ANY of the following are true:
+1. MATURE ADULT TREE FRAUD (Exemplars: 21-Page Negative Dataset):
+   The photo depicts an established, multi-year-old adult tree (DBH > 10cm, height > 3m, thick fissured/gnarled bark, multi-meter buttress roots, or massive spreading branching canopy) rather than a newly planted sapling. Pre-existing adult trees completely violate carbon additionality baselines.
+2. PAVED URBAN HARDSCAPE / LANDSCAPING (Exemplars: 21-Page Negative Dataset):
+   Flagstone tiles, paved stone patios, asphalt roads, ornamental manicured hedges, municipal park promenades with trash cans/benches, asphalt road street canopies, or public squares without freshly dug in-ground soil pits.
+3. LIFESTYLE / LEISURE / RECREATIONAL PORTRAITS (Exemplars: 21-Page Negative Dataset):
+   People lounging on turf lawns, resting/sleeping with books covering faces, posing with acoustic guitars, hugging heritage tree trunks, or climbing in mature tree branches.
+4. DISTANT CANOPY / TREETOP SKY VIEWS (Exemplars: 21-Page Negative Dataset):
+   Macro close-ups of flowers in high treetops without ground context, or camera angled upward into mature trees/sunset twilight sky without an in-ground sapling.
+5. SILHOUETTE / UNDEREXPOSURE / TWILIGHT:
+   Dark or black silhouettes where individual leaf veins, margins, serrations, and true green chlorophyll coloration are unreadable under daylight.
+6. DIGITAL SCREEN / REPLAY ATTACK:
+   Photos of computer monitors, screens, screenshots, moiré patterns, or synthetic graphics.
+
+GENUINE PLANTATION ACCEPTANCE CRITERIA (Exemplars: 25-Page Positive Dataset):
+A submission may ONLY be verified as a genuine living tree (isLivingTree: true, isGenuineInGroundPlantation: true) if it clearly displays:
+1. A juvenile sapling (height 30-150cm, DBH < 3cm, slender whip/stem with young apical leaves).
+2. Fresh in-ground excavation: circular soil pit (30-50cm depth), excavated soil mound, freshly turned red/black topsoil, or compost mulch basin.
+3. Physical planting evidence: unboxed root-ball placed into the ground pit, empty polybag beside the hole, support stake, watering can, or hands actively firming soil around root collar.
+4. Or an active community, school, or corporate mass planting drive on an open reforestation plot/wetland.
 
 SPECIES VERIFICATION RULE:
 - If the photo is rejected for ANY reason above, DO NOT assign the claimed species. Set "speciesCommon": "None (Rejected / Unidentifiable)" and "speciesScientific": "None".

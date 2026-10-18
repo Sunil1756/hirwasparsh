@@ -9,6 +9,10 @@ import {
   calculateHashSimilarity,
 } from "../lib/perceptualHash";
 import { calculateCompositeAiVerificationScore } from "../lib/geminiBotanicalVision";
+import {
+  SFT_46_GROUND_TRUTH_DATASET,
+  exportSftDatasetAsJsonl,
+} from "../data/sft46GroundTruthDataset";
 
 describe("Phase 4: EXIF Freshness & Device GPS Cross-Check", () => {
   const baseDeviceGps = {
@@ -351,5 +355,57 @@ describe("Phase 11: Optical Quality Pre-Check & Silhouette Anti-Fraud Verificati
     expect(decision.compositeScore).toBe(0);
     expect(decision.rationale).toContain("flagged as non-plant object");
   });
+
+  it("verifies the 46-pair SFT ground-truth dataset integrity and distribution (25 Positive vs 21 Negative)", () => {
+    expect(SFT_46_GROUND_TRUTH_DATASET).toHaveLength(46);
+
+    const positivePairs = SFT_46_GROUND_TRUTH_DATASET.filter(
+      (p: any) => p.groundTruthVerdict === "VERIFIED_GENUINE_PLANTATION"
+    );
+    const negativePairs = SFT_46_GROUND_TRUTH_DATASET.filter(
+      (p: any) => p.groundTruthVerdict === "REJECTED_FRAUD_OR_INVALID"
+    );
+
+    expect(positivePairs).toHaveLength(25);
+    expect(negativePairs).toHaveLength(21);
+
+    // All 25 positive pairs must be eligible for Verra and have genuine in-ground plantation
+    positivePairs.forEach((p: any) => {
+      expect(p.sourceDocument).toBe("25_PAGE_CORRECT_DATASET");
+      expect(p.completion.isLivingTree).toBe(true);
+      expect(p.completion.isGenuineInGroundPlantation).toBe(true);
+      expect(p.completion.fraudRiskScore).toBe(0);
+      expect(p.completion.verraCompliance).toBe("VERRA_VM0047_ELIGIBLE");
+      expect(p.completion.confidenceScore).toBeGreaterThanOrEqual(0.9);
+      expect(p.completion.silviculturalAllometry.soilPitDetected).toBe(true);
+    });
+
+    // All 21 negative pairs must be rejected with fraudRiskScore >= 90 and disqualified
+    negativePairs.forEach((p: any) => {
+      expect(p.sourceDocument).toBe("21_PAGE_WRONG_DATASET");
+      expect(p.completion.isLivingTree).toBe(false);
+      expect(p.completion.isGenuineInGroundPlantation).toBe(false);
+      expect(p.completion.vitalityStatus).toBe("not_a_tree_fraud");
+      expect(p.completion.crownHealthScore).toBe(0);
+      expect(p.completion.confidenceScore).toBe(0);
+      expect(p.completion.fraudRiskScore).toBeGreaterThanOrEqual(90);
+      expect(p.completion.verraCompliance).toBe("VERRA_VM0047_DISQUALIFIED");
+      expect(p.completion.rejectionReason).toBeDefined();
+    });
+
+    // Verify JSONL export format
+    const jsonl = exportSftDatasetAsJsonl();
+    const lines = jsonl.trim().split("\n");
+    expect(lines).toHaveLength(46);
+
+    // Each line must parse as valid JSON with Gemini Vertex AI format
+    lines.forEach((line: string) => {
+      const parsed = JSON.parse(line);
+      expect(parsed.contents).toHaveLength(2);
+      expect(parsed.contents[0].role).toBe("user");
+      expect(parsed.contents[1].role).toBe("model");
+    });
+  });
 });
+
 

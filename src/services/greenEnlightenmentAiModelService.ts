@@ -13,6 +13,14 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { computePerceptualDHash } from "@/lib/geminiBotanicalVision";
+import {
+  SFT_46_GROUND_TRUTH_DATASET,
+  SftGroundTruthPair,
+  exportSftDatasetAsJsonl,
+} from "@/data/sft46GroundTruthDataset";
+
+export { SFT_46_GROUND_TRUTH_DATASET, exportSftDatasetAsJsonl };
+export type { SftGroundTruthPair };
 
 export type BotanicalVitality = "thriving" | "healthy" | "moderate_stress" | "severe_stress" | "dead_or_dry";
 
@@ -389,44 +397,41 @@ export class GreenEnlightenmentAiModelService {
   }
 
   /**
-   * 2. GENERATE SUPERVISED FINE-TUNING (SFT) TRAINING DATASET FOR VERTEX AI
-   * Produces certified prompt-completion pairs in Gemini SFT format.
+   * 2. RETRIEVE CERTIFIED 46-PAIR SFT GROUND-TRUTH DATASET
+   * Incorporates 25 Positive Authentic Plantation Pairs and 21 Negative Fraud/Invalid Pairs.
    */
-  public generateSftDataset(sampleCount: number = 10): SftTrainingPair[] {
-    const speciesList = Object.values(MAHARASHTRA_NATIVE_SPECIES_DB);
-    const pairs: SftTrainingPair[] = [];
-
-    for (let i = 0; i < sampleCount; i++) {
-      const sp = speciesList[i % speciesList.length];
-      const pairId = `SFT-PAIR-${(i + 1).toString().padStart(4, "0")}`;
-
-      pairs.push({
-        id: pairId,
-        species: sp.scientificName,
-        imageUrl: `https://storage.googleapis.com/hirwasparsh-sft-vault/species/${sp.scientificName.replace(/ /g, "_")}_${i + 1}.jpg`,
-        prompt: `Analyze this field photograph of an in-ground agroforestry planting in Maharashtra, India. Classify botanical species, evaluate foliar condition, diagnose diseases, inspect for nursery pot fraud, and estimate allometric carbon metrics following Verra VM0047 standards.`,
-        completionJson: {
-          species_common: sp.commonName,
-          species_scientific: sp.scientificName,
-          botanical_family: sp.botanicalFamily,
-          vernacular_marathi: sp.marathiName,
-          is_native_agroforestry: sp.isNativeToWesternGhatsOrDeccan,
-          vitality_status: "healthy",
-          crown_health_score: 88 + (i % 10),
-          is_in_ground_pit: true,
-          polybag_fraud_detected: false,
-          wood_density_g_cm3: sp.woodDensityGPerCm3,
-          verra_compliance: "VERRA_VM0047_ELIGIBLE",
-        },
-        groundTruthVerifiedBy: "Dr. R. Deshmukh (Botanical Survey of India, Certified Forestry Auditor #4102)",
-      });
-    }
-
-    return pairs;
+  public getComplete46SftDataset(): SftGroundTruthPair[] {
+    return SFT_46_GROUND_TRUTH_DATASET;
   }
 
   /**
-   * 3. EXPORT SFT DATASET AS GEMINI-COMPLIANT JSONL BLOB
+   * 3. EXPORT 46-PAIR SFT DATASET AS GEMINI / VERTEX AI COMPLIANT JSONL STREAM
+   */
+  public exportComplete46SftJsonl(): string {
+    return exportSftDatasetAsJsonl(SFT_46_GROUND_TRUTH_DATASET);
+  }
+
+  /**
+   * 4. GENERATE SUPERVISED FINE-TUNING (SFT) TRAINING DATASET FOR VERTEX AI
+   * Produces certified prompt-completion pairs in Gemini SFT format.
+   */
+  public generateSftDataset(sampleCount: number = 46): SftTrainingPair[] {
+    // If requesting full dataset or default, map the 46 ground truth pairs directly
+    return SFT_46_GROUND_TRUTH_DATASET.slice(0, sampleCount).map((p) => ({
+      id: p.id,
+      species: p.title,
+      imageUrl: `https://storage.googleapis.com/hirwasparsh-sft-vault/datasets/${p.id.toLowerCase()}.jpg`,
+      prompt: p.prompt + `\nEvidence Context: ${p.visualEvidenceDescription}`,
+      completionJson: p.completion as Record<string, any>,
+      groundTruthVerifiedBy:
+        p.groundTruthVerdict === "VERIFIED_GENUINE_PLANTATION"
+          ? "Green Enlightenment Verified Field MRV (25-Page Ground-Truth Dataset)"
+          : "Green Enlightenment Anti-Fraud Sentinel (21-Page Negative Rejection Dataset)",
+    }));
+  }
+
+  /**
+   * 5. EXPORT SFT DATASET AS GEMINI-COMPLIANT JSONL BLOB
    */
   public exportSftJsonl(pairs: SftTrainingPair[]): string {
     return pairs
