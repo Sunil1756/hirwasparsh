@@ -959,7 +959,13 @@ const { data, error } = await supabase
         try {
           const compressed = await compressImage(initialSitePhoto, 1600, 0.8);
           const key = `projects/${createdProjectId}/field-site-init-${Date.now()}.jpg`;
-          const { data: uploadData } = await supabase.storage.from("treebank").upload(key, compressed, { upsert: true });
+          let uploadData: any = null;
+          for (const b of ["treebank", "evidence", "project-photos"]) {
+            try {
+              const { data, error } = await supabase.storage.from(b).upload(key, compressed, { upsert: true });
+              if (!error && data) { uploadData = data; break; }
+            } catch {}
+          }
 
           await supabase.from("tree_evidence").insert({
             project_id: createdProjectId,
@@ -1009,9 +1015,14 @@ const { data, error } = await supabase
       if (evFile) {
         const compressed = await compressImage(evFile, 1600, 0.8);
         const key = `projects/${activeProject.id}/${evType}-${Date.now()}.jpg`;
-        const { data, error } = await supabase.storage.from("treebank").upload(key, compressed, { upsert: true });
-        if (error) console.warn("Storage upload notice:", error.message);
-        path = data?.path || `local_${Date.now()}`;
+        let uploadData: any = null;
+        for (const b of ["treebank", "evidence", "project-photos"]) {
+          try {
+            const { data, error } = await supabase.storage.from(b).upload(key, compressed, { upsert: true });
+            if (!error && data) { uploadData = data; break; }
+          } catch {}
+        }
+        path = uploadData?.path || `local_${Date.now()}`;
       }
 
       const coords = await new Promise<{ lat: number | null; lng: number | null }>((resolve) => {

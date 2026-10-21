@@ -177,13 +177,26 @@ const GrowthUpdates = () => {
           throw new Error("Duplicate image detected. Please take a fresh, real-time photograph of your assigned tree.");
         }
 
-        // 3) Uploading
+        // 3) Uploading with multi-bucket fallback
         setSubmitStage("Uploading...");
         const path = `${user.id}/growth_${Date.now()}.jpg`;
-        const { data, error } = await supabase.storage.from("treebank").upload(path, photo, { upsert: true });
-        if (error) throw error;
-        const { data: urlData } = supabase.storage.from("treebank").getPublicUrl(data.path);
-        photoUrl = urlData.publicUrl;
+        const candidateBuckets = ["treebank", "evidence", "tree-photos"];
+        let uploaded = false;
+
+        for (const bucket of candidateBuckets) {
+          try {
+            const { data, error } = await supabase.storage.from(bucket).upload(path, photo, { upsert: true });
+            if (!error && data?.path) {
+              const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(data.path);
+              if (urlData?.publicUrl) {
+                photoUrl = urlData.publicUrl;
+                uploaded = true;
+                break;
+              }
+            }
+          } catch {}
+        }
+        if (!uploaded) throw new Error("Could not store photo. Please check your internet connection.");
       }
 
       setSubmitStage("Saving update...");

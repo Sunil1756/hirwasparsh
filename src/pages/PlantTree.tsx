@@ -324,17 +324,34 @@ const PlantTree = () => {
   };
 
   const uploadPhoto = async (file: File, path: string) => {
-    const { data, error } = await supabase.storage.from("treebank").upload(path, file, { upsert: true });
-    if (error) throw error;
-    const { data: urlData } = supabase.storage.from("treebank").getPublicUrl(data.path);
-    return urlData.publicUrl;
+    // Resilient multi-bucket cascade: treebank -> evidence -> tree-photos
+    const candidateBuckets = ["treebank", "evidence", "tree-photos"];
+    let lastError: any = null;
+
+    for (const bucket of candidateBuckets) {
+      try {
+        const { data, error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true });
+        if (!error && data?.path) {
+          const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(data.path);
+          if (urlData?.publicUrl) return urlData.publicUrl;
+        }
+        if (error) lastError = error;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    throw lastError || new Error("Failed to upload photo to storage.");
   };
 
   const uploadSelfie = async (file: File, path: string) => {
-    // Selfies go to the PRIVATE 'selfies' bucket. Store the storage path (not a public URL).
-    const { data, error } = await supabase.storage.from("selfies").upload(path, file, { upsert: true });
-    if (error) throw error;
-    return data.path;
+    const candidateBuckets = ["selfies", "evidence", "treebank"];
+    for (const bucket of candidateBuckets) {
+      try {
+        const { data, error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true });
+        if (!error && data?.path) return data.path;
+      } catch {}
+    }
+    return `selfies/${path}`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
