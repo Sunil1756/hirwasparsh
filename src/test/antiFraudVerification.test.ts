@@ -408,4 +408,63 @@ describe("Phase 11: Optical Quality Pre-Check & Silhouette Anti-Fraud Verificati
   });
 });
 
+describe("Phase 12: Fast & Resilient Botanical AI Verification", () => {
+  it("routes incomplete or offline AI analysis to manual review queue instead of false fraud rejection", () => {
+    const incompleteResult = {
+      isLivingTree: false,
+      speciesCommon: "Neem",
+      speciesScientific: "Azadirachta indica",
+      botanicalFamily: "Meliaceae",
+      crownHealthScore: 0,
+      vitalityStatus: "moderate_stress" as const,
+      growthStage: "sapling" as const,
+      confidenceScore: 0.0,
+      detectedStressFactors: ["ai_analysis_incomplete"],
+      fraudRiskScore: 35,
+      fraudFlags: ["Botanical AI vision analysis unresolved"],
+      perceptualHash: "1122334455667788",
+      aiReport: "Automated botanical vision analysis could not be completed. Photo forwarded to human forestry supervisor review.",
+    };
 
+    const decision = calculateCompositeAiVerificationScore(incompleteResult, {
+      accountType: "individual",
+      plantingType: "individual",
+      isIndividualPlanter: true,
+    });
+
+    expect(decision.isAutoApproved).toBe(false);
+    expect(decision.routingDecision).toBe("manual_review_queue");
+    expect(decision.rationale).toContain("forestry supervisor queue");
+  });
+
+  it("approves genuine sapling planted in ground with backfilled pit and living foliage", () => {
+    const validSaplingResult = {
+      isLivingTree: true,
+      speciesCommon: "Neem",
+      speciesScientific: "Azadirachta indica",
+      botanicalFamily: "Meliaceae",
+      crownHealthScore: 88,
+      vitalityStatus: "healthy" as const,
+      growthStage: "sapling" as const,
+      stemLignification: "woody" as const,
+      confidenceScore: 0.92,
+      detectedStressFactors: [],
+      fraudRiskScore: 5,
+      fraudFlags: [],
+      perceptualHash: "a1b2c3d4e5f60718",
+      backgroundSetting: "in_ground_soil_pit" as const,
+      isGenuineInGroundPlantation: true,
+      aiReport: "Verified living juvenile sapling planted in ground.",
+    };
+
+    const decision = calculateCompositeAiVerificationScore(validSaplingResult, {
+      accountType: "individual",
+      plantingType: "individual",
+      isIndividualPlanter: true,
+    });
+
+    expect(decision.isAutoApproved).toBe(true);
+    expect(decision.routingDecision).toBe("auto_approved");
+    expect(decision.compositeScore).toBeGreaterThanOrEqual(70);
+  });
+});

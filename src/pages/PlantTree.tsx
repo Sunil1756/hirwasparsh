@@ -15,7 +15,7 @@ import exifr from "exifr";
 import { compressImage, sha256File } from "@/lib/imageProcessing";
 import { computeImageDHash, evaluatePhotoDuplicateFraud } from "@/lib/perceptualHash";
 import { evaluateDuplicatePhotoIntegrity } from "@/lib/antiFraudVerificationEngine";
-import { detectSpeciesAI, screenTreeImageWithAI, verifyTreeWithGeminiAI } from "@/lib/gemini";
+import { detectSpeciesAI, screenTreeImageWithAI, screenAndDetectSpeciesAI, verifyTreeWithGeminiAI } from "@/lib/gemini";
 import { enqueueOfflineTree } from "@/lib/offlineSyncService";
 import { VernacularVoiceAssistant } from "@/components/VernacularVoiceAssistant";
 import { validateGpsCoordinates, syncCoordinateSatelliteTelemetry } from "@/lib/geospatialSatelliteService";
@@ -223,34 +223,38 @@ const PlantTree = () => {
     setSpeciesConfirmed(false);
     setAiScreeningResult(null);
     try {
-      const imageBase64 = await fileToBase64(file);
+      // 1. Fast client-side image compression: max 900px, 0.75 quality in ~20ms
+      const optimizedFile = await compressImage(file, 900, 0.75);
+      const imageBase64 = await fileToBase64(optimizedFile);
 
-      // 1. Strict AI Anti-Fraud / Non-tree screening gatekeeper
-      try {
-        const screenRes = await screenTreeImageWithAI(imageBase64);
-        setAiScreeningResult(screenRes);
-        if (!screenRes.isValidTreePhoto) {
-          toast({
-            title: "❌ Invalid Tree Photo Detected",
-            description: screenRes.rejectionReason || "Please upload a photo of a real living tree or planted sapling.",
-            variant: "destructive",
-          });
-          setIsDetecting(false);
-          return;
-        }
-      } catch (screenErr) {
-        console.warn("Screening check warning:", screenErr);
+      // 2. Single-Pass Unified AI Botanical Screening & Species Detection (~2-3s)
+      const res = await screenAndDetectSpeciesAI(imageBase64, species);
+
+      setAiScreeningResult({
+        isValidTreePhoto: res.isValidTreePhoto,
+        rejectionReason: res.rejectionReason,
+        detectedSubject: res.detectedSubject,
+        confidence: res.confidence,
+      });
+
+      if (!res.isValidTreePhoto) {
+        toast({
+          title: "❌ Invalid Tree Photo Detected",
+          description: res.rejectionReason || "Please upload a photo of a real living tree or planted sapling.",
+          variant: "destructive",
+        });
+        setIsDetecting(false);
+        return;
       }
 
-      // 2. Botanical Species Detection
-      const detection = await detectSpeciesAI(imageBase64);
-      setSpeciesDetection(detection as SpeciesDetection);
-      setSpecies(detection.common_name);
+      setSpeciesDetection(res as unknown as SpeciesDetection);
+      setSpecies(res.common_name);
       toast({
         title: "🤖 Living Tree Verified & Species Detected!",
-        description: `${detection.common_name} (${detection.confidence}% confidence)`,
+        description: `${res.common_name} (${res.confidence}% confidence)`,
       });
-    } catch {
+    } catch (err) {
+      console.warn("Unified single-pass species detection error:", err);
       toast({
         title: "Species Identification",
         description: "Please confirm or enter the species name below.",
@@ -516,10 +520,15 @@ const PlantTree = () => {
         setSubmitted(true);
         try {
           setSubmitStage("Running AI verification (Gemini 2.5)...");
+          const [optAfter, optSelfie, optBefore] = await Promise.all([
+            compressImage(afterPhoto, 900, 0.75),
+            compressImage(selfiePhoto, 900, 0.75),
+            compressImage(beforePhoto, 900, 0.75),
+          ]);
           const [afterB64, selfieB64, beforeB64] = await Promise.all([
-            fileToBase64(afterPhoto),
-            fileToBase64(selfiePhoto),
-            fileToBase64(beforePhoto),
+            fileToBase64(optAfter),
+            fileToBase64(optSelfie),
+            fileToBase64(optBefore),
           ]);
 
           let score = 75;
@@ -541,8 +550,13 @@ const PlantTree = () => {
             score = Math.round((envScore + treeScore + authScore) / 3);
 
             if (aiRes.auto_rejected || !aiRes.is_tree) {
-              verifyStatus = "rejected";
-              flaggedReason = aiRes.rejection_reasons?.join("; ") || "AI detected non-tree or synthetic upload.";
+              if (aiRes.fraud_signals?.includes("ai_verification_unreachable")) {
+                verifyStatus = "pending";
+                flaggedReason = "AI verification service was unreachable. Queued for supervisor manual review.";
+              } else {
+                verifyStatus = "rejected";
+                flaggedReason = aiRes.rejection_reasons?.join("; ") || "AI detected non-tree or synthetic upload.";
+              }
             } else if (score >= 70) {
               autoApproved = true;
               verifyStatus = "verified";
