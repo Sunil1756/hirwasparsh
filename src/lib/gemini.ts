@@ -96,11 +96,13 @@ export interface CanopyParcelAnalysisResult {
  * Candidate models tried in sequence for resilience against deprecation/availability changes
  */
 const CANDIDATE_MODELS = [
-  "gemini-flash-lite-latest", // Fastest & most reliable active endpoint (~2-6s)
-  "gemini-3.5-flash-lite",    // Lightweight fast fallback (~6s)
-  "gemini-3.8-flash",         // Flagship multimodal vision
-  "gemini-3.5-flash",         // Standard flash
-  "gemini-flash-latest",      // Direct fallback
+  "gemini-3.5-flash-lite",    // Fastest benchmarked active vision (2.2s)
+  "gemini-flash-lite-latest", // Stable low-latency multimodal endpoint (3.8s)
+  "gemini-3.5-flash",         // High-precision botanical allometry (5.6s)
+  "gemini-3.6-flash",         // Advanced multimodal vision (6.3s)
+  "gemini-3-flash-preview",   // Gemini 3 frontier preview
+  "gemini-3.8-flash",         // Multimodal flagship fallback
+  "gemini-flash-latest",      // Universal fallback
 ];
 
 /**
