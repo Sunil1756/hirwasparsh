@@ -239,6 +239,24 @@ export default function CSRCorporatePortal() {
           
 
           <Button
+            asChild
+            variant="outline"
+            className="rounded-xl gap-2 text-xs font-semibold border-primary/40 hover:bg-primary/10"
+          >
+            <Link to="/plans">
+              <Award className="h-4 w-4 text-emerald-500" /> Buy / Upgrade MRV Plan
+            </Link>
+          </Button>
+
+          <Button
+            asChild
+            className="rounded-xl gap-2 text-xs font-semibold shadow-md bg-primary hover:bg-primary/90 text-primary-foreground"
+          >
+            <Link to="/plant/organization?create=true">
+              <Building2 className="h-4 w-4" /> Launch New CSR Project
+            </Link>
+          </Button>
+          <Button
             variant="default"
             onClick={handleExportBRSRCSV}
             className="rounded-xl gap-2 text-xs font-semibold shadow-md bg-emerald-600 hover:bg-emerald-700 text-white"
