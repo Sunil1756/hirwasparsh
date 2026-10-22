@@ -71,15 +71,39 @@ const getIcon = (status: string) =>
 const BASEMAP_TILES = BASEMAP_PROVIDERS;
 
 const fetchProjects = async () => {
-  const { data, error } = await supabase.from("projects").select("id, name");
-  if (error) throw error;
-  return data || [];
+  try {
+    const [{ data: prData }, { data: plData }] = await Promise.all([
+      supabase.from("projects").select("id, name"),
+      supabase.from("plantation_projects").select("id, project_name"),
+    ]);
+    const map = new Map<string, { id: string; name: string }>();
+    (plData || []).forEach((p: any) => {
+      if (p.id && (p.project_name || p.name)) map.set(p.id, { id: p.id, name: p.project_name || p.name });
+    });
+    (prData || []).forEach((p: any) => {
+      if (p.id && (p.name || p.project_name)) map.set(p.id, { id: p.id, name: p.name || p.project_name });
+    });
+    return Array.from(map.values());
+  } catch (err) {
+    console.warn("Could not fetch projects for map:", err);
+    return [];
+  }
 };
 
 const fetchBoundaries = async () => {
-  const { data, error } = await supabase.from("project_boundaries").select("id, project_id, boundary_geojson");
-  if (error) throw error;
-  return data || [];
+  try {
+    const { data, error } = await supabase
+      .from("project_boundaries")
+      .select("id, project_id, boundary_name, geometry_geojson");
+    if (error) {
+      console.warn("Could not fetch project boundaries:", error.message);
+      return [];
+    }
+    return data || [];
+  } catch (err) {
+    console.warn("Boundary fetch exception:", err);
+    return [];
+  }
 };
 
 const fetchTrees = async () => {
@@ -188,8 +212,15 @@ const TreeMap = () => {
     if (treesWithCoords.length > 0) {
       return [treesWithCoords[0].latitude!, treesWithCoords[0].longitude!];
     }
+    if (boundaries.length > 0) {
+      const firstB = boundaries[0] as any;
+      const coords = firstB?.geometry_geojson?.coordinates?.[0];
+      if (coords && coords.length > 0) {
+        return [coords[0][1], coords[0][0]];
+      }
+    }
     return [19.7515, 75.7139]; // Central Maharashtra coordinates
-  }, [treesWithCoords]);
+  }, [treesWithCoords, boundaries]);
 
   const verifiedTrees = useMemo(
     () => trees.filter((t) => t.verification_status === "verified"),
@@ -515,7 +546,7 @@ const TreeMap = () => {
                   <div className="relative">
                                         <MapContainer
                       center={center}
-                      zoom={treesWithCoords.length > 0 ? 8 : 6}
+                      zoom={treesWithCoords.length > 0 ? 8 : boundaries.length > 0 ? 14 : 6}
                       scrollWheelZoom
                       style={{ height: "620px", width: "100%" }}
                     >
@@ -527,23 +558,36 @@ const TreeMap = () => {
 
                       <MapCenterController
                         center={center}
-                        zoom={treesWithCoords.length > 0 ? 8 : 6}
+                        zoom={treesWithCoords.length > 0 ? 8 : boundaries.length > 0 ? 14 : 6}
                       />
 
-                      {boundaries.map((b) => {
-                         if (!b.boundary_geojson || !b.boundary_geojson.features) return null;
-                         const feature = b.boundary_geojson.features[0];
-                         if (!feature || !feature.geometry || !feature.geometry.coordinates) return null;
+                      {boundaries.map((b: any) => {
+                         const geo = b.geometry_geojson || b.boundary_geojson;
+                         if (!geo) return null;
                          
-                         const coords = feature.geometry.type === "Polygon" ? feature.geometry.coordinates[0].map((c) => [c[1], c[0]]) : [];
+                         let coords: [number, number][] = [];
+                         if (geo.type === "Polygon" && Array.isArray(geo.coordinates?.[0])) {
+                           coords = geo.coordinates[0].map((c: any) => [c[1], c[0]]);
+                         } else if (geo.features?.[0]?.geometry?.coordinates?.[0]) {
+                           coords = geo.features[0].geometry.coordinates[0].map((c: any) => [c[1], c[0]]);
+                         }
                          if (coords.length < 3) return null;
                          
-                         const proj = projects.find(p => p.id === b.project_id);
+                         const proj = projects.find((p: any) => p.id === b.project_id);
+                         const boundaryLabel = proj?.name || b.boundary_name || "Plantation Compartment";
                          return (
-                           <Polygon key={b.id} positions={coords} pathOptions={{ color: "#3b82f6", fillColor: "#3b82f6", fillOpacity: 0.1, weight: 2 }}>
+                           <Polygon
+                             key={b.id}
+                             positions={coords}
+                             pathOptions={{ color: "#10b981", fillColor: "#10b981", fillOpacity: 0.15, weight: 2.5 }}
+                           >
                              <Popup>
-                               <div className="text-xs font-semibold">{proj ? proj.name : "Compartment"}</div>
-                               <div className="text-[10px] text-muted-foreground">Project Boundary</div>
+                               <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                                 {boundaryLabel}
+                               </div>
+                               <div className="text-[10px] text-muted-foreground">
+                                 {b.boundary_name || "Sentinel-2 Verified Boundary"}
+                               </div>
                              </Popup>
                            </Polygon>
                          );
