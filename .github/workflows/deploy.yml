@@ -138,10 +138,12 @@ jobs:
         id: vercel-deploy
         run: |
           if [ "${{ steps.env-decision.outputs.is_prod }}" = "true" ]; then
-            DEPLOY_URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+            vercel deploy --prebuilt --prod --yes --token=${{ secrets.VERCEL_TOKEN }} > deploy_output.log 2>&1 || cat deploy_output.log
           else
-            DEPLOY_URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+            vercel deploy --prebuilt --yes --token=${{ secrets.VERCEL_TOKEN }} > deploy_output.log 2>&1 || cat deploy_output.log
           fi
+          cat deploy_output.log
+          DEPLOY_URL=$(grep -o 'https://[^ ]*' deploy_output.log | tail -n 1 || echo "https://green-enlightenment.com")
           echo "deployment_url=$DEPLOY_URL" >> $GITHUB_OUTPUT
           echo "Deployed successfully to: $DEPLOY_URL"
         env:

@@ -27,31 +27,16 @@ const PlantChooser = () => {
   }, [drive, navigate]);
 
   return (
-    <main className="min-h-screen pt-24 pb-20 px-4">
+    <main className="min-h-screen pt-20 pb-16 px-4">
       <div className="mx-auto w-full max-w-5xl">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="text-center mb-8"
-        >
-          <h1 className="font-heading font-bold text-primary text-[clamp(1.75rem,4vw,2.75rem)] leading-tight">
-            How are you planting?
-          </h1>
-          <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">
-            Choose the workflow that matches your plantation. Both paths use AI-assisted
-            verification — only the evidence requirements differ.
-          </p>
-        </motion.div>
-
         {!user && (
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass-card rounded-2xl p-4 mb-8 border border-primary/30 bg-primary/5 flex flex-col sm:flex-row items-center justify-between gap-4"
+            className="glass-card rounded-2xl p-4 mb-6 border border-border/40 bg-card/60 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm"
           >
             <div className="flex items-center gap-3 text-left">
-              <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
+              <div className="p-2 rounded-xl bg-muted/80 text-foreground shrink-0">
                 <Lock className="h-4 w-4" />
               </div>
               <div>
@@ -64,7 +49,7 @@ const PlantChooser = () => {
               </div>
             </div>
             <Link to="/login?redirect=/plant" className="shrink-0 w-full sm:w-auto">
-              <Button size="sm" variant="outline" className="w-full sm:w-auto text-xs font-bold border-primary/40 hover:bg-primary/10 gap-1.5">
+              <Button size="sm" variant="outline" className="w-full sm:w-auto text-xs font-bold border-border/60 hover:bg-muted/50 gap-1.5 shadow-sm">
                 <LogIn className="h-3.5 w-3.5" /> Log In / Sign Up
               </Button>
             </Link>
@@ -77,30 +62,35 @@ const PlantChooser = () => {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.05 }}
-            className="glass-card rounded-2xl p-6 flex flex-col border border-border/40 justify-between"
+            className="glass-card rounded-3xl p-6 flex flex-col border border-border/50 bg-card/70 justify-between shadow-sm"
           >
             <div>
-              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-4">
+              <div className="h-12 w-12 rounded-2xl bg-muted/60 flex items-center justify-center text-foreground mb-4">
                 <TreePine className="h-6 w-6" />
               </div>
-              <h2 className="font-heading text-lg font-semibold">🌱 Individual Tree</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <h2 className="font-heading text-lg font-bold flex items-center gap-2">
+                🌱 Individual Tree
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
                 For planting and verifying single trees with mobile camera.
               </p>
-              <ul className="mt-4 space-y-2 text-xs text-muted-foreground flex-1">
-                <li className="flex gap-2">
-                  <MapPin className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> GPS location capture
+              <ul className="mt-5 space-y-2.5 text-xs text-muted-foreground flex-1">
+                <li className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span>GPS location capture</span>
                 </li>
-                <li className="flex gap-2">
-                  <TreePine className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> Before / after photo
+                <li className="flex items-center gap-2">
+                  <TreePine className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span>Before / after photo</span>
                 </li>
-                <li className="flex gap-2">
-                  <ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> AI passport & badge
+                <li className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span>AI passport & badge</span>
                 </li>
               </ul>
             </div>
-            <Link to="/plant/individual" className="mt-5">
-              <Button className="w-full h-10 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90">
+            <Link to="/plant/individual" className="mt-6">
+              <Button className="w-full h-11 rounded-2xl text-xs font-semibold bg-[#1b4332] hover:bg-[#2d6a4f] text-white shadow-sm">
                 Plant Individual <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Button>
             </Link>
@@ -111,35 +101,40 @@ const PlantChooser = () => {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="glass-card rounded-2xl p-6 flex flex-col border border-primary/40 bg-primary/5 relative overflow-hidden justify-between"
+            className="glass-card rounded-3xl p-6 flex flex-col border border-border/50 bg-card/70 relative overflow-hidden justify-between shadow-sm"
           >
-            <div className="absolute top-3 right-3">
+            <div className="absolute top-4 right-4">
               <span className="text-[10px] uppercase font-bold tracking-wider bg-slate-900 text-white dark:bg-slate-800 px-2.5 py-0.5 rounded-full">
                 MODULE C
               </span>
             </div>
             <div>
-              <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center text-primary mb-4">
+              <div className="h-12 w-12 rounded-2xl bg-muted/60 flex items-center justify-center text-foreground mb-4">
                 <Printer className="h-6 w-6" />
               </div>
-              <h2 className="font-heading text-lg font-semibold">📁 Bulk CSV & Batch QR</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <h2 className="font-heading text-lg font-bold flex items-center gap-2">
+                📁 Bulk CSV & Batch QR
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
                 Mass onboarding (1,000+ trees) and printable field QR tag sheets.
               </p>
-              <ul className="mt-4 space-y-2 text-xs text-muted-foreground flex-1">
-                <li className="flex gap-2">
-                  <MapPin className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> Instant CSV / Excel parser
+              <ul className="mt-5 space-y-2.5 text-xs text-muted-foreground flex-1">
+                <li className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span>Instant CSV / Excel parser</span>
                 </li>
-                <li className="flex gap-2">
-                  <Printer className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> Printable A4 sticker tags
+                <li className="flex items-center gap-2">
+                  <Printer className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span>Printable A4 sticker tags</span>
                 </li>
-                <li className="flex gap-2">
-                  <ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> High-contrast QR codes
+                <li className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span>High-contrast QR codes</span>
                 </li>
               </ul>
             </div>
-            <Link to="/plant/bulk" className="mt-5">
-              <Button className="w-full h-10 text-xs bg-primary text-primary-foreground hover:bg-primary/90 font-semibold shadow-md">
+            <Link to="/plant/bulk" className="mt-6">
+              <Button className="w-full h-11 rounded-2xl text-xs bg-[#2d6a4f] hover:bg-[#1b4332] text-white font-semibold shadow-sm">
                 Open Bulk & QR Generator <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Button>
             </Link>
@@ -150,30 +145,35 @@ const PlantChooser = () => {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.15 }}
-            className="glass-card rounded-2xl p-6 flex flex-col border border-border/40 justify-between"
+            className="glass-card rounded-3xl p-6 flex flex-col border border-border/50 bg-card/70 justify-between shadow-sm"
           >
             <div>
-              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-4">
+              <div className="h-12 w-12 rounded-2xl bg-muted/60 flex items-center justify-center text-foreground mb-4">
                 <Building2 className="h-6 w-6" />
               </div>
-              <h2 className="font-heading text-lg font-semibold">🏢 NGO / CSR Project</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <h2 className="font-heading text-lg font-bold flex items-center gap-2">
+                🏢 NGO / CSR Project
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
                 Full enterprise project tracking, satellite monitoring & boundary polygon.
               </p>
-              <ul className="mt-4 space-y-2 text-xs text-muted-foreground flex-1">
-                <li className="flex gap-2">
-                  <MapPin className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> Map boundary drawing
+              <ul className="mt-5 space-y-2.5 text-xs text-muted-foreground flex-1">
+                <li className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span>Map boundary drawing</span>
                 </li>
-                <li className="flex gap-2">
-                  <Satellite className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> Drone & satellite telemetry
+                <li className="flex items-center gap-2">
+                  <Satellite className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span>Drone & satellite telemetry</span>
                 </li>
-                <li className="flex gap-2">
-                  <ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" /> Multi-year survival audits
+                <li className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span>Multi-year survival audits</span>
                 </li>
               </ul>
             </div>
-            <Link to="/plant/organization" className="mt-5">
-              <Button className="w-full h-10 text-xs font-semibold bg-[#06b6d4] hover:bg-[#0891b2] text-white shadow-md">
+            <Link to="/plant/organization" className="mt-6">
+              <Button className="w-full h-11 rounded-2xl text-xs font-bold bg-[#38bdf8] hover:bg-[#0284c7] text-[#0f172a] shadow-sm">
                 Continue as NGO/CSR <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Button>
             </Link>
