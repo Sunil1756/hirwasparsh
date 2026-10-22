@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import { MapContainer, TileLayer, Polygon, Marker } from "react-leaflet";
 import BoundaryDrawMap, { computeAreas } from "@/components/BoundaryDrawMap";
 import { ProjectVerificationCard } from "@/components/ProjectVerificationCard";
+import { SatelliteProjectTelemetrySuite } from "@/components/SatelliteProjectTelemetrySuite";
+import { CarbonCertificateModal } from "@/components/CarbonCertificateModal";
 import { TreeNdviSatelliteViewer } from "@/components/TreeNdviSatelliteViewer";
 import { evaluateProjectVerification, ProjectAuditReport } from "@/lib/projectVerification";
 import { analyzeTreePhotoWithBotanicalAi } from "@/lib/geminiBotanicalVision";
@@ -2245,7 +2247,9 @@ const OrganizationPlantation = () => {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  
+                  {activeCarbonLedger && (
+                    <CarbonCertificateModal cert={activeCarbonLedger} />
+                  )}
                   {canEdit && (
                     <Button
                       variant="outline"
@@ -2331,6 +2335,7 @@ const OrganizationPlantation = () => {
                     <Badge variant="outline" className="font-mono text-xs border-emerald-500/30 text-emerald-600">
                       {activeCarbonLedger.serialNumber}
                     </Badge>
+                    <CarbonCertificateModal cert={activeCarbonLedger} />
                   </div>
                 </div>
 
@@ -2443,7 +2448,19 @@ const OrganizationPlantation = () => {
               </div>
             </div>
 
-            {/* STEP 1: AUTOMATED AI VERIFICATION & ANTI-FRAUD SCORECARD */}
+                        {/* SATELLITE MULTI-SPECTRAL TELEMETRY & TIME-SERIES SUITE */}
+            <SatelliteProjectTelemetrySuite
+              projectName={activeProject.project_name}
+              locationName={activeProject.location}
+              boundary={activeBoundaryPoints}
+              targetTrees={activeProject.target_trees}
+              speciesList={activeProject.species || []}
+              plantationDate={activeProject.plantation_date}
+              baselineNdvi={activeAuditReport?.baselineNdvi || 0.22}
+              bulkTrees={Array.isArray(activeProject.bulk_data) ? activeProject.bulk_data : []}
+            />
+
+{/* STEP 1: AUTOMATED AI VERIFICATION & ANTI-FRAUD SCORECARD */}
             {activeAuditReport && (
               <ProjectVerificationCard
                 auditReport={activeAuditReport}
