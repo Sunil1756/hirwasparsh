@@ -268,23 +268,28 @@ const PlantTree = () => {
     const raw = e.target.files?.[0];
     if (!raw) return;
 
+    // 0ms instant preview rendering for immediate user feedback
+    const instantPreview = URL.createObjectURL(raw);
+    if (step === "before") {
+      setBeforePreview(instantPreview);
+    } else if (step === "after") {
+      setAfterPreview(instantPreview);
+    } else {
+      setSelfiePreview(instantPreview);
+    }
+
     // Validate EXIF on the ORIGINAL file (before compression strips metadata)
     const warnings = await validateExif(raw);
 
     // Client-side compression: max 1200px width, JPEG q=0.75
     const file = await compressImage(raw, 1200, 0.75);
 
-    const preview = URL.createObjectURL(file);
-
     if (step === "before") {
       setBeforePhoto(file);
-      setBeforePreview(preview);
     } else if (step === "after") {
       setAfterPhoto(file);
-      setAfterPreview(preview);
     } else {
       setSelfiePhoto(file);
-      setSelfiePreview(preview);
     }
 
     if (warnings.length > 0) {

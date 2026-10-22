@@ -261,7 +261,7 @@ Return ONLY a valid JSON object with EXACTLY this structure:
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       const abortController = new AbortController();
-      const timeoutTimer = setTimeout(() => abortController.abort(), 9000);
+      const timeoutTimer = setTimeout(() => abortController.abort(), 4500);
 
       let res: Response;
       try {
