@@ -89,13 +89,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         const metadata = authUser.user_metadata || {};
         const name = metadata.full_name || metadata.name || authUser.email?.split("@")[0] || "User";
-        const initialRole = metadata.account_type || "individual";
+        let initialRole = metadata.account_type || "individual";
+        let initialOrg: string | null = metadata.organization_name || null;
+
+        try {
+          const pendingRole = localStorage.getItem("pending_oauth_account_type");
+          if (pendingRole) {
+            initialRole = pendingRole;
+            localStorage.removeItem("pending_oauth_account_type");
+          }
+          const pendingOrg = localStorage.getItem("pending_oauth_org_name");
+          if (pendingOrg) {
+            initialOrg = pendingOrg;
+            localStorage.removeItem("pending_oauth_org_name");
+          }
+        } catch {}
+
         setProfileRole(initialRole);
         await supabase.from("profiles").upsert({
           id: authUser.id,
           full_name: name,
           avatar_url: metadata.avatar_url || metadata.picture || null,
           role: initialRole,
+          account_type: initialRole,
+          organization_name: initialOrg,
         });
       }
     } catch (e) {

@@ -129,6 +129,27 @@ function evaluatePassword(pwd: string) {
   };
 }
 
+const GoogleIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24">
+    <path
+      fill="#4285F4"
+      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
+    />
+    <path
+      fill="#34A853"
+      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.17 0 9.96 0 12s.45 3.83 1.25 5.42l4.03-3.15z"
+    />
+    <path
+      fill="#EA4335"
+      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+    />
+  </svg>
+);
+
 const Login = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -138,6 +159,7 @@ const Login = () => {
   // Tab & Loading State
   const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   // Anti-Bot
   const formMountTime = useRef(Date.now());
@@ -195,6 +217,51 @@ const Login = () => {
       return true;
     }
     return false;
+  };
+
+  // -------------------------------------------------------------
+  // GOOGLE OAUTH SIGN-IN (Supabase Auth)
+  // -------------------------------------------------------------
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      // If registering with persona selection, persist it for post-OAuth profile sync
+      if (activeTab === "signup") {
+        try {
+          localStorage.setItem("pending_oauth_account_type", accountType);
+          if (accountType !== "individual" && orgName.trim()) {
+            localStorage.setItem("pending_oauth_org_name", orgName.trim());
+          }
+        } catch {}
+      }
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}${redirectTarget}`,
+          queryParams: {
+            access_type: "offline",
+            prompt: "select_account",
+          },
+        },
+      });
+
+      if (error) {
+        setGoogleLoading(false);
+        toast({
+          title: "Google Sign-In Failed",
+          description: error.message || "Could not sign in with Google. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      setGoogleLoading(false);
+      toast({
+        title: "Google Sign-In Error",
+        description: err?.message || "An unexpected error occurred during Google sign-in.",
+        variant: "destructive",
+      });
+    }
   };
 
   // -------------------------------------------------------------
@@ -539,7 +606,7 @@ const Login = () => {
         {/* Auth Glass Card */}
         <div className="glass-card rounded-3xl p-6 sm:p-8 shadow-2xl border border-border/60 backdrop-blur-xl bg-card/95">
           <Tabs value={activeTab} onValueChange={(val: any) => setActiveTab(val)} className="w-full">
-            <TabsList className="grid grid-cols-2 w-full mb-6 p-1 bg-muted/70 rounded-2xl">
+            <TabsList className="grid grid-cols-2 w-full mb-5 p-1 bg-muted/70 rounded-2xl">
               <TabsTrigger value="login" className="rounded-xl text-xs sm:text-sm font-semibold py-2">
                 Sign In
               </TabsTrigger>
@@ -547,6 +614,33 @@ const Login = () => {
                 Create Account
               </TabsTrigger>
             </TabsList>
+
+            {/* CONTINUE WITH GOOGLE (SUPABASE AUTH) */}
+            <div className="mb-5">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={googleLoading || loading}
+                onClick={handleGoogleSignIn}
+                className="w-full h-11 rounded-xl border border-border/80 bg-background/90 hover:bg-muted/70 font-semibold text-xs sm:text-sm flex items-center justify-center gap-3 shadow-sm transition-all hover:border-primary/50 cursor-pointer"
+              >
+                {googleLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                ) : (
+                  <GoogleIcon className="h-4 w-4" />
+                )}
+                <span>Continue with Google</span>
+              </Button>
+
+              <div className="relative flex items-center justify-center my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border/60" />
+                </div>
+                <div className="relative px-3 bg-card text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                  or continue with email
+                </div>
+              </div>
+            </div>
 
             {/* ------------------------------------------------------------- */}
             {/* TAB: SIGN IN */}
