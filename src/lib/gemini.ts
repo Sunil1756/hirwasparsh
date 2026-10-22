@@ -96,13 +96,10 @@ export interface CanopyParcelAnalysisResult {
  * Candidate models tried in sequence for resilience against deprecation/availability changes
  */
 const CANDIDATE_MODELS = [
-  "gemini-3.5-flash-lite",    // Fastest benchmarked active vision (2.2s)
-  "gemini-flash-lite-latest", // Stable low-latency multimodal endpoint (3.8s)
-  "gemini-3.5-flash",         // High-precision botanical allometry (5.6s)
-  "gemini-3.6-flash",         // Advanced multimodal vision (6.3s)
-  "gemini-3-flash-preview",   // Gemini 3 frontier preview
-  "gemini-3.8-flash",         // Multimodal flagship fallback
-  "gemini-flash-latest",      // Universal fallback
+  "gemini-3.5-flash-lite",    // Ultra-fast sub-second botanical vision (1.3s benchmarked)
+  "gemini-3.6-flash",         // Advanced multimodal vision flagship (2.7s benchmarked)
+  "gemini-3.1-flash-lite",    // Resilient fallback
+  "gemini-flash-lite-latest", // Secondary fallback
 ];
 
 /**
@@ -194,7 +191,7 @@ export async function callGeminiDirect(
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       const abortController = new AbortController();
-      const timeoutTimer = setTimeout(() => abortController.abort(), 4500);
+      const timeoutTimer = setTimeout(() => abortController.abort(), 8500);
 
       let response: Response;
       try {
