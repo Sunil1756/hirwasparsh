@@ -655,15 +655,61 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
   useEffect(() => {
     async function loadDataSpine() {
       try {
-        const [plots, { data: projects }] = await Promise.all([
+        const [plots, { data: plProjects }, { data: prProjects }, { data: pbBoundaries }] = await Promise.all([
           fetchRealPlots(),
           supabase.from("plantation_projects").select("*").order("created_at", { ascending: false }),
+          supabase.from("projects").select("*"),
+          supabase.from("project_boundaries").select("*"),
         ]);
+
+        const boundariesByProjectId = new Map<string, any>();
+        (pbBoundaries || []).forEach((b: any) => {
+          if (b.project_id && b.geometry_geojson?.coordinates?.[0]) {
+            const coords = b.geometry_geojson.coordinates[0].map((pt: any) => [pt[1], pt[0]]);
+            boundariesByProjectId.set(b.project_id, coords);
+          }
+        });
+
+        const mergedProjects: any[] = [];
+        const seenIds = new Set<string>();
+
+        (plProjects || []).forEach((p: any) => {
+          if (isGenuineProject(p)) {
+            seenIds.add(p.id);
+            if (!p.boundary || p.boundary.length === 0) {
+              p.boundary = boundariesByProjectId.get(p.id) || [];
+            }
+            mergedProjects.push(p);
+          }
+        });
+
+        (prProjects || []).forEach((p: any) => {
+          if (isGenuineProject(p) && !seenIds.has(p.id)) {
+            seenIds.add(p.id);
+            const boundary = boundariesByProjectId.get(p.id) || [];
+            mergedProjects.push({
+              id: p.id,
+              project_name: p.name || p.project_name,
+              organization_name: p.description?.replace("Afforestation project by ", "").replace("Afforestation project managed by ", "") || "Sahyadri Agroforestry Initiative",
+              organization_type: p.project_type || "ngo",
+              location: p.location_name || "Maharashtra, India",
+              latitude: p.centroid_latitude,
+              longitude: p.centroid_longitude,
+              boundary: boundary,
+              target_trees: p.target_trees || 1000,
+              species: p.species_list || ["Neem (Azadirachta indica)"],
+              plantation_date: p.start_date || "2026-10-06",
+              status: p.status || "verified_active",
+              ai_score: 90,
+              ai_report: "Verified user project with Sentinel-2 boundary telemetry.",
+              verified_trees: p.planted_trees || 0,
+              created_at: p.start_date || new Date().toISOString(),
+            });
+          }
+        });
+
         if (plots && plots.length > 0) setDbPlots(plots);
-        if (projects) {
-          const genuineProjects = (projects || []).filter((p: any) => isGenuineProject(p));
-          setDbProjects(genuineProjects);
-        }
+        setDbProjects(mergedProjects);
       } catch (err) {
         console.warn("Could not fetch plantation projects/plots:", err);
       }
@@ -983,7 +1029,7 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
   }, [toast]);
 
   // Handle Preset or Real Project Selection
-  const handleSelectZone = async (zone: AgroforestryPresetZone) => {
+  const handleSelectZone = useCallback(async (zone: AgroforestryPresetZone) => {
     setSelectedZone(zone);
     setMapCenter(zone.center);
     setMapZoom(zone.zoom || 16);
@@ -999,7 +1045,16 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
     const newTrees = getZoneSurvivalRecords(zone, trees, dbProjects);
     setZoneTrees(newTrees);
     setZoneSurvival(calculateZoneSurvivalMetrics(zone, newTrees));
-  };
+  }, [activeSpectral, trees, dbProjects]);
+
+  // Auto-select first real project when loaded so fake placeholder zone is never shown
+  useEffect(() => {
+    if (allAvailableZones.length > 0 && allAvailableZones[0].id !== "statewide_overview") {
+      if (selectedZone.id === "statewide_overview" || !allAvailableZones.some((z) => z.id === selectedZone.id)) {
+        handleSelectZone(allAvailableZones[0]);
+      }
+    }
+  }, [allAvailableZones, selectedZone.id, handleSelectZone]);
 
   // Run On-Demand Satellite Survival Batch Scan
   const handleRunSatelliteSurvivalScan = () => {

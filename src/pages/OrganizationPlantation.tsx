@@ -309,41 +309,53 @@ const OrganizationPlantation = () => {
 
   const loadProjects = useCallback(async () => {
     try {
-      // 1. Fetch from plantation_projects table (which has full MRV columns & created_at)
-      const { data: plData, error: plError } = await supabase
-        .from("plantation_projects")
-        .select("*")
-        .order("created_at", { ascending: false });
+      // 1. Fetch from plantation_projects, canonical projects, and project_boundaries in parallel
+      const [
+        { data: plData, error: plError },
+        { data: prData, error: prError },
+        { data: pbData, error: pbError },
+      ] = await Promise.all([
+        supabase.from("plantation_projects").select("*").order("created_at", { ascending: false }),
+        supabase.from("projects").select("*"),
+        supabase.from("project_boundaries").select("*"),
+      ]);
 
       if (plError) {
         console.warn("Could not fetch plantation projects from Supabase:", plError.message);
       }
 
-      // 2. Fetch from canonical projects table as secondary source
-      const { data: prData } = await supabase
-        .from("projects")
-        .select("*");
+      const boundariesByProjectId = new Map<string, any>();
+      (pbData || []).forEach((b: any) => {
+        if (b.project_id && b.geometry_geojson?.coordinates?.[0]) {
+          const coords = b.geometry_geojson.coordinates[0].map((pt: any) => [pt[1], pt[0]]);
+          boundariesByProjectId.set(b.project_id, coords);
+        }
+      });
 
       const mergedMap = new Map<string, Project>();
 
       (plData || []).forEach((p: any) => {
+        if (!p.boundary || p.boundary.length === 0) {
+          p.boundary = boundariesByProjectId.get(p.id) || [];
+        }
         mergedMap.set(p.id, p as Project);
       });
 
       (prData || []).forEach((p: any) => {
         if (!mergedMap.has(p.id)) {
+          const boundary = boundariesByProjectId.get(p.id) || [];
           mergedMap.set(p.id, {
             id: p.id,
             user_id: p.created_by,
             project_name: p.name,
-            organization_name: p.description?.replace("Afforestation project by ", "").replace("Afforestation project managed by ", "") || "Organization",
+            organization_name: p.description?.replace("Afforestation project by ", "").replace("Afforestation project managed by ", "") || "Sahyadri Agroforestry Initiative",
             organization_type: p.project_type || "ngo",
             contact_email: null,
             contact_phone: null,
             location: p.location_name || "Plantation Site",
             latitude: p.centroid_latitude,
             longitude: p.centroid_longitude,
-            boundary: [],
+            boundary: boundary,
             target_trees: p.target_trees || 100,
             species: p.species_list || [],
             plantation_date: p.start_date || new Date().toISOString().split("T")[0],
