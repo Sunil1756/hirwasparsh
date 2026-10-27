@@ -254,6 +254,10 @@ export const ProjectManagement: React.FC = () => {
       toast.error("Target trees must be at least 10 saplings for an agroforestry/plantation project.");
       return;
     }
+    if (initialBoundaryPoints.length < 3) {
+      toast.error("Mandatory Boundary: Please mark at least 3 points on the map or import a KML/GeoJSON parcel boundary.");
+      return;
+    }
 
     setIsSubmittingCreate(true);
     try {
@@ -269,15 +273,12 @@ export const ProjectManagement: React.FC = () => {
         end_date: newEndDate || undefined,
         created_by: user?.id || null,
         status: "draft",
-        initial_boundary:
-          initialBoundaryPoints.length >= 3
-            ? {
-                points: initialBoundaryPoints,
-                boundary_name: "Primary Planting Zone",
-                compartment_code: "COMP-A1",
-                boundary_type: "planting_zone",
-              }
-            : undefined,
+        initial_boundary: {
+          points: initialBoundaryPoints,
+          boundary_name: "Primary Planting Zone",
+          compartment_code: "COMP-A1",
+          boundary_type: "planting_zone",
+        },
       };
 
       const res = await projectService.createProject(payload);
@@ -883,10 +884,15 @@ export const ProjectManagement: React.FC = () => {
               </div>
             </div>
 
-            {/* Initial Boundary Plotting */}
+            {/* Mandatory Initial Boundary Plotting */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold">Initial Cadastral Boundary (Optional)</Label>
+                <Label className="text-xs font-semibold flex items-center gap-1.5">
+                  Mandatory Cadastral Boundary <span className="text-destructive">*</span>
+                  <Badge variant={initialBoundaryPoints.length >= 3 ? "outline" : "secondary"} className="text-[10px] py-0 px-1.5">
+                    {initialBoundaryPoints.length >= 3 ? `✅ ${initialBoundaryPoints.length} vertices` : "At least 3 points required"}
+                  </Badge>
+                </Label>
                 <span className="text-[11px] text-muted-foreground">Click map or upload KML/GeoJSON</span>
               </div>
               <BoundaryDrawMap

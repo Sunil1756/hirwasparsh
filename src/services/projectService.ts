@@ -236,28 +236,57 @@ export const projectService = {
         }
       }
 
-      const initialStatus: ProjectStatus = payload.status || 'draft';
+      // State Machine Gate: Newly created projects must strictly start as 'draft' or 'submitted'.
+      // A project can NEVER be created directly as 'active' or 'completed'.
+      const initialStatus: ProjectStatus = payload.status === "submitted" ? "submitted" : "draft";
 
       let centroidLat = payload.centroid_latitude || null;
       let centroidLng = payload.centroid_longitude || null;
       let initialAreaHa = payload.target_area_hectares || 0;
 
-      // If initial boundary points provided, validate and extract centroid + area
+      // Mandatory Cadastral Boundary Enforcement (Gate 2)
+      if (
+        !payload.initial_boundary ||
+        !Array.isArray(payload.initial_boundary.points) ||
+        payload.initial_boundary.points.length < 3
+      ) {
+        return {
+          success: false,
+          error: "Mandatory Boundary Violation: Reforestation and agroforestry projects require a verified geodetic boundary with at least 3 coordinate vertices.",
+        };
+      }
+
+      // Validate boundary geometry and extract centroid + area
       let validatedGeoJson: any = null;
       let areaSqm = 0;
       let areaAcres = 0;
 
-      if (payload.initial_boundary && payload.initial_boundary.points.length >= 3) {
-        const boundaryVal = validateGeodeticBoundary(payload.initial_boundary.points);
-        if (boundaryVal.isValid) {
-          centroidLat = boundaryVal.centroid[0];
-          centroidLng = boundaryVal.centroid[1];
-          initialAreaHa = boundaryVal.hectares;
-          areaSqm = boundaryVal.areaSqMeters;
-          areaAcres = boundaryVal.acres;
-          validatedGeoJson = boundaryVal.geoJsonPolygon;
-        }
+      const boundaryVal = validateGeodeticBoundary(payload.initial_boundary.points);
+      if (!boundaryVal.isValid) {
+        return {
+          success: false,
+          error: `Geospatial Boundary Error: ${boundaryVal.errorMessage || "Invalid cadastral polygon geometry."}`,
+        };
       }
+      if (boundaryVal.hectares < 0.05) {
+        return {
+          success: false,
+          error: `Land Sanity Violation: Boundary area (${boundaryVal.hectares.toFixed(3)} ha) is too small. Minimum required parcel area is 0.05 hectares (~500 m²).`,
+        };
+      }
+      if (boundaryVal.hectares > 100000) {
+        return {
+          success: false,
+          error: `Land Sanity Violation: Boundary area (${boundaryVal.hectares.toFixed(1)} ha) exceeds allowable ceiling of 100,000 hectares.`,
+        };
+      }
+
+      centroidLat = boundaryVal.centroid[0];
+      centroidLng = boundaryVal.centroid[1];
+      initialAreaHa = boundaryVal.hectares;
+      areaSqm = boundaryVal.areaSqMeters;
+      areaAcres = boundaryVal.acres;
+      validatedGeoJson = boundaryVal.geoJsonPolygon;
 
       // Insert Project record
       const { data: projectData, error: projectError } = await supabase
@@ -316,6 +345,42 @@ export const projectService = {
           organization_id: createdProject.organization_id,
         },
       });
+
+      // Synchronize with plantation_projects table for multi-spectral & satellite MRV engines
+      try {
+        await supabase.from("plantation_projects").upsert({
+          id: createdProject.id,
+          user_id: payload.created_by || null,
+          project_name: createdProject.name,
+          organization_name: payload.description?.replace("Afforestation project by ", "").replace("Afforestation project managed by ", "") || "Agroforestry Initiative",
+          organization_type: createdProject.project_type,
+          location: createdProject.location_name || "Maharashtra, India",
+          latitude: centroidLat,
+          longitude: centroidLng,
+          boundary: payload.initial_boundary?.points?.map((p) => ({ lat: p.lat, lng: p.lng })) || [],
+          target_trees: createdProject.target_trees,
+          species: createdProject.species_list || [],
+          plantation_date: createdProject.start_date || new Date().toISOString().split("T")[0],
+          status: "evidence_required",
+          ai_score: 35,
+          ai_report: "Boundary plotted. Awaiting field sapling planting and botanical audit evidence.",
+          verified_trees: 0,
+        });
+      } catch (syncErr) {
+        console.warn("Could not sync to plantation_projects:", syncErr);
+      }
+
+      // Record initial verification audit trail
+      try {
+        await supabase.from("verifications" as any).insert({
+          project_id: createdProject.id,
+          verification_type: "initial_cadastral_boundary",
+          status: "pending_review",
+          confidence_score: 35,
+          notes: "Initial project boundary registered. Awaiting field tree planting and botanical verification.",
+          created_at: new Date().toISOString(),
+        });
+      } catch {}
 
       return { success: true, project: createdProject };
     } catch (err: any) {

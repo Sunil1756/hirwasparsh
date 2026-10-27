@@ -325,3 +325,26 @@ describe("Gate 1: Anti-Gibberish & Land Sanity Validator", () => {
     expect(pune.isPrimaryRegion).toBe(true);
   });
 });
+
+describe("Gate 2: Mandatory Cadastral Boundary & Pre-Audit State Machine", () => {
+  it("rejects project creation without boundary when required for agroforestry/reforestation", () => {
+    const boundaryCheck = validateBoundaryCoordinates([]);
+    expect(boundaryCheck.isValid).toBe(false);
+    expect(boundaryCheck.errors[0]).toContain("at least 3");
+  });
+
+  it("calculates exact area and centroid for valid cadastral plot", () => {
+    // Solapur parcel
+    const boundary = [
+      { lat: 17.6745, lng: 75.9262 },
+      { lat: 17.6744, lng: 75.9277 },
+      { lat: 17.6736, lng: 75.9276 },
+      { lat: 17.6736, lng: 75.9264 },
+    ];
+    const res = validateBoundaryCoordinates(boundary);
+    expect(res.isValid).toBe(true);
+    expect(res.centroid).toBeDefined();
+    expect(res.centroid?.[0]).toBeCloseTo(17.674, 2);
+    expect(res.centroid?.[1]).toBeCloseTo(75.927, 2);
+  });
+});

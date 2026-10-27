@@ -687,6 +687,8 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
           if (isGenuineProject(p) && !seenIds.has(p.id)) {
             seenIds.add(p.id);
             const boundary = boundariesByProjectId.get(p.id) || [];
+            const isPlanted = (p.planted_trees || 0) > 0;
+            const projectStatus = p.status === "active" ? "verified_active" : p.status || "draft";
             mergedProjects.push({
               id: p.id,
               project_name: p.name || p.project_name,
@@ -699,9 +701,11 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
               target_trees: p.target_trees || 1000,
               species: p.species_list || ["Neem (Azadirachta indica)"],
               plantation_date: p.start_date || "2026-10-06",
-              status: p.status || "verified_active",
-              ai_score: 90,
-              ai_report: "Verified user project with Sentinel-2 boundary telemetry.",
+              status: projectStatus,
+              ai_score: isPlanted ? 80 : 35,
+              ai_report: isPlanted
+                ? "Field trees recorded and Sentinel-2 boundary telemetry calibrated."
+                : "Pre-planting baseline. Awaiting in-ground planting census and field ranger verification.",
               verified_trees: p.planted_trees || 0,
               created_at: p.start_date || new Date().toISOString(),
             });
@@ -779,12 +783,14 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
         targetTrees: targetCount,
         species: Array.from(new Set(pTrees.map((t) => t.species).filter(Boolean) as string[])),
         plantedDate: p.created_at?.split("T")[0] || p.plantation_date || "2024-01-01",
-        meanNdvi: pTrees.length > 0 ? (realSurvivalRate >= 80 ? 0.79 : 0.68) : 0.74,
+        meanNdvi: verifiedCount > 0 ? (realSurvivalRate >= 80 ? 0.79 : 0.68) : 0.24,
         meanNdwi: 0.28,
-        biomassTonsPerHa: 45.0,
-        carbonOffsetTons: Math.round((targetCount * 22) / 1000),
-        healthStatus: realSurvivalRate >= 90 ? "Optimal Vigor" : "Moderate Growth",
-        description: `Real CSR/NGO Agroforestry Project by ${p.organization_name || "Enterprise"} registered in Supabase database.`,
+        biomassTonsPerHa: verifiedCount > 0 ? 45.0 : 0.0,
+        carbonOffsetTons: verifiedCount > 0 ? Math.round((verifiedCount * 22) / 1000) : 0,
+        healthStatus: verifiedCount > 0 ? (realSurvivalRate >= 90 ? "Optimal Vigor" : "Moderate Growth") : "Awaiting In-Ground Planting",
+        description: verifiedCount > 0
+          ? `Real CSR/NGO Agroforestry Project by ${p.organization_name || "Enterprise"} registered in Supabase database.`
+          : `Pre-planting baseline parcel by ${p.organization_name || "Enterprise"} (0 living trees verified in-ground). Carbon offset credits remain locked at 0.00 MT.`,
       };
     });
 

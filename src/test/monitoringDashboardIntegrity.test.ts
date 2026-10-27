@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
-import { execSync } from "child_process";
+import { exec } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
 
 describe("Platform Zero-Crash Resilience & Reference Error Safeguard", () => {
   it("strictly ensures MonitoringDashboard.tsx has zero undefined console components", () => {
@@ -29,9 +32,9 @@ describe("Platform Zero-Crash Resilience & Reference Error Safeguard", () => {
     expect(content).toContain('value="needs_review"');
   });
 
-  it("verifies that all critical pages and modules have zero TS2304 'Cannot find name' errors", () => {
+  it("verifies that all critical pages and modules have zero TS2304 'Cannot find name' errors", async () => {
     try {
-      execSync("npx tsc -p tsconfig.app.json --noEmit", { stdio: "pipe" });
+      await execAsync("npx tsc -p tsconfig.app.json --noEmit");
       // If tsc passes completely, 0 errors
       expect(true).toBe(true);
     } catch (e: any) {
