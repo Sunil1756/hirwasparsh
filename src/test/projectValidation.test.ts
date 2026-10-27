@@ -4,6 +4,8 @@ import {
   validateBoundaryCoordinates,
   checkDuplicateProject,
   haversineDistanceMeters,
+  detectGibberishText,
+  validateTerrestrialCoordinates,
 } from "../lib/projectValidation";
 import { auditBaselineNdviSpectral, evaluateProjectVerification } from "../lib/projectVerification";
 
@@ -33,7 +35,7 @@ describe("Phase 1: Project Creation Validation Engine", () => {
       target_trees: 0,
     });
     expect(res.isValid).toBe(false);
-    expect(res.errors.some((e) => e.includes("greater than 0"))).toBe(true);
+    expect(res.errors.some((e) => e.includes("at least 10"))).toBe(true);
   });
 
   it("strictly rejects negative target trees", () => {
@@ -42,7 +44,7 @@ describe("Phase 1: Project Creation Validation Engine", () => {
       target_trees: -150,
     });
     expect(res.isValid).toBe(false);
-    expect(res.errors.some((e) => e.includes("greater than 0"))).toBe(true);
+    expect(res.errors.some((e) => e.includes("at least 10"))).toBe(true);
   });
 
   it("rejects non-integer target tree counts", () => {
@@ -238,5 +240,88 @@ describe("Phase 1: Purge of Simulated NDVI & Truth-in-Reporting", () => {
     expect(report.provenanceBadge).toContain("Pending Satellite Overpass");
     expect(report.metricName).toBe("Pre-Planting Readiness Score");
     expect(report.overallScore).toBeLessThanOrEqual(40); // Honest pre-planting cap
+  });
+});
+
+describe("Gate 1: Anti-Gibberish & Land Sanity Validator", () => {
+  it("strictly rejects repeating cyclical gibberish like 'dwedwedw'", () => {
+    const res = detectGibberishText("dwedwedw", "Project Name");
+    expect(res.isValid).toBe(false);
+    expect(res.error).toBeDefined();
+
+    const projRes = validateProjectCreation({
+      name: "dwedwedw",
+      target_trees: 500,
+      location_name: "Pune",
+      centroid_latitude: 18.5204,
+      centroid_longitude: 73.8567,
+    });
+    expect(projRes.isValid).toBe(false);
+    expect(projRes.errors.some((e) => e.toLowerCase().includes("repeating") || e.toLowerCase().includes("keyboard") || e.toLowerCase().includes("gibberish") || e.toLowerCase().includes("diversity"))).toBe(true);
+  });
+
+  it("strictly rejects keyboard quadrant smash locations like 'ddefdewfwf'", () => {
+    const res = detectGibberishText("ddefdewfwf", "Location Name");
+    expect(res.isValid).toBe(false);
+
+    const projRes = validateProjectCreation({
+      name: "Solapur Agroforestry Initiative",
+      target_trees: 500,
+      location_name: "ddefdewfwf",
+      centroid_latitude: 17.674,
+      centroid_longitude: 75.927,
+    });
+    expect(projRes.isValid).toBe(false);
+    expect(projRes.errors.some((e) => e.toLowerCase().includes("location"))).toBe(true);
+  });
+
+  it("rejects horizontal keyboard row mash patterns ('asdfghjk', 'zxcvbnm')", () => {
+    expect(detectGibberishText("asdfghjk").isValid).toBe(false);
+    expect(detectGibberishText("zxcvbnm").isValid).toBe(false);
+    expect(detectGibberishText("qwertyui").isValid).toBe(false);
+  });
+
+  it("rejects synthetic mock and test keywords ('test project', 'dummy plot', 'fake demo')", () => {
+    expect(detectGibberishText("test project").isValid).toBe(false);
+    expect(detectGibberishText("dummy plantation").isValid).toBe(false);
+    expect(detectGibberishText("fake woodland").isValid).toBe(false);
+  });
+
+  it("approves genuine projects and authentic location names", () => {
+    expect(detectGibberishText("Sahyadri Bio-Reserve Afforestation").isValid).toBe(true);
+    expect(detectGibberishText("Solapur Agroforestry Project").isValid).toBe(true);
+    expect(detectGibberishText("Pune Eco Research Site").isValid).toBe(true);
+    expect(detectGibberishText("Nashik Green Belt").isValid).toBe(true);
+    expect(detectGibberishText("Nagpur Citrus Agroforestry").isValid).toBe(true);
+  });
+
+  it("strictly rejects coordinates at Null Island (0, 0)", () => {
+    const terr = validateTerrestrialCoordinates(0, 0);
+    expect(terr.isValid).toBe(false);
+    expect(terr.error).toContain("Null Island");
+  });
+
+  it("strictly rejects coordinates outside India sovereign territory", () => {
+    // London: 51.5074° N, 0.1278° W
+    const london = validateTerrestrialCoordinates(51.5074, -0.1278);
+    expect(london.isValid).toBe(false);
+    expect(london.error).toContain("outside India");
+
+    // Indian Ocean south of tip: 2.0° N, 77.0° E
+    const ocean = validateTerrestrialCoordinates(2.0, 77.0);
+    expect(ocean.isValid).toBe(false);
+    expect(ocean.error).toContain("Indian Ocean");
+  });
+
+  it("approves valid Maharashtra and Indian terrestrial coordinates", () => {
+    // Solapur: 17.6740, 75.9270
+    const solapur = validateTerrestrialCoordinates(17.674, 75.927);
+    expect(solapur.isValid).toBe(true);
+    expect(solapur.isPrimaryRegion).toBe(true);
+
+    // Pune: 18.5204, 73.8567
+    const pune = validateTerrestrialCoordinates(18.5204, 73.8567);
+    expect(pune.isValid).toBe(true);
+    expect(pune.isPrimaryRegion).toBe(true);
   });
 });

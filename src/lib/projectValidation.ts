@@ -31,6 +31,187 @@ export interface ProjectValidationResult {
   };
 }
 
+/**
+ * Advanced Anti-Gibberish & Keyboard Smash Detector
+ * Inspects character diversity, repeating cyclical loops, adjacent keyboard clusters,
+ * consonant/vowel balance, and prohibited test keywords.
+ */
+export function detectGibberishText(
+  text: string,
+  fieldName = "Field"
+): { isValid: boolean; error?: string } {
+  const trimmed = (text || "").trim();
+  if (trimmed.length < 3) {
+    return { isValid: false, error: `${fieldName} is too short (minimum 3 characters required).` };
+  }
+
+  const lower = trimmed.toLowerCase();
+
+  // 1. Prohibited test / mock keywords
+  const blockedKeywords = [
+    "test", "demo", "dummy", "mock", "fake", "sample", "temp", "foo", "bar", "baz", "asdf", "qwerty", "tempdemo"
+  ];
+  for (const kw of blockedKeywords) {
+    if (
+      lower === kw ||
+      lower.startsWith(kw + " ") ||
+      lower.endsWith(" " + kw) ||
+      lower.includes(" " + kw + " ") ||
+      lower.startsWith(kw + "_") ||
+      lower.startsWith(kw + "-")
+    ) {
+      return {
+        isValid: false,
+        error: `${fieldName} contains testing keyword "${kw}". Synthetic test projects are strictly prohibited on the live registry.`,
+      };
+    }
+  }
+
+  // 2. Reject pure digits or pure symbols
+  if (/^[0-9\s\-_.,]+$/.test(trimmed)) {
+    return { isValid: false, error: `${fieldName} cannot consist solely of numbers or punctuation.` };
+  }
+
+  // 3. Known keyboard row smash patterns (horizontal, reverse, vertical, or 4+ repeated chars)
+  const smashPatterns = [
+    /asdf/i, /sdfg/i, /dfgh/i, /fghj/i, /ghjk/i, /hjkl/i,
+    /qwer/i, /wert/i, /erty/i, /rtyu/i, /tyui/i, /yuio/i, /uiop/i,
+    /zxcv/i, /xcvb/i, /cvbn/i, /vbnm/i,
+    /lkjh/i, /kjhg/i, /jhgf/i, /hgfd/i, /gfds/i, /fdsa/i,
+    /poiuy/i, /oiuyt/i, /iuytr/i, /uytre/i, /ytrew/i, /trewq/i,
+    /(.)\1{3,}/, // 4+ repeated identical characters (aaaa, xxxx, 1111)
+    /[bcdfghjklmnpqrstvwxyz]{6,}/i, // 6+ consecutive consonants without a vowel
+    /[aeiou]{5,}/i, // 5+ consecutive vowels without a consonant
+  ];
+  for (const pat of smashPatterns) {
+    if (pat.test(lower)) {
+      return {
+        isValid: false,
+        error: `${fieldName} contains unnatural keyboard-smash characters or repetitive sequences.`,
+      };
+    }
+  }
+
+  // 4. Repeating cyclical loops (e.g. "dwedwedw", "abcabcabc", "xyxyxy")
+  for (let cycleLen = 2; cycleLen <= Math.floor(lower.length / 2); cycleLen++) {
+    const cycle = lower.slice(0, cycleLen);
+    let repetitions = 0;
+    for (let i = 0; i <= lower.length - cycleLen; i += cycleLen) {
+      if (lower.slice(i, i + cycleLen) === cycle) {
+        repetitions++;
+      } else {
+        break;
+      }
+    }
+    const coveredRatio = (repetitions * cycleLen) / lower.length;
+    if (repetitions >= 2 && coveredRatio >= 0.7) {
+      return {
+        isValid: false,
+        error: `${fieldName} contains a repeating cyclical pattern ("${cycle}"). Please provide a meaningful, authentic title.`,
+      };
+    }
+  }
+
+  // 5. Keyboard quadrant mashing (e.g. "dwedwedw", "ddefdewfwf" using only adjacent left-hand keys)
+  const words = lower.split(/\s+/).filter(Boolean);
+  const leftHandCluster = new Set(["q", "w", "e", "r", "a", "s", "d", "f", "z", "x", "c", "v"]);
+  const validLeftHandWords = new Set(["raw", "safe", "fade", "draw", "ward", "card", "dare", "wave", "crew", "acre", "weed", "reed", "deer"]);
+
+  for (const w of words) {
+    if (w.length >= 6) {
+      const uniqueChars = new Set(w.split(""));
+      // Abnormally low diversity for 6+ letters
+      if (uniqueChars.size <= 3) {
+        return {
+          isValid: false,
+          error: `Word "${w}" in ${fieldName} lacks character diversity and appears to be random typing.`,
+        };
+      }
+      // Single keyboard quadrant cluster mashing
+      const isAllLeftCluster = Array.from(uniqueChars).every((c) => leftHandCluster.has(c));
+      if (isAllLeftCluster && uniqueChars.size <= 4 && !Array.from(validLeftHandWords).some((v) => w.includes(v))) {
+        return {
+          isValid: false,
+          error: `Word "${w}" in ${fieldName} consists of keyboard-mashing characters.`,
+        };
+      }
+    }
+  }
+
+  // 6. Natural English / Romanized Indian language consonant-to-vowel ratio
+  const lettersOnly = lower.replace(/[^a-z]/g, "");
+  if (lettersOnly.length >= 5) {
+    const vowels = (lettersOnly.match(/[aeiouy]/g) || []).length;
+    const vowelRatio = vowels / lettersOnly.length;
+    if (vowelRatio < 0.15 || vowelRatio > 0.85) {
+      return {
+        isValid: false,
+        error: `${fieldName} has an unnatural phonetic structure (insufficient or excessive vowels).`,
+      };
+    }
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Validates terrestrial coordinates for India / Maharashtra operational domain
+ */
+export function validateTerrestrialCoordinates(lat: number, lng: number): {
+  isValid: boolean;
+  error?: string;
+  isPrimaryRegion: boolean;
+  warning?: string;
+} {
+  // Reject Null Island (0, 0)
+  if (Math.abs(lat) < 0.001 && Math.abs(lng) < 0.001) {
+    return {
+      isValid: false,
+      error: "Coordinates (0, 0) located at Null Island in the Atlantic Ocean are strictly rejected.",
+      isPrimaryRegion: false,
+    };
+  }
+
+  // Absolute coordinate boundaries
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    return {
+      isValid: false,
+      error: `Invalid geodetic coordinates (${lat}, ${lng}).`,
+      isPrimaryRegion: false,
+    };
+  }
+
+  // Reject ocean coordinates south of India (lat < 6.0 in Indian Ocean)
+  if (lat < 6.0 && lng >= 60 && lng <= 100) {
+    return {
+      isValid: false,
+      error: `Coordinates (${lat}, ${lng}) fall in the Indian Ocean. Plantations must be located on verified terrestrial land.`,
+      isPrimaryRegion: false,
+    };
+  }
+
+  // Check if within India bounding box (approx 6°N - 37.5°N, 68°E - 97.5°E)
+  const isIndia = lat >= 6.0 && lat <= 38.0 && lng >= 68.0 && lng <= 98.0;
+  if (!isIndia) {
+    return {
+      isValid: false,
+      error: `Coordinates (${lat.toFixed(4)}°N, ${lng.toFixed(4)}°E) fall outside India's sovereign terrestrial territory.`,
+      isPrimaryRegion: false,
+    };
+  }
+
+  // Check if within primary operational zone (Maharashtra: approx 15.6°N - 22.2°N, 72.5°E - 81.0°E)
+  const isMaharashtra = lat >= 15.6 && lat <= 22.2 && lng >= 72.5 && lng <= 81.0;
+
+  return {
+    isValid: true,
+    isPrimaryRegion: isMaharashtra,
+    warning: !isMaharashtra
+      ? `Notice: Coordinates fall outside Maharashtra (${lat.toFixed(2)}°N, ${lng.toFixed(2)}°E). Satellite pass latency may vary.`
+      : undefined,
+  };
+}
+
 // Zod Schema for strict Project Creation inputs
 export const projectInputSchema = z.object({
   name: z
@@ -38,12 +219,15 @@ export const projectInputSchema = z.object({
     .trim()
     .min(3, "Project name must be at least 3 characters long")
     .max(120, "Project name cannot exceed 120 characters")
-    .regex(/^[^<>]+$/, "Project name cannot contain HTML or angle brackets"),
+    .regex(/^[^<>]+$/, "Project name cannot contain HTML or angle brackets")
+    .refine((val) => detectGibberishText(val, "Project name").isValid, (val) => ({
+      message: detectGibberishText(val, "Project name").error || "Invalid project name",
+    })),
   organization_id: z.string().uuid("Invalid organization ID format").nullable().optional(),
   target_trees: z
     .number({ required_error: "Target trees count is required" })
     .int("Target trees must be an integer")
-    .positive("Target trees must be greater than 0")
+    .min(10, "Target trees must be at least 10 saplings for an agroforestry/plantation project")
     .max(10_000_000, "Target trees exceeds maximum allowable limit of 10,000,000"),
   project_type: z
     .string()
@@ -63,7 +247,15 @@ export const projectInputSchema = z.object({
         ].includes(val.toLowerCase()),
       { message: "Invalid project type specified" }
     ),
-  location_name: z.string().trim().max(200).optional(),
+  location_name: z
+    .string()
+    .trim()
+    .max(200)
+    .optional()
+    .refine(
+      (val) => !val || detectGibberishText(val, "Location name").isValid,
+      (val) => ({ message: detectGibberishText(val || "", "Location name").error || "Invalid location name" })
+    ),
   centroid_latitude: z
     .number()
     .min(-90, "Latitude must be between -90 and 90")
@@ -151,6 +343,13 @@ export function validateBoundaryCoordinates(points: LatLng[] | [number, number][
     errors.push("Degenerate boundary: all coordinates are identical points.");
   }
 
+  const centroidLat = sumLat / normalized.length;
+  const centroidLng = sumLng / normalized.length;
+  const terrCheck = validateTerrestrialCoordinates(centroidLat, centroidLng);
+  if (!terrCheck.isValid) {
+    errors.push(terrCheck.error || "Boundary centroid falls outside verified terrestrial boundaries.");
+  }
+
   if (errors.length > 0) {
     return { isValid: false, errors };
   }
@@ -158,7 +357,7 @@ export function validateBoundaryCoordinates(points: LatLng[] | [number, number][
   return {
     isValid: true,
     errors: [],
-    centroid: [sumLat / normalized.length, sumLng / normalized.length],
+    centroid: [centroidLat, centroidLng],
   };
 }
 
@@ -207,12 +406,13 @@ export function validateProjectCreation(input: {
     }
   }
 
-  // 3. Geographic Context Warning (if coordinates outside target regions)
+  // 3. Geographic & Terrestrial Land Sanity Check
   if (centroidLat !== null && centroidLng !== null) {
-    // Check if within India bounding box (approx 6°N - 37°N, 68°E - 98°E)
-    const isIndia = centroidLat >= 6 && centroidLat <= 38 && centroidLng >= 68 && centroidLng <= 98;
-    if (!isIndia) {
-      warnings.push("Notice: Project coordinates appear outside primary service region (India / Maharashtra).");
+    const terrCheck = validateTerrestrialCoordinates(centroidLat, centroidLng);
+    if (!terrCheck.isValid) {
+      errors.push(terrCheck.error || "Coordinates fail terrestrial land sanity check.");
+    } else if (terrCheck.warning) {
+      warnings.push(terrCheck.warning);
     }
   }
 

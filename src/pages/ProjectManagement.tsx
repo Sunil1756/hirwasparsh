@@ -39,6 +39,7 @@ import {
   ALLOWED_STATUS_TRANSITIONS,
 } from "@/services/projectService";
 import { organizationService } from "@/services/organizationService";
+import { detectGibberishText } from "@/lib/projectValidation";
 import BoundaryDrawMap from "@/components/BoundaryDrawMap";
 import { ProjectMapViewer } from "@/components/gis/ProjectMapViewer";
 import { BoundarySystemMapViewer } from "@/components/gis/BoundarySystemMapViewer";
@@ -229,12 +230,28 @@ export const ProjectManagement: React.FC = () => {
   // Handle Create Project
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) {
+      toast.error("Authentication required. Please sign in to create a project.");
+      return;
+    }
     if (!newProjectName.trim()) {
       toast.error("Please enter a project name.");
       return;
     }
-    if (newTargetTrees <= 0) {
-      toast.error("Target trees must be greater than 0.");
+    const nameCheck = detectGibberishText(newProjectName, "Project name");
+    if (!nameCheck.isValid) {
+      toast.error(nameCheck.error || "Invalid project name.");
+      return;
+    }
+    if (newLocationName.trim()) {
+      const locCheck = detectGibberishText(newLocationName, "Location name");
+      if (!locCheck.isValid) {
+        toast.error(locCheck.error || "Invalid location name.");
+        return;
+      }
+    }
+    if (newTargetTrees < 10) {
+      toast.error("Target trees must be at least 10 saplings for an agroforestry/plantation project.");
       return;
     }
 

@@ -37,7 +37,7 @@ import { fetchRealSentinel2Telemetry } from "@/lib/remoteSensing";
 import { isProjectOwner, canEditProject, getProjectAccessBadge } from "@/lib/projectOwnership";
 import { isGenuineProject } from "@/lib/genuineDataFilter";
 import { calculateCarbonLedgerMetrics, CarbonAuditResult } from "@/lib/carbonLedger";
-import { validateProjectCreation, checkDuplicateProject } from "@/lib/projectValidation";
+import { validateProjectCreation, checkDuplicateProject, detectGibberishText } from "@/lib/projectValidation";
 import "leaflet/dist/leaflet.css";
 
 type Project = {
@@ -608,42 +608,7 @@ const OrganizationPlantation = () => {
   };
 
   const validateTextAuthenticity = (text: string, fieldName: string): { isValid: boolean; error?: string } => {
-    const trimmed = text.trim();
-    if (trimmed.length < 4) {
-      return { isValid: false, error: `${fieldName} must be at least 4 characters long.` };
-    }
-
-    // Common keyboard smash patterns
-    const smashPatterns = [
-      /asdf/i, /qwer/i, /zxcv/i, /hjkl/i, /lkjh/i, /fdsa/i, /rewq/i, /vcxz/i,
-      /(.)\1{3,}/, // 4+ repeated identical characters (e.g. aaaa, ssss, xxxx)
-      /[bcdfghjklmnpqrstvwxyz]{6,}/i, // 6+ consecutive consonants without a vowel (e.g. scsccx)
-    ];
-
-    for (const pat of smashPatterns) {
-      if (pat.test(trimmed)) {
-        return { isValid: false, error: `${fieldName} contains repetitive or keyboard-smash characters.` };
-      }
-    }
-
-    // Words with length >= 3 in Latin characters must contain vowels
-    const words = trimmed.split(/\s+/).filter((w) => w.length >= 3 && /^[a-zA-Z]+$/.test(w));
-    for (const w of words) {
-      if (!/[aeiouy]/i.test(w)) {
-        return { isValid: false, error: `Word "${w}" in ${fieldName} contains no vowels and appears to be random gibberish.` };
-      }
-    }
-
-    // Prohibited test / mock keywords
-    const testKeywords = ["test", "demo", "asdf", "dummy", "fake", "mock", "sample"];
-    const lower = trimmed.toLowerCase();
-    for (const kw of testKeywords) {
-      if (lower.includes(kw)) {
-        return { isValid: false, error: `${fieldName} contains keyword "${kw}". Test, demo, or mock projects are strictly blocked on the live registry.` };
-      }
-    }
-
-    return { isValid: true };
+    return detectGibberishText(text, fieldName);
   };
 
   const validateCurrentStep = (): boolean => {
@@ -693,6 +658,12 @@ const OrganizationPlantation = () => {
       }
       if (!location.trim()) {
         setLocation(`Agroforestry Plot (${boundary[0][0].toFixed(4)}°N, ${boundary[0][1].toFixed(4)}°E)`);
+      } else {
+        const locCheck = detectGibberishText(location, "Location Name");
+        if (!locCheck.isValid) {
+          toast({ title: "Invalid Location Name", description: locCheck.error, variant: "destructive" });
+          return false;
+        }
       }
       return true;
     }
