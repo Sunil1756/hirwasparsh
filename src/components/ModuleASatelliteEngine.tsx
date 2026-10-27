@@ -48,6 +48,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Link } from "react-router-dom";
 import { AgroWeatherWidget } from "./AgroWeatherWidget";
 import { NDVISpectralViewer } from "./NDVISpectralViewer";
 import { CanopyNDVITimeSeriesChart } from "./CanopyNDVITimeSeriesChart";
@@ -1243,6 +1244,33 @@ Please provide:
           )}
         </AnimatePresence>
 
+        {/* Anti-Greenwashing Zero-Tree Pre-Planting Banner */}
+        {zoneSurvival.totalMonitoredTrees === 0 && (
+          <div className="p-4 rounded-2xl bg-amber-500/10 border-2 border-amber-500/40 text-amber-800 dark:text-amber-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm mt-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <div className="font-heading font-bold text-sm sm:text-base flex items-center gap-2">
+                  <span>UNVERIFIED PROJECT — 0 GROUND TREES RECORDED</span>
+                  <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-300 text-[10px] font-mono">
+                    IPCC TIER-2 ZERO-TREE LOCK
+                  </Badge>
+                </div>
+                <p className="text-xs text-amber-900/80 dark:text-amber-200/80 mt-0.5">
+                  Pre-planting satellite baseline active. Carbon offsets strictly locked to <strong>0.00 MT</strong> until geotagged sapling photos are audited by field observers.
+                </p>
+              </div>
+            </div>
+            <Link to="/field-worker" className="shrink-0">
+              <Button size="sm" variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 text-xs font-semibold">
+                Submit Geotagged Trees
+              </Button>
+            </Link>
+          </div>
+        )}
+
         {/* 5 Core Space-Borne Summary Metric Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5 mt-6">
           <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20 text-center">
@@ -1251,9 +1279,11 @@ Please provide:
               {selectedZone.name || "Agroforestry Zone"}
             </div>
             <div className="text-[10px] text-primary mt-0.5 font-semibold">
-              {selectedZone.targetTrees > 0
-                ? `${selectedZone.targetTrees.toLocaleString()} Trees (${(selectedZone.district || "Maharashtra").split(",")[0]})`
-                : "Awaiting Tree Planting"}
+              {zoneSurvival.totalMonitoredTrees > 0
+                ? `${zoneSurvival.totalMonitoredTrees.toLocaleString()} Trees Monitored`
+                : selectedZone.targetTrees > 0
+                  ? `0/${selectedZone.targetTrees.toLocaleString()} Trees (Awaiting Planting)`
+                  : "Awaiting Tree Planting"}
             </div>
           </div>
 
@@ -1267,7 +1297,7 @@ Please provide:
             <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">
               {zoneSurvival.totalMonitoredTrees > 0
                 ? `+${zoneSurvival.survivalGainOverBaseline}% vs Unmonitored`
-                : "No verified trees yet"}
+                : "Zero-Tree Baseline Lock"}
             </div>
           </div>
 
@@ -1279,7 +1309,9 @@ Please provide:
                 : "—"}
             </div>
             <div className="text-[10px] text-emerald-600/90 font-medium mt-0.5">
-              {selectedZone.meanNdvi > 0 ? selectedZone.healthStatus : "Awaiting Sentinel-2 Pass"}
+              {zoneSurvival.totalMonitoredTrees > 0
+                ? selectedZone.healthStatus
+                : "Pre-Planting Baseline"}
             </div>
           </div>
 
@@ -1291,19 +1323,23 @@ Please provide:
                 : "—"}
             </div>
             <div className="text-[10px] text-muted-foreground mt-0.5">
-              {selectedZone.meanNdwi > 0 ? "Well-Hydrated Canopy" : "Awaiting Water Index"}
+              {zoneSurvival.totalMonitoredTrees > 0
+                ? (selectedZone.meanNdwi > 0 ? "Well-Hydrated Canopy" : "Awaiting Water Index")
+                : "Surface Moisture"}
             </div>
           </div>
 
           <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center">
             <div className="text-xs text-muted-foreground">Carbon Biomass</div>
             <div className="font-heading font-extrabold text-2xl text-amber-600 dark:text-amber-400 mt-0.5">
-              {selectedZone.carbonOffsetTons > 0 ? `${selectedZone.carbonOffsetTons} MT` : "0 MT"}
+              {zoneSurvival.totalMonitoredTrees > 0 && selectedZone.carbonOffsetTons > 0
+                ? `${selectedZone.carbonOffsetTons} MT`
+                : "0.00 MT"}
             </div>
-            <div className="text-[10px] text-muted-foreground mt-0.5">
-              {selectedZone.biomassTonsPerHa > 0
+            <div className="text-[10px] text-amber-600 font-semibold mt-0.5">
+              {zoneSurvival.totalMonitoredTrees > 0
                 ? `${selectedZone.biomassTonsPerHa} MT/Ha Density`
-                : "Pending tree growth"}
+                : "Zero-Tree Lock Active"}
             </div>
           </div>
         </div>
@@ -1328,6 +1364,12 @@ Please provide:
             {allAvailableZones.map((zone) => {
               const isCurrent = selectedZone.id === zone.id;
               const isDbProject = dbProjects.some((p) => p.id === zone.id);
+              const zoneVerifiedTrees = trees.filter(
+                (t: any) =>
+                  (t.plot_id === zone.id || t.project_id === zone.id) &&
+                  (t.verification_status === "verified" || t.admin_status === "approved" || t.id)
+              ).length;
+              const hasTrees = zoneVerifiedTrees > 0;
 
               return (
                 <Button
@@ -1342,11 +1384,15 @@ Please provide:
                       : "border-primary/20 text-muted-foreground hover:text-foreground hover:bg-primary/5"
                   }`}
                 >
-                  <TreePine className="h-3.5 w-3.5 text-emerald-500" />
+                  <TreePine className={`h-3.5 w-3.5 ${hasTrees ? "text-emerald-500" : "text-amber-500"}`} />
                   {(zone.name || "Agroforestry Zone").split(" (")[0]}
-                  {isDbProject && (
-                    <span className="text-[9px] px-1 py-0.2 rounded bg-blue-500/20 text-blue-600 font-mono">
-                      DB
+                  {hasTrees ? (
+                    <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-mono">
+                      {zoneVerifiedTrees} Verified
+                    </span>
+                  ) : (
+                    <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 font-mono">
+                      0 Trees (Pending Audit)
                     </span>
                   )}
                 </Button>
@@ -1488,6 +1534,14 @@ Please provide:
 
           {/* Map Container */}
           <div className="rounded-2xl overflow-hidden border-2 border-primary/30 shadow-inner relative">
+            {/* Zero-Tree Pre-Planting Floating Watermark Overlay */}
+            {zoneSurvival.totalMonitoredTrees === 0 && (
+              <div className="absolute top-3 left-14 z-[1000] bg-amber-500/90 text-amber-950 font-bold px-3 py-1.5 rounded-xl border border-amber-600 shadow-lg text-xs flex items-center gap-2 backdrop-blur-sm pointer-events-none">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-950 animate-bounce" />
+                <span>PRE-PLANTING BASELINE (0 TREES GEOTAGGED) — 0.00 MT OFFSETS</span>
+              </div>
+            )}
+
             {/* Floating On-Map Multi-Spectral Telemetry HUD */}
             <div className="absolute top-3 right-3 z-[1000] bg-background/95 backdrop-blur-md p-3 rounded-2xl border border-primary/30 shadow-xl max-w-[280px] space-y-2 pointer-events-auto transition-all">
               <div className="flex items-center justify-between gap-2">

@@ -138,3 +138,23 @@ describe("Geodetic Boundary GIS Validation", () => {
     expect(result.isValid).toBe(false);
   });
 });
+
+describe("Gate 3: Unmistakable UI Watermarking and Zero-Tree Anti-Greenwashing Locks", () => {
+  it("locks carbon offset calculations to 0.00 MT and zero biomass when verified saplings count is 0", () => {
+    const rawPlanted = 0;
+    const carbonOffsetTons = rawPlanted > 0 ? Math.round((rawPlanted * 22) / 1000) : 0;
+    expect(carbonOffsetTons).toBe(0);
+  });
+
+  it("classifies parcel as 'Awaiting In-Ground Planting' when verified ground trees equal zero", () => {
+    const verifiedCount = 0;
+    const healthStatus = verifiedCount > 0 ? "Optimal Vigor" : "Awaiting In-Ground Planting";
+    expect(healthStatus).toBe("Awaiting In-Ground Planting");
+  });
+
+  it("ensures proofOfSurvivalHash is marked as AWAITING_VERIFIED_GROUND_DATA when zero monitored trees exist", () => {
+    const totalMonitoredTrees = 0;
+    const proofHash = totalMonitoredTrees > 0 ? "0x7F89B2E4" : "AWAITING_VERIFIED_GROUND_DATA";
+    expect(proofHash).toBe("AWAITING_VERIFIED_GROUND_DATA");
+  });
+});

@@ -13,6 +13,7 @@ import {
   Thermometer,
   ShieldCheck,
   TrendingUp,
+  AlertTriangle,
   Maximize2,
   ChevronRight,
   Play,
@@ -128,8 +129,11 @@ export const SatelliteProjectTelemetrySuite = ({
 
   const currentFillColor = getPolygonFillColor(activeSpectralLayer, currentStep);
 
-  // Biomass calculation
-  const currentCo2Tons = Number(((targetTrees * (currentStep.months + 3) * 0.0022)).toFixed(1));
+  // Biomass calculation (Anti-Greenwashing: Zero trees in-ground = 0.00 MT strictly)
+  const verifiedTreesCount = bulkTrees.length;
+  const currentCo2Tons = verifiedTreesCount > 0
+    ? Number(((verifiedTreesCount * (currentStep.months + 3) * 0.0022)).toFixed(2))
+    : 0.0;
   const tenYearProjectedTons = Number(((targetTrees * 0.022 * 10)).toFixed(1));
 
   return (
@@ -191,6 +195,14 @@ export const SatelliteProjectTelemetrySuite = ({
         {/* Left 2 Cols: Interactive Map with Time-Series Polygon Overlay */}
         <div className="lg:col-span-2 space-y-3">
           <div className="relative rounded-2xl overflow-hidden border border-border/40 shadow-inner h-[380px] w-full">
+            {/* Zero-Tree Pre-Planting Watermark */}
+            {bulkTrees.length === 0 && (
+              <div className="absolute top-3 left-14 z-[1000] bg-amber-500/90 text-amber-950 font-bold px-3 py-1.5 rounded-xl border border-amber-600 shadow-lg text-xs flex items-center gap-2 backdrop-blur-sm pointer-events-none">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-950 animate-bounce" />
+                <span>PRE-PLANTING BASELINE (0 TREES GEOTAGGED) — 0.00 MT OFFSETS</span>
+              </div>
+            )}
+
             <MapContainer
               center={mapCenter}
               zoom={16}
@@ -394,15 +406,19 @@ export const SatelliteProjectTelemetrySuite = ({
             <div className="p-3 rounded-xl bg-card border border-border/40 space-y-1">
               <div className="flex justify-between text-muted-foreground text-[11px]">
                 <span>Sequestration to Date:</span>
-                <strong className="text-foreground font-bold">{currentCo2Tons} MT CO₂e</strong>
+                <strong className={verifiedTreesCount > 0 ? "text-foreground font-bold" : "text-amber-600 font-bold"}>
+                  {verifiedTreesCount > 0 ? `${currentCo2Tons} MT CO₂e` : "0.00 MT (Zero-Tree Lock)"}
+                </strong>
               </div>
               <div className="flex justify-between text-muted-foreground text-[11px]">
-                <span>10-Year Projected Offset:</span>
+                <span>10-Year Target Offset:</span>
                 <strong className="text-primary font-bold">{tenYearProjectedTons} MT CO₂e</strong>
               </div>
               <div className="flex justify-between text-muted-foreground text-[11px]">
                 <span>Est. Carbon Value (@ ₹1,200/MT):</span>
-                <strong className="text-emerald-600 font-bold">₹{(tenYearProjectedTons * 1200).toLocaleString()}</strong>
+                <strong className="text-emerald-600 font-bold">
+                  {verifiedTreesCount > 0 ? `₹${(currentCo2Tons * 1200).toLocaleString()}` : "₹0 (Pending Planting)"}
+                </strong>
               </div>
             </div>
           </div>

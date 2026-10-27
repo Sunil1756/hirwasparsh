@@ -696,6 +696,22 @@ export const ProjectManagement: React.FC = () => {
                     <Progress value={progress} className="h-1.5 bg-muted/60" />
                   </div>
 
+                  {/* Zero-Tree Anti-Greenwashing Warning Badge */}
+                  {project.planted_trees === 0 && (
+                    <div className="flex items-center gap-2 p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs">
+                      <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="font-semibold text-[11px] leading-tight flex items-center gap-1.5">
+                          <span>Zero-Tree Lock: 0.00 MT</span>
+                          <span className="text-[9px] font-mono px-1 py-0.2 bg-amber-500/20 rounded">IPCC TIER-2</span>
+                        </div>
+                        <div className="text-[10px] text-amber-900/80 dark:text-amber-200/80 leading-tight truncate">
+                          Awaiting In-Ground Planting & Field Geotags
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Species List */}
                   {project.species_list && project.species_list.length > 0 && (
                     <div className="flex flex-wrap gap-1">
@@ -992,6 +1008,26 @@ export const ProjectManagement: React.FC = () => {
 
                 {/* TAB 1: OVERVIEW */}
                 <TabsContent value="overview" className="space-y-4 pt-4">
+                  {/* Anti-Greenwashing Zero-Tree Lock Banner */}
+                  {projectDetails.planted_trees === 0 && (
+                    <div className="p-4 rounded-2xl bg-amber-500/10 border-2 border-amber-500/40 text-amber-800 dark:text-amber-300 flex items-start gap-3 shadow-sm">
+                      <div className="h-9 w-9 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                        <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="font-bold text-sm flex items-center gap-2">
+                          <span>Zero-Tree Anti-Greenwashing Lock Active</span>
+                          <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-300 text-[10px] font-mono">
+                            IPCC TIER-2 COMPLIANT
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-amber-900/80 dark:text-amber-200/80 leading-relaxed">
+                          This parcel has <strong>0 living trees verified in-ground</strong>. Carbon offset crediting is strictly locked to <strong>0.00 MT</strong>. Satellite spectral indices reflect pre-planting background soil reflectance. Field geotags and botanical species validation are required before carbon units can be issued.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Core 9 Key Attributes Summary */}
                   <div className="rounded-2xl bg-muted/20 border border-border/30 p-4 space-y-3">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
