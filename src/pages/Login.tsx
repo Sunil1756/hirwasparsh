@@ -248,9 +248,13 @@ const Login = () => {
 
       if (error) {
         setGoogleLoading(false);
+        const msg = error.message?.toLowerCase() || "";
+        const isProviderNotEnabled = msg.includes("unsupported provider") || msg.includes("not enabled");
         toast({
-          title: "Google Sign-In Failed",
-          description: error.message || "Could not sign in with Google. Please try again.",
+          title: isProviderNotEnabled ? "Google Auth Setup Required" : "Google Sign-In Failed",
+          description: isProviderNotEnabled
+            ? "Google OAuth is currently being enabled in your Supabase dashboard. Please use Email & Password or Magic Link to sign in immediately."
+            : error.message || "Could not sign in with Google. Please try again.",
           variant: "destructive",
         });
       }
