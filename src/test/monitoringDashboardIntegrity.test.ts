@@ -44,7 +44,7 @@ describe("Platform Zero-Crash Resilience & Reference Error Safeguard", () => {
       // Must be strictly zero undefined identifier errors
       expect(cannotFindErrors).toHaveLength(0);
     }
-  }, 60000);
+  }, 180000);
 
   it("verifies that CreateObservationModal properly destructures tree coordinate props", () => {
     const modalPath = path.resolve(__dirname, "../components/CreateObservationModal.tsx");

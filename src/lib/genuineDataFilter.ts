@@ -7,10 +7,13 @@
  * Copernicus Sentinel-2 satellite telemetry are presented to users.
  */
 
+import { detectGibberishText } from "./projectValidation";
+
 export const KNOWN_TEST_PROJECT_IDS = new Set<string>([
   "b1111111-2222-3333-4444-555555555555", // Synthetic pilot seed fixture
   "13d0a0f3-4123-413e-b88f-d286dffe8adb", // VarshikVruksha Ropan 2k26 (demo draft)
   "a40899f4-6c68-4fe8-b59d-5975d1e00a51", // saga (demo draft)
+  "97e4d118-29ea-43a8-b69a-82d16fe34bc9", // dwedwedw (fake test draft)
 ]);
 
 export const KNOWN_TEST_TREE_IDS = new Set<string>([
@@ -38,11 +41,23 @@ export function isGenuineProject(project: any): boolean {
   if (project.organization_id && KNOWN_TEST_ORG_IDS.has(project.organization_id)) return false;
 
   // Reject synthetic placeholder names with zero geometry or invalid coords
-  const name = String(project.project_name || project.name || "").toLowerCase();
+  const rawName = String(project.project_name || project.name || "").trim();
+  const name = rawName.toLowerCase();
   if (name.includes("[demo]") || name.startsWith("demo:") || name.startsWith("demo -")) {
     return false;
   }
   if (name.includes("sahyadri bio-reserve agroforestry & carbon pilot") && (!project.boundary || project.boundary.length === 0)) {
+    return false;
+  }
+
+  // Reject keyboard smashes or gibberish project titles
+  if (rawName && !detectGibberishText(rawName, "Project").isValid) {
+    return false;
+  }
+
+  // Reject keyboard smashes or gibberish locations
+  const rawLoc = String(project.location || project.location_name || "").trim();
+  if (rawLoc && !detectGibberishText(rawLoc, "Location").isValid) {
     return false;
   }
 
