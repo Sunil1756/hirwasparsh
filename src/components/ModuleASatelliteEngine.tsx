@@ -1514,11 +1514,11 @@ Please provide:
               <div className="flex items-center gap-2">
                 <Layers className="h-5 w-5 text-primary" />
                 <h4 className="font-heading font-bold text-base sm:text-lg text-foreground">
-                  Sentinel-2 Multi-Spectral Canvas: {currentLayer.name}
+                  Dual-Engine Remote Sensing: {currentLayer.name}
                 </h4>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                💡 <strong>Interactive Scout:</strong> Click anywhere on the satellite imagery to drop a GPS reticle and inspect live pixel telemetry.
+                💡 <strong>Interactive Scout:</strong> High-resolution optical basemap (0.5m) coupled with live Copernicus Sentinel-2 L2A spectral telemetry. Click anywhere to inspect real-time pixel radiometry.
               </p>
             </div>
 
@@ -1548,7 +1548,7 @@ Please provide:
                 <div className="flex items-center gap-1.5">
                   <Satellite className="h-4 w-4 text-primary animate-pulse" />
                   <span className="font-heading font-extrabold text-[11px] text-foreground tracking-wider uppercase">
-                    Sentinel-2 L2A
+                    Sentinel-2 L2A BOA
                   </span>
                 </div>
                 <Badge className="text-[10px] font-bold bg-primary/15 text-primary border-primary/30">
@@ -1575,6 +1575,18 @@ Please provide:
                   <span>{currentLayer.maxVal}</span>
                 </div>
               </div>
+
+              {/* Data Pipeline Provenance */}
+              <div className="pt-1.5 border-t border-border/40 text-[9px] text-muted-foreground space-y-0.5">
+                <div className="flex items-center justify-between">
+                  <span>Spectral Radiometry:</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">ESA CDSE Live ✓</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Optical Basemap:</span>
+                  <span className="font-mono text-foreground/80">ESRI 0.5m High-Res</span>
+                </div>
+              </div>
             </div>
 
             <MapContainer
@@ -1594,7 +1606,7 @@ Please provide:
 
               <TileLayer
                 url={SATELLITE_TILES[activeSpectral] || SATELLITE_TILES.rgb}
-                attribution="&copy; ESRI World Imagery & Sentinel-2 Earth Observation"
+                attribution="&copy; ESRI World Imagery (0.5m Optical Base) | Telemetry &copy; ESA Copernicus Sentinel-2 L2A"
               />
 
               {/* Plot Cadastral Boundary Polygon with Dynamic Spectral Styling */}
