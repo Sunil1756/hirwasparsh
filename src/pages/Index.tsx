@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { TreePine, Leaf, MapPin, Users, BarChart3, Shield, Globe, ArrowRight, AlertTriangle, Lightbulb, Sprout, ShieldCheck, TrendingUp, Bot } from "lucide-react";
+import { TreePine, Leaf, MapPin, Users, BarChart3, Shield, Globe, ArrowRight, AlertTriangle, Lightbulb, Sprout, ShieldCheck, TrendingUp, Bot, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AnimatedCounter from "@/components/AnimatedCounter";
 import { useQuery } from "@tanstack/react-query";
@@ -113,22 +113,22 @@ const Index = () => {
 
   return (
     <div className="relative overflow-hidden bg-background">
-      {/* 1. HERO SECTION */}
-      <section className="relative flex items-center justify-center overflow-hidden pt-20 md:pt-28 pb-14 md:pb-18 min-h-[580px] md:min-h-[620px]">
+      {/* 1. HERO SECTION (Extended to Red Arrow Line - Full Mobile & Desktop Fold Matching Map My Crop) */}
+      <section className="relative flex items-center justify-center overflow-hidden pt-20 md:pt-28 pb-16 md:pb-24 min-h-[840px] sm:min-h-[880px] md:min-h-[920px]">
         <img src={heroBg} alt="Lush green misty mountain valley" className="absolute inset-0 w-full h-full object-cover" width={1920} height={1080} />
         {/* Atmospheric Readability Overlays: rich, high-contrast forest tones */}
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,hsl(var(--nature-900)/0.68)_0%,hsl(var(--nature-900)/0.50)_45%,hsl(var(--nature-900)/0.88)_100%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_32%,hsl(var(--nature-900)/0.45)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,hsl(var(--nature-900)/0.70)_0%,hsl(var(--nature-900)/0.52)_40%,hsl(var(--nature-900)/0.88)_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,hsl(var(--nature-900)/0.45)_100%)]" />
         
-        {/* Toned-down gentle bottom edge dissolve - compact (56-64px), strictly at the base below badges */}
-        <div className="absolute bottom-0 left-0 right-0 h-14 md:h-16 bg-gradient-to-b from-transparent via-background/40 to-background pointer-events-none z-[1]" />
+        {/* Toned-down gentle bottom edge dissolve - compact (56-64px), strictly at the base */}
+        <div className="absolute bottom-0 left-0 right-0 h-16 md:h-20 bg-gradient-to-b from-transparent via-background/40 to-background pointer-events-none z-[1]" />
 
         {/* Floating leaf particles */}
         {[...Array(4)].map((_, i) => (
           <FloatingTree key={i} delay={i * 2} x={`${12 + i * 22}%`} size={16 + i * 4} />
         ))}
 
-        <div className="relative z-10 w-full max-w-6xl mx-auto px-5 sm:px-8 text-center">
+        <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-8 text-center">
           <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }} className="flex flex-col items-center">
             <div className="inline-flex items-center gap-2 bg-primary-foreground/10 backdrop-blur-md border border-primary-foreground/20 text-primary-foreground px-4 py-1.5 rounded-full text-xs sm:text-sm mb-6 tracking-wide shadow-sm">
               <Sprout className="h-4 w-4" />
@@ -179,12 +179,12 @@ const Index = () => {
               </Link>
             </div>
 
-            {/* Trust strip - crisp, high-contrast on deep forest background with zero milky white fog */}
+            {/* Trust strip */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4, duration: 0.6 }}
-              className="mt-8 md:mt-10 mb-2 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4 max-w-3xl mx-auto w-full"
+              className="mt-8 md:mt-10 mb-6 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4 max-w-3xl mx-auto w-full"
             >
               {[
                 { icon: <ShieldCheck className="h-5 w-5" />, label: "Verified Plantation" },
@@ -198,12 +198,102 @@ const Index = () => {
                 </div>
               ))}
             </motion.div>
+
+            {/* Interactive Sentinel-2 Space Telemetry Showcase Card (Map My Crop Parity - Extends First Screen Down to Red Line) */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.55, duration: 0.7 }}
+              className="mt-2 max-w-xl mx-auto w-full text-left"
+            >
+              <Link to="/tree-map" className="block group">
+                <div className="relative rounded-2xl overflow-hidden border border-white/20 bg-black/45 backdrop-blur-xl shadow-2xl p-3.5 sm:p-4.5 hover:border-emerald-400/60 transition-all duration-300">
+                  {/* Top Bar of the HUD Card */}
+                  <div className="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-white/10">
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      </span>
+                      <span className="text-[10px] sm:text-xs font-semibold text-white/95 uppercase tracking-wider flex items-center gap-1.5">
+                        <Globe className="h-3.5 w-3.5 text-emerald-400" />
+                        Sentinel-2 Multi-Spectral Telemetry
+                      </span>
+                    </div>
+                    <span className="text-[9px] sm:text-[10px] font-mono text-emerald-300 bg-emerald-950/80 border border-emerald-500/40 px-2 py-0.5 rounded-full">
+                      BOA Reflectance Live
+                    </span>
+                  </div>
+
+                  {/* Satellite Imagery Preview with Telemetry Overlays */}
+                  <div className="relative h-36 sm:h-44 rounded-xl overflow-hidden bg-slate-950 border border-white/10 flex items-center justify-center">
+                    <img
+                      src={heroBg}
+                      alt="Satellite Multi-Spectral Canopy"
+                      className="absolute inset-0 w-full h-full object-cover filter saturate-150 contrast-125 brightness-90 group-hover:scale-105 transition-transform duration-700"
+                    />
+                    {/* Multi-spectral NDVI Heatmap Overlay Gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-tr from-emerald-950/70 via-emerald-600/35 to-lime-400/25 mix-blend-screen pointer-events-none" />
+                    
+                    {/* Scanning telemetry line */}
+                    <motion.div
+                      animate={{ y: ["-100%", "220%"] }}
+                      transition={{ repeat: Infinity, duration: 3.5, ease: "linear" }}
+                      className="absolute inset-x-0 h-12 bg-gradient-to-b from-transparent via-emerald-400/25 to-transparent pointer-events-none"
+                    />
+
+                    {/* Floating Telemetry Badge 1: Top Left - NDVI Health */}
+                    <div className="absolute top-2.5 left-2.5 bg-black/80 backdrop-blur-md border border-emerald-500/50 text-left px-2.5 py-1 rounded-lg shadow-lg">
+                      <div className="text-[9px] uppercase font-bold text-emerald-400 tracking-wider">Canopy Vigor</div>
+                      <div className="text-sm sm:text-base font-mono font-extrabold text-white flex items-center gap-1.5">
+                        <span>0.78 NDVI</span>
+                        <span className="text-[9px] px-1.5 py-0.2 bg-emerald-500/30 text-emerald-200 rounded font-sans font-semibold">Healthy</span>
+                      </div>
+                    </div>
+
+                    {/* Floating Telemetry Badge 2: Top Right - AI Tree Doctor Status */}
+                    <div className="absolute top-2.5 right-2.5 bg-black/80 backdrop-blur-md border border-blue-500/50 text-right px-2.5 py-1 rounded-lg shadow-lg">
+                      <div className="text-[9px] uppercase font-bold text-blue-400 tracking-wider">Gemini MRV</div>
+                      <div className="text-sm sm:text-base font-mono font-extrabold text-white flex items-center gap-1.5 justify-end">
+                        <span className="text-[9px] px-1.5 py-0.2 bg-blue-500/30 text-blue-200 rounded font-sans font-semibold">Verified</span>
+                        <span>99.4%</span>
+                      </div>
+                    </div>
+
+                    {/* Floating Telemetry Badge 3: Bottom Right - IPCC Carbon Biomass */}
+                    <div className="absolute bottom-2.5 right-2.5 bg-black/80 backdrop-blur-md border border-amber-500/50 text-right px-2.5 py-1 rounded-lg shadow-lg">
+                      <div className="text-[9px] uppercase font-bold text-amber-400 tracking-wider">Carbon Accrual</div>
+                      <div className="text-xs sm:text-sm font-mono font-extrabold text-white">
+                        +24.5 kg CO₂/yr
+                      </div>
+                    </div>
+
+                    {/* Bottom Left: NDVI Color Ramp Legend (Exact Map My Crop Parity) */}
+                    <div className="absolute bottom-2.5 left-2.5 bg-black/80 backdrop-blur-md border border-white/10 px-2 py-1 rounded-lg flex items-center gap-1.5">
+                      <span className="text-[8px] font-mono text-white/80">0.0</span>
+                      <div className="h-1.5 w-14 sm:w-16 rounded-full bg-gradient-to-r from-red-500 via-yellow-400 to-emerald-500" />
+                      <span className="text-[8px] font-mono text-white/80">0.9</span>
+                    </div>
+                  </div>
+
+                  {/* Bottom CTA Bar of HUD Card */}
+                  <div className="mt-2 pt-1.5 flex items-center justify-between text-[11px] sm:text-xs text-emerald-300 font-medium">
+                    <span className="flex items-center gap-1.5 text-white/85">
+                      <Sparkles className="h-3 w-3 text-emerald-400" /> Inspect Real Space Telemetry
+                    </span>
+                    <span className="inline-flex items-center gap-1 font-semibold group-hover:translate-x-1 transition-transform text-emerald-400">
+                      Launch GIS Radar <ArrowRight className="h-3 w-3" />
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
           </motion.div>
         </div>
       </section>
 
-      {/* 2. THE PROBLEM WE FACE - Toned down, seamless transition without harsh white glare */}
-      <section className="relative pt-6 md:pt-8 pb-12 md:pb-16 bg-gradient-to-b from-background via-muted/20 to-background">
+      {/* 2. THE PROBLEM WE FACE - Toned down, seamless transition starting exactly below the extended first screen */}
+      <section className="relative pt-8 md:pt-12 pb-12 md:pb-16 bg-gradient-to-b from-background via-muted/20 to-background">
         <div className="container mx-auto px-4 max-w-5xl">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} className="text-center mb-8 md:mb-10">
             <motion.h2 variants={fadeUp} custom={0} className="font-heading text-3xl sm:text-4xl font-bold text-foreground mb-3 tracking-tight">
