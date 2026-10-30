@@ -98,19 +98,34 @@ export async function getCopernicusAuthToken(): Promise<string> {
     return cachedCopernicusToken;
   }
 
-  // Read credentials from client or build-time environment
+  // 1. In browser environments, retrieve token from secure server-side endpoint
+  if (typeof window !== "undefined") {
+    try {
+      const apiRes = await fetch("/api/copernicus-token");
+      if (apiRes.ok) {
+        const json = await apiRes.json();
+        if (json.access_token) {
+          cachedCopernicusToken = json.access_token;
+          tokenExpiresAt = Date.now() + (json.expires_in || 1800) * 1000;
+          return cachedCopernicusToken as string;
+        }
+      }
+    } catch {
+      // Fall through if serverless function is not reachable locally
+    }
+  }
+
+  // 2. In Node.js / test / build environments, authenticate directly using server-side secrets
   const clientId =
-    (typeof import.meta !== "undefined" && import.meta.env?.VITE_COPERNICUS_CLIENT_ID) ||
     (typeof process !== "undefined" && process.env?.COPERNICUS_CLIENT_ID) ||
-    "";
+    "sh-bca04d51-5029-419e-a9d2-29b4cb7ae6fa";
 
   const clientSecret =
-    (typeof import.meta !== "undefined" && import.meta.env?.VITE_COPERNICUS_CLIENT_SECRET) ||
     (typeof process !== "undefined" && process.env?.COPERNICUS_CLIENT_SECRET) ||
     "";
 
-  if (!clientId || !clientSecret) {
-    throw new Error("COPERNICUS_CREDENTIALS_MISSING: Client ID and Client Secret must be configured.");
+  if (!clientSecret) {
+    throw new Error("COPERNICUS_CREDENTIALS_MISSING: Client Secret must be configured on the server.");
   }
 
   const tokenEndpoint = "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token";
