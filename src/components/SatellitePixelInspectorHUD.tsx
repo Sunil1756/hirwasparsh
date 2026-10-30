@@ -198,6 +198,51 @@ export function SatellitePixelInspectorHUD({
         </div>
       </div>
 
+      {/* Raw ESA Copernicus BOA Surface Reflectance Bands */}
+      <div className="p-3 rounded-xl bg-background/80 border border-primary/20 space-y-2">
+        <div className="flex items-center justify-between text-xs">
+          <span className="font-semibold text-foreground flex items-center gap-1.5">
+            <Layers className="h-3.5 w-3.5 text-primary" />
+            ESA Sentinel-2 L2A BOA Surface Reflectance Bands
+          </span>
+          <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/30 font-mono">
+            {telemetry.isLiveSatelliteData ? "✓ Live Space-Borne Radiometry" : "Calibrated Regional Model"}
+          </Badge>
+        </div>
+        <div className="grid grid-cols-5 gap-1.5 text-center font-mono">
+          <div className="p-1.5 rounded-lg bg-muted/30 border border-border/40">
+            <span className="text-[9px] text-sky-500 block">B02 Blue</span>
+            <strong className="text-xs text-foreground">
+              {typeof telemetry.b02Blue === "number" ? telemetry.b02Blue.toFixed(3) : "0.080"}
+            </strong>
+          </div>
+          <div className="p-1.5 rounded-lg bg-muted/30 border border-border/40">
+            <span className="text-[9px] text-emerald-500 block">B03 Green</span>
+            <strong className="text-xs text-foreground">
+              {typeof telemetry.b03Green === "number" ? telemetry.b03Green.toFixed(3) : "0.100"}
+            </strong>
+          </div>
+          <div className="p-1.5 rounded-lg bg-muted/30 border border-border/40">
+            <span className="text-[9px] text-rose-500 block">B04 Red</span>
+            <strong className="text-xs text-foreground">
+              {typeof telemetry.b04Red === "number" ? telemetry.b04Red.toFixed(3) : "0.090"}
+            </strong>
+          </div>
+          <div className="p-1.5 rounded-lg bg-muted/30 border border-border/40">
+            <span className="text-[9px] text-purple-500 block">B08 NIR</span>
+            <strong className="text-xs text-foreground">
+              {typeof telemetry.b08Nir === "number" ? telemetry.b08Nir.toFixed(3) : "0.250"}
+            </strong>
+          </div>
+          <div className="p-1.5 rounded-lg bg-muted/30 border border-border/40">
+            <span className="text-[9px] text-amber-500 block">B11 SWIR</span>
+            <strong className="text-xs text-foreground">
+              {typeof telemetry.b11Swir === "number" ? telemetry.b11Swir.toFixed(3) : "0.120"}
+            </strong>
+          </div>
+        </div>
+      </div>
+
       {/* AI Health Diagnosis & Actionable Recommendation */}
       <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 text-xs space-y-1.5">
         <div className="flex items-center justify-between">

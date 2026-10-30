@@ -10,6 +10,7 @@ import {
   Circle,
   useMap,
   useMapEvents,
+  ImageOverlay,
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -81,6 +82,7 @@ import {
   CoordinateTelemetryResult,
   getNdviColor,
   fetchRealSentinel2Telemetry,
+  fetchSentinel2NdviRasterTile,
   fetchRealPlots,
   bootstrapPilotDataIfEmpty,
   PlotRecord,
@@ -324,7 +326,7 @@ function computeBoundaryCentroidAndZoom(
   return { center: [avgLat, avgLng], zoom: 16 };
 }
 
-// Controller to apply hardware-accelerated Sentinel-2 spectral CSS shaders directly to tile panes
+// True Optical Basemap Controller: preserves genuine sub-meter optical clarity without artificial CSS shaders
 function SpectralTileFilterController({
   activeSpectral,
 }: {
@@ -335,20 +337,9 @@ function SpectralTileFilterController({
   useEffect(() => {
     const tilePane = map.getPane("tilePane");
     if (tilePane) {
-      tilePane.style.transition = "filter 0.4s ease-in-out, opacity 0.4s ease-in-out";
-      if (activeSpectral === "rgb") {
-        tilePane.style.filter = "brightness(1.05) contrast(1.05) saturate(1.1)";
-      } else if (activeSpectral === "ndvi") {
-        tilePane.style.filter = "contrast(1.4) saturate(2.4) hue-rotate(-20deg) brightness(0.95)";
-      } else if (activeSpectral === "ndre") {
-        tilePane.style.filter = "contrast(1.5) saturate(2.2) hue-rotate(60deg) brightness(0.95)";
-      } else if (activeSpectral === "ndwi") {
-        tilePane.style.filter = "contrast(1.45) saturate(2.6) hue-rotate(185deg) brightness(0.95)";
-      } else if (activeSpectral === "evi") {
-        tilePane.style.filter = "contrast(1.6) saturate(2.3) hue-rotate(30deg) brightness(0.9)";
-      } else if (activeSpectral === "thermal") {
-        tilePane.style.filter = "contrast(1.9) saturate(3.0) hue-rotate(225deg) invert(0.25) brightness(1.05)";
-      }
+      // Keep optical basemap in crystal-clear true optical rendition
+      tilePane.style.transition = "filter 0.3s ease-in-out";
+      tilePane.style.filter = "none";
     }
   }, [map, activeSpectral]);
 
@@ -819,6 +810,13 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
 
   const [isScanning, setIsScanning] = useState(false);
 
+  // Live Space-Borne Copernicus Sentinel-2 L2A Raster Overlay States
+  const [spectralRasterUrl, setSpectralRasterUrl] = useState<string | null>(null);
+  const [spectralRasterBounds, setSpectralRasterBounds] = useState<[[number, number], [number, number]] | null>(null);
+  const [isRasterLoading, setIsRasterLoading] = useState<boolean>(false);
+  const [displayMode, setDisplayMode] = useState<"optical" | "spectral" | "hybrid">("hybrid");
+  const [spectralOpacity, setSpectralOpacity] = useState<number>(0.75);
+
   // Clicked Coordinate Telemetry State
   const [inspectedTelemetry, setInspectedTelemetry] = useState<CoordinateTelemetryResult>(() =>
     inspectCoordinateTelemetry(
@@ -836,6 +834,60 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
   );
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
   const [aiReportModalContent, setAiReportModalContent] = useState<string | null>(null);
+
+  // Automatically query real ESA Copernicus Sentinel-2 L2A Process API raster for the parcel
+  useEffect(() => {
+    let isCancelled = false;
+    if (activeSpectral === "rgb") {
+      setSpectralRasterUrl(null);
+      setSpectralRasterBounds(null);
+      return;
+    }
+
+    const c = selectedZone.center || [19.75, 75.71];
+    let minLat = c[0] - 0.003;
+    let maxLat = c[0] + 0.003;
+    let minLng = c[1] - 0.003;
+    let maxLng = c[1] + 0.003;
+
+    if (selectedZone.boundary && Array.isArray(selectedZone.boundary) && selectedZone.boundary.length >= 3) {
+      const lats = selectedZone.boundary.map((p: any) => (Array.isArray(p) ? p[0] : p.lat)).filter((n) => typeof n === "number" && !isNaN(n));
+      const lngs = selectedZone.boundary.map((p: any) => (Array.isArray(p) ? p[1] : p.lng)).filter((n) => typeof n === "number" && !isNaN(n));
+      if (lats.length > 0 && lngs.length > 0) {
+        minLat = Math.min(...lats);
+        maxLat = Math.max(...lats);
+        minLng = Math.min(...lngs);
+        maxLng = Math.max(...lngs);
+      }
+    }
+
+    const bounds: [[number, number], [number, number]] = [[minLat, minLng], [maxLat, maxLng]];
+    const bbox: [number, number, number, number] = [minLng, minLat, maxLng, maxLat];
+
+    setIsRasterLoading(true);
+    fetchSentinel2NdviRasterTile({
+      bbox,
+      spectralLayer: activeSpectral,
+      width: 256,
+      height: 256,
+    }).then((url) => {
+      if (!isCancelled && url) {
+        setSpectralRasterUrl(url);
+        setSpectralRasterBounds(bounds);
+      }
+      if (!isCancelled) {
+        setIsRasterLoading(false);
+      }
+    }).catch(() => {
+      if (!isCancelled) {
+        setIsRasterLoading(false);
+      }
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedZone, activeSpectral]);
 
   // Synchronize zone records whenever selectedZone, trees, or projects change
   useEffect(() => {
@@ -1054,11 +1106,22 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
     setZoneSurvival(calculateZoneSurvivalMetrics(zone, newTrees));
   }, [activeSpectral, trees, dbProjects]);
 
-  // Auto-select first real project when loaded so fake placeholder zone is never shown
+  // Auto-select first real project when loaded and query live Copernicus Sentinel-2 L2A telemetry
   useEffect(() => {
     if (allAvailableZones.length > 0 && allAvailableZones[0].id !== "statewide_overview") {
       if (selectedZone.id === "statewide_overview" || !allAvailableZones.some((z) => z.id === selectedZone.id)) {
         handleSelectZone(allAvailableZones[0]);
+      } else {
+        // Query live space-borne telemetry for current selected zone on mount
+        const safeLat = selectedZone.center?.[0] ?? 19.75;
+        const safeLng = selectedZone.center?.[1] ?? 75.71;
+        fetchRealSentinel2Telemetry(safeLat, safeLng, selectedZone.boundary, selectedZone.id, selectedZone.name)
+          .then((res) => {
+            if (res && res.status !== "unavailable") {
+              setInspectedTelemetry(res);
+            }
+          })
+          .catch(() => {});
       }
     }
   }, [allAvailableZones, selectedZone.id, handleSelectZone]);
@@ -1576,15 +1639,74 @@ Please provide:
                 </div>
               </div>
 
-              {/* Data Pipeline Provenance */}
-              <div className="pt-1.5 border-t border-border/40 text-[9px] text-muted-foreground space-y-0.5">
-                <div className="flex items-center justify-between">
-                  <span>Spectral Radiometry:</span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">ESA CDSE Live ✓</span>
+              {/* Dual-Engine Display Mode Segmented Switch */}
+              <div className="pt-1 border-t border-border/40 space-y-1.5">
+                <div className="flex rounded-lg bg-muted/60 p-0.5 text-[10px] font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setDisplayMode("optical")}
+                    className={`flex-1 py-1 px-1 rounded-md text-center transition-all ${
+                      displayMode === "optical" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Optical
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDisplayMode("hybrid")}
+                    className={`flex-1 py-1 px-1 rounded-md text-center transition-all ${
+                      displayMode === "hybrid" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Hybrid
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDisplayMode("spectral")}
+                    className={`flex-1 py-1 px-1 rounded-md text-center transition-all ${
+                      displayMode === "spectral" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    10m Sentinel
+                  </button>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span>Optical Basemap:</span>
-                  <span className="font-mono text-foreground/80">ESRI 0.5m High-Res</span>
+
+                {activeSpectral !== "rgb" && displayMode !== "optical" && (
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[9px] text-muted-foreground">
+                      <span>Space-Borne Overlay Opacity</span>
+                      <span className="font-mono font-bold text-primary">{Math.round(spectralOpacity * 100)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="20"
+                      max="100"
+                      value={Math.round(spectralOpacity * 100)}
+                      onChange={(e) => setSpectralOpacity(Number(e.target.value) / 100)}
+                      className="w-full h-1 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
+                  </div>
+                )}
+
+                {isRasterLoading ? (
+                  <div className="text-[9px] text-primary flex items-center gap-1 animate-pulse">
+                    <RefreshCw className="h-2.5 w-2.5 animate-spin" /> Querying ESA Copernicus Process API...
+                  </div>
+                ) : spectralRasterUrl && displayMode !== "optical" ? (
+                  <div className="text-[9px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-semibold">
+                    <CheckCircle2 className="h-2.5 w-2.5" /> ESA Space-Borne 10m Raster Active
+                  </div>
+                ) : null}
+
+                <div className="pt-1 border-t border-border/30 text-[9px] text-muted-foreground space-y-0.5">
+                  <div className="flex items-center justify-between">
+                    <span>Spectral Radiometry:</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">ESA CDSE Live ✓</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Optical Basemap:</span>
+                    <span className="font-mono text-foreground/80">ESRI 0.5m High-Res</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1605,9 +1727,19 @@ Please provide:
               <SpectralTileFilterController activeSpectral={activeSpectral} />
 
               <TileLayer
-                url={SATELLITE_TILES[activeSpectral] || SATELLITE_TILES.rgb}
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
                 attribution="&copy; ESRI World Imagery (0.5m Optical Base) | Telemetry &copy; ESA Copernicus Sentinel-2 L2A"
               />
+
+              {/* Genuine Space-Borne Copernicus Sentinel-2 L2A Multi-Spectral Raster Overlay */}
+              {spectralRasterUrl && spectralRasterBounds && displayMode !== "optical" && (
+                <ImageOverlay
+                  url={spectralRasterUrl}
+                  bounds={spectralRasterBounds}
+                  opacity={displayMode === "spectral" ? 0.95 : spectralOpacity}
+                  zIndex={350}
+                />
+              )}
 
               {/* Plot Cadastral Boundary Polygon with Dynamic Spectral Styling */}
               {selectedZone.boundary && Array.isArray(selectedZone.boundary) && selectedZone.boundary.length >= 3 && (

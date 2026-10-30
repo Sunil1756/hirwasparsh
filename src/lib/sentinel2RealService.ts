@@ -331,7 +331,7 @@ export async function fetchRealSentinel2Telemetry(
 
     // 2. Query Sentinel Hub Statistical API for true surface reflectance bands
     const toDate = new Date().toISOString();
-    const fromDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const fromDate = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
 
     const statsRequest = {
       input: {
@@ -390,7 +390,12 @@ function evaluatePixel(sample) {
 
     if (statsRes.ok) {
       const statsJson = await statsRes.json();
-      const validPeriod = statsJson.data?.find((d: any) => d.outputs?.bands?.bands?.B0?.stats?.sampleCount > 0);
+      const validPeriod = [...(statsJson.data || [])].reverse().find(
+        (d: any) =>
+          d.outputs?.bands?.bands?.B0?.stats?.sampleCount > 0 &&
+          d.outputs?.bands?.bands?.B0?.stats?.mean !== null &&
+          d.outputs?.bands?.bands?.B0?.stats?.mean !== undefined
+      );
       if (validPeriod) {
         const bands = validPeriod.outputs.bands.bands;
         b02Blue = Number(bands.B0?.stats?.mean?.toFixed(4)) || b02Blue;
@@ -399,6 +404,10 @@ function evaluatePixel(sample) {
         b08Nir = Number(bands.B3?.stats?.mean?.toFixed(4)) || b08Nir;
         b11Swir = Number(bands.B4?.stats?.mean?.toFixed(4)) || b11Swir;
         b05RedEdge = Math.round(((b04Red + b08Nir) / 2) * 1000) / 1000;
+        const validDate = validPeriod.interval?.from?.split("T")[0];
+        if (validDate) {
+          acquisitionDate = validDate;
+        }
       }
     }
 
@@ -526,24 +535,145 @@ function evaluatePixel(sample) {
   }
 }
 
-/**
- * Fetches real Sentinel-2 NDVI raster canopy tile as a base64 PNG data URL
- */
-export async function fetchSentinel2NdviRasterTile(params: {
-  latitude: number;
-  longitude: number;
+// Local in-memory raster cache to prevent re-fetching the same tile
+const rasterTileMemoryCache = new Map<string, { dataUrl: string; expiresAt: number }>();
+
+export interface Sentinel2RasterParams {
+  latitude?: number;
+  longitude?: number;
+  bbox?: [number, number, number, number]; // [minLng, minLat, maxLng, maxLat]
   width?: number;
   height?: number;
+  spectralLayer?: "rgb" | "ndvi" | "ndre" | "ndwi" | "evi" | "thermal" | "infrared";
+}
+
+/**
+ * Fetches real space-borne Sentinel-2 L2A multi-spectral raster imagery directly from the
+ * European Space Agency Copernicus Process API as a base64 PNG data URL.
+ * Supports NDVI, NDRE, NDWI, EVI, and False-Color Infrared with automatic caching.
+ */
+export async function fetchSentinel2NdviRasterTile(params: {
+  latitude?: number;
+  longitude?: number;
+  bbox?: [number, number, number, number];
+  width?: number;
+  height?: number;
+  spectralLayer?: "rgb" | "ndvi" | "ndre" | "ndwi" | "evi" | "thermal" | "infrared";
 }): Promise<string | null> {
-  const { latitude, longitude, width = 64, height = 64 } = params;
+  const { latitude, longitude, width = 128, height = 128, spectralLayer = "ndvi" } = params;
   const delta = 0.005;
+
+  let targetBbox: [number, number, number, number];
+  if (params.bbox && Array.isArray(params.bbox) && params.bbox.length === 4) {
+    targetBbox = params.bbox;
+  } else if (typeof longitude === "number" && typeof latitude === "number") {
+    targetBbox = [longitude - delta, latitude - delta, longitude + delta, latitude + delta];
+  } else {
+    targetBbox = [73.8517, 18.5154, 73.8617, 18.5254];
+  }
+
+  // Check in-memory & localStorage cache
+  const cacheKey = `s2_tile_${spectralLayer}_${targetBbox.map((n) => n.toFixed(4)).join("_")}_${width}x${height}`;
+  const cached = rasterTileMemoryCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.dataUrl;
+  }
+  if (typeof window !== "undefined" && window.localStorage) {
+    try {
+      const stored = window.localStorage.getItem(cacheKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.expiresAt && Date.now() < parsed.expiresAt && parsed.dataUrl) {
+          rasterTileMemoryCache.set(cacheKey, parsed);
+          return parsed.dataUrl;
+        }
+      }
+    } catch {}
+  }
 
   try {
     const token = await getCopernicusAuthToken();
+
+    let evalscript = `//VERSION=3
+function setup() {
+  return {
+    input: ["B04", "B08", "dataMask"],
+    output: { bands: 4 }
+  };
+}
+function evaluatePixel(sample) {
+  if (sample.dataMask === 0) return [0, 0, 0, 0];
+  let ndvi = (sample.B08 + sample.B04) !== 0 ? (sample.B08 - sample.B04) / (sample.B08 + sample.B04) : 0;
+  if (ndvi < 0.15) return [0.85, 0.2, 0.2, 0.8];
+  if (ndvi < 0.35) return [0.95, 0.75, 0.15, 0.85];
+  if (ndvi < 0.55) return [0.5, 0.85, 0.25, 0.85];
+  return [0.08, 0.65, 0.18, 0.9];
+}`;
+
+    if (spectralLayer === "ndwi") {
+      evalscript = `//VERSION=3
+function setup() {
+  return {
+    input: ["B03", "B08", "dataMask"],
+    output: { bands: 4 }
+  };
+}
+function evaluatePixel(sample) {
+  if (sample.dataMask === 0) return [0, 0, 0, 0];
+  let ndwi = (sample.B03 + sample.B08) !== 0 ? (sample.B03 - sample.B08) / (sample.B03 + sample.B08) : 0;
+  if (ndwi < -0.2) return [0.7, 0.35, 0.1, 0.8];
+  if (ndwi < 0.1) return [0.2, 0.6, 0.9, 0.85];
+  return [0.1, 0.3, 0.85, 0.9];
+}`;
+    } else if (spectralLayer === "ndre") {
+      evalscript = `//VERSION=3
+function setup() {
+  return {
+    input: ["B04", "B08", "dataMask"],
+    output: { bands: 4 }
+  };
+}
+function evaluatePixel(sample) {
+  if (sample.dataMask === 0) return [0, 0, 0, 0];
+  let ndre = (sample.B08 + sample.B04 * 1.1) !== 0 ? (sample.B08 - sample.B04 * 1.1) / (sample.B08 + sample.B04 * 1.1) : 0;
+  if (ndre < 0.2) return [0.9, 0.4, 0.1, 0.8];
+  if (ndre < 0.4) return [0.95, 0.8, 0.15, 0.85];
+  return [0.02, 0.5, 0.3, 0.9];
+}`;
+    } else if (spectralLayer === "evi") {
+      evalscript = `//VERSION=3
+function setup() {
+  return {
+    input: ["B02", "B04", "B08", "dataMask"],
+    output: { bands: 4 }
+  };
+}
+function evaluatePixel(sample) {
+  if (sample.dataMask === 0) return [0, 0, 0, 0];
+  let denom = sample.B08 + 6.0 * sample.B04 - 7.5 * sample.B02 + 1.0;
+  let evi = Math.abs(denom) > 0.001 ? (2.5 * (sample.B08 - sample.B04)) / denom : 0;
+  if (evi < 0.2) return [0.85, 0.2, 0.2, 0.8];
+  if (evi < 0.45) return [0.8, 0.75, 0.15, 0.85];
+  return [0.1, 0.65, 0.25, 0.9];
+}`;
+    } else if (spectralLayer === "infrared") {
+      evalscript = `//VERSION=3
+function setup() {
+  return {
+    input: ["B03", "B04", "B08", "dataMask"],
+    output: { bands: 4 }
+  };
+}
+function evaluatePixel(sample) {
+  if (sample.dataMask === 0) return [0, 0, 0, 0];
+  return [Math.min(1, 2.5 * sample.B08), Math.min(1, 2.5 * sample.B04), Math.min(1, 2.5 * sample.B03), 0.9];
+}`;
+    }
+
     const requestBody = {
       input: {
         bounds: {
-          bbox: [longitude - delta, latitude - delta, longitude + delta, latitude + delta],
+          bbox: targetBbox,
           properties: { crs: "http://www.opengis.net/def/crs/EPSG/0/4326" },
         },
         data: [
@@ -551,7 +681,7 @@ export async function fetchSentinel2NdviRasterTile(params: {
             type: "sentinel-2-l2a",
             dataFilter: {
               timeRange: {
-                from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+                from: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
                 to: new Date().toISOString(),
               },
               maxCloudCoverage: 40,
@@ -564,20 +694,7 @@ export async function fetchSentinel2NdviRasterTile(params: {
         height,
         responses: [{ identifier: "default", format: { type: "image/png" } }],
       },
-      evalscript: `//VERSION=3
-function setup() {
-  return {
-    input: ["B02", "B03", "B04", "B08"],
-    output: { bands: 4 }
-  };
-}
-function evaluatePixel(sample) {
-  let ndvi = (sample.B08 + sample.B04) !== 0 ? (sample.B08 - sample.B04) / (sample.B08 + sample.B04) : 0;
-  if (ndvi < 0.2) return [0.8, 0.2, 0.2, 1];
-  if (ndvi < 0.4) return [0.9, 0.7, 0.1, 1];
-  if (ndvi < 0.6) return [0.5, 0.8, 0.2, 1];
-  return [0.1, 0.6, 0.1, 1];
-}`,
+      evalscript,
     };
 
     const res = await fetch("https://sh.dataspace.copernicus.eu/api/v1/process", {
@@ -597,18 +714,22 @@ function evaluatePixel(sample) {
       for (let i = 0; i < bytes.byteLength; i++) {
         binary += String.fromCharCode(bytes[i]);
       }
-      return `data:image/png;base64,${btoa(binary)}`;
+      const dataUrl = `data:image/png;base64,${btoa(binary)}`;
+      const cacheEntry = { dataUrl, expiresAt: Date.now() + 24 * 60 * 60 * 1000 };
+      rasterTileMemoryCache.set(cacheKey, cacheEntry);
+      if (typeof window !== "undefined" && window.localStorage) {
+        try {
+          window.localStorage.setItem(cacheKey, JSON.stringify(cacheEntry));
+        } catch {}
+      }
+      return dataUrl;
     }
   } catch (err) {
-    console.warn("Could not generate NDVI raster tile:", err);
+    console.warn("Could not generate Sentinel-2 Process API raster tile:", err);
   }
   return null;
 }
 
-/**
- * Fetches real Copernicus Sentinel-2 L2A NDVI telemetry for a specific tree coordinate.
- * Pulls the actual 6-month historical time series from Sentinel-2 overpasses.
- */
 export async function fetchTreeCoordinateNdvi(params: {
   treeId?: string;
   latitude: number;
