@@ -114,14 +114,14 @@ const Index = () => {
   return (
     <div className="relative overflow-hidden bg-background">
       {/* 1. HERO SECTION */}
-      <section className="relative flex items-center justify-center overflow-hidden pt-20 md:pt-28 pb-12 md:pb-16 min-h-[580px] md:min-h-[640px]">
+      <section className="relative flex items-center justify-center overflow-hidden pt-20 md:pt-28 pb-14 md:pb-18 min-h-[580px] md:min-h-[620px]">
         <img src={heroBg} alt="Lush green misty mountain valley" className="absolute inset-0 w-full h-full object-cover" width={1920} height={1080} />
-        {/* Atmospheric Readability Overlays */}
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,hsl(var(--nature-900)/0.65)_0%,hsl(var(--nature-900)/0.48)_45%,hsl(var(--nature-900)/0.78)_100%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,hsl(var(--nature-900)/0.40)_100%)]" />
+        {/* Atmospheric Readability Overlays: rich, high-contrast forest tones */}
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,hsl(var(--nature-900)/0.68)_0%,hsl(var(--nature-900)/0.50)_45%,hsl(var(--nature-900)/0.88)_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_32%,hsl(var(--nature-900)/0.45)_100%)]" />
         
-        {/* Seamless gradient fade mask at bottom directly dissolving into next section */}
-        <div className="absolute bottom-0 left-0 right-0 h-32 md:h-44 bg-gradient-to-b from-transparent via-background/60 to-background pointer-events-none z-[2]" />
+        {/* Toned-down gentle bottom edge dissolve - compact (56-64px), strictly at the base below badges */}
+        <div className="absolute bottom-0 left-0 right-0 h-14 md:h-16 bg-gradient-to-b from-transparent via-background/40 to-background pointer-events-none z-[1]" />
 
         {/* Floating leaf particles */}
         {[...Array(4)].map((_, i) => (
@@ -130,39 +130,39 @@ const Index = () => {
 
         <div className="relative z-10 w-full max-w-6xl mx-auto px-5 sm:px-8 text-center">
           <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }} className="flex flex-col items-center">
-            <div className="inline-flex items-center gap-2 bg-primary-foreground/10 backdrop-blur-md border border-primary-foreground/20 text-primary-foreground px-4 py-1.5 rounded-full text-xs sm:text-sm mb-6 tracking-wide">
+            <div className="inline-flex items-center gap-2 bg-primary-foreground/10 backdrop-blur-md border border-primary-foreground/20 text-primary-foreground px-4 py-1.5 rounded-full text-xs sm:text-sm mb-6 tracking-wide shadow-sm">
               <Sprout className="h-4 w-4" />
               Smart Green Verification Platform
             </div>
 
             <h1
-              className="font-heading font-extrabold text-primary-foreground leading-[1.05] tracking-[-0.02em] text-balance"
+              className="font-heading font-extrabold text-primary-foreground leading-[1.05] tracking-[-0.02em] text-balance drop-shadow-sm"
               style={{ fontSize: "clamp(2.1rem, 5.2vw, 4rem)" }}
             >
               MAKE EVERY TREE COUNT.
             </h1>
 
             <p
-              className="font-heading font-semibold text-primary-foreground/95 mt-2.5"
+              className="font-heading font-semibold text-primary-foreground/95 mt-2.5 drop-shadow-sm"
               style={{ fontSize: "clamp(1.25rem, 2.8vw, 2.25rem)" }}
             >
               Green Enlightenment
             </p>
 
-            <div className="flex items-center justify-center gap-3 my-4 opacity-70">
+            <div className="flex items-center justify-center gap-3 my-4 opacity-75">
               <span className="h-px w-10 bg-primary-foreground/50" />
               <Leaf className="h-4 w-4 text-primary-foreground" />
               <span className="h-px w-10 bg-primary-foreground/50" />
             </div>
 
             <p
-              className="font-medium text-primary-foreground/90 tracking-wide"
+              className="font-medium text-primary-foreground/90 tracking-wide drop-shadow-sm"
               style={{ fontSize: "clamp(0.95rem, 1.7vw, 1.25rem)" }}
             >
               Plant with Proof. Grow with Trust.
             </p>
 
-            <p className="mt-4 text-xs sm:text-sm md:text-base text-primary-foreground/80 max-w-2xl mx-auto leading-relaxed">
+            <p className="mt-4 text-xs sm:text-sm md:text-base text-primary-foreground/85 max-w-2xl mx-auto leading-relaxed drop-shadow-sm">
               Plant trees, verify their survival, track their growth, and measure real environmental impact with AI-powered transparency.
             </p>
 
@@ -173,18 +173,18 @@ const Index = () => {
                 </Button>
               </Link>
               <Link to="/tree-map" className="w-full sm:w-auto">
-                <Button size="lg" variant="outline" className="w-full sm:w-auto h-12 px-8 rounded-xl text-base gap-2 border-primary-foreground/40 bg-primary-foreground/10 backdrop-blur-md text-primary-foreground hover:bg-primary-foreground/20 hover:text-primary-foreground">
+                <Button size="lg" variant="outline" className="w-full sm:w-auto h-12 px-8 rounded-xl text-base gap-2 border-primary-foreground/40 bg-primary-foreground/10 backdrop-blur-md text-primary-foreground hover:bg-primary-foreground/20 hover:text-primary-foreground shadow-sm">
                   <MapPin className="h-5 w-5" /> Explore Tree Map
                 </Button>
               </Link>
             </div>
 
-            {/* Trust strip */}
+            {/* Trust strip - crisp, high-contrast on deep forest background with zero milky white fog */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4, duration: 0.6 }}
-              className="mt-9 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4 max-w-3xl mx-auto w-full"
+              className="mt-8 md:mt-10 mb-2 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4 max-w-3xl mx-auto w-full"
             >
               {[
                 { icon: <ShieldCheck className="h-5 w-5" />, label: "Verified Plantation" },
@@ -192,9 +192,9 @@ const Index = () => {
                 { icon: <Bot className="h-5 w-5" />, label: "AI-Powered Verification" },
                 { icon: <Users className="h-5 w-5" />, label: "Community Driven" },
               ].map((item, i) => (
-                <div key={i} className="flex flex-col items-center gap-1.5 text-primary-foreground/90">
-                  <span className="text-primary-foreground">{item.icon}</span>
-                  <span className="text-[11px] md:text-xs font-semibold text-center leading-tight tracking-wider uppercase">{item.label}</span>
+                <div key={i} className="flex flex-col items-center gap-1.5 text-primary-foreground">
+                  <span className="text-primary-foreground drop-shadow-md">{item.icon}</span>
+                  <span className="text-[11px] md:text-xs font-semibold text-center leading-tight tracking-wider uppercase drop-shadow-md">{item.label}</span>
                 </div>
               ))}
             </motion.div>
@@ -202,8 +202,8 @@ const Index = () => {
         </div>
       </section>
 
-      {/* 2. THE PROBLEM WE FACE */}
-      <section className="relative py-12 md:py-16 bg-gradient-to-b from-background via-muted/20 to-background">
+      {/* 2. THE PROBLEM WE FACE - Toned down, seamless transition without harsh white glare */}
+      <section className="relative pt-6 md:pt-8 pb-12 md:pb-16 bg-gradient-to-b from-background via-muted/20 to-background">
         <div className="container mx-auto px-4 max-w-5xl">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} className="text-center mb-8 md:mb-10">
             <motion.h2 variants={fadeUp} custom={0} className="font-heading text-3xl sm:text-4xl font-bold text-foreground mb-3 tracking-tight">
