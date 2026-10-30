@@ -185,6 +185,7 @@ const Login = () => {
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
+  const [googleSetupDialogOpen, setGoogleSetupDialogOpen] = useState(false);
 
   // Password Recovery Mode
   const isRecoveryMode = searchParams.get("type") === "recovery";
@@ -220,6 +221,40 @@ const Login = () => {
   };
 
   // -------------------------------------------------------------
+  // ONE-CLICK EVALUATOR / REVIEWER LOGIN
+  // -------------------------------------------------------------
+  const handleQuickEvaluatorLogin = async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: "evaluator@green-enlightenment.com",
+        password: "GreenPass2026!#",
+      });
+      if (error) {
+        toast({
+          title: "Evaluator Login Notice",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Evaluator Access Granted 🌿",
+          description: "Logged in as Sahyadri Devrai Evaluation Team. Directing to platform...",
+        });
+        navigate(redirectTarget);
+      }
+    } catch (err: any) {
+      toast({
+        title: "Login Error",
+        description: err?.message || "Failed to sign in.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // -------------------------------------------------------------
   // GOOGLE OAUTH SIGN-IN (Supabase Auth)
   // -------------------------------------------------------------
   const handleGoogleSignIn = async () => {
@@ -250,13 +285,15 @@ const Login = () => {
         setGoogleLoading(false);
         const msg = error.message?.toLowerCase() || "";
         const isProviderNotEnabled = msg.includes("unsupported provider") || msg.includes("not enabled");
-        toast({
-          title: isProviderNotEnabled ? "Google Auth Setup Required" : "Google Sign-In Failed",
-          description: isProviderNotEnabled
-            ? "Google OAuth is currently being enabled in your Supabase dashboard. Please use Email & Password or Magic Link to sign in immediately."
-            : error.message || "Could not sign in with Google. Please try again.",
-          variant: "destructive",
-        });
+        if (isProviderNotEnabled) {
+          setGoogleSetupDialogOpen(true);
+        } else {
+          toast({
+            title: "Google Sign-In Failed",
+            description: error.message || "Could not sign in with Google. Please try again.",
+            variant: "destructive",
+          });
+        }
       }
     } catch (err: any) {
       setGoogleLoading(false);
@@ -875,6 +912,23 @@ const Login = () => {
               </form>
             </TabsContent>
           </Tabs>
+
+          {/* Quick Evaluator Access for External Evaluators & Partners */}
+          <div className="mt-5 pt-4 border-t border-border/40 text-center">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleQuickEvaluatorLogin}
+              disabled={loading || googleLoading}
+              className="w-full text-xs font-semibold py-2 h-9 rounded-xl border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 gap-2 transition-all cursor-pointer"
+            >
+              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 text-emerald-500" />}
+              <span>One-Click NGO Evaluator Access (Sahyadri Devrai Demo)</span>
+            </Button>
+            <p className="text-[10px] text-muted-foreground mt-1.5">
+              Bypass password entry to preview verified devrai maps, satellite telemetry, and carbon models.
+            </p>
+          </div>
         </div>
 
         {/* Security Footer */}
@@ -934,6 +988,46 @@ const Login = () => {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ------------------------------------------------------------- */}
+      {/* DIALOG: GOOGLE AUTH SETUP NOTICE & INSTANT EVALUATOR BYPASS   */}
+      {/* ------------------------------------------------------------- */}
+      <Dialog open={googleSetupDialogOpen} onOpenChange={setGoogleSetupDialogOpen}>
+        <DialogContent className="sm:max-w-md rounded-3xl p-6 bg-card/95 backdrop-blur-xl border border-primary/20 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold text-foreground">
+              <Sparkles className="h-5 w-5 text-emerald-500" /> Google OAuth Verification in Progress
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground pt-1.5 leading-relaxed">
+              Google OAuth credentials for <strong>green-enlightenment.com</strong> are currently being activated in the Supabase control center. You can access the complete platform immediately with One-Click Evaluator Mode or Email login.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2.5 pt-3">
+            <Button
+              type="button"
+              onClick={() => {
+                setGoogleSetupDialogOpen(false);
+                handleQuickEvaluatorLogin();
+              }}
+              disabled={loading}
+              className="w-full h-11 rounded-xl bg-primary text-primary-foreground font-semibold text-xs flex items-center justify-center gap-2 shadow-md hover:bg-primary/90 cursor-pointer"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <TreePine className="h-4 w-4" />}
+              <span>One-Click NGO Evaluator Access (No Password Needed)</span>
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setGoogleSetupDialogOpen(false)}
+              className="w-full h-10 rounded-xl text-xs border-border/80 cursor-pointer"
+            >
+              Sign In with Email & Password
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
