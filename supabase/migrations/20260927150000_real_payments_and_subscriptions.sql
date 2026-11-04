@@ -85,36 +85,36 @@ ALTER TABLE public.payment_orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payment_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies for Payment Orders
+-- RLS Policies for Payment Orders (Strict Row & Org Tenancy)
 CREATE POLICY "Users can view own payment orders"
     ON public.payment_orders FOR SELECT
-    USING (auth.uid() = user_id OR auth.role() = 'service_role' OR auth.role() = 'authenticated');
+    USING (auth.uid() = user_id OR auth.role() = 'service_role' OR (organization_id IS NOT NULL AND public.is_org_admin(organization_id)));
 
 CREATE POLICY "Users can create payment orders"
     ON public.payment_orders FOR INSERT
-    WITH CHECK (auth.uid() = user_id OR auth.role() = 'service_role' OR auth.role() = 'authenticated');
+    WITH CHECK (auth.uid() = user_id OR auth.role() = 'service_role' OR (organization_id IS NOT NULL AND public.is_org_member(organization_id)));
 
 CREATE POLICY "Service and users can update own orders"
     ON public.payment_orders FOR UPDATE
     USING (auth.uid() = user_id OR auth.role() = 'service_role');
 
--- RLS Policies for Payment Transactions
+-- RLS Policies for Payment Transactions (Strict Row & Org Tenancy)
 CREATE POLICY "Users can view own transactions"
     ON public.payment_transactions FOR SELECT
-    USING (auth.uid() = user_id OR auth.role() = 'service_role' OR auth.role() = 'authenticated');
+    USING (auth.uid() = user_id OR auth.role() = 'service_role' OR (organization_id IS NOT NULL AND public.is_org_admin(organization_id)));
 
 CREATE POLICY "Authenticated users and service can insert transactions"
     ON public.payment_transactions FOR INSERT
-    WITH CHECK (auth.uid() = user_id OR auth.role() = 'service_role' OR auth.role() = 'authenticated');
+    WITH CHECK (auth.uid() = user_id OR auth.role() = 'service_role' OR (organization_id IS NOT NULL AND public.is_org_member(organization_id)));
 
--- RLS Policies for Subscriptions
+-- RLS Policies for Subscriptions (Strict Row & Org Tenancy)
 CREATE POLICY "Users can view own subscriptions"
     ON public.subscriptions FOR SELECT
-    USING (auth.uid() = user_id OR auth.role() = 'service_role' OR auth.role() = 'authenticated');
+    USING (auth.uid() = user_id OR auth.role() = 'service_role' OR (organization_id IS NOT NULL AND public.is_org_member(organization_id)));
 
 CREATE POLICY "Service role and users can manage subscriptions"
     ON public.subscriptions FOR ALL
-    USING (auth.uid() = user_id OR auth.role() = 'service_role' OR auth.role() = 'authenticated');
+    USING (auth.uid() = user_id OR auth.role() = 'service_role' OR (organization_id IS NOT NULL AND public.is_org_admin(organization_id)));
 
 -- Indices for rapid querying
 CREATE INDEX IF NOT EXISTS idx_payment_orders_user ON public.payment_orders(user_id);

@@ -73,29 +73,47 @@ CREATE INDEX IF NOT EXISTS idx_field_tasks_status ON public.field_tasks(status);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON public.notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON public.notifications(is_read);
 
--- 5. Row Level Security Policies
+-- 5. Row Level Security Policies (Hardened Access Control)
 ALTER TABLE public.check_ins ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.field_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
+-- CHECK_INS
 DROP POLICY IF EXISTS "Allow public read on check_ins" ON public.check_ins;
 CREATE POLICY "Allow public read on check_ins" ON public.check_ins FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Allow public read on field_tasks" ON public.field_tasks;
-CREATE POLICY "Allow public read on field_tasks" ON public.field_tasks FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Allow public read on notifications" ON public.notifications;
-CREATE POLICY "Allow public read on notifications" ON public.notifications FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Allow public insert on check_ins" ON public.check_ins;
-CREATE POLICY "Allow public insert on check_ins" ON public.check_ins FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow authenticated insert on check_ins" ON public.check_ins;
+CREATE POLICY "Allow authenticated insert on check_ins" ON public.check_ins FOR INSERT TO authenticated WITH CHECK (auth.uid() = checked_by OR auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "Allow creator or admin update on check_ins" ON public.check_ins;
+CREATE POLICY "Allow creator or admin update on check_ins" ON public.check_ins FOR UPDATE TO authenticated USING (auth.uid() = checked_by OR public.is_admin()) WITH CHECK (auth.uid() = checked_by OR public.is_admin());
+
+-- FIELD_TASKS
+DROP POLICY IF EXISTS "Allow public read on field_tasks" ON public.field_tasks;
+DROP POLICY IF EXISTS "Allow assigned or creator read on field_tasks" ON public.field_tasks;
+CREATE POLICY "Allow assigned or creator read on field_tasks" ON public.field_tasks FOR SELECT TO authenticated USING (auth.uid() = assigned_to OR auth.uid() = created_by OR public.is_admin());
+
 DROP POLICY IF EXISTS "Allow public insert on field_tasks" ON public.field_tasks;
-CREATE POLICY "Allow public insert on field_tasks" ON public.field_tasks FOR INSERT WITH CHECK (true);
-DROP POLICY IF EXISTS "Allow public insert on notifications" ON public.notifications;
-CREATE POLICY "Allow public insert on notifications" ON public.notifications FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow authorized insert on field_tasks" ON public.field_tasks;
+CREATE POLICY "Allow authorized insert on field_tasks" ON public.field_tasks FOR INSERT TO authenticated WITH CHECK (auth.uid() = created_by OR public.is_admin());
 
 DROP POLICY IF EXISTS "Allow public update on field_tasks" ON public.field_tasks;
-CREATE POLICY "Allow public update on field_tasks" ON public.field_tasks FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Allow assigned worker or creator update on field_tasks" ON public.field_tasks;
+CREATE POLICY "Allow assigned worker or creator update on field_tasks" ON public.field_tasks FOR UPDATE TO authenticated USING (auth.uid() = assigned_to OR auth.uid() = created_by OR public.is_admin()) WITH CHECK (auth.uid() = assigned_to OR auth.uid() = created_by OR public.is_admin());
+
+-- NOTIFICATIONS (Strict Recipient Privacy)
+DROP POLICY IF EXISTS "Allow public read on notifications" ON public.notifications;
+DROP POLICY IF EXISTS "Users can only read own notifications" ON public.notifications;
+CREATE POLICY "Users can only read own notifications" ON public.notifications FOR SELECT TO authenticated USING (auth.uid() = user_id OR public.is_admin());
+
+DROP POLICY IF EXISTS "Allow public insert on notifications" ON public.notifications;
+DROP POLICY IF EXISTS "Allow authorized insert on notifications" ON public.notifications;
+CREATE POLICY "Allow authorized insert on notifications" ON public.notifications FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id OR public.is_admin() OR auth.uid() IS NOT NULL);
+
 DROP POLICY IF EXISTS "Allow public update on notifications" ON public.notifications;
-CREATE POLICY "Allow public update on notifications" ON public.notifications FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Users can only update own notifications" ON public.notifications;
+CREATE POLICY "Users can only update own notifications" ON public.notifications FOR UPDATE TO authenticated USING (auth.uid() = user_id OR public.is_admin()) WITH CHECK (auth.uid() = user_id OR public.is_admin());
 
 -- 6. PostgreSQL View: plot_survival_rates
 -- Per plot survival calculation:

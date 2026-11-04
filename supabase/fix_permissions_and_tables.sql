@@ -3,15 +3,26 @@
 -- Project: qvikwdginymvjbrrlvkk.supabase.co
 -- ====================================================================
 
--- 1. Grant Schema Usages
-GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
-GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
-GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
+-- 1. Grant Schema Usages (Hardened Least-Privilege Model)
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon;
+REVOKE ALL ON ALL ROUTINES IN SCHEMA public FROM anon;
 
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON ROUTINES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM anon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM anon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON ROUTINES FROM anon;
+
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO authenticated, service_role;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO anon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO authenticated;
 
 -- 2. Add Missing Columns to trees Table If Needed
 ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS drive_id UUID;
@@ -140,12 +151,21 @@ CREATE POLICY "Users can insert trees" ON public.trees FOR INSERT WITH CHECK (tr
 DROP POLICY IF EXISTS "Users can update own trees" ON public.trees;
 CREATE POLICY "Users can update own trees" ON public.trees FOR UPDATE USING (true);
 
--- PROFILES
+-- PROFILES (Revoke phone_number PII from anon)
+REVOKE SELECT (phone_number) ON public.profiles FROM anon;
+
 DROP POLICY IF EXISTS "Public can view profiles" ON public.profiles;
 CREATE POLICY "Public can view profiles" ON public.profiles FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+
+-- NOTIFICATIONS (Strict Privacy - Recipient Only)
+DROP POLICY IF EXISTS "Users can only read own notifications" ON public.notifications;
+CREATE POLICY "Users can only read own notifications" ON public.notifications FOR SELECT TO authenticated USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can only update own notifications" ON public.notifications;
+CREATE POLICY "Users can only update own notifications" ON public.notifications FOR UPDATE TO authenticated USING (auth.uid() = user_id);
 
 -- GROWTH UPDATES
 DROP POLICY IF EXISTS "Public can view growth updates" ON public.growth_updates;
