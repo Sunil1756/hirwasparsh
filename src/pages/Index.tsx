@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import ViralImpactCounter from "@/components/ViralImpactCounter";
 import { fetchLivePlatformMetrics } from "@/lib/platformStats";
 import heroBg from "@/assets/hero-bg.jpg";
+import sentinelTelemetryHud from "@/assets/sentinel-telemetry-hud.jpg";
 import { useState } from "react";
 
 const fadeUp = {
@@ -225,15 +226,15 @@ const Index = () => {
                     </span>
                   </div>
 
-                  {/* Satellite Imagery Preview with Telemetry Overlays */}
-                  <div className="relative h-36 sm:h-44 rounded-xl overflow-hidden bg-slate-950 border border-white/10 flex items-center justify-center">
+                  {/* Dedicated Space-Borne Sentinel-2 Telemetry & LiDAR Canopy Elevation Scan */}
+                  <div className="relative h-44 sm:h-52 md:h-56 rounded-xl overflow-hidden bg-slate-950 border border-white/10 flex items-center justify-center">
                     <img
-                      src={heroBg}
-                      alt="Satellite Multi-Spectral Canopy"
-                      className="absolute inset-0 w-full h-full object-cover filter saturate-150 contrast-125 brightness-90 group-hover:scale-105 transition-transform duration-700"
+                      src={sentinelTelemetryHud}
+                      alt="ESA Sentinel-2 Space-Borne Multi-Spectral Telemetry & LiDAR Canopy Elevation Scan"
+                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                     />
-                    {/* Multi-spectral NDVI Heatmap Overlay Gradient */}
-                    <div className="absolute inset-0 bg-gradient-to-tr from-emerald-950/70 via-emerald-600/35 to-lime-400/25 mix-blend-screen pointer-events-none" />
+                    {/* Subtle multi-spectral blend accent */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/25 pointer-events-none" />
                     
                     {/* Scanning telemetry line */}
                     <motion.div
