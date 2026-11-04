@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, User, Building2, ShieldCheck, TreePine } from "lucide-react";
@@ -7,6 +8,11 @@ import { Check, User, Building2, ShieldCheck, TreePine } from "lucide-react";
 export default function Pricing() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 py-16 px-6">
+      <SEO
+        title="Transparent Pricing for Individuals, NGOs & CSR"
+        description="Free individual tree tracking, affordable NGO operator plans, and institutional CSR enterprise packages with automated BRSR reporting."
+        canonicalPath="/pricing"
+      />
       <div className="max-w-7xl mx-auto space-y-12">
         <div className="text-center space-y-4">
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white">

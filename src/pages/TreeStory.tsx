@@ -392,7 +392,7 @@ const TreeStory = () => {
                             )}
                           </div>
                           {item.photo && (
-                            <img src={item.photo} alt="" className="w-10 h-10 rounded object-cover shrink-0" />
+                            <img src={item.photo} alt={item.label || "Growth milestone update photo"} className="w-10 h-10 rounded object-cover shrink-0" />
                           )}
                         </button>
                       ))}

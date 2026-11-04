@@ -124,15 +124,22 @@ export async function sendOtpCode(params: SendOtpParams): Promise<OtpResponse> {
             maskedRecipient: masked,
           };
         }
-      } catch (invokeErr) {
-        console.warn("Edge function invoke notice:", invokeErr);
-      }
 
-      return {
-        success: true,
-        message: `Twilio OTP sent to ${masked}. Please check your SMS.`,
-        maskedRecipient: masked,
-      };
+        return {
+          success: false,
+          message:
+            edgeData?.message ||
+            edgeError?.message ||
+            "Twilio SMS gateway failed to dispatch verification code. Please try again or use email verification.",
+          error: edgeData?.error || edgeError?.message || "SMS_DISPATCH_FAILED",
+        };
+      } catch (invokeErr: any) {
+        return {
+          success: false,
+          message: invokeErr?.message || "Could not reach SMS verification gateway. Please check connection.",
+          error: invokeErr?.message || "GATEWAY_UNREACHABLE",
+        };
+      }
     }
   } catch (err: any) {
     return {
@@ -171,21 +178,25 @@ export async function verifyOtpCode(params: VerifyOtpParams): Promise<OtpRespons
           body: { action: "verify", recipient: formattedPhone, code: cleanToken, purpose },
         });
 
-        if (edgeError || (edgeData && edgeData.success === false)) {
+        if (edgeError || !edgeData?.success) {
           return {
             success: false,
-            message: edgeData?.reason || "Incorrect verification code. Please check your SMS.",
-            error: edgeData?.reason,
+            message: edgeData?.reason || edgeData?.message || edgeError?.message || "Incorrect verification code. Please check your SMS.",
+            error: edgeData?.reason || edgeError?.message || "OTP_VERIFICATION_FAILED",
           };
         }
-      } catch (edgeErr) {
-        console.warn("Verify OTP edge warning:", edgeErr);
-      }
 
-      return {
-        success: true,
-        message: "Mobile phone number verified successfully via Twilio OTP!",
-      };
+        return {
+          success: true,
+          message: "Mobile phone number verified successfully via Twilio OTP!",
+        };
+      } catch (edgeErr: any) {
+        return {
+          success: false,
+          message: edgeErr?.message || "Twilio verification gateway unreachable. Verification failed.",
+          error: edgeErr?.message || "GATEWAY_UNREACHABLE",
+        };
+      }
     } else {
       // Email OTP verification
       const { data, error } = await supabase.auth.verifyOtp({

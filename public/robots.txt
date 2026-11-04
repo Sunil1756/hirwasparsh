@@ -1,8 +1,20 @@
 User-agent: Googlebot
 Allow: /
+Disallow: /admin
+Disallow: /field-worker
+Disallow: /scouting
+Disallow: /csr-portal
+Disallow: /ngo-workspace
+Disallow: /api/
 
 User-agent: Bingbot
 Allow: /
+Disallow: /admin
+Disallow: /field-worker
+Disallow: /scouting
+Disallow: /csr-portal
+Disallow: /ngo-workspace
+Disallow: /api/
 
 User-agent: Twitterbot
 Allow: /
@@ -12,5 +24,11 @@ Allow: /
 
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /field-worker
+Disallow: /scouting
+Disallow: /csr-portal
+Disallow: /ngo-workspace
+Disallow: /api/
 
-Sitemap: https://www.green-enlightenment.com/sitemap.xml
+Sitemap: https://green-enlightenment.com/sitemap.xml

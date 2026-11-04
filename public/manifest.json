@@ -1,7 +1,7 @@
 {
   "name": "Green Enlightenment – Forestry MRV & Plantation Intelligence",
-  "short_name": "HirwaSparsh",
-  "description": "Offline-capable geotagged tree survival audit, agro-climatic intelligence, and institutional MRV platform for Maharashtra.",
+  "short_name": "GreenEnlighten",
+  "description": "Offline-capable geotagged tree survival audit, agro-climatic intelligence, and institutional MRV platform.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",
@@ -10,13 +10,18 @@
   "categories": ["utilities", "productivity", "government"],
   "icons": [
     {
-      "src": "/favicon.png",
+      "src": "/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/logo.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
@@ -24,18 +29,18 @@
   ],
   "shortcuts": [
     {
-      "name": "Field Ranger Console",
-      "short_name": "Field Mode",
-      "description": "Open offline field inspection and spot audit mode",
-      "url": "/field-worker",
-      "icons": [{ "src": "/favicon.png", "sizes": "192x192" }]
+      "name": "Explore Tree Map",
+      "short_name": "Tree Map",
+      "description": "Open interactive GIS tree map and Sentinel-2 telemetry",
+      "url": "/tree-map",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Register Tree",
       "short_name": "Plant Tree",
       "description": "Geotag and register newly planted sapling",
       "url": "/plant",
-      "icons": [{ "src": "/favicon.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

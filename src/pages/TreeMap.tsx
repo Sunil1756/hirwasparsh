@@ -48,6 +48,7 @@ import { SatelliteTreeSurvivalAssurance } from "@/components/SatelliteTreeSurviv
 import { AGROFORESTRY_PRESET_ZONES } from "@/lib/remoteSensing";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { BASEMAP_PROVIDERS, BasemapProviderId } from "@/lib/gisMapFoundation";
+import { SEO } from "@/components/SEO";
 import { isGenuineTree } from "@/lib/genuineDataFilter";
 
 // Glowing pulse marker via DivIcon
@@ -236,6 +237,11 @@ const TreeMap = () => {
 
   return (
     <div className="min-h-screen pt-24 pb-12">
+      <SEO
+        title="Interactive GIS Tree Map & Sentinel-2 Telemetry"
+        description="Explore geotagged afforestation plots across Maharashtra. View real-time Sentinel-2 NDVI canopy vigor, ground truth photos, and survivability audits."
+        canonicalPath="/tree-map"
+      />
       {/* Inline styles for glow markers */}
       <style>{`
         .tree-glow-marker { position:relative; width:22px; height:22px; }
@@ -627,7 +633,7 @@ const TreeMap = () => {
                                     <div className="h-28 w-full bg-muted relative overflow-hidden">
                                       <img
                                         src={t.photo_url}
-                                        alt="Tree"
+                                        alt={t.tree_name || t.species || "Geotagged tree on map"}
                                         className="w-full h-full object-cover"
                                       />
                                       {t.admin_status === "special" && (

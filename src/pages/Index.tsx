@@ -9,6 +9,7 @@ import { fetchLivePlatformMetrics } from "@/lib/platformStats";
 import heroBg from "@/assets/hero-bg.jpg";
 import sentinelTelemetryHud from "@/assets/sentinel-telemetry-hud.jpg";
 import { useState } from "react";
+import { SEO } from "@/components/SEO";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -25,7 +26,7 @@ const features = [
 ];
 
 const problems = [
-  { icon: <AlertTriangle className="h-9 w-9" />, title: "Deforestation", desc: "80,000 acres of forest are lost daily worldwide" },
+  { icon: <AlertTriangle className="h-9 w-9" />, title: "Deforestation", desc: "80,000 acres of forest are lost daily worldwide (Source: UN FAO Global Forest Resources Assessment)" },
   { icon: <Globe className="h-9 w-9" />, title: "Climate Change", desc: "Rising temperatures threaten ecosystems globally" },
   { icon: <Users className="h-9 w-9" />, title: "Low Participation", desc: "Citizens lack tools to contribute to green initiatives" },
 ];
@@ -114,6 +115,11 @@ const Index = () => {
 
   return (
     <div className="relative overflow-hidden bg-background">
+      <SEO
+        title="AI & Satellite Tree Verification Platform"
+        description="Plant trees with proof. Green Enlightenment combines multi-spectral Sentinel-2 satellite imagery, AI vision audits, and IPCC allometric carbon accounting."
+        canonicalPath="/"
+      />
       {/* 1. HERO SECTION (Extended to Red Arrow Line - Full Mobile & Desktop Fold Matching Map My Crop) */}
       <section className="relative flex items-center justify-center overflow-hidden pt-20 md:pt-28 pb-16 md:pb-24 min-h-[840px] sm:min-h-[880px] md:min-h-[920px]">
         <img src={heroBg} alt="Lush green misty mountain valley" className="absolute inset-0 w-full h-full object-cover" width={1920} height={1080} />

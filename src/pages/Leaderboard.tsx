@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { SEO } from "@/components/SEO";
 
 const rankColor = (r: number) => r === 1 ? "text-yellow-500" : r === 2 ? "text-gray-400" : r === 3 ? "text-amber-600" : "text-muted-foreground";
 
@@ -172,6 +173,11 @@ const Leaderboard = () => {
 
   return (
     <div className="min-h-screen pt-24 pb-12">
+      <SEO
+        title="Statewide Green Leaderboard & Community Teams"
+        description="View top planters, community teams, colleges, and NGOs leading verified reforestation in Maharashtra. Join environmental challenges and earn green points."
+        canonicalPath="/leaderboard"
+      />
       <div className="container mx-auto px-4 max-w-5xl">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <div className="text-center mb-10">

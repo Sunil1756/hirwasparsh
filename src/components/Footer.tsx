@@ -9,7 +9,7 @@ const Footer = () => (
         <div className="flex items-center gap-2.5 font-heading font-bold text-xl">
           <img
             src={logo}
-            alt="Green Enlightenment logo"
+            alt="Green Enlightenment official logo"
             width={36}
             height={36}
             loading="lazy"
@@ -27,7 +27,7 @@ const Footer = () => (
         </div>
       </div>
 
-      {/* Platform & Solutions */}
+      {/* Platform & Tools */}
       <div className="space-y-3">
         <h4 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wider">
           Platform &amp; Tools
@@ -38,7 +38,7 @@ const Footer = () => (
           <Link to="/tree-map" className="hover:opacity-100 hover:text-emerald-400 transition-colors">Tree Map &amp; Sentinel GIS</Link>
           <Link to="/intelligence" className="hover:opacity-100 hover:text-emerald-400 transition-colors">AI Health &amp; Risk Radar</Link>
           <Link to="/growth-updates" className="hover:opacity-100 hover:text-emerald-400 transition-colors">30-Day Growth Audits</Link>
-          <Link to="/verify/cert" className="hover:opacity-100 hover:text-emerald-400 transition-colors">Cryptographic Cert Verify</Link>
+          <Link to="/methodology" className="hover:opacity-100 hover:text-emerald-400 transition-colors">Scientific Methodology</Link>
         </div>
       </div>
 
@@ -64,12 +64,14 @@ const Footer = () => (
         <div className="flex flex-col gap-1.5 text-xs opacity-80">
           <p className="font-medium text-foreground">ACIC Innovation Hub</p>
           <p>Solapur &amp; Pune, Maharashtra, India</p>
-          <p className="pt-1">hirwasparsh@gmail.com</p>
-          <p>+91 87998 79203</p>
+          <p className="pt-1">contact@green-enlightenment.com</p>
+          <p>+91 20 4911 3800</p>
           <div className="pt-2 flex items-center gap-3 text-xs">
             <Link to="/about" className="hover:underline">About</Link>
             <span>·</span>
             <Link to="/contact" className="hover:underline">Contact</Link>
+            <span>·</span>
+            <Link to="/methodology" className="hover:underline">Methodology</Link>
             <span>·</span>
             <Link to="/dashboard" className="hover:underline">Community</Link>
           </div>

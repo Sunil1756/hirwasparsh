@@ -829,7 +829,7 @@ export default function AdminDashboard() {
                               {t.photo_url ? (
                                 <img
                                   src={t.photo_url}
-                                  alt=""
+                                  alt={t.tree_name || t.species || "Registered tree photograph"}
                                   className="w-8 h-8 rounded-lg object-cover border shrink-0"
                                 />
                               ) : (

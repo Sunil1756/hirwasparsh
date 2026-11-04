@@ -3,48 +3,68 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Green Enlightenment – Plant, Track & Grow a Greener Future</title>
-    <meta name="description" content="Green Enlightenment is an AI & Satellite-powered Agroforestry and Ecological Tree Intelligence platform.">
+    <title>Green Enlightenment – AI & Satellite Tree Verification Platform</title>
+    <meta name="description" content="Green Enlightenment combines Copernicus Sentinel-2 multi-spectral satellite telemetry, AI vision audits, and IPCC allometric carbon accounting for verifiable reforestation." />
     <meta name="author" content="Green Enlightenment" />
 
     <!-- Canonical & Search Indexing -->
-    <link rel="canonical" href="https://www.green-enlightenment.com/" />
+    <link rel="canonical" href="https://green-enlightenment.com/" />
     <meta name="robots" content="index, follow" />
 
     <!-- Official Brand Favicons & PWA Manifest -->
-    <link rel="icon" type="image/png" href="/logo.png" />
-    <link rel="apple-touch-icon" href="/logo.png" />
-    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#064e3b" />
 
-    <!-- Open Graph / Facebook / WhatsApp -->
+    <!-- Open Graph / Facebook / WhatsApp (1200x630 Optimized) -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://www.green-enlightenment.com/" />
+    <meta property="og:url" content="https://green-enlightenment.com/" />
+    <meta property="og:site_name" content="Green Enlightenment" />
     <meta property="og:title" content="Green Enlightenment – AI & Satellite Tree Intelligence" />
-    <meta property="og:description" content="Plant trees, track 36-month canopy vigor with Sentinel-2 multi-spectral telemetry, and verify growth with Gemini AI." />
-    <meta property="og:image" content="https://www.green-enlightenment.com/logo.png" />
+    <meta property="og:description" content="Plant trees with proof. Track 36-month canopy vigor with Sentinel-2 multi-spectral telemetry, and verify survival with AI." />
+    <meta property="og:image" content="https://green-enlightenment.com/og-image.jpg" />
+    <meta property="og:image:secure_url" content="https://green-enlightenment.com/og-image.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Green Enlightenment - Verified Afforestation MRV Platform" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@green_enlighten" />
     <meta name="twitter:title" content="Green Enlightenment – AI & Satellite Tree Intelligence" />
-    <meta name="twitter:description" content="Plant trees, track 36-month canopy vigor with Sentinel-2 multi-spectral telemetry, and verify growth with Gemini AI." />
-    <meta name="twitter:image" content="https://www.green-enlightenment.com/logo.png" />
+    <meta name="twitter:description" content="Plant trees with proof. Track canopy vigor with Sentinel-2 multi-spectral telemetry, and verify survival with AI." />
+    <meta name="twitter:image" content="https://green-enlightenment.com/og-image.jpg" />
 
-    <!-- Schema.org JSON-LD Structured Data for Google Indexing -->
+    <!-- Schema.org JSON-LD Structured Data for Search Indexing -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "Organization",
       "name": "Green Enlightenment",
-      "url": "https://www.green-enlightenment.com",
-      "logo": "https://www.green-enlightenment.com/logo.png",
+      "url": "https://green-enlightenment.com",
+      "logo": "https://green-enlightenment.com/icon-512.png",
+      "image": "https://green-enlightenment.com/og-image.jpg",
       "description": "AI and satellite-powered agroforestry and ecological tree intelligence verification platform.",
-      "sameAs": []
+      "sameAs": [
+        "https://github.com/green-enlightenment",
+        "https://www.linkedin.com/company/green-enlightenment",
+        "https://twitter.com/green_enlighten"
+      ],
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "telephone": "+91-20-4911-3800",
+        "contactType": "customer service",
+        "email": "contact@green-enlightenment.com",
+        "areaServed": "IN",
+        "availableLanguage": ["English", "Hindi", "Marathi"]
+      }
     }
     </script>
 
-    <!-- Inline pre-render styles to eliminate white-screen flash -->
+    <!-- Pre-render styles to prevent white flash -->
     <style>
       #app-preloader {
         min-height: 100vh;
@@ -66,13 +86,13 @@
         animation: preloader-spin 0.8s linear infinite;
       }
       .preloader-title {
-        font-size: 15px;
-        font-weight: 600;
+        font-size: 16px;
+        font-weight: 700;
         letter-spacing: -0.01em;
-        color: #e2e8f0;
+        color: #f8fafc;
       }
       .preloader-sub {
-        font-size: 11px;
+        font-size: 12px;
         color: #94a3b8;
       }
       @keyframes preloader-spin {
@@ -83,10 +103,24 @@
 
   <body>
     <div id="root">
+      <!-- Semantic Crawler-Accessible Content (Replaced immediately by React upon hydration) -->
       <div id="app-preloader">
         <div class="preloader-spinner"></div>
         <div class="preloader-title">Green Enlightenment</div>
-        <div class="preloader-sub">Initializing verified telemetry & satellite modules...</div>
+        <div class="preloader-sub">Smart Green Verification Platform • Loading Telemetry...</div>
+        <noscript>
+          <div style="max-width: 600px; padding: 20px; text-align: center; color: #cbd5e1; font-size: 14px;">
+            <h1>Green Enlightenment</h1>
+            <p>Plant with Proof. Grow with Trust.</p>
+            <p>Cryptographically audited afforestation MRV, Copernicus Sentinel-2 satellite intelligence, and IPCC Tier-2 carbon modeling.</p>
+            <nav style="margin-top: 15px;">
+              <a href="/tree-map" style="color: #34d399; margin: 0 10px;">Tree Map</a>
+              <a href="/methodology" style="color: #34d399; margin: 0 10px;">Scientific Methodology</a>
+              <a href="/about" style="color: #34d399; margin: 0 10px;">About</a>
+              <a href="/contact" style="color: #34d399; margin: 0 10px;">Contact</a>
+            </nav>
+          </div>
+        </noscript>
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>

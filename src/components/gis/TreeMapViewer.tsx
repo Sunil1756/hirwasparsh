@@ -288,6 +288,12 @@ export const TreeMapViewer: React.FC<TreeMapViewerProps> = ({
         <aside className="w-full lg:w-[420px] flex flex-col gap-3 shrink-0">
           <div className="glass-card rounded-2xl p-4 border border-border/70 shadow-sm space-y-3.5">
             {/* Header */}
+            {!data.isFromDatabase && (
+              <div className="px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-2 text-amber-500 text-xs font-semibold">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                <span>Demo Data / Simulation Mode Active</span>
+              </div>
+            )}
             <div className="flex items-center justify-between border-b border-border/50 pb-2.5">
               <div className="flex items-center gap-2">
                 <div className="p-2 bg-primary/10 rounded-xl text-primary border border-primary/20">
@@ -691,6 +697,13 @@ export const TreeMapViewer: React.FC<TreeMapViewerProps> = ({
                     </div>
 
                     <div className="space-y-1 text-xs">
+                      {tree.id.startsWith("tree-geo") && (
+                        <div className="mb-1">
+                          <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-500/20 text-amber-800 border border-amber-500/30">
+                            Demo / Calibrated Benchmark
+                          </span>
+                        </div>
+                      )}
                       <div className="italic text-slate-700">{tree.species}</div>
                       {tree.organizationName && (
                         <div className="text-[11px] text-slate-600">

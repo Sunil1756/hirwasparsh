@@ -1,4 +1,39 @@
 {
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.green-enlightenment.com"
+        }
+      ],
+      "destination": "https://green-enlightenment.com/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "greenenlightenment.com"
+        }
+      ],
+      "destination": "https://green-enlightenment.com/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.greenenlightenment.com"
+        }
+      ],
+      "destination": "https://green-enlightenment.com/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
