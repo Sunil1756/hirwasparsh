@@ -200,90 +200,96 @@ const Index = () => {
               ))}
             </motion.div>
 
-            {/* Interactive Sentinel-2 Space Telemetry Showcase Card (Map My Crop Parity - Extends First Screen Down to Red Line) */}
+            {/* Interactive Sentinel-2 Space Telemetry Showcase Card (Lush Green Glassmorphism - Seamlessly Merged into Main Page) */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.55, duration: 0.7 }}
-              className="mt-2 max-w-xl mx-auto w-full text-left"
+              className="mt-4 max-w-xl mx-auto w-full text-left"
             >
               <Link to="/tree-map" className="block group">
-                <div className="relative rounded-2xl overflow-hidden border border-white/20 bg-black/45 backdrop-blur-xl shadow-2xl p-3.5 sm:p-4.5 hover:border-emerald-400/60 transition-all duration-300">
+                <div className="relative rounded-2xl md:rounded-3xl overflow-hidden border border-emerald-500/35 bg-gradient-to-b from-emerald-950/70 via-nature-900/60 to-emerald-950/80 backdrop-blur-xl shadow-[0_12px_45px_-10px_hsl(142_70%_25%/0.5)] p-3.5 sm:p-5 hover:border-emerald-400/70 hover:shadow-[0_16px_50px_-8px_hsl(142_70%_35%/0.6)] transition-all duration-300">
+                  {/* Subtle ambient green radial glow */}
+                  <div className="absolute -top-16 -right-16 w-44 h-44 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
+                  <div className="absolute -bottom-16 -left-16 w-44 h-44 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
+
                   {/* Top Bar of the HUD Card */}
-                  <div className="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-white/10">
+                  <div className="relative z-10 flex items-center justify-between gap-2 mb-3 pb-2.5 border-b border-emerald-500/25">
                     <div className="flex items-center gap-2">
                       <span className="relative flex h-2 w-2">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
                       </span>
-                      <span className="text-[10px] sm:text-xs font-semibold text-white/95 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="text-[10px] sm:text-xs font-semibold text-emerald-100 uppercase tracking-wider flex items-center gap-1.5 drop-shadow-sm">
                         <Globe className="h-3.5 w-3.5 text-emerald-400" />
                         Sentinel-2 Multi-Spectral Telemetry
                       </span>
                     </div>
-                    <span className="text-[9px] sm:text-[10px] font-mono text-emerald-300 bg-emerald-950/80 border border-emerald-500/40 px-2 py-0.5 rounded-full">
+                    <span className="text-[9px] sm:text-[10px] font-mono font-medium text-emerald-200 bg-emerald-900/70 border border-emerald-400/40 px-2.5 py-0.5 rounded-full shadow-sm">
                       BOA Reflectance Live
                     </span>
                   </div>
 
                   {/* Dedicated Space-Borne Sentinel-2 Telemetry & LiDAR Canopy Elevation Scan */}
-                  <div className="relative h-44 sm:h-52 md:h-56 rounded-xl overflow-hidden bg-slate-950 border border-white/10 flex items-center justify-center">
+                  <div className="relative h-44 sm:h-52 md:h-56 rounded-xl overflow-hidden bg-emerald-950/90 border border-emerald-500/30 flex items-center justify-center shadow-inner">
                     <img
                       src={sentinelTelemetryHud}
-                      alt="ESA Sentinel-2 Space-Borne Multi-Spectral Telemetry & LiDAR Canopy Elevation Scan"
-                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                      alt="Satellite LiDAR Forest Canopy Multi-Spectral Telemetry"
+                      className="absolute inset-0 w-full h-full object-cover object-center filter saturate-[1.25] brightness-[1.08] contrast-[1.05] group-hover:scale-105 transition-transform duration-700"
                     />
-                    {/* Subtle multi-spectral blend accent */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/25 pointer-events-none" />
                     
-                    {/* Scanning telemetry line */}
+                    {/* Organic Emerald Light Flare instead of Dark Black overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/40 via-transparent to-emerald-950/20 pointer-events-none" />
+                    
+                    {/* Scanning telemetry line in bright emerald */}
                     <motion.div
                       animate={{ y: ["-100%", "220%"] }}
                       transition={{ repeat: Infinity, duration: 3.5, ease: "linear" }}
-                      className="absolute inset-x-0 h-12 bg-gradient-to-b from-transparent via-emerald-400/25 to-transparent pointer-events-none"
+                      className="absolute inset-x-0 h-14 bg-gradient-to-b from-transparent via-emerald-300/35 to-transparent pointer-events-none"
                     />
 
                     {/* Floating Telemetry Badge 1: Top Left - NDVI Health */}
-                    <div className="absolute top-2.5 left-2.5 bg-black/80 backdrop-blur-md border border-emerald-500/50 text-left px-2.5 py-1 rounded-lg shadow-lg">
-                      <div className="text-[9px] uppercase font-bold text-emerald-400 tracking-wider">Canopy Vigor</div>
+                    <div className="absolute top-2.5 left-2.5 bg-emerald-950/85 backdrop-blur-md border border-emerald-400/60 text-left px-2.5 py-1.5 rounded-xl shadow-lg">
+                      <div className="text-[9px] uppercase font-bold text-emerald-300 tracking-wider">Canopy Vigor</div>
                       <div className="text-sm sm:text-base font-mono font-extrabold text-white flex items-center gap-1.5">
                         <span>0.78 NDVI</span>
-                        <span className="text-[9px] px-1.5 py-0.2 bg-emerald-500/30 text-emerald-200 rounded font-sans font-semibold">Healthy</span>
+                        <span className="text-[9px] px-1.5 py-0.5 bg-emerald-500/30 text-emerald-200 border border-emerald-400/40 rounded-md font-sans font-semibold">Healthy</span>
                       </div>
                     </div>
 
                     {/* Floating Telemetry Badge 2: Top Right - AI Tree Doctor Status */}
-                    <div className="absolute top-2.5 right-2.5 bg-black/80 backdrop-blur-md border border-blue-500/50 text-right px-2.5 py-1 rounded-lg shadow-lg">
-                      <div className="text-[9px] uppercase font-bold text-blue-400 tracking-wider">Gemini MRV</div>
+                    <div className="absolute top-2.5 right-2.5 bg-emerald-950/85 backdrop-blur-md border border-emerald-400/60 text-right px-2.5 py-1.5 rounded-xl shadow-lg">
+                      <div className="text-[9px] uppercase font-bold text-emerald-300 tracking-wider">Gemini MRV</div>
                       <div className="text-sm sm:text-base font-mono font-extrabold text-white flex items-center gap-1.5 justify-end">
-                        <span className="text-[9px] px-1.5 py-0.2 bg-blue-500/30 text-blue-200 rounded font-sans font-semibold">Verified</span>
+                        <span className="text-[9px] px-1.5 py-0.5 bg-emerald-500/30 text-emerald-200 border border-emerald-400/40 rounded-md font-sans font-semibold">Verified</span>
                         <span>99.4%</span>
                       </div>
                     </div>
 
                     {/* Floating Telemetry Badge 3: Bottom Right - IPCC Carbon Biomass */}
-                    <div className="absolute bottom-2.5 right-2.5 bg-black/80 backdrop-blur-md border border-amber-500/50 text-right px-2.5 py-1 rounded-lg shadow-lg">
-                      <div className="text-[9px] uppercase font-bold text-amber-400 tracking-wider">Carbon Accrual</div>
-                      <div className="text-xs sm:text-sm font-mono font-extrabold text-white">
+                    <div className="absolute bottom-2.5 right-2.5 bg-emerald-950/85 backdrop-blur-md border border-emerald-400/50 text-right px-2.5 py-1.5 rounded-xl shadow-lg">
+                      <div className="text-[9px] uppercase font-bold text-emerald-300 tracking-wider">Carbon Accrual</div>
+                      <div className="text-xs sm:text-sm font-mono font-extrabold text-emerald-100">
                         +24.5 kg CO₂/yr
                       </div>
                     </div>
 
-                    {/* Bottom Left: NDVI Color Ramp Legend (Exact Map My Crop Parity) */}
-                    <div className="absolute bottom-2.5 left-2.5 bg-black/80 backdrop-blur-md border border-white/10 px-2 py-1 rounded-lg flex items-center gap-1.5">
-                      <span className="text-[8px] font-mono text-white/80">0.0</span>
-                      <div className="h-1.5 w-14 sm:w-16 rounded-full bg-gradient-to-r from-red-500 via-yellow-400 to-emerald-500" />
-                      <span className="text-[8px] font-mono text-white/80">0.9</span>
+                    {/* Bottom Left: NDVI Color Ramp Legend */}
+                    <div className="absolute bottom-2.5 left-2.5 bg-emerald-950/85 backdrop-blur-md border border-emerald-400/40 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-md">
+                      <span className="text-[8px] font-mono font-semibold text-emerald-200">0.0</span>
+                      <div className="h-1.5 w-14 sm:w-16 rounded-full bg-gradient-to-r from-red-500 via-yellow-400 to-emerald-400 shadow-sm" />
+                      <span className="text-[8px] font-mono font-semibold text-emerald-200">0.9</span>
                     </div>
                   </div>
 
-                  {/* Bottom CTA Bar of HUD Card */}
-                  <div className="mt-2 pt-1.5 flex items-center justify-between text-[11px] sm:text-xs text-emerald-300 font-medium">
-                    <span className="flex items-center gap-1.5 text-white/85">
-                      <Sparkles className="h-3 w-3 text-emerald-400" /> Inspect Real Space Telemetry
+                  {/* Bottom CTA Bar of HUD Card - Vibrant Green Pill Button matching Main Page */}
+                  <div className="relative z-10 mt-3 pt-2.5 border-t border-emerald-500/25 flex flex-col sm:flex-row items-center justify-between gap-2.5">
+                    <span className="flex items-center gap-2 text-[11px] sm:text-xs text-emerald-200/90 font-medium">
+                      <Sparkles className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                      Live 10m Sentinel-2 Multi-Spectral Telemetry
                     </span>
-                    <span className="inline-flex items-center gap-1 font-semibold group-hover:translate-x-1 transition-transform text-emerald-400">
-                      Launch GIS Radar <ArrowRight className="h-3 w-3" />
+                    <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-primary text-white text-xs font-semibold shadow-md shadow-emerald-950/50 border border-emerald-400/40 group-hover:from-emerald-500 group-hover:to-emerald-600 group-hover:shadow-emerald-500/30 group-hover:scale-[1.02] transition-all">
+                      Launch GIS Radar <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
                     </span>
                   </div>
                 </div>
