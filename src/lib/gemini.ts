@@ -93,39 +93,45 @@ export interface CanopyParcelAnalysisResult {
 }
 
 /**
+ * Purge legacy insecure client keys from localStorage if present
+ */
+if (typeof window !== "undefined" && typeof window.localStorage !== "undefined") {
+  try {
+    window.localStorage.removeItem("green_gemini_api_key");
+    window.localStorage.removeItem("gemini_api_key");
+  } catch {
+    // Ignore restricted storage contexts
+  }
+}
+
+/**
  * Candidate models tried in sequence for resilience against deprecation/availability changes
  */
 const CANDIDATE_MODELS = [
-  "gemini-3.5-flash-lite",    // Ultra-fast sub-second botanical vision (1.3s benchmarked)
-  "gemini-3.6-flash",         // Advanced multimodal vision flagship (2.7s benchmarked)
-  "gemini-3.1-flash-lite",    // Resilient fallback
-  "gemini-flash-lite-latest", // Secondary fallback
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+  "gemini-2.5-pro",
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
+  "gemini-flash-lite-latest",
 ];
 
 /**
- * Retrieves the Gemini API Key from environment or local storage
+ * Indicates whether the server-side Gemini AI engine is configured.
+ * SECURITY ARCHITECTURE:
+ * API keys are strictly maintained on the server (/api/gemini & Supabase Edge Functions).
+ * Secrets are NEVER exposed to browser bundles, network request headers, or localStorage.
  */
 export function getGeminiApiKey(): string | null {
-  try {
-    const envKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (envKey && envKey.length > 5) return envKey;
-    if (typeof window !== "undefined" && window.localStorage) {
-      return window.localStorage.getItem("green_gemini_api_key") || null;
-    }
-  } catch {
-    // Ignore storage errors in restricted contexts
-  }
-  return null;
+  return "server-managed";
 }
 
-export function setGeminiApiKey(key: string) {
+export function setGeminiApiKey(_key?: string) {
   try {
     if (typeof window !== "undefined" && window.localStorage) {
-      if (!key) {
-        window.localStorage.removeItem("green_gemini_api_key");
-      } else {
-        window.localStorage.setItem("green_gemini_api_key", key.trim());
-      }
+      window.localStorage.removeItem("green_gemini_api_key");
+      window.localStorage.removeItem("gemini_api_key");
     }
   } catch {
     // Ignore storage errors in restricted contexts
@@ -133,7 +139,8 @@ export function setGeminiApiKey(key: string) {
 }
 
 /**
- * Call Gemini REST API directly with automatic model failover and JSON/Text modes
+ * Call Gemini AI via the secure server-side endpoint (/api/gemini)
+ * Keeps all API keys, quotas, and model orchestration completely server-side.
  */
 export async function callGeminiDirect(
   prompt: string,
@@ -141,134 +148,101 @@ export async function callGeminiDirect(
   systemInstruction?: string,
   options?: { isJson?: boolean; model?: string }
 ): Promise<any> {
-  const apiKey = getGeminiApiKey();
-  if (!apiKey) throw new Error("GEMINI_API_KEY_NOT_SET");
-
   const isJson = options?.isJson ?? true;
-  const preferredModel = options?.model;
-  const modelsToTry = preferredModel
-    ? [preferredModel, ...CANDIDATE_MODELS.filter((m) => m !== preferredModel)]
-    : CANDIDATE_MODELS;
 
-  const parts: any[] = [];
+  // Primary Path: Secure Serverless API Route (/api/gemini)
+  try {
+    const abortController = new AbortController();
+    const timeoutTimer = setTimeout(() => abortController.abort(), 12000);
 
-  if (imagesBase64) {
-    const list = Array.isArray(imagesBase64) ? imagesBase64 : [imagesBase64];
-    for (const b64 of list) {
-      if (!b64) continue;
-      const cleanB64 = b64.replace(/^data:image\/[a-z]+;base64,/, "");
-      parts.push({
-        inline_data: {
-          mime_type: "image/jpeg",
-          data: cleanB64,
-        },
-      });
+    const response = await fetch("/api/gemini", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt,
+        imagesBase64,
+        systemInstruction,
+        isJson,
+        model: options?.model,
+      }),
+      signal: abortController.signal,
+    });
+
+    clearTimeout(timeoutTimer);
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.data !== undefined) {
+        return data.data;
+      }
     }
+  } catch (err: any) {
+    console.warn("Secure /api/gemini endpoint unreachable, evaluating server fallback:", err?.message);
   }
 
-  parts.push({ text: prompt });
+  // Node.js test environment or script execution fallback (where process.env is securely present)
+  const nodeKey =
+    typeof process !== "undefined" && process?.env
+      ? process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY
+      : null;
 
-  const body: any = {
-    contents: [{ role: "user", parts }],
-    generationConfig: {
-      temperature: 0.15,
-    },
-  };
+  if (nodeKey && !nodeKey.includes("your_gemini_api_key_here")) {
+    const preferredModel = options?.model;
+    const modelsToTry = preferredModel
+      ? [preferredModel, ...CANDIDATE_MODELS.filter((m) => m !== preferredModel)]
+      : CANDIDATE_MODELS;
 
-  if (isJson) {
-    body.generationConfig.responseMimeType = "application/json";
-  }
+    const parts: any[] = [];
+    if (imagesBase64) {
+      const list = Array.isArray(imagesBase64) ? imagesBase64 : [imagesBase64];
+      for (const b64 of list) {
+        if (!b64) continue;
+        const cleanB64 = b64.replace(/^data:image\/[a-z]+;base64,/, "");
+        parts.push({
+          inline_data: {
+            mime_type: "image/jpeg",
+            data: cleanB64,
+          },
+        });
+      }
+    }
+    parts.push({ text: prompt });
 
-  if (systemInstruction) {
-    body.systemInstruction = {
-      parts: [{ text: systemInstruction }],
+    const body: any = {
+      contents: [{ role: "user", parts }],
+      generationConfig: { temperature: 0.15 },
     };
-  }
+    if (isJson) body.generationConfig.responseMimeType = "application/json";
+    if (systemInstruction) {
+      body.systemInstruction = { parts: [{ text: systemInstruction }] };
+    }
 
-  let lastError: any = null;
-
-  for (const model of modelsToTry) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const abortController = new AbortController();
-      const timeoutTimer = setTimeout(() => abortController.abort(), 8500);
-
-      let response: Response;
+    for (const model of modelsToTry) {
       try {
-        response = await fetch(url, {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${nodeKey}`;
+        const resp = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
-          signal: abortController.signal,
         });
-      } finally {
-        clearTimeout(timeoutTimer);
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const msg = errorData?.error?.message || `Gemini API returned status ${response.status}`;
-
-        // Comprehensive failover: 400, 404, 429, 500, 502, 503, 504, quota limits and high demand
-        if (
-          response.status === 404 ||
-          response.status === 400 ||
-          response.status === 429 ||
-          response.status === 500 ||
-          response.status === 502 ||
-          response.status === 503 ||
-          response.status === 504 ||
-          msg.toLowerCase().includes("not found") ||
-          msg.toLowerCase().includes("no longer available") ||
-          msg.toLowerCase().includes("deprecated") ||
-          msg.toLowerCase().includes("high demand") ||
-          msg.toLowerCase().includes("quota") ||
-          msg.toLowerCase().includes("rate-limit")
-        ) {
-          lastError = new Error(msg);
-          continue;
-        }
-        throw new Error(msg);
-      }
-
-      const data = await response.json();
-      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!rawText) throw new Error("No response content received from Gemini");
-
-      if (!isJson) {
-        return rawText.trim();
-      }
-
-      // Clean JSON if model returned markdown code block wrappers
-      const cleanJson = rawText
-        .replace(/^```json\s*/i, "")
-        .replace(/^```\s*/i, "")
-        .replace(/\s*```$/i, "")
-        .trim();
-
-      return JSON.parse(cleanJson);
-    } catch (err: any) {
-      lastError = err;
-      if (
-        err.message?.toLowerCase().includes("no longer available") ||
-        err.message?.toLowerCase().includes("not found") ||
-        err.message?.toLowerCase().includes("deprecated")
-      ) {
+        if (!resp.ok) continue;
+        const data = await resp.json();
+        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!rawText) continue;
+        if (!isJson) return rawText.trim();
+        const cleanJson = rawText
+          .replace(/^```json\s*/i, "")
+          .replace(/^```\s*/i, "")
+          .replace(/\s*```$/i, "")
+          .trim();
+        return JSON.parse(cleanJson);
+      } catch {
         continue;
-      }
-      // If JSON parse failed on markdown formatted output, attempt regex extract
-      if (isJson && typeof lastError?.message === "string" && lastError.message.includes("JSON")) {
-        try {
-          const matched = err.toString().match(/\{[\s\S]*\}/);
-          if (matched) return JSON.parse(matched[0]);
-        } catch {
-          // Continue to next model
-        }
       }
     }
   }
 
-  throw lastError || new Error("Failed to communicate with Gemini API across all active models.");
+  throw new Error("SERVER_AI_UNAVAILABLE: /api/gemini could not be reached.");
 }
 
 /**

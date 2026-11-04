@@ -14,6 +14,7 @@ export const envSchema = z.object({
     .string()
     .min(10, "VITE_SUPABASE_ANON_KEY must be a valid Supabase anonymous key")
     .default("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholderKeyForClientSafeInit"),
+  // Deprecated in client: Gemini keys are now handled strictly server-side (/api/gemini)
   VITE_GEMINI_API_KEY: z
     .string()
     .optional()

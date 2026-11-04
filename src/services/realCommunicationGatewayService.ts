@@ -2,7 +2,14 @@
  * Real Communication Gateway Service (Fast2SMS & WhatsApp Business API)
  * Production-ready SMS and WhatsApp notification dispatcher for Indian phone numbers.
  * Provides live delivery to rural planters, farmers, and urban tree adopters.
+ *
+ * SECURITY ARCHITECTURE:
+ * All third-party secrets (WhatsApp Access Tokens, Phone Number IDs, Fast2SMS API keys)
+ * are stored strictly on the server-side (/api/communication-gateway or Supabase Edge Functions).
+ * No private tokens or auth headers ever enter client browser bundles or network traces.
  */
+
+import { supabase } from "@/integrations/supabase/client";
 
 export interface Fast2SmsResponse {
   return: boolean;
@@ -41,33 +48,11 @@ export interface DispatchResult {
 }
 
 class RealCommunicationGatewayService {
-  private fast2smsApiKey: string =
-    import.meta.env.VITE_FAST2SMS_API_KEY || "";
-  private whatsappToken: string =
-    import.meta.env.VITE_WHATSAPP_ACCESS_TOKEN || "";
-  private whatsappPhoneId: string =
-    import.meta.env.VITE_WHATSAPP_PHONE_NUMBER_ID || "";
-
-  /**
-   * Sets Fast2SMS API Key at runtime
-   */
-  public setFast2SmsApiKey(key: string) {
-    this.fast2smsApiKey = key.trim();
-  }
-
-  /**
-   * Sets WhatsApp Cloud API credentials
-   */
-  public setWhatsAppCredentials(token: string, phoneId: string) {
-    this.whatsappToken = token.trim();
-    this.whatsappPhoneId = phoneId.trim();
-  }
-
   /**
    * Sanitizes 10-digit Indian mobile numbers
    */
   public sanitizeIndianPhone(rawPhone: string): string {
-    const cleaned = rawPhone.replace(/\D/g, "");
+    const cleaned = (rawPhone || "").replace(/\D/g, "");
     if (cleaned.length === 10) return cleaned;
     if (cleaned.length === 12 && cleaned.startsWith("91")) return cleaned.slice(2);
     if (cleaned.length === 11 && cleaned.startsWith("0")) return cleaned.slice(1);
@@ -75,7 +60,7 @@ class RealCommunicationGatewayService {
   }
 
   /**
-   * Dispatches a real SMS via Fast2SMS Quick Route (bulkV2)
+   * Dispatches a real SMS via server-side Fast2SMS Gateway (/api/communication-gateway)
    */
   public async sendSms(options: SmsDispatchOptions): Promise<DispatchResult> {
     const phone = this.sanitizeIndianPhone(options.phone);
@@ -90,54 +75,33 @@ class RealCommunicationGatewayService {
       };
     }
 
-    // Live Fast2SMS Dispatch if API Key is present
-    if (this.fast2smsApiKey) {
-      try {
-        const response = await fetch("https://www.fast2sms.com/dev/bulkV2", {
-          method: "POST",
-          headers: {
-            authorization: this.fast2smsApiKey,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            route: options.route || "q",
-            message: options.message,
-            language: options.isUnicode ? "unicode" : "english",
-            flash: 0,
-            numbers: phone,
-          }),
-        });
+    try {
+      const response = await fetch("/api/communication-gateway", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channel: "sms",
+          phone,
+          message: options.message,
+          isUnicode: options.isUnicode,
+          route: options.route || "q",
+        }),
+      });
 
-        const data: Fast2SmsResponse = await response.json();
-        if (data.return) {
-          return {
-            channel: "sms",
-            success: true,
-            recipient: `+91-${phone}`,
-            messageId: data.request_id || `REQ-${Date.now()}`,
-            previewText: options.message,
-            mode: "live_api",
-          };
-        } else {
-          return {
-            channel: "sms",
-            success: false,
-            recipient: `+91-${phone}`,
-            previewText: options.message,
-            error: data.message ? data.message.join(", ") : "Fast2SMS API returned failure",
-            mode: "live_api",
-          };
-        }
-      } catch (err: any) {
+      if (response.ok) {
+        const data = await response.json();
         return {
           channel: "sms",
-          success: false,
+          success: Boolean(data.success),
           recipient: `+91-${phone}`,
+          messageId: data.messageId || `SMS-${Date.now()}`,
           previewText: options.message,
-          error: err.message || "Network error connecting to Fast2SMS gateway",
-          mode: "live_api",
+          mode: data.mode || "live_api",
+          error: data.error,
         };
       }
+    } catch (err: any) {
+      console.warn("Server SMS gateway unavailable, utilizing client sandbox mode:", err);
     }
 
     // Sandbox Fallback
@@ -153,11 +117,12 @@ class RealCommunicationGatewayService {
 
   /**
    * Dispatches or formats a WhatsApp message for Tree Adopters & Planters
+   * Uses server-side endpoint (/api/communication-gateway) or direct deep-link
    */
   public async sendWhatsAppNotification(
     options: WhatsAppDispatchOptions
   ): Promise<DispatchResult> {
-    const rawPhone = options.phone.replace(/\D/g, "");
+    const rawPhone = (options.phone || "").replace(/\D/g, "");
     const formattedPhone = rawPhone.startsWith("91") && rawPhone.length === 12
       ? rawPhone
       : `91${this.sanitizeIndianPhone(options.phone)}`;
@@ -169,69 +134,76 @@ class RealCommunicationGatewayService {
       `Species: ${options.species || "Native Flora"}\n` +
       `AI Confidence: *${options.confidence ? `${options.confidence}%` : "Verified (98.4%)"}*\n` +
       `Location: ${options.location || "Maharashtra Agroforestry Zone"}\n\n` +
-      `📜 View Live Satellite Audit Certificate:\n${options.certificateUrl || "https://www.green-enlightenment.com"}\n\n` +
+      `📜 View Live Satellite Audit Certificate:\n${options.certificateUrl || "https://green-enlightenment.com"}\n\n` +
       `Thank you for advancing ecological canopy growth! 🌳`;
 
     const encodedText = encodeURIComponent(messageBody);
     const whatsappDeepLink = `https://wa.me/${formattedPhone}?text=${encodedText}`;
 
-    // If Meta WhatsApp Cloud API credentials are provided
-    if (this.whatsappToken && this.whatsappPhoneId) {
-      try {
-        const response = await fetch(
-          `https://graph.facebook.com/v19.0/${this.whatsappPhoneId}/messages`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${this.whatsappToken}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              messaging_product: "whatsapp",
-              recipient_type: "individual",
-              to: formattedPhone,
-              type: "text",
-              text: { preview_url: true, body: messageBody },
-            }),
-          }
-        );
+    // Attempt Serverless Gateway (/api/communication-gateway)
+    try {
+      const response = await fetch("/api/communication-gateway", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channel: "whatsapp",
+          phone: formattedPhone,
+          treeName: options.treeName,
+          species: options.species,
+          confidence: options.confidence,
+          location: options.location,
+          certificateUrl: options.certificateUrl,
+          customMessage: options.customMessage,
+        }),
+      });
 
+      if (response.ok) {
         const data = await response.json();
-        if (response.ok && data.messages?.[0]?.id) {
-          return {
-            channel: "whatsapp",
-            success: true,
-            recipient: `+${formattedPhone}`,
-            messageId: data.messages[0].id,
-            previewText: messageBody,
-            whatsappDeepLink,
-            mode: "live_api",
-          };
-        } else {
-          return {
-            channel: "whatsapp",
-            success: false,
-            recipient: `+${formattedPhone}`,
-            previewText: messageBody,
-            whatsappDeepLink,
-            error: data.error?.message || "WhatsApp Cloud API error",
-            mode: "live_api",
-          };
-        }
-      } catch (err: any) {
         return {
           channel: "whatsapp",
-          success: false,
+          success: Boolean(data.success),
           recipient: `+${formattedPhone}`,
+          messageId: data.messageId,
           previewText: messageBody,
-          whatsappDeepLink,
-          error: err.message,
-          mode: "live_api",
+          whatsappDeepLink: data.whatsappDeepLink || whatsappDeepLink,
+          mode: data.mode || "live_api",
+          error: data.error,
         };
       }
+    } catch {
+      // Continue to Supabase Edge Function fallback
     }
 
-    // Direct Link / Sandbox Mode
+    // Fallback: Supabase Edge Function if deployed
+    try {
+      const { data, error } = await supabase.functions.invoke("send-whatsapp", {
+        body: {
+          phone: formattedPhone,
+          treeName: options.treeName,
+          species: options.species,
+          confidence: options.confidence,
+          location: options.location,
+          certificateUrl: options.certificateUrl,
+          customMessage: options.customMessage,
+        },
+      });
+
+      if (!error && data?.success) {
+        return {
+          channel: "whatsapp",
+          success: true,
+          recipient: `+${formattedPhone}`,
+          messageId: data.messageId,
+          previewText: messageBody,
+          whatsappDeepLink: data.whatsappDeepLink || whatsappDeepLink,
+          mode: data.mode || "live_api",
+        };
+      }
+    } catch {
+      // Continue to client direct link fallback
+    }
+
+    // Direct WhatsApp Deep-Link (Zero API key needed, opens WhatsApp directly)
     return {
       channel: "whatsapp",
       success: true,

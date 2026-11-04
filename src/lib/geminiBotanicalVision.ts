@@ -1,5 +1,6 @@
 import { optimizeBase64ForVision } from "@/lib/imageProcessing";
 import { VerificationPlanterContext } from "@/types/geospatial";
+import { callGeminiDirect } from "@/lib/gemini";
 
 export interface BotanicalAiAnalysisResult {
   isLivingTree: boolean;
@@ -151,13 +152,7 @@ export async function analyzeTreePhotoWithBotanicalAi(
     });
   }
 
-  const apiKey =
-    (typeof window !== "undefined" && typeof localStorage !== "undefined" && localStorage?.getItem?.("gemini_api_key")) ||
-    import.meta.env.VITE_GEMINI_API_KEY ||
-    "";
-
-  if (!apiKey || !base64Data) {
-    // SECURITY FIX: If AI is not configured, we MUST reject, otherwise fakers get free passes.
+  if (!base64Data) {
     return {
       isLivingTree: false,
       speciesCommon: "Unknown",
@@ -172,11 +167,11 @@ export async function analyzeTreePhotoWithBotanicalAi(
       backgroundSetting: "unknown",
       isGenuineInGroundPlantation: false,
       confidenceScore: 0,
-      detectedStressFactors: ["ai_offline"],
+      detectedStressFactors: ["no_image_data"],
       fraudRiskScore: 100,
-      fraudFlags: ["AI Engine Unreachable (API Key Missing)"],
+      fraudFlags: ["No image data provided"],
       perceptualHash: dHash,
-      aiReport: "SYSTEM REJECTION: Botanical AI Vision engine is offline. VITE_GEMINI_API_KEY is not configured on this server, so evidence verification failed.",
+      aiReport: "SYSTEM REJECTION: No image data was provided for botanical verification.",
     };
   }
 
@@ -230,16 +225,6 @@ Return ONLY a valid JSON object with EXACTLY this structure:
 }
 `;
 
-  // Candidate models: Ordered strictly by speed and stability benchmarked in production
-  const candidateModels = [
-    "gemini-3.5-flash-lite",    // Ultra-fast sub-second botanical vision (1.3s benchmarked)
-    "gemini-3.6-flash",         // Advanced multimodal vision flagship (2.7s benchmarked)
-    "gemini-3.1-flash-lite",    // Resilient fallback
-    "gemini-flash-lite-latest", // Secondary fallback
-  ];
-
-  let lastErr: any = null;
-
   if (base64Data && base64Data.length > 500000) {
     try {
       base64Data = await optimizeBase64ForVision(base64Data, 800, 0.70);
@@ -248,110 +233,53 @@ Return ONLY a valid JSON object with EXACTLY this structure:
     }
   }
 
-  for (const model of candidateModels) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const abortController = new AbortController();
-      const timeoutTimer = setTimeout(() => abortController.abort(), 8500);
-
-      let res: Response;
-      try {
-        res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          signal: abortController.signal,
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  { text: prompt },
-                  {
-                    inline_data: {
-                      mime_type: "image/jpeg",
-                      data: base64Data,
-                    },
-                  },
-                ],
-              },
-            ],
-            generationConfig: {
-              response_mime_type: "application/json",
-              temperature: 0.1,
-            },
-          }),
-        });
-      } finally {
-        clearTimeout(timeoutTimer);
-      }
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        const msg = errorData?.error?.message || `Gemini API responded with status ${res.status}`;
-        
-        if (
-          res.status === 404 ||
-          res.status === 400 ||
-          res.status === 429 ||
-          res.status === 500 ||
-          res.status === 502 ||
-          res.status === 503 ||
-          res.status === 504 ||
-          msg.toLowerCase().includes("not found") ||
-          msg.toLowerCase().includes("no longer available") ||
-          msg.toLowerCase().includes("deprecated") ||
-          msg.toLowerCase().includes("high demand") ||
-          msg.toLowerCase().includes("quota") ||
-          msg.toLowerCase().includes("rate-limit")
-        ) {
-          lastErr = new Error(msg);
-          continue;
-        }
-        lastErr = new Error(msg);
-        continue;
-      }
-
-      const data = await res.json();
-      const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!candidateText) {
-        lastErr = new Error("No text response in Gemini payload.");
-        continue;
-      }
-
-      const cleanJson = candidateText
-        .replace(/^```json\s*/i, "")
-        .replace(/^```\s*/i, "")
-        .replace(/\s*```$/i, "")
-        .trim();
-
-      const parsed = JSON.parse(cleanJson);
-      const isLiving = Boolean(parsed.isLivingTree) && parsed.vitalityStatus !== "not_a_tree_fraud" && (parsed.fraudRiskScore ?? 0) <= 65;
+  try {
+    const parsed = await callGeminiDirect(prompt, base64Data, undefined, { isJson: true });
+    if (parsed) {
+      const isLiving =
+        Boolean(parsed.isLivingTree) &&
+        parsed.vitalityStatus !== "not_a_tree_fraud" &&
+        (parsed.fraudRiskScore ?? 0) <= 65;
 
       return {
         isLivingTree: isLiving,
-        speciesCommon: isLiving ? (parsed.speciesCommon || claimedSpecies || "Indigenous Native Species") : "Rejected / Not a Living Specimen",
-        speciesScientific: isLiving ? (parsed.speciesScientific || "Flora indica") : "None",
-        botanicalFamily: isLiving ? (parsed.botanicalFamily || "Plantae") : "None",
-        crownHealthScore: isLiving ? (Number(parsed.crownHealthScore) || 75) : 0,
-        vitalityStatus: isLiving ? (parsed.vitalityStatus || "healthy") : "not_a_tree_fraud",
+        speciesCommon: isLiving
+          ? parsed.speciesCommon || claimedSpecies || "Indigenous Native Species"
+          : "Rejected / Not a Living Specimen",
+        speciesScientific: isLiving ? parsed.speciesScientific || "Flora indica" : "None",
+        botanicalFamily: isLiving ? parsed.botanicalFamily || "Plantae" : "None",
+        crownHealthScore: isLiving ? Number(parsed.crownHealthScore) || 75 : 0,
+        vitalityStatus: isLiving ? parsed.vitalityStatus || "healthy" : "not_a_tree_fraud",
         growthStage: parsed.growthStage || "young_tree",
         stemLignification: parsed.stemLignification || "woody",
         leafMorphology: parsed.leafMorphology || (isLiving ? "Broadleaf foliage" : "Unidentifiable"),
-        chlorophyllPigmentation: parsed.chlorophyllPigmentation || (isLiving ? "dense_photosynthetic_green" : "necrotic_brown"),
-        backgroundSetting: parsed.backgroundSetting || (isLiving ? "in_ground_soil_pit" : "screen_or_recycled_media"),
-        isGenuineInGroundPlantation: isLiving && parsed.isGenuineInGroundPlantation !== undefined ? Boolean(parsed.isGenuineInGroundPlantation) : false,
+        chlorophyllPigmentation:
+          parsed.chlorophyllPigmentation || (isLiving ? "dense_photosynthetic_green" : "necrotic_brown"),
+        backgroundSetting:
+          parsed.backgroundSetting || (isLiving ? "in_ground_soil_pit" : "screen_or_recycled_media"),
+        isGenuineInGroundPlantation:
+          isLiving && parsed.isGenuineInGroundPlantation !== undefined
+            ? Boolean(parsed.isGenuineInGroundPlantation)
+            : false,
         confidenceScore: isLiving ? (typeof parsed.confidenceScore === "number" ? parsed.confidenceScore : 0.85) : 0,
         detectedStressFactors: Array.isArray(parsed.detectedStressFactors) ? parsed.detectedStressFactors : [],
-        fraudRiskScore: typeof parsed.fraudRiskScore === "number" ? parsed.fraudRiskScore : (isLiving ? 5 : 95),
-        fraudFlags: Array.isArray(parsed.fraudFlags) ? parsed.fraudFlags : (!isLiving ? ["Botanical verification rejected: not an in-ground living tree"] : []),
+        fraudRiskScore: typeof parsed.fraudRiskScore === "number" ? parsed.fraudRiskScore : isLiving ? 5 : 95,
+        fraudFlags: Array.isArray(parsed.fraudFlags)
+          ? parsed.fraudFlags
+          : !isLiving
+          ? ["Botanical verification rejected: not an in-ground living tree"]
+          : [],
         perceptualHash: dHash,
-        aiReport: parsed.aiReport || (isLiving ? "Botanical validation completed successfully." : "Photo rejected: does not show an authentic living tree specimen."),
+        aiReport:
+          parsed.aiReport ||
+          (isLiving
+            ? "Botanical validation completed successfully."
+            : "Photo rejected: does not show an authentic living tree specimen."),
       };
-    } catch (err: any) {
-      lastErr = err;
     }
+  } catch (err: any) {
+    console.warn("Secure Botanical AI analysis failed or offline:", err?.message);
   }
-
-  console.warn("Gemini Botanical AI analysis failed across candidate models:", lastErr);
   // Resilient provisional response — keeps submission pending supervisor sign-off rather than falsely failing real trees
   return {
     isLivingTree: true,

@@ -7,9 +7,15 @@
 export const MANAGED_ENV_VARS = [
   "VITE_SUPABASE_URL",
   "VITE_SUPABASE_ANON_KEY",
-  "VITE_GEMINI_API_KEY",
   "VITE_POSTHOG_KEY",
   "VITE_POSTHOG_HOST",
+  // Server-side only secrets (Never prefixed with VITE_)
+  "GEMINI_API_KEY",
+  "WHATSAPP_ACCESS_TOKEN",
+  "WHATSAPP_PHONE_NUMBER_ID",
+  "FAST2SMS_API_KEY",
+  "COPERNICUS_CLIENT_ID",
+  "COPERNICUS_CLIENT_SECRET",
 ];
 
 export function resolveTargets(targetInput = "all") {
