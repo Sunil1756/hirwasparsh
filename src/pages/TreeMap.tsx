@@ -312,6 +312,32 @@ const TreeMap = () => {
             </div>
           ) : (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            {/* Map My Crop Radar Quick-Jump Banner */}
+            <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-950/60 via-background to-emerald-950/60 border border-emerald-500/30 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                  <Satellite className="h-5 w-5 animate-pulse" />
+                </div>
+                <div>
+                  <div className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2">
+                    <span>Space-Borne Sentinel-2 Multi-Spectral Radar</span>
+                    <Badge variant="outline" className="border-emerald-500/40 text-emerald-400 text-[10px] font-mono">
+                      10m BOA Live
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
+                    Looking for false-color NDVI vegetation heatmaps, foliar moisture, and cadastral parcel zoning like Map My Crop?
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={() => setActiveTab("satellite_ndvi")}
+                className="gap-2 rounded-xl text-xs sm:text-sm bg-gradient-to-r from-emerald-600 to-primary text-white shadow-md hover:from-emerald-500 hover:to-emerald-600 shrink-0 font-semibold"
+              >
+                Launch Satellite Radar <ExternalLink className="h-4 w-4" />
+              </Button>
+            </div>
+
             {/* Top KPI Metrics Bar (100% Real Data) */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
               <div className="glass-card rounded-2xl p-4 border border-primary/20 text-center">
