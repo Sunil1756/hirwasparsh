@@ -80,7 +80,7 @@ Traditional tree plantation drives suffer from an estimated **40% to 70% mortali
 
 ### Verification Links & Contact
 
-- **Platform URL**: `https://hirwasparsh.vercel.app` (or custom institutional domain)
-- **Public GIS Map**: `https://hirwasparsh.vercel.app/tree-map`
-- **Verification Engine**: `https://hirwasparsh.vercel.app/verification`
+- **Platform URL**: `https://green-enlightenment.com`
+- **Public GIS Map**: `https://green-enlightenment.com/tree-map`
+- **Verification Engine**: `https://green-enlightenment.com/verification`
 - **Inquiries**: `partnerships@greenenlightenment.org`

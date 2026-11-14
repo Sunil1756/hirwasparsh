@@ -1,11 +1,17 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { TreePine, Leaf, MapPin, Users, BarChart3, Shield, Globe, ArrowRight, AlertTriangle, Lightbulb, Sprout, ShieldCheck, TrendingUp, Bot, Sparkles } from "lucide-react";
+import {
+  TreePine, Leaf, MapPin, Users, BarChart3, Shield, Globe, ArrowRight,
+  AlertTriangle, Lightbulb, Sprout, ShieldCheck, TrendingUp, Bot, Sparkles,
+  User, Building2, Award, ArrowRightLeft, CheckCircle2
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import AnimatedCounter from "@/components/AnimatedCounter";
 import { useQuery } from "@tanstack/react-query";
 import ViralImpactCounter from "@/components/ViralImpactCounter";
 import { fetchLivePlatformMetrics } from "@/lib/platformStats";
+import { useAppMode } from "@/contexts/AppModeContext";
 import heroBg from "@/assets/hero-bg.jpg";
 import sentinelTelemetryHud from "@/assets/sentinel-telemetry-hud.jpg";
 import { useState } from "react";
@@ -17,12 +23,17 @@ const fadeUp = {
 };
 
 const features = [
-  { icon: <Globe className="h-7 w-7" />, title: "Satellite NDVI Telemetry", desc: "Sentinel-2 multi-spectral NDVI & NDRE canopy vigor tracking", link: "/tree-map" },
-  { icon: <Shield className="h-7 w-7" />, title: "Field Scouting Matrix", desc: "Geotag pest, disease, and water stress with scientific remedies", link: "/scouting" },
-  { icon: <TreePine className="h-7 w-7" />, title: "Bulk CSV & Batch QR", desc: "Mass plantation onboarding with printable A4 field QR sheets", link: "/plant/bulk" },
-  { icon: <BarChart3 className="h-7 w-7" />, title: "IPCC Carbon Biomass", desc: "Pantropical allometric biomass modeling and ESG carbon credits", link: "/tree-map" },
-  { icon: <MapPin className="h-7 w-7" />, title: "Cadastral Parcel Modeler", desc: "Import Google Earth KML / GeoJSON boundaries with Turf.js", link: "/tree-map" },
-  { icon: <Bot className="h-7 w-7" />, title: "AI Tree Doctor & MRV", desc: "Gemini multi-modal health diagnostics and anti-fraud verification", link: "/intelligence" },
+  // Institutional & Enterprise MRV
+  { icon: <Globe className="h-7 w-7" />, title: "Satellite NDVI Telemetry", desc: "Sentinel-2 multi-spectral NDVI & NDRE canopy vigor tracking", link: "/tree-map", mode: "institutional" },
+  { icon: <Shield className="h-7 w-7" />, title: "Field Scouting Matrix", desc: "Geotag pest, disease, and water stress with scientific remedies", link: "/scouting", mode: "institutional" },
+  { icon: <TreePine className="h-7 w-7" />, title: "Bulk CSV & Batch QR", desc: "Mass plantation onboarding with printable A4 field QR sheets", link: "/plant/bulk", mode: "institutional" },
+  { icon: <BarChart3 className="h-7 w-7" />, title: "IPCC Carbon Biomass", desc: "Pantropical allometric biomass modeling and ESG carbon credits", link: "/portal/csr", mode: "institutional" },
+  { icon: <MapPin className="h-7 w-7" />, title: "Cadastral Parcel Modeler", desc: "Import Google Earth KML / GeoJSON boundaries with Turf.js", link: "/project-management", mode: "institutional" },
+  { icon: <Building2 className="h-7 w-7" />, title: "NGO Command Center", desc: "Compartment quotas, survival verification, and team governance", link: "/workspace/ngo", mode: "institutional" },
+  // Individual & Citizen Planter
+  { icon: <Sprout className="h-7 w-7" />, title: "Individual Tree Planting", desc: "Plant and geotag backyard trees in 60s with phone camera & GPS", link: "/plant/individual", mode: "individual" },
+  { icon: <Bot className="h-7 w-7" />, title: "AI Tree Doctor & Voice", desc: "Gemini multi-lingual health diagnosis and vernacular care advice", link: "/intelligence", mode: "individual" },
+  { icon: <Award className="h-7 w-7" />, title: "Adopter Passports & Stories", desc: "Adopt verified saplings with milestone updates and growth stories", link: "/adopter", mode: "individual" },
 ];
 
 const problems = [
@@ -104,6 +115,8 @@ const FeatureCard = ({ f, i }: { f: typeof features[0]; i: number }) => {
 };
 
 const Index = () => {
+  const { mode, isIndividual, isInstitutional, switchModeAndNavigate } = useAppMode();
+  const [featureFilter, setFeatureFilter] = useState<"all" | "individual" | "institutional">("all");
   const { data: stats } = useQuery({
     queryKey: ["home-stats-live"],
     queryFn: fetchLivePlatformMetrics,
@@ -112,6 +125,11 @@ const Index = () => {
   const treesPlanted = stats?.totalTreesPlanted || 0;
   const co2Absorbed = stats?.co2OffsetKgPerYear || 0;
   const volunteers = stats?.activeVolunteers || 0;
+
+  const displayFeatures = features.filter((f) => {
+    if (featureFilter === "all") return true;
+    return f.mode === featureFilter;
+  });
 
   return (
     <div className="relative overflow-hidden bg-background">
@@ -305,6 +323,110 @@ const Index = () => {
         </div>
       </section>
 
+      {/* 1.5 PLATFORM EXPERIENCE MODE SELECTOR */}
+      <section className="relative -mt-6 z-20 container mx-auto px-4 max-w-5xl">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="glass-card rounded-3xl p-5 sm:p-7 border border-border/60 bg-card/90 backdrop-blur-xl shadow-xl"
+        >
+          <div className="text-center mb-6">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
+              Two Distinct Workspaces
+            </span>
+            <h2 className="font-heading text-xl sm:text-2xl font-bold mt-2 text-foreground">
+              Tailored Experiences for Citizens & Institutions
+            </h2>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-xl mx-auto">
+              Switch between personal planting & gamification, or enterprise cadastral MRV & CSR carbon accounting anytime without losing access to any feature.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            {/* Mode 1: Individual Planter */}
+            <div className={`rounded-2xl p-5 border transition-all flex flex-col justify-between ${
+              isIndividual 
+                ? "border-primary bg-primary/5 shadow-md ring-2 ring-primary/20" 
+                : "border-border/60 bg-muted/20 hover:border-primary/40"
+            }`}>
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
+                    <User className="h-6 w-6" />
+                  </div>
+                  {isIndividual && (
+                    <Badge className="bg-primary text-primary-foreground text-[10px]">
+                      Currently Active
+                    </Badge>
+                  )}
+                </div>
+                <h3 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
+                  🌱 Individual & Citizen Planter
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                  For individuals, adopters, families, and eco-clubs planting backyard trees, adopting saplings, and tracking personal green impact.
+                </p>
+                <ul className="mt-4 space-y-2 text-xs text-foreground/80">
+                  <li className="flex items-center gap-2">✓ Plant a tree in 60s with phone camera & GPS</li>
+                  <li className="flex items-center gap-2">✓ Adopt & name trees with digital passports</li>
+                  <li className="flex items-center gap-2">✓ Vernacular Voice AI Tree Doctor for garden care</li>
+                  <li className="flex items-center gap-2">✓ Community leaderboard, badges & green points</li>
+                </ul>
+              </div>
+              <Button
+                onClick={() => switchModeAndNavigate("individual")}
+                className="mt-5 w-full rounded-xl gap-2 text-xs font-semibold"
+                variant={isIndividual ? "default" : "outline"}
+              >
+                {isIndividual ? "Explore Citizen Features" : "Switch to Individual Mode"}
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+
+            {/* Mode 2: Institutional & CSR MRV */}
+            <div className={`rounded-2xl p-5 border transition-all flex flex-col justify-between ${
+              isInstitutional 
+                ? "border-emerald-500 bg-emerald-950/20 shadow-md ring-2 ring-emerald-500/25" 
+                : "border-border/60 bg-muted/20 hover:border-emerald-500/40"
+            }`}>
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="p-2.5 rounded-xl bg-emerald-600/15 text-emerald-600 dark:text-emerald-400">
+                    <Building2 className="h-6 w-6" />
+                  </div>
+                  {isInstitutional && (
+                    <Badge className="bg-emerald-600 text-white text-[10px]">
+                      Currently Active
+                    </Badge>
+                  )}
+                </div>
+                <h3 className="font-heading font-bold text-lg text-foreground flex items-center gap-2">
+                  🏢 Institutional, NGO & CSR MRV
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                  For forest departments, NGOs, and corporate ESG teams managing mass plantations, carbon credits, and satellite surveillance.
+                </p>
+                <ul className="mt-4 space-y-2 text-xs text-foreground/80">
+                  <li className="flex items-center gap-2">✓ NGO Command Center & Cadastral Parcel Mapping</li>
+                  <li className="flex items-center gap-2">✓ Mass CSV/Excel upload & A4 field QR sheet printer</li>
+                  <li className="flex items-center gap-2">✓ 10m Sentinel-2 multi-spectral NDVI & NDRE telemetry</li>
+                  <li className="flex items-center gap-2">✓ Scope 1/2/3 carbon credits & Verra/BRSR audit ledgers</li>
+                </ul>
+              </div>
+              <Button
+                onClick={() => switchModeAndNavigate("institutional")}
+                className="mt-5 w-full rounded-xl gap-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
+                variant={isInstitutional ? "default" : "outline"}
+              >
+                {isInstitutional ? "Explore Institutional Console" : "Switch to Institutional Mode"}
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </motion.div>
+      </section>
+
       {/* 2. THE PROBLEM WE FACE - Toned down, seamless transition starting exactly below the extended first screen */}
       <section className="relative pt-8 md:pt-12 pb-12 md:pb-16 bg-gradient-to-b from-background via-muted/20 to-background">
         <div className="container mx-auto px-4 max-w-5xl">
@@ -358,15 +480,57 @@ const Index = () => {
         </div>
       </section>
 
-      {/* 4. PLATFORM FEATURES (2-COLUMN GRID MATCHING PHOTO) */}
+      {/* 4. PLATFORM FEATURES (WITH DEDICATED MODE TABS) */}
       <section className="relative py-12 md:py-16 bg-gradient-to-b from-background via-muted/25 to-background">
         <div className="container mx-auto px-4 max-w-5xl">
-          <motion.h2 initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} custom={0}
-            className="font-heading text-3xl sm:text-4xl font-bold text-center mb-8 md:mb-10 tracking-tight">
-            Platform Features
-          </motion.h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
-            {features.map((f, i) => (
+          <div className="text-center mb-8 md:mb-10">
+            <motion.h2 initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} custom={0}
+              className="font-heading text-3xl sm:text-4xl font-bold tracking-tight mb-3">
+              Platform Features & Capabilities
+            </motion.h2>
+            <p className="text-muted-foreground text-xs sm:text-sm max-w-lg mx-auto">
+              Separated into dedicated modes for individual citizen planters and enterprise forestry operations.
+            </p>
+
+            {/* Mode Category Filter Tabs */}
+            <div className="mt-5 inline-flex items-center p-1 rounded-2xl bg-muted/80 border border-border/60">
+              <button
+                onClick={() => setFeatureFilter("all")}
+                className={`px-3 sm:px-4 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                  featureFilter === "all"
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                All Capabilities ({features.length})
+              </button>
+              <button
+                onClick={() => setFeatureFilter("individual")}
+                className={`px-3 sm:px-4 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                  featureFilter === "individual"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <User className="h-3 w-3" />
+                Citizen & Community (3)
+              </button>
+              <button
+                onClick={() => setFeatureFilter("institutional")}
+                className={`px-3 sm:px-4 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                  featureFilter === "institutional"
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Building2 className="h-3 w-3" />
+                Institutional & MRV (6)
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
+            {displayFeatures.map((f, i) => (
               <FeatureCard key={i} f={f} i={i} />
             ))}
           </div>

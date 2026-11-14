@@ -6,6 +6,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { AppModeProvider } from "@/contexts/AppModeContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import RoleProtectedRoute from "@/components/RoleProtectedRoute";
@@ -65,57 +66,59 @@ const App = () => (
           <BrowserRouter>
             <AnalyticsTracker />
             <AuthProvider>
-              <Navbar />
-              <Suspense fallback={<PageLoadingFallback />}>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/about" element={<About />} />
-                  <Route path="/methodology" element={<Methodology />} />
-                  <Route path="/plant" element={<PlantChooser />} />
-                  <Route path="/plant/individual" element={<ProtectedRoute><PlantTree /></ProtectedRoute>} />
-                  <Route path="/plant/organization" element={<OrganizationPlantation />} />
-                  <Route path="/plant/bulk" element={<ProtectedRoute><BulkOnboardPage /></ProtectedRoute>} />
-                  <Route path="/bulk-onboard" element={<ProtectedRoute><BulkOnboardPage /></ProtectedRoute>} />
-                  <Route path="/dashboard" element={<CommunityDashboard />} />
-                  <Route path="/adopter" element={<RoleProtectedRoute requiredRole={["tree_adopter", "user", "admin"]}><TreeAdopterDashboard /></RoleProtectedRoute>} />
-                  <Route path="/my-trees" element={<RoleProtectedRoute requiredRole={["tree_adopter", "user", "admin"]}><TreeAdopterDashboard /></RoleProtectedRoute>} />
-                  <Route path="/field-worker" element={<ProtectedRoute><FieldWorkerDashboard /></ProtectedRoute>} />
-                  <Route path="/scouting" element={<ProtectedRoute><FieldWorkerDashboard /></ProtectedRoute>} />
-                  <Route path="/tree-map" element={<TreeMap />} />
-                  <Route path="/pricing" element={<Pricing />} />
-                  <Route path="/plans" element={<Plans />} />
-                  <Route path="/analytics" element={<Navigate to="/intelligence" replace />} />
-                  <Route path="/leaderboard" element={<Leaderboard />} />
-                  <Route path="/admin" element={<RoleProtectedRoute requiredRole="admin"><AdminDashboard /></RoleProtectedRoute>} />
-                  <Route path="/admin-login" element={<Navigate to="/login?redirect=/admin" replace />} />
-                  <Route path="/admin/audit-log" element={<RoleProtectedRoute requiredRole="admin"><AdminAuditLog /></RoleProtectedRoute>} />
-                  <Route path="/government" element={<RoleProtectedRoute requiredRole={["government", "admin"]}><GovernmentDashboard /></RoleProtectedRoute>} />
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/contact" element={<Contact />} />
-                  <Route path="/tree/:id" element={<TreeProfile />} />
-                  <Route path="/tree-story/:id" element={<TreeStory />} />
-                  <Route path="/challenges" element={<Navigate to="/dashboard" replace />} />
-                  <Route path="/drives" element={<Navigate to="/plant" replace />} />
-                  <Route path="/tree-health" element={<Navigate to="/intelligence" replace />} />
-                  <Route path="/growth-updates" element={<GrowthUpdates />} />
-                  <Route path="/satellite" element={<Navigate to="/tree-map" replace />} />
-                  <Route path="/green-impact" element={<Navigate to="/dashboard" replace />} />
-                  <Route path="/intelligence" element={<Intelligence />} />
-                  <Route path="/csr-portal" element={<ProtectedRoute><CSRCorporatePortal /></ProtectedRoute>} />
-                  <Route path="/portal/csr" element={<ProtectedRoute><CSRCorporatePortal /></ProtectedRoute>} />
-                  <Route path="/ngo-workspace" element={<ProtectedRoute><NGOWorkspacePage /></ProtectedRoute>} />
-                  <Route path="/workspace/ngo" element={<ProtectedRoute><NGOWorkspacePage /></ProtectedRoute>} />
-                  <Route path="/organization" element={<ProtectedRoute><OrganizationPortal /></ProtectedRoute>} />
-                  <Route path="/organization-portal" element={<ProtectedRoute><OrganizationPortal /></ProtectedRoute>} />
-                  <Route path="/projects" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />
-                  <Route path="/project-management" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />
-                  <Route path="/monitoring" element={<MonitoringDashboard />} />
-                  <Route path="/monitoring-dashboard" element={<MonitoringDashboard />} />
-                  <Route path="/preview-dashboards" element={<DashboardPreview />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
-              <Footer />
+              <AppModeProvider>
+                <Navbar />
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/about" element={<About />} />
+                    <Route path="/methodology" element={<Methodology />} />
+                    <Route path="/plant" element={<PlantChooser />} />
+                    <Route path="/plant/individual" element={<ProtectedRoute><PlantTree /></ProtectedRoute>} />
+                    <Route path="/plant/organization" element={<OrganizationPlantation />} />
+                    <Route path="/plant/bulk" element={<ProtectedRoute><BulkOnboardPage /></ProtectedRoute>} />
+                    <Route path="/bulk-onboard" element={<ProtectedRoute><BulkOnboardPage /></ProtectedRoute>} />
+                    <Route path="/dashboard" element={<CommunityDashboard />} />
+                    <Route path="/adopter" element={<RoleProtectedRoute requiredRole={["tree_adopter", "user", "admin"]}><TreeAdopterDashboard /></RoleProtectedRoute>} />
+                    <Route path="/my-trees" element={<RoleProtectedRoute requiredRole={["tree_adopter", "user", "admin"]}><TreeAdopterDashboard /></RoleProtectedRoute>} />
+                    <Route path="/field-worker" element={<ProtectedRoute><FieldWorkerDashboard /></ProtectedRoute>} />
+                    <Route path="/scouting" element={<ProtectedRoute><FieldWorkerDashboard /></ProtectedRoute>} />
+                    <Route path="/tree-map" element={<TreeMap />} />
+                    <Route path="/pricing" element={<Pricing />} />
+                    <Route path="/plans" element={<Plans />} />
+                    <Route path="/analytics" element={<Navigate to="/intelligence" replace />} />
+                    <Route path="/leaderboard" element={<Leaderboard />} />
+                    <Route path="/admin" element={<RoleProtectedRoute requiredRole="admin"><AdminDashboard /></RoleProtectedRoute>} />
+                    <Route path="/admin-login" element={<Navigate to="/login?redirect=/admin" replace />} />
+                    <Route path="/admin/audit-log" element={<RoleProtectedRoute requiredRole="admin"><AdminAuditLog /></RoleProtectedRoute>} />
+                    <Route path="/government" element={<RoleProtectedRoute requiredRole={["government", "admin"]}><GovernmentDashboard /></RoleProtectedRoute>} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/contact" element={<Contact />} />
+                    <Route path="/tree/:id" element={<TreeProfile />} />
+                    <Route path="/tree-story/:id" element={<TreeStory />} />
+                    <Route path="/challenges" element={<Navigate to="/dashboard" replace />} />
+                    <Route path="/drives" element={<Navigate to="/plant" replace />} />
+                    <Route path="/tree-health" element={<Navigate to="/intelligence" replace />} />
+                    <Route path="/growth-updates" element={<GrowthUpdates />} />
+                    <Route path="/satellite" element={<Navigate to="/tree-map" replace />} />
+                    <Route path="/green-impact" element={<Navigate to="/dashboard" replace />} />
+                    <Route path="/intelligence" element={<Intelligence />} />
+                    <Route path="/csr-portal" element={<ProtectedRoute><CSRCorporatePortal /></ProtectedRoute>} />
+                    <Route path="/portal/csr" element={<ProtectedRoute><CSRCorporatePortal /></ProtectedRoute>} />
+                    <Route path="/ngo-workspace" element={<ProtectedRoute><NGOWorkspacePage /></ProtectedRoute>} />
+                    <Route path="/workspace/ngo" element={<ProtectedRoute><NGOWorkspacePage /></ProtectedRoute>} />
+                    <Route path="/organization" element={<ProtectedRoute><OrganizationPortal /></ProtectedRoute>} />
+                    <Route path="/organization-portal" element={<ProtectedRoute><OrganizationPortal /></ProtectedRoute>} />
+                    <Route path="/projects" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />
+                    <Route path="/project-management" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />
+                    <Route path="/monitoring" element={<MonitoringDashboard />} />
+                    <Route path="/monitoring-dashboard" element={<MonitoringDashboard />} />
+                    <Route path="/preview-dashboards" element={<DashboardPreview />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
+                <Footer />
+              </AppModeProvider>
             </AuthProvider>
           </BrowserRouter>
         </TooltipProvider>

@@ -50,6 +50,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { BASEMAP_PROVIDERS, BasemapProviderId } from "@/lib/gisMapFoundation";
 import { SEO } from "@/components/SEO";
 import { isGenuineTree } from "@/lib/genuineDataFilter";
+import { useAppMode } from "@/contexts/AppModeContext";
 
 // Glowing pulse marker via DivIcon
 const makeGlowIcon = (color: string) =>
@@ -128,10 +129,13 @@ function MapCenterController({ center, zoom }: { center: [number, number]; zoom:
 }
 
 const TreeMap = () => {
+  const { isInstitutional } = useAppMode();
   const [activeTab, setActiveTab] = useState<"tree_map" | "satellite_ndvi" | "field_scouting">(
     "tree_map"
   );
-  const [scopeFilter, setScopeFilter] = useState<"all" | "individual" | "institutional">("all");
+  const [scopeFilter, setScopeFilter] = useState<"all" | "individual" | "institutional">(
+    isInstitutional ? "institutional" : "all"
+  );
   const [filter, setFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [stageFilter, setStageFilter] = useState("all");

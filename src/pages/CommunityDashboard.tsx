@@ -11,6 +11,8 @@ import { syncUserProfileImpact } from "@/lib/syncUserImpact";
 import { isGenuineProject } from "@/lib/genuineDataFilter";
 import { useEffect, useState } from "react";
 import { EditProfileModal } from "@/components/EditProfileModal";
+import { ModeSwitcher } from "@/components/ModeSwitcher";
+import { useAppMode } from "@/contexts/AppModeContext";
 
 const badgeDefs = [
   { name: "Tree Guardian", icon: <Shield className="h-8 w-8" />, threshold: 5, desc: "Plant 5 trees" },
@@ -183,6 +185,9 @@ const CommunityDashboard = () => {
             onOpenChange={setEditProfileOpen}
             currentProfile={profile}
           />
+
+          {/* Mode Switcher Banner: Clear Separation of Individual vs Institutional Workspaces */}
+          <ModeSwitcher variant="banner" className="mb-8" />
 
           {/* Stats — Verified Live Data */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

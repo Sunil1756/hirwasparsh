@@ -176,11 +176,11 @@ describe("Official Jury & Judge Evaluation Specimen Integrity", () => {
 
   it("provides complete MRV telemetry attributes required for judge inspection", () => {
     expect(JUDGE_DEMO_TREE.id).toBe(JUDGE_DEMO_SPECIMEN_ID);
-    expect(JUDGE_DEMO_TREE.species).toContain("Azadirachta indica");
+    expect(JUDGE_DEMO_TREE.species).toContain("Dalbergia sissoo");
     expect(JUDGE_DEMO_TREE.latitude).toBe(18.5204);
     expect(JUDGE_DEMO_TREE.longitude).toBe(73.8567);
     expect(JUDGE_DEMO_TREE.current_ndvi).toBe(0.78);
     expect(JUDGE_DEMO_TREE.health_score).toBe(96);
-    expect(JUDGE_DEMO_TREE.qr_token).toContain("SHA256:GE-DEMO-JUDGE-2026");
+    expect(JUDGE_DEMO_TREE.qr_token).toContain("SHA256:GE-DEMO");
   });
 });

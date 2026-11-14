@@ -13,12 +13,16 @@ import {
   LogIn,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAppMode } from "@/contexts/AppModeContext";
+import { ModeSwitcher } from "@/components/ModeSwitcher";
 
 const PlantChooser = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { setMode } = useAppMode();
   const drive = searchParams.get("drive");
 
   // Drive sign-ups always belong to the individual verification flow.
@@ -60,14 +64,22 @@ const PlantChooser = () => {
           </motion.div>
         )}
 
+        {/* Experience Mode Switcher Banner */}
+        <ModeSwitcher variant="banner" className="mb-8" />
+
         <div className="grid gap-6 md:grid-cols-3 lg:gap-8">
           {/* Card 1: Individual Tree */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.05 }}
-            className="glass-card rounded-[28px] p-7 sm:p-8 flex flex-col border border-border/50 bg-card/80 backdrop-blur-sm justify-between shadow-md min-h-[460px] lg:min-h-[480px]"
+            className="glass-card rounded-[28px] p-7 sm:p-8 flex flex-col border border-border/50 bg-card/80 backdrop-blur-sm justify-between shadow-md min-h-[460px] lg:min-h-[480px] relative overflow-hidden"
           >
+            <div className="absolute top-5 right-5">
+              <span className="text-[10px] uppercase font-bold tracking-wider bg-primary/10 text-primary border border-primary/20 px-2.5 py-0.5 rounded-full">
+                INDIVIDUAL MODE
+              </span>
+            </div>
             <div>
               <div className="h-14 w-14 rounded-2xl bg-muted/70 flex items-center justify-center text-foreground mb-5 shadow-xs">
                 <TreePine className="h-7 w-7 stroke-[1.75]" />
@@ -93,7 +105,7 @@ const PlantChooser = () => {
                 </li>
               </ul>
             </div>
-            <Link to="/plant/individual" className="mt-8">
+            <Link to="/plant/individual" onClick={() => setMode("individual")} className="mt-8">
               <Button className="w-full h-12 rounded-2xl text-sm font-semibold bg-[#1b4332] hover:bg-[#2d6a4f] text-white shadow-sm transition-all duration-200">
                 Plant Individual <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
@@ -108,8 +120,8 @@ const PlantChooser = () => {
             className="glass-card rounded-[28px] p-7 sm:p-8 flex flex-col border border-border/50 bg-card/80 backdrop-blur-sm relative overflow-hidden justify-between shadow-md min-h-[460px] lg:min-h-[480px]"
           >
             <div className="absolute top-5 right-5">
-              <span className="text-[11px] uppercase font-bold tracking-wider bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 px-3 py-1 rounded-full shadow-xs">
-                MODULE C
+              <span className="text-[10px] uppercase font-bold tracking-wider bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 px-2.5 py-0.5 rounded-full">
+                INSTITUTIONAL
               </span>
             </div>
             <div>
@@ -137,7 +149,7 @@ const PlantChooser = () => {
                 </li>
               </ul>
             </div>
-            <Link to="/plant/bulk" className="mt-8">
+            <Link to="/plant/bulk" onClick={() => setMode("institutional")} className="mt-8">
               <Button className="w-full h-12 rounded-2xl text-sm bg-[#2d6a4f] hover:bg-[#1b4332] text-white font-semibold shadow-sm transition-all duration-200">
                 Open Bulk & QR Generator <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
@@ -149,8 +161,13 @@ const PlantChooser = () => {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.15 }}
-            className="glass-card rounded-[28px] p-7 sm:p-8 flex flex-col border border-border/50 bg-card/80 backdrop-blur-sm justify-between shadow-md min-h-[460px] lg:min-h-[480px]"
+            className="glass-card rounded-[28px] p-7 sm:p-8 flex flex-col border border-border/50 bg-card/80 backdrop-blur-sm justify-between shadow-md min-h-[460px] lg:min-h-[480px] relative overflow-hidden"
           >
+            <div className="absolute top-5 right-5">
+              <span className="text-[10px] uppercase font-bold tracking-wider bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 px-2.5 py-0.5 rounded-full">
+                INSTITUTIONAL
+              </span>
+            </div>
             <div>
               <div className="h-14 w-14 rounded-2xl bg-muted/70 flex items-center justify-center text-foreground mb-5 shadow-xs">
                 <Building2 className="h-7 w-7 stroke-[1.75]" />
@@ -176,7 +193,7 @@ const PlantChooser = () => {
                 </li>
               </ul>
             </div>
-            <Link to="/plant/organization" className="mt-8">
+            <Link to="/plant/organization" onClick={() => setMode("institutional")} className="mt-8">
               <Button className="w-full h-12 rounded-2xl text-sm font-bold bg-[#38bdf8] hover:bg-[#0ea5e9] text-[#0f172a] shadow-sm transition-all duration-200">
                 Continue as NGO/CSR <ArrowRight className="ml-2 h-4 w-4" />
               </Button>

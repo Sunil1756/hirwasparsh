@@ -1,12 +1,13 @@
-import React, { useState } from "react";
+import React from "react";
 import { motion } from "framer-motion";
 import { TreePine, Users, BarChart3, Map, Leaf, Award, Camera, Repeat, ShieldCheck, Building2, UploadCloud, MapPin, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useAppMode } from "@/contexts/AppModeContext";
 
 export default function DashboardPreview() {
-  const [accountType, setAccountType] = useState<"individual" | "professional">("individual");
+  const { mode, setMode, isIndividual } = useAppMode();
 
   return (
     <div className="min-h-screen bg-muted/20 pb-12">
@@ -19,16 +20,16 @@ export default function DashboardPreview() {
         
         <div className="flex items-center gap-4">
           <Badge variant="outline" className="px-3 py-1 bg-muted/50">
-            {accountType === "individual" ? "Personal Account" : "Professional Account"}
+            {isIndividual ? "Individual Planter Mode" : "Institutional & CSR Mode"}
           </Badge>
           <Button 
             variant="ghost" 
             size="sm" 
-            onClick={() => setAccountType(prev => prev === "individual" ? "professional" : "individual")}
+            onClick={() => setMode(isIndividual ? "institutional" : "individual")}
             className="gap-2 font-medium"
           >
             <Repeat className="h-4 w-4" />
-            Switch to {accountType === "individual" ? "Professional" : "Personal"}
+            Switch to {isIndividual ? "Institutional Mode" : "Individual Mode"}
           </Button>
           <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
             <UserCircle className="h-5 w-5 text-primary" />
@@ -37,7 +38,7 @@ export default function DashboardPreview() {
       </div>
 
       <div className="max-w-6xl mx-auto px-6 mt-8">
-        {accountType === "individual" ? <IndividualDashboard /> : <ProfessionalDashboard />}
+        {isIndividual ? <IndividualDashboard /> : <ProfessionalDashboard />}
       </div>
     </div>
   );
