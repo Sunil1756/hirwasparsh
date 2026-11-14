@@ -78,7 +78,7 @@ export const SatelliteProjectTelemetrySuite = ({
   const validTimelineSteps = TIMELINE_STEPS;
 
   const [selectedTimeIndex, setSelectedTimeIndex] = useState(0); 
-  const [activeSpectralLayer, setActiveSpectralLayer] = useState<"rgb" | "ndvi" | "ndre" | "ndwi">("ndvi");
+  const [activeSpectralLayer, setActiveSpectralLayer] = useState<string>("ndvi");
   const [isPlayingTimeline, setIsPlayingTimeline] = useState(false);
   const [showSaplingMarkers, setShowSaplingMarkers] = useState(true);
 

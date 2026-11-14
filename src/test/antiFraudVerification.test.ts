@@ -312,7 +312,7 @@ describe("Phase 11: Optical Quality Pre-Check & Silhouette Anti-Fraud Verificati
         is_indoor: false,
         is_screenshot: false,
         is_ai_generated: false,
-        plantation_stage: "unidentifiable",
+        plantation_stage: "unknown",
         detected_species: "Unidentified Specimen",
         environmental_authenticity_score: 0,
         image_authenticity_score: 15,

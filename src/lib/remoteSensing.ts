@@ -110,7 +110,7 @@ export interface AgroforestryPresetZone {
   meanNdwi: number;
   biomassTonsPerHa: number;
   carbonOffsetTons: number;
-  healthStatus: "Optimal Vigor" | "Moderate Growth" | "Moisture Alert" | "Pioneer Saplings";
+  healthStatus: "Optimal Vigor" | "Moderate Growth" | "Moisture Alert" | "Pioneer Saplings" | "Awaiting In-Ground Planting";
   description: string;
 }
 
@@ -239,7 +239,8 @@ export interface CoordinateTelemetryResult {
   centerLng?: number;
   elevationM: number;
   tileId: string;
-  overpassDate: string;
+  overpassDate?: string;
+  acquisitionDate?: string;
   cloudCoverPct: number;
   ndvi: number;
   ndre: number;

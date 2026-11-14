@@ -13,6 +13,7 @@ type UserRole = "admin" | "moderator" | "user" | "government" | "field_worker" |
 
 type AuthContextType = {
   user: User | null;
+  profile: { id: string; full_name?: string | null; role?: string | null; [key: string]: any } | null;
   session: Session | null;
   loading: boolean;
   roles: UserRole[];
@@ -28,6 +29,7 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
+  profile: null,
   session: null,
   loading: true,
   roles: [],
@@ -45,6 +47,7 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<{ id: string; full_name?: string | null; role?: string | null; [key: string]: any } | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [roles, setRoles] = useState<UserRole[]>([]);
@@ -76,15 +79,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const syncUserProfile = async (authUser: User) => {
     try {
-      const { data: profile } = await supabase
+      const { data: dbProfile } = await supabase
         .from("profiles")
         .select("id, full_name, role")
         .eq("id", authUser.id)
         .maybeSingle();
 
-      if (profile) {
-        if (profile.role) {
-          setProfileRole(profile.role);
+      if (dbProfile) {
+        setProfile(dbProfile);
+        if (dbProfile.role) {
+          setProfileRole(dbProfile.role);
         }
       } else {
         const metadata = authUser.user_metadata || {};
@@ -106,6 +110,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } catch {}
 
         setProfileRole(initialRole);
+        setProfile({ id: authUser.id, full_name: name, role: initialRole });
         await supabase.from("profiles").upsert({
           id: authUser.id,
           full_name: name,
@@ -138,6 +143,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else {
           setRoles([]);
           setProfileRole(null);
+          setProfile(null);
           resetUser();
         }
       }
@@ -164,6 +170,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await supabase.auth.signOut();
     setRoles([]);
     setProfileRole(null);
+    setProfile(null);
     resetUser();
   };
 
@@ -189,6 +196,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     <AuthContext.Provider
       value={{
         user,
+        profile,
         session,
         loading,
         roles,

@@ -185,7 +185,7 @@ export const projectService = {
         }
       }
       // 1. Enforce strict canonical project creation validation
-      const boundaryPoints = payload.initial_boundary?.points?.map(p => ({ lat: p.lat, lng: p.lng })) || [];
+      const boundaryPoints = payload.initial_boundary?.points?.map(p => (Array.isArray(p) ? { lat: p[0], lng: p[1] } : { lat: (p as any).lat, lng: (p as any).lng })) || [];
       const validation = validateProjectCreation({
         name: payload.name,
         organization_id: payload.organization_id,
@@ -357,7 +357,7 @@ export const projectService = {
           location: createdProject.location_name || "Maharashtra, India",
           latitude: centroidLat,
           longitude: centroidLng,
-          boundary: payload.initial_boundary?.points?.map((p) => ({ lat: p.lat, lng: p.lng })) || [],
+          boundary: payload.initial_boundary?.points?.map((p) => (Array.isArray(p) ? { lat: p[0], lng: p[1] } : { lat: (p as any).lat, lng: (p as any).lng })) || [],
           target_trees: createdProject.target_trees,
           species: createdProject.species_list || [],
           plantation_date: createdProject.start_date || new Date().toISOString().split("T")[0],
@@ -487,6 +487,7 @@ export const projectService = {
       return {
         ...(projectData as unknown as Project),
         boundaries,
+        trees: trees as any,
         trees_count: trees.length,
         alive_trees_count: aliveCount,
         total_hectares: Number(totalHectares.toFixed(3)),

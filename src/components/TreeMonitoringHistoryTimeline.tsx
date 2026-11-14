@@ -178,9 +178,9 @@ export const TreeMonitoringHistoryTimeline: React.FC<TreeMonitoringHistoryTimeli
       if (obs.height_cm) prevHeight = obs.height_cm;
       if (obs.dbh_cm) prevDbh = obs.dbh_cm;
 
-      let distance = obs.distance_from_baseline_meters ?? 0;
+      let distance = (obs as any).distance_from_baseline_meters ?? 0;
       if (
-        obs.distance_from_baseline_meters === undefined &&
+        (obs as any).distance_from_baseline_meters === undefined &&
         obs.latitude &&
         obs.longitude &&
         latitude &&
@@ -188,7 +188,7 @@ export const TreeMonitoringHistoryTimeline: React.FC<TreeMonitoringHistoryTimeli
       ) {
         distance = 0;
       }
-      const geofenceStatus = "outside_geofence";
+      const geofenceStatus: "within_bounds" | "boundary_warning" | "out_of_bounds" = "out_of_bounds";
 
       list.push({
         id: obs.id,

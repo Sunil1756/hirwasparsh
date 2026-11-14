@@ -977,7 +977,7 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
       const safeLng = typeof lng === "number" && !isNaN(lng) ? lng : 75.71;
       try {
         const result = await fetchRealSentinel2Telemetry(safeLat, safeLng, undefined, undefined, selectedZone.name);
-        setInspectedTelemetry(result);
+        setInspectedTelemetry(result as unknown as CoordinateTelemetryResult);
         toast({
           title: `🛰️ Sentinel-2 L2A (${result.tileId}): ${safeLat.toFixed(4)}°N, ${safeLng.toFixed(4)}°E`,
           description: `NDVI: ${result.ndvi} [${result.classification}]. Click HUD for deep multi-spectral telemetry.`,
@@ -1099,7 +1099,7 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
     const safeLng = zone.center?.[1] ?? 75.71;
     try {
       const telemetry = await fetchRealSentinel2Telemetry(safeLat, safeLng, zone.boundary, zone.id, zone.name);
-      setInspectedTelemetry(telemetry);
+      setInspectedTelemetry(telemetry as unknown as CoordinateTelemetryResult);
     } catch {
       const telemetry = inspectCoordinateTelemetry(safeLat, safeLng, activeSpectral);
       setInspectedTelemetry(telemetry);
@@ -1121,7 +1121,7 @@ export function ModuleASatelliteEngine({ trees = [] }: Props) {
         fetchRealSentinel2Telemetry(safeLat, safeLng, selectedZone.boundary, selectedZone.id, selectedZone.name)
           .then((res) => {
             if (res && res.status !== "unavailable") {
-              setInspectedTelemetry(res);
+              setInspectedTelemetry(res as unknown as CoordinateTelemetryResult);
             }
           })
           .catch(() => {});
@@ -2192,7 +2192,7 @@ Please provide:
           areaAcres: selectedZone.boundary && selectedZone.boundary.length >= 3 ? 8.6 : 4.9,
           treeCount: zoneSurvival.totalMonitoredTrees || selectedZone.targetTrees,
           species: selectedZone.species || ["Neem", "Peepal", "Banyan"],
-          acquisitionDate: inspectedTelemetry?.acquisitionDate || new Date().toISOString().split("T")[0],
+          acquisitionDate: (inspectedTelemetry as any)?.acquisitionDate || inspectedTelemetry?.overpassDate || new Date().toISOString().split("T")[0],
           tileId: inspectedTelemetry?.tileId || "43QCA",
           cloudCoverPct: inspectedTelemetry?.cloudCoverPct ?? 2.1,
           ndvi: selectedZone.meanNdvi || 0.65,

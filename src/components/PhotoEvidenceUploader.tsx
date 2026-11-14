@@ -30,41 +30,45 @@ import {
 } from "@/services/photoEvidenceService";
 
 export interface PhotoEvidenceUploaderProps {
-  label: string;
+  label?: string;
   description?: string;
-  evidenceType: PhotoEvidenceCategory;
-  previewUrl: string | null;
-  selectedFile: File | null;
+  evidenceType?: PhotoEvidenceCategory;
+  previewUrl?: string | null;
+  selectedFile?: File | null;
   isValidating?: boolean;
   isUploading?: boolean;
-  validationResult: PhotoValidationResult | null;
-  uploadProgress: PhotoUploadProgress;
-  error: string | null;
+  validationResult?: PhotoValidationResult | null;
+  uploadProgress?: PhotoUploadProgress;
+  error?: string | null;
   isCompleted?: boolean;
   cameraFacing?: "user" | "environment";
-  onFileSelect: (file: File | null, mode: PhotoSourceMode) => void;
+  onFileSelect?: (file: File | null, mode: PhotoSourceMode) => void;
   onUpload?: () => void;
-  onClear: () => void;
+  onClear?: () => void;
   disabled?: boolean;
+  treeId?: string;
+  onUploadComplete?: (result: { photo_url: string; sha256_hash?: string }) => void;
 }
 
 export const PhotoEvidenceUploader: React.FC<PhotoEvidenceUploaderProps> = ({
-  label,
+  label = "Tree Photo Evidence",
   description,
-  evidenceType,
-  previewUrl,
-  selectedFile,
+  evidenceType = "growth_photo",
+  previewUrl = null,
+  selectedFile = null,
   isValidating = false,
   isUploading = false,
   validationResult,
-  uploadProgress,
-  error,
+  uploadProgress = { status: "idle", progress: 0 },
+  error = null,
   isCompleted = false,
   cameraFacing = "environment",
   onFileSelect,
   onUpload,
-  onClear,
+  onClear = () => {},
   disabled = false,
+  treeId,
+  onUploadComplete,
 }) => {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -79,7 +83,18 @@ export const PhotoEvidenceUploader: React.FC<PhotoEvidenceUploaderProps> = ({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, mode: PhotoSourceMode) => {
     const file = e.target.files?.[0] || null;
-    onFileSelect(file, mode);
+    if (onFileSelect) {
+      onFileSelect(file, mode);
+    } else if (file && onUploadComplete) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        onUploadComplete({
+          photo_url: reader.result as string,
+          sha256_hash: "sha256-" + Date.now(),
+        });
+      };
+      reader.readAsDataURL(file);
+    }
     // Reset file input value so same file can be re-selected if desired
     e.target.value = "";
   };

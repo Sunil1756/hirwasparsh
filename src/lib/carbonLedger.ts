@@ -65,8 +65,8 @@ export function calculateCarbonLedgerMetrics(params: {
   organizationName: string;
   targetTrees: number;
   acres: number;
-  speciesList: string[];
-  plantationDate: string;
+  speciesList?: string[];
+  plantationDate?: string;
   survivalRatePercent?: number;
 }): CarbonAuditResult {
   const {

@@ -121,6 +121,7 @@ export function useOfflineSync(): UseOfflineSyncReturn {
         total: pendingCount,
         syncedCount: 0,
         failedCount: 0,
+        conflictCount: 0,
         syncedEntities: { tree: 0, observation: 0, field_report: 0, photo: 0 },
         errors: ["Offline"],
         executionTimeMs: 0,

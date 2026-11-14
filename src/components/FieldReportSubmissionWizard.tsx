@@ -191,18 +191,19 @@ export const FieldReportSubmissionWizard = ({
     setLoadingProjects(true);
     try {
       const { data, error } = await supabase
-        .from("projects")
+        .from("plantation_projects")
         .select("id, project_name, organization_name, location, latitude, longitude, target_trees, boundary")
         .order("created_at", { ascending: false });
 
       if (!error && data) {
-        setProjects(data as ProjectOption[]);
+        setProjects(data as unknown as ProjectOption[]);
         if (data.length > 0 && !selectedProjectId) {
-          setSelectedProjectId(data[0].id);
-          setSelectedProject(data[0]);
-          if (data[0].latitude && data[0].longitude && !latitude) {
-            setLatitude(data[0].latitude);
-            setLongitude(data[0].longitude);
+          const firstProj = data[0] as unknown as ProjectOption;
+          setSelectedProjectId(firstProj.id);
+          setSelectedProject(firstProj);
+          if (firstProj.latitude && firstProj.longitude && !latitude) {
+            setLatitude(firstProj.latitude);
+            setLongitude(firstProj.longitude);
           }
         }
       }

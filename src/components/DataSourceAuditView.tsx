@@ -359,9 +359,8 @@ export function DataSourceAuditView() {
                             </span>
                           </div>
                           <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden flex">
-                            <div className="bg-blue-500 h-full" style={{ width: `${(item.confidenceScore.breakdown.satellite.score / 20) * 20}%` }} title="Satellite 20%" />
-                            <div className="bg-purple-500 h-full" style={{ width: `${(item.confidenceScore.breakdown.drone.score / 30) * 30}%` }} title="Drone 30%" />
-                            <div className="bg-emerald-500 h-full" style={{ width: `${(item.confidenceScore.breakdown.fieldPhoto.score / 50) * 50}%` }} title="Field Photo 50%" />
+                            <div className="bg-blue-500 h-full" style={{ width: `${(item.confidenceScore.breakdown.satellite.score / (item.confidenceScore.breakdown.satellite.maxScore || 30)) * 30}%` }} title="Satellite Telemetry" />
+                            <div className="bg-emerald-500 h-full" style={{ width: `${(item.confidenceScore.breakdown.fieldPhoto.score / (item.confidenceScore.breakdown.fieldPhoto.maxScore || 70)) * 70}%` }} title="Field Photo Audit" />
                           </div>
                         </div>
                       ) : (

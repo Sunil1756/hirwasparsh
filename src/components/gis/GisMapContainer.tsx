@@ -174,15 +174,21 @@ function MapViewController({ center, zoom, bounds, fitBoundsTrigger }: MapViewCo
 
 export interface GisMapContainerProps {
   center?: LatLngTuple;
+  defaultCenter?: LatLngTuple | number[];
   zoom?: number;
+  defaultZoom?: number;
   minZoom?: number;
   maxZoom?: number;
   initialBasemap?: BasemapProviderId;
+  defaultBasemap?: string;
   height?: string | number;
   className?: string;
   showLayerSwitcher?: boolean;
+  showBasemapControl?: boolean;
   showTelemetryHud?: boolean;
   showScaleBar?: boolean;
+  showScaleControl?: boolean;
+  showCoordinatesControl?: boolean;
   showResetButton?: boolean;
   showFullscreenButton?: boolean;
   fitBounds?: BoundingBox | null;
@@ -192,33 +198,42 @@ export interface GisMapContainerProps {
 }
 
 export const GisMapContainer: React.FC<GisMapContainerProps> = ({
-  center = [19.7515, 75.7139],
-  zoom = 13,
+  center,
+  defaultCenter,
+  zoom,
+  defaultZoom,
   minZoom = 2,
   maxZoom = 20,
   initialBasemap = "satellite",
+  defaultBasemap,
   height = "600px",
   className = "",
   showLayerSwitcher = true,
+  showBasemapControl,
   showTelemetryHud = true,
   showScaleBar = true,
+  showScaleControl,
+  showCoordinatesControl,
   showResetButton = true,
   showFullscreenButton = true,
   fitBounds = null,
   children,
   onBasemapChange,
 }) => {
+  const actualCenter: LatLngTuple = (center || (defaultCenter as LatLngTuple) || [19.7515, 75.7139]) as LatLngTuple;
+  const actualZoom = zoom ?? defaultZoom ?? 13;
+  const actualBasemap = (initialBasemap || defaultBasemap || "satellite") as BasemapProviderId;
   const containerRef = useRef<HTMLDivElement>(null);
-  const [activeBasemap, setActiveBasemap] = useState<BasemapProviderId>(initialBasemap);
+  const [activeBasemap, setActiveBasemap] = useState<BasemapProviderId>(actualBasemap);
   const [isLayerMenuOpen, setIsLayerMenuOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [cursorPos, setCursorPos] = useState<LatLngTuple | null>(null);
-  const [currentZoom, setCurrentZoom] = useState(zoom);
+  const [currentZoom, setCurrentZoom] = useState(actualZoom);
   const [currentBounds, setCurrentBounds] = useState<BoundingBox>({
-    minLat: center[0] - 0.1,
-    minLng: center[1] - 0.1,
-    maxLat: center[0] + 0.1,
-    maxLng: center[1] + 0.1,
+    minLat: actualCenter[0] - 0.1,
+    minLng: actualCenter[1] - 0.1,
+    maxLat: actualCenter[0] + 0.1,
+    maxLng: actualCenter[1] + 0.1,
   });
   const [fitTrigger, setFitTrigger] = useState(0);
 
@@ -258,8 +273,8 @@ export const GisMapContainer: React.FC<GisMapContainerProps> = ({
       style={{ height: isFullscreen ? "100vh" : height }}
     >
       <MapContainer
-        center={center}
-        zoom={zoom}
+        center={actualCenter}
+        zoom={actualZoom}
         minZoom={minZoom}
         maxZoom={maxZoom}
         zoomControl={false}
@@ -270,8 +285,8 @@ export const GisMapContainer: React.FC<GisMapContainerProps> = ({
         <MapResizeObserver containerRef={containerRef} />
         
         <MapViewController
-          center={center}
-          zoom={zoom}
+          center={actualCenter}
+          zoom={actualZoom}
           bounds={fitBounds}
           fitBoundsTrigger={fitTrigger}
         />

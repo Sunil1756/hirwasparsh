@@ -907,18 +907,20 @@ export async function fetchRealTreeMapData(
   }
 
   // Extract master filter lists from current dataset
-  const allOrgMap = new Map<string, { id: string; name: string; count: number }>();
-  const allProjMap = new Map<string, { id: string; name: string; count: number }>();
+  const allOrgMap = new Map<string, { id: string; name: string; treeCount: number; count: number }>();
+  const allProjMap = new Map<string, { id: string; name: string; treeCount: number; count: number }>();
   const allSpeciesSet = new Set<string>();
 
   for (const t of baseTrees) {
     if (t.organizationId && t.organizationName) {
-      const existing = allOrgMap.get(t.organizationId) || { id: t.organizationId, name: t.organizationName, count: 0 };
+      const existing = allOrgMap.get(t.organizationId) || { id: t.organizationId, name: t.organizationName, treeCount: 0, count: 0 };
+      existing.treeCount++;
       existing.count++;
       allOrgMap.set(t.organizationId, existing);
     }
     if (t.projectId && t.projectName) {
-      const existing = allProjMap.get(t.projectId) || { id: t.projectId, name: t.projectName, count: 0 };
+      const existing = allProjMap.get(t.projectId) || { id: t.projectId, name: t.projectName, treeCount: 0, count: 0 };
+      existing.treeCount++;
       existing.count++;
       allProjMap.set(t.projectId, existing);
     }
