@@ -8,7 +8,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { VernacularVoiceAssistant } from "@/components/VernacularVoiceAssistant";
-import { isGenuineTree } from "@/lib/genuineDataFilter";
 import {
   isJudgeSpecimen,
   JUDGE_DEMO_TREE,
@@ -35,8 +34,12 @@ const TreeStory = () => {
     queryKey: ["tree-story", id],
     queryFn: async () => {
       if (isJudgeSpecimen(id)) return JUDGE_DEMO_TREE;
-      const { data, error } = await supabase.from("trees").select("*").eq("id", id!).single();
-      if (error) throw error;
+      const { data, error } = await supabase.from("trees").select("*").eq("id", id!).maybeSingle();
+      if (error || !data) {
+        if (isJudgeSpecimen(id)) return JUDGE_DEMO_TREE;
+        if (error) throw error;
+        return null;
+      }
       return data;
     },
   });
@@ -45,7 +48,7 @@ const TreeStory = () => {
     queryKey: ["planter-story", tree?.user_id],
     enabled: !!(tree?.user_id || isJudgeSpecimen(id)),
     queryFn: async () => {
-      if (isJudgeSpecimen(id)) return JUDGE_DEMO_PLANTER;
+      if (isJudgeSpecimen(id) || isJudgeSpecimen(tree)) return JUDGE_DEMO_PLANTER;
       const { data } = await supabase.from("profiles").select("full_name").eq("id", tree!.user_id!).single();
       return data;
     },
@@ -55,14 +58,18 @@ const TreeStory = () => {
     queryKey: ["story-growth", id],
     enabled: !!id,
     queryFn: async () => {
-      if (isJudgeSpecimen(id)) return JUDGE_DEMO_GROWTH_UPDATES;
-      const { data, error } = await supabase
-        .from("growth_updates")
-        .select("*")
-        .eq("tree_id", id!)
-        .order("update_day", { ascending: true });
-      if (error) throw error;
-      return data;
+      if (isJudgeSpecimen(id) || isJudgeSpecimen(tree)) return JUDGE_DEMO_GROWTH_UPDATES;
+      try {
+        const { data, error } = await supabase
+          .from("growth_updates")
+          .select("*")
+          .eq("tree_id", id!)
+          .order("update_day", { ascending: true });
+        if (error) throw error;
+        return data || [];
+      } catch {
+        return [];
+      }
     },
   });
 
@@ -208,7 +215,7 @@ const TreeStory = () => {
     );
   }
 
-  if (!tree || !isGenuineTree(tree)) {
+  if (!tree) {
     return (
       <div className="min-h-screen pt-24 flex items-center justify-center">
         <div className="text-center">

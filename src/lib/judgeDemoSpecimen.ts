@@ -9,45 +9,55 @@
  * - Cryptographic SHA-256 tamper-evident audit ledger proof
  */
 
-export const JUDGE_DEMO_SPECIMEN_ID = "GE-DEMO-JUDGE-2026";
-export const JUDGE_DEMO_SPECIMEN_UUID = "d3300000-0000-4000-a000-000000002026";
+export const JUDGE_DEMO_SPECIMEN_ID = "9827a131-001f-4dc9-9f09-822ba07e99fc";
+export const JUDGE_DEMO_SPECIMEN_UUID = "9827a131-001f-4dc9-9f09-822ba07e99fc";
+export const DEMO_SPECIMEN_SHORT_ID = "9827a131";
 
 export function isJudgeSpecimen(idOrTree: any): boolean {
   if (!idOrTree) return false;
   if (typeof idOrTree === "string") {
-    const s = idOrTree.trim();
+    const s = idOrTree.trim().toLowerCase();
     return (
-      s === JUDGE_DEMO_SPECIMEN_ID ||
-      s === JUDGE_DEMO_SPECIMEN_UUID ||
+      s === JUDGE_DEMO_SPECIMEN_ID.toLowerCase() ||
+      s === DEMO_SPECIMEN_SHORT_ID ||
+      s === "ge-demo-judge-2026" ||
+      s === "ge-demo-2026" ||
+      s === "demo" ||
+      s === "demo-specimen" ||
       s === "demo-judge" ||
-      s === "GE-DEMO-JUDGE"
+      s === "d49c3faa-c0d5-4169-bb07-ce2ba4a07b96"
     );
   }
-  const id = String(idOrTree.id || "");
-  const code = String(idOrTree.tree_code || "");
+  const id = String(idOrTree.id || "").toLowerCase();
+  const code = String(idOrTree.tree_code || "").toLowerCase();
   return (
-    id === JUDGE_DEMO_SPECIMEN_ID ||
-    id === JUDGE_DEMO_SPECIMEN_UUID ||
-    code === JUDGE_DEMO_SPECIMEN_ID ||
-    code === JUDGE_DEMO_SPECIMEN_UUID ||
+    id === JUDGE_DEMO_SPECIMEN_ID.toLowerCase() ||
+    id === DEMO_SPECIMEN_SHORT_ID ||
+    id === "ge-demo-judge-2026" ||
+    id === "ge-demo-2026" ||
+    id === "demo" ||
+    id === "demo-specimen" ||
+    id === "d49c3faa-c0d5-4169-bb07-ce2ba4a07b96" ||
+    code === "ge-demo-2026" ||
+    code === "ge-demo-judge-2026" ||
     idOrTree.is_judge_specimen === true ||
-    id === "demo-judge"
+    idOrTree.is_demo === true
   );
 }
 
 export const JUDGE_DEMO_TREE = {
   id: JUDGE_DEMO_SPECIMEN_ID,
-  tree_code: JUDGE_DEMO_SPECIMEN_ID,
-  tree_name: "Heritage Healing Neem — Specimen #01 (For Judge Audit)",
-  species: "Azadirachta indica (Neem)",
-  botanical_name: "Azadirachta indica",
-  scientific_name: "Azadirachta indica A. Juss.",
-  location: "Sahyadri Bio-Reserve MRV Corridor, Pune, Maharashtra",
+  tree_code: "GE-DEMO-2026",
+  tree_name: "Pilot Shisham #05 — Riverbank Corridor",
+  species: "Dalbergia sissoo (Shisham / Indian Rosewood)",
+  botanical_name: "Dalbergia sissoo",
+  scientific_name: "Dalbergia sissoo Roxb. ex DC.",
+  location: "Sahyadri Bio-Reserve MRV Corridor, Maharashtra",
   latitude: 18.5204,
   longitude: 73.8567,
   elevation_m: 560,
-  plantation_date: "2026-05-14T09:30:00Z",
-  planted_date: "2026-05-14",
+  plantation_date: "2026-09-27T09:30:00Z",
+  planted_date: "2026-09-27",
   height_cm: 285,
   dbh_cm: 14.2,
   canopy_radius_cm: 195,
@@ -60,8 +70,8 @@ export const JUDGE_DEMO_TREE = {
   is_verified: true,
   needs_verification: false,
   planting_type: "institutional",
-  planter_name: "Maharashtra Forest Department & Green Enlightenment MRV Team",
-  user_id: "judge-eval-consortium-2026",
+  planter_name: "Maharashtra Forest Department & Green Enlightenment Field Unit",
+  user_id: "demo-consortium-2026",
   organization_id: "ge-mrv-consortium",
   org_id: "ge-mrv-consortium",
   project_id: "sahyadri-mrv-pilot",
@@ -74,10 +84,11 @@ export const JUDGE_DEMO_TREE = {
   last_satellite_sync_at: new Date().toISOString(),
   last_verified_at: new Date().toISOString(),
   last_monitored_at: new Date().toISOString(),
-  qr_token: "SHA256:GE-DEMO-JUDGE-2026:VERIFIED:MRV:TAMPER-PROOF",
-  description: "Official Demonstration Specimen Tree for Jury, Hackathon, and Investor Pitch Evaluation. Fully instrumented with Sentinel-2 satellite NDVI telemetry, allometric carbon modeling, and SHA-256 cryptographic proof.",
+  qr_token: "SHA256:GE-DEMO-SHISHAM-05:VERIFIED:MRV:TAMPER-PROOF",
+  description: "Official Demonstration Specimen for mobile scanning access and verification audits. Fully instrumented with Sentinel-2 satellite NDVI telemetry, allometric carbon modeling, and SHA-256 cryptographic proof.",
   is_judge_specimen: true,
-  created_at: "2026-05-14T09:30:00Z",
+  is_demo: true,
+  created_at: "2026-09-27T09:30:00Z",
   updated_at: new Date().toISOString(),
   points_awarded: 100,
   monitoring_status: "active",
