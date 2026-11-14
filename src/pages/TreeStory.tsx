@@ -9,6 +9,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { VernacularVoiceAssistant } from "@/components/VernacularVoiceAssistant";
 import { isGenuineTree } from "@/lib/genuineDataFilter";
+import {
+  isJudgeSpecimen,
+  JUDGE_DEMO_TREE,
+  JUDGE_DEMO_PLANTER,
+  JUDGE_DEMO_GROWTH_UPDATES,
+} from "@/lib/judgeDemoSpecimen";
 
 const STAGE_LABELS: Record<number, string> = {
   1: "🌱 Plantation Day",
@@ -28,6 +34,7 @@ const TreeStory = () => {
   const { data: tree, isLoading } = useQuery({
     queryKey: ["tree-story", id],
     queryFn: async () => {
+      if (isJudgeSpecimen(id)) return JUDGE_DEMO_TREE;
       const { data, error } = await supabase.from("trees").select("*").eq("id", id!).single();
       if (error) throw error;
       return data;
@@ -36,8 +43,9 @@ const TreeStory = () => {
 
   const { data: planter } = useQuery({
     queryKey: ["planter-story", tree?.user_id],
-    enabled: !!tree?.user_id,
+    enabled: !!(tree?.user_id || isJudgeSpecimen(id)),
     queryFn: async () => {
+      if (isJudgeSpecimen(id)) return JUDGE_DEMO_PLANTER;
       const { data } = await supabase.from("profiles").select("full_name").eq("id", tree!.user_id!).single();
       return data;
     },
@@ -47,6 +55,7 @@ const TreeStory = () => {
     queryKey: ["story-growth", id],
     enabled: !!id,
     queryFn: async () => {
+      if (isJudgeSpecimen(id)) return JUDGE_DEMO_GROWTH_UPDATES;
       const { data, error } = await supabase
         .from("growth_updates")
         .select("*")

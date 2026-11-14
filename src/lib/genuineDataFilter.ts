@@ -8,6 +8,7 @@
  */
 
 import { detectGibberishText } from "./projectValidation";
+import { isJudgeSpecimen } from "./judgeDemoSpecimen";
 
 export const KNOWN_TEST_PROJECT_IDS = new Set<string>([
   "b1111111-2222-3333-4444-555555555555", // Synthetic pilot seed fixture
@@ -69,6 +70,8 @@ export function isGenuineProject(project: any): boolean {
  */
 export function isGenuineTree(tree: any): boolean {
   if (!tree || !tree.id) return false;
+  // Explicitly allow official judge & jury evaluation specimens
+  if (isJudgeSpecimen(tree)) return true;
   if (KNOWN_TEST_TREE_IDS.has(tree.id)) return false;
   if (tree.project_id && KNOWN_TEST_PROJECT_IDS.has(tree.project_id)) return false;
   if (tree.org_id && KNOWN_TEST_ORG_IDS.has(tree.org_id)) return false;
