@@ -74,6 +74,22 @@ export function isGenuineTree(tree: any): boolean {
   if (tree.org_id && KNOWN_TEST_ORG_IDS.has(tree.org_id)) return false;
   if (tree.is_mock === true || tree.is_demo === true || tree.admin_status === "rejected") return false;
 
+  const name = String(tree.tree_name || tree.name || "").toLowerCase();
+  if (
+    name.includes("pilot") ||
+    name.includes("smoke test") ||
+    name.includes("audit probe") ||
+    name.includes("mock") ||
+    name.includes("dummy")
+  ) {
+    return false;
+  }
+
+  // Reject unassigned orphan trees with no user_id (synthetic database seeds)
+  if (!tree.user_id && !tree.organization_id && !tree.org_id) {
+    return false;
+  }
+
   const code = String(tree.tree_code || "").toLowerCase();
   if (code.startsWith("mock-") || code.startsWith("demo-")) return false;
 

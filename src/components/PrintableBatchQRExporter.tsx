@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "@/integrations/supabase/client";
+import { isGenuineTree } from "@/lib/genuineDataFilter";
 import {
   Printer, QrCode, Download, Eye, Sparkles, TreePine, MapPin,
   ShieldCheck, Loader2, CheckCircle2, SlidersHorizontal, RefreshCw
@@ -20,7 +21,7 @@ export function PrintableBatchQRExporter({ initialTreeIds }: PrintableBatchQRExp
   const [gridCols, setGridCols] = useState<number>(3); // 2, 3, or 4 per row
   const [tagsPerPage, setTagsPerPage] = useState<number>(12);
   const [tagDesign, setTagDesign] = useState<"standard" | "compact" | "field_laminated">("standard");
-  const [projectName, setProjectName] = useState<string>("Maharashtra Green Mission 2026");
+  const [projectName, setProjectName] = useState<string>("");
 
   useEffect(() => {
     fetchTreesToPrint();
@@ -31,20 +32,23 @@ export function PrintableBatchQRExporter({ initialTreeIds }: PrintableBatchQRExp
     try {
       let query = supabase
         .from("trees")
-        .select("id, tree_name, species, location, latitude, longitude, plantation_date, verification_status, height_cm")
+        .select("id, tree_name, species, location, latitude, longitude, plantation_date, verification_status, height_cm, user_id, is_mock, admin_status, tree_code")
         .order("created_at", { ascending: false })
-        .limit(tagsPerPage);
+        .limit(tagsPerPage * 2);
 
       if (initialTreeIds && initialTreeIds.length > 0) {
         query = supabase
           .from("trees")
-          .select("id, tree_name, species, location, latitude, longitude, plantation_date, verification_status, height_cm")
+          .select("id, tree_name, species, location, latitude, longitude, plantation_date, verification_status, height_cm, user_id, is_mock, admin_status, tree_code")
           .in("id", initialTreeIds.slice(0, tagsPerPage));
       }
 
       const { data, error } = await query;
       if (error) throw error;
-      setTrees(data || []);
+      
+      // Filter out all fake, mock, smoke-test and unassigned seed trees
+      const genuineOnly = (data || []).filter(isGenuineTree).slice(0, tagsPerPage);
+      setTrees(genuineOnly);
     } catch (err: any) {
       console.error(err);
       toast.error("Failed to load trees for QR generation");
@@ -58,7 +62,7 @@ export function PrintableBatchQRExporter({ initialTreeIds }: PrintableBatchQRExp
   };
 
   const getPassportUrl = (id: string) => {
-    const origin = typeof window !== "undefined" ? window.location.origin : "https://greenenlightenment.vercel.app";
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://green-enlightenment.com";
     return `${origin}/tree/${id}`;
   };
 
@@ -212,7 +216,7 @@ export function PrintableBatchQRExporter({ initialTreeIds }: PrintableBatchQRExp
                 <div className="font-bold text-lg text-emerald-800 uppercase tracking-wide flex items-center gap-1.5">
                   🌿 Green Enlightenment · Digital Tree Passport
                 </div>
-                <div className="text-xs text-slate-600 font-medium">{projectName}</div>
+                <div className="text-xs text-slate-600 font-medium">{projectName || "Green Enlightenment Registry"}</div>
               </div>
               <div className="text-right text-[11px] text-slate-500">
                 <div>Field Tag Batch Sheet</div>
@@ -271,7 +275,7 @@ export function PrintableBatchQRExporter({ initialTreeIds }: PrintableBatchQRExp
                   {/* Footer */}
                   <div className="text-[9px] text-slate-500 flex items-center justify-between border-t border-slate-200 pt-1.5">
                     <span className="font-mono truncate">ID: {t.id.slice(0, 8)}</span>
-                    <span className="text-emerald-700 font-semibold">hirwasparsh.org</span>
+                    <span className="text-emerald-700 font-semibold">green-enlightenment.com</span>
                   </div>
                 </div>
               ))}

@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { VernacularVoiceAssistant } from "@/components/VernacularVoiceAssistant";
+import { isGenuineTree } from "@/lib/genuineDataFilter";
 
 const STAGE_LABELS: Record<number, string> = {
   1: "🌱 Plantation Day",
@@ -198,7 +199,7 @@ const TreeStory = () => {
     );
   }
 
-  if (!tree) {
+  if (!tree || !isGenuineTree(tree)) {
     return (
       <div className="min-h-screen pt-24 flex items-center justify-center">
         <div className="text-center">

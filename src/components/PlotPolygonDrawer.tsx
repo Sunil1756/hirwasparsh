@@ -291,7 +291,7 @@ export function PlotPolygonDrawer({ onPlotSaved }: Props) {
             hectares: validation.hectares,
             tree_count: treeCount,
             estimated_co2_tons: metrics.annualCo2MetricTons,
-            platform: "Hirwasparsh MRV Geodetic Engine",
+            platform: "Green Enlightenment MRV Geodetic Engine",
             timestamp: new Date().toISOString(),
           },
           geometry: {

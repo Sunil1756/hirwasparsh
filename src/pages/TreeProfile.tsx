@@ -48,6 +48,7 @@ import {
   treeAgeMonths,
   ageLabel,
 } from "@/lib/treeIntelligence";
+import { isGenuineTree } from "@/lib/genuineDataFilter";
 import { VernacularVoiceAssistant } from "@/components/VernacularVoiceAssistant";
 import { TreeNdviSatelliteViewer } from "@/components/TreeNdviSatelliteViewer";
 import { AgroWeatherWidget } from "@/components/AgroWeatherWidget";
@@ -315,7 +316,7 @@ const TreeProfile = () => {
     );
   }
 
-  if (!tree) {
+  if (!tree || !isGenuineTree(tree)) {
     return (
       <div className="min-h-screen pt-24 flex items-center justify-center">
         <div className="text-center space-y-4">
